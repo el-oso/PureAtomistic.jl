@@ -1,0 +1,9 @@
+# Build-tool environment for the juliac --trim build. Separate from the package's own
+# Project.toml: JuliaC is a build tool, not a dependency of PureMLIP. `juliac/build.jl` runs
+# JuliaC.jl out of this environment.
+[deps]
+JuliaC = "acedd4c2-ced6-4a15-accc-2607eb759ba2"
+
+[compat]
+JuliaC = "0.3"
+julia = "1.13"

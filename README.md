@@ -13,3 +13,12 @@ Goals for every package here:
   standalone executables or shared libraries.
 
 Licensed under the MIT license.
+
+## MACE checkpoint reader
+
+`PureMLIP.load_mace_checkpoint` reads mace-torch `.model` files (`ScaleShiftMACE`
+checkpoints such as MACE-MP-0b3) into hyperparameters and plain Julia arrays, using only
+Julia code. `PureMLIP/juliac/build.jl` compiles the example program `mace_inspect` with
+`juliac --trim=safe`; running `PureMLIP/juliac/build/bin/mace_inspect model.model` prints
+the model class, `r_max`, number of interactions, number of state tensors and number of
+trainable parameters.
