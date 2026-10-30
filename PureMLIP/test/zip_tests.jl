@@ -19,7 +19,7 @@ end
     good = ZipFixtures.stored_zip(["a/data.pkl" => UInt8[1, 2, 3]])
     bad = copy(good); bad[31 + length("a/data.pkl")] ⊻= 0xff   # first data byte
     @test_throws "CRC mismatch in a/data.pkl" PureMLIP.entry_data(PureMLIP.open_torch_archive(bad), "data.pkl")
-    @test_throws "no end-of-central-directory record" PureMLIP.open_torch_archive(good[1:end-30])
+    @test_throws "no end-of-central-directory record" PureMLIP.open_torch_archive(good[1:(end - 30)])
     @test_throws "no data.pkl entry" PureMLIP.open_torch_archive(ZipFixtures.stored_zip(["a/x" => UInt8[1]]))
 end
 

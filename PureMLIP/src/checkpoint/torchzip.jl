@@ -11,7 +11,7 @@ end
 struct TorchArchive
     bytes::Vector{UInt8}
     prefix::String                     # folder holding data.pkl, with a trailing '/'
-    entries::Dict{String,ZipEntry}
+    entries::Dict{String, ZipEntry}
     verified::Set{String}              # entries whose CRC has been checked
 end
 
@@ -22,7 +22,7 @@ const SIG_ZIP64_LOCATOR = 0x07064b50
 const SIG_ZIP64_EOCD = 0x06064b50
 
 # Little-endian integer of type T at 1-based position `pos`.
-function read_le(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T<:Unsigned}
+function read_le(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T <: Unsigned}
     (pos >= 1 && pos + sizeof(T) - 1 <= length(bytes)) ||
         throw(ArgumentError(lazy"truncated zip: cannot read $(sizeof(T)) bytes at byte $pos of $(length(bytes))"))
     x = zero(T)
@@ -56,7 +56,7 @@ function open_torch_archive(bytes::Vector{UInt8})
         cd_offset = Int(read_le(bytes, z64 + 48, UInt64))
     end
 
-    entries = Dict{String,ZipEntry}()
+    entries = Dict{String, ZipEntry}()
     pkl_name = ""
     pos = cd_offset + 1
     for _ in 1:nentries
@@ -87,9 +87,15 @@ function open_torch_archive(bytes::Vector{UInt8})
                 len = Int(read_le(bytes, q + 2, UInt16))
                 if id == 0x0001
                     r = q + 4
-                    if need_u; usize = read_le(bytes, r, UInt64); r += 8; end
-                    if need_c; csize = read_le(bytes, r, UInt64); r += 8; end
-                    if need_o; local_off = read_le(bytes, r, UInt64); r += 8; end
+                    if need_u
+                        usize = read_le(bytes, r, UInt64); r += 8
+                    end
+                    if need_c
+                        csize = read_le(bytes, r, UInt64); r += 8
+                    end
+                    if need_o
+                        local_off = read_le(bytes, r, UInt64); r += 8
+                    end
                     found = true
                     break
                 end

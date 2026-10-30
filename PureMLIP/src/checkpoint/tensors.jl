@@ -13,7 +13,7 @@ numel(x::CheckpointTensor) = length(x.data)
 
 Array `A` with `A[i1, ..., iN] == torch_tensor[i1-1, ..., iN-1]`.
 """
-function torch_array(x::CheckpointTensor{T}, ::Val{N}) where {T,N}
+function torch_array(x::CheckpointTensor{T}, ::Val{N}) where {T, N}
     length(x.shape) == N || throw(DimensionMismatch(lazy"tensor has $(length(x.shape)) dimensions, expected $N"))
     # Row-major data is column-major data of the reversed dimensions.
     rev = reshape(x.data, ntuple(d -> x.shape[N + 1 - d], Val(N)))
@@ -21,7 +21,7 @@ function torch_array(x::CheckpointTensor{T}, ::Val{N}) where {T,N}
 end
 
 # Little-endian element `k` (zero-based) of `bytes`.
-function load_element(bytes::AbstractVector{UInt8}, ::Type{T}, k::Int) where {T<:Union{Float64,Int64}}
+function load_element(bytes::AbstractVector{UInt8}, ::Type{T}, k::Int) where {T <: Union{Float64, Int64}}
     base = firstindex(bytes) + k * sizeof(T)
     u = UInt64(0)
     for b in 0:(sizeof(T) - 1)

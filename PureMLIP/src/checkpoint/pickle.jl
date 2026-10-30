@@ -25,30 +25,32 @@ struct PickleTree
     root::Int32
 end
 
-const ALLOWED_GLOBALS = Set{String}([
-    "__builtin__.set", "_codecs.encode", "collections.OrderedDict",
-    "e3nn.math._normalize_activation.normalize2mom", "e3nn.nn._activation.Activation",
-    "e3nn.nn._fc.FullyConnectedNet", "e3nn.nn._fc._Layer", "e3nn.o3._irreps.Irrep",
-    "e3nn.o3._irreps.Irreps", "e3nn.o3._irreps._MulIr", "e3nn.o3._linear.Instruction",
-    "e3nn.o3._linear.Linear", "e3nn.o3._spherical_harmonics.SphericalHarmonics",
-    "e3nn.o3._tensor_product._instruction.Instruction",
-    "e3nn.o3._tensor_product._sub.FullyConnectedTensorProduct",
-    "e3nn.o3._tensor_product._tensor_product.TensorProduct",
-    "mace.modules.blocks.AtomicEnergiesBlock", "mace.modules.blocks.EquivariantProductBasisBlock",
-    "mace.modules.blocks.LinearNodeEmbeddingBlock", "mace.modules.blocks.LinearReadoutBlock",
-    "mace.modules.blocks.NonLinearReadoutBlock", "mace.modules.blocks.RadialEmbeddingBlock",
-    "mace.modules.blocks.RealAgnosticDensityInteractionBlock",
-    "mace.modules.blocks.RealAgnosticDensityResidualInteractionBlock",
-    "mace.modules.blocks.ScaleShiftBlock", "mace.modules.irreps_tools.reshape_irreps",
-    "mace.modules.models.ScaleShiftMACE", "mace.modules.radial.AgnesiTransform",
-    "mace.modules.radial.BesselBasis", "mace.modules.radial.PolynomialCutoff",
-    "mace.modules.radial.ZBLBasis", "mace.modules.symmetric_contraction.Contraction",
-    "mace.modules.symmetric_contraction.SymmetricContraction", "torch.DoubleStorage",
-    "torch.LongStorage", "torch._utils._rebuild_parameter", "torch._utils._rebuild_tensor_v2",
-    "torch.fx._symbolic_trace.Tracer", "torch.fx.graph_module.reduce_graph_module",
-    "torch.nn.functional.silu", "torch.nn.modules.container.ModuleList",
-    "torch.nn.modules.container.ParameterList",
-])
+const ALLOWED_GLOBALS = Set{String}(
+    [
+        "__builtin__.set", "_codecs.encode", "collections.OrderedDict",
+        "e3nn.math._normalize_activation.normalize2mom", "e3nn.nn._activation.Activation",
+        "e3nn.nn._fc.FullyConnectedNet", "e3nn.nn._fc._Layer", "e3nn.o3._irreps.Irrep",
+        "e3nn.o3._irreps.Irreps", "e3nn.o3._irreps._MulIr", "e3nn.o3._linear.Instruction",
+        "e3nn.o3._linear.Linear", "e3nn.o3._spherical_harmonics.SphericalHarmonics",
+        "e3nn.o3._tensor_product._instruction.Instruction",
+        "e3nn.o3._tensor_product._sub.FullyConnectedTensorProduct",
+        "e3nn.o3._tensor_product._tensor_product.TensorProduct",
+        "mace.modules.blocks.AtomicEnergiesBlock", "mace.modules.blocks.EquivariantProductBasisBlock",
+        "mace.modules.blocks.LinearNodeEmbeddingBlock", "mace.modules.blocks.LinearReadoutBlock",
+        "mace.modules.blocks.NonLinearReadoutBlock", "mace.modules.blocks.RadialEmbeddingBlock",
+        "mace.modules.blocks.RealAgnosticDensityInteractionBlock",
+        "mace.modules.blocks.RealAgnosticDensityResidualInteractionBlock",
+        "mace.modules.blocks.ScaleShiftBlock", "mace.modules.irreps_tools.reshape_irreps",
+        "mace.modules.models.ScaleShiftMACE", "mace.modules.radial.AgnesiTransform",
+        "mace.modules.radial.BesselBasis", "mace.modules.radial.PolynomialCutoff",
+        "mace.modules.radial.ZBLBasis", "mace.modules.symmetric_contraction.Contraction",
+        "mace.modules.symmetric_contraction.SymmetricContraction", "torch.DoubleStorage",
+        "torch.LongStorage", "torch._utils._rebuild_parameter", "torch._utils._rebuild_tensor_v2",
+        "torch.fx._symbolic_trace.Tracer", "torch.fx.graph_module.reduce_graph_module",
+        "torch.nn.functional.silu", "torch.nn.modules.container.ModuleList",
+        "torch.nn.modules.container.ParameterList",
+    ]
+)
 
 # Opcodes this reader accepts (31 in total).
 const OP_PROTO = 0x80
@@ -83,13 +85,13 @@ const OP_BUILD = UInt8('b')
 const OP_BINPERSID = UInt8('Q')
 const OP_STOP = UInt8('.')
 
-mutable struct Unpickler{V<:AbstractVector{UInt8}}
+mutable struct Unpickler{V <: AbstractVector{UInt8}}
     data::V
     pos::Int                    # index of the next unread byte
     nodes::Vector{PickleNode}
     stack::Vector{Int32}        # node indices
     marks::Vector{Int}          # stack lengths at each MARK
-    memo::Dict{Int,Int32}
+    memo::Dict{Int, Int32}
 end
 
 function take_byte!(u::Unpickler)
@@ -100,7 +102,7 @@ function take_byte!(u::Unpickler)
 end
 
 # Unsigned little-endian integer of type T.
-function take_le!(u::Unpickler, ::Type{T}) where {T<:Unsigned}
+function take_le!(u::Unpickler, ::Type{T}) where {T <: Unsigned}
     u.pos + sizeof(T) - 1 <= lastindex(u.data) || error("unpickle: unexpected end of data")
     x = zero(T)
     for k in 0:(sizeof(T) - 1)
@@ -186,12 +188,14 @@ function reduce_call!(u::Unpickler, at::Int)
         isempty(an.items) || error(lazy"unpickle: collections.OrderedDict called with arguments at byte $at")
         push_node!(u, PickleNode(PK_DICT))
     elseif cn.str == "_codecs.encode"
-        (length(an.items) == 2 && u.nodes[an.items[1]].kind == PK_STR &&
-         u.nodes[an.items[2]].kind == PK_STR && u.nodes[an.items[2]].str == "latin1") ||
+        (
+            length(an.items) == 2 && u.nodes[an.items[1]].kind == PK_STR &&
+                u.nodes[an.items[2]].kind == PK_STR && u.nodes[an.items[2]].str == "latin1"
+        ) ||
             error(lazy"unpickle: _codecs.encode at byte $at must be called as (str, \"latin1\")")
         bytes = UInt8[]
         for c in u.nodes[an.items[1]].str
-            UInt32(c) < 0x100 || error(lazy"unpickle: _codecs.encode string at byte $at holds a code point above 255")
+            UInt32(c) < 0x0100 || error(lazy"unpickle: _codecs.encode string at byte $at holds a code point above 255")
             push!(bytes, UInt8(c))
         end
         push_node!(u, PickleNode(PK_BYTES; str = String(bytes)))
@@ -210,7 +214,7 @@ throws an error naming the offending byte (1-based position of the opcode).
 """
 function unpickle(bytes::AbstractVector{UInt8})
     Base.require_one_based_indexing(bytes)
-    u = Unpickler{typeof(bytes)}(bytes, firstindex(bytes), PickleNode[], Int32[], Int[], Dict{Int,Int32}())
+    u = Unpickler{typeof(bytes)}(bytes, firstindex(bytes), PickleNode[], Int32[], Int[], Dict{Int, Int32}())
     while true
         at = u.pos
         op = take_byte!(u)
@@ -315,4 +319,5 @@ function unpickle(bytes::AbstractVector{UInt8})
             error(lazy"unpickle: unsupported opcode 0x$(string(op; base = 16, pad = 2)) at byte $at")
         end
     end
+    return
 end

@@ -1,7 +1,9 @@
 @testitem "unpickle scalars and containers" begin
-    b = UInt8[0x80, 0x02, UInt8('}'), UInt8('('), UInt8('X'), 0x01, 0, 0, 0, UInt8('a'),
-              UInt8('K'), 0x05, UInt8('X'), 0x01, 0, 0, 0, UInt8('b'),
-              UInt8('G'), reinterpret(UInt8, [hton(6.0)])..., UInt8('u'), UInt8('.')]
+    b = UInt8[
+        0x80, 0x02, UInt8('}'), UInt8('('), UInt8('X'), 0x01, 0, 0, 0, UInt8('a'),
+        UInt8('K'), 0x05, UInt8('X'), 0x01, 0, 0, 0, UInt8('b'),
+        UInt8('G'), reinterpret(UInt8, [hton(6.0)])..., UInt8('u'), UInt8('.'),
+    ]
     t = PureMLIP.unpickle(b)
     r = t.nodes[t.root]
     @test r.kind == PureMLIP.PK_DICT && length(r.items) == 4
@@ -12,8 +14,10 @@ end
 
 @testitem "unpickle integers, bools, None, tuples, lists" begin
     le32(x) = collect(reinterpret(UInt8, [htol(Int32(x))]))
-    b = UInt8[0x80, 0x02, UInt8(']'), UInt8('('), UInt8('J'), le32(-7)..., UInt8('M'), 0x34, 0x12,
-              UInt8('N'), 0x88, 0x89, 0x85, UInt8('e'), UInt8('.')]
+    b = UInt8[
+        0x80, 0x02, UInt8(']'), UInt8('('), UInt8('J'), le32(-7)..., UInt8('M'), 0x34, 0x12,
+        UInt8('N'), 0x88, 0x89, 0x85, UInt8('e'), UInt8('.'),
+    ]
     t = PureMLIP.unpickle(b)
     r = t.nodes[t.root]
     @test r.kind == PureMLIP.PK_LIST && length(r.items) == 5
@@ -49,9 +53,11 @@ end
     # c collections\nOrderedDict\n ) R q 0 ( X "k" K 7 u        -> OrderedDict filled with k=>7, memo[0]
     # ( h 0 t  Q                                                 -> persistent id wrapping a tuple of the dict
     # TUPLE2 .                                                   -> (dict, persid)
-    b = UInt8[0x80, 0x02, UInt8('c'), codeunits("collections\nOrderedDict\n")..., UInt8(')'), UInt8('R'),
-              UInt8('q'), 0x00, UInt8('('), UInt8('X'), 0x01, 0, 0, 0, UInt8('k'), UInt8('K'), 0x07, UInt8('u'),
-              UInt8('('), UInt8('h'), 0x00, UInt8('t'), UInt8('Q'), 0x86, UInt8('.')]
+    b = UInt8[
+        0x80, 0x02, UInt8('c'), codeunits("collections\nOrderedDict\n")..., UInt8(')'), UInt8('R'),
+        UInt8('q'), 0x00, UInt8('('), UInt8('X'), 0x01, 0, 0, 0, UInt8('k'), UInt8('K'), 0x07, UInt8('u'),
+        UInt8('('), UInt8('h'), 0x00, UInt8('t'), UInt8('Q'), 0x86, UInt8('.'),
+    ]
     t = PureMLIP.unpickle(b)
     r = t.nodes[t.root]
     @test r.kind == PureMLIP.PK_TUPLE && length(r.items) == 2
@@ -82,8 +88,10 @@ end
     b3 = UInt8[0x80, 0x02, glob..., UInt8(')'), 0x81, UInt8('.')]
     @test PureMLIP.unpickle(b3).nodes[PureMLIP.unpickle(b3).root].kind == PureMLIP.PK_CALL
     # _codecs.encode(str, "latin1") makes bytes, one per code point
-    enc = UInt8[0x80, 0x02, UInt8('c'), codeunits("_codecs\nencode\n")...,
-                UInt8('X'), 0x03, 0, 0, 0, 0x41, 0xc3, 0xbf, str1("latin1")..., 0x86, UInt8('R'), UInt8('.')]
+    enc = UInt8[
+        0x80, 0x02, UInt8('c'), codeunits("_codecs\nencode\n")...,
+        UInt8('X'), 0x03, 0, 0, 0, 0x41, 0xc3, 0xbf, str1("latin1")..., 0x86, UInt8('R'), UInt8('.'),
+    ]
     te = PureMLIP.unpickle(enc)
     n = te.nodes[te.root]
     @test n.kind == PureMLIP.PK_BYTES && codeunits(n.str) == UInt8[0x41, 0xff]

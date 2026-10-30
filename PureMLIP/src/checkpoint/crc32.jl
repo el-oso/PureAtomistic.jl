@@ -7,7 +7,7 @@ function crc32_table()
         end
         t[i + 1] = c
     end
-    return NTuple{256,UInt32}(t)
+    return NTuple{256, UInt32}(t)
 end
 
 const CRC32_TABLE = crc32_table()

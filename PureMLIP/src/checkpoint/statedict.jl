@@ -1,8 +1,8 @@
 # The tensors of a torch module tree, in `state_dict()` order.
 
 struct StateDict
-    f64::Dict{String,CheckpointTensor{Float64}}
-    i64::Dict{String,CheckpointTensor{Int64}}
+    f64::Dict{String, CheckpointTensor{Float64}}
+    i64::Dict{String, CheckpointTensor{Int64}}
     names::Vector{String}
 end
 
@@ -21,7 +21,7 @@ end
 function dict_pairs(t::PickleTree, idx::Integer)
     n = t.nodes[idx]
     n.kind == PK_DICT || error("checkpoint: expected a dict")
-    out = Pair{String,Int}[]
+    out = Pair{String, Int}[]
     for j in 1:2:(length(n.items) - 1)
         k = t.nodes[n.items[j]]
         k.kind == PK_STR || error("checkpoint: dict key is not a string")
@@ -122,7 +122,7 @@ depth first in torch's order (own parameters, own buffers, then submodules).
 function read_state_dict(a::TorchArchive, t::PickleTree)
     bo = entry_data(a, "byteorder")
     String(bo[:]) == "little" || error("checkpoint: big-endian checkpoints are not supported")
-    sd = StateDict(Dict{String,CheckpointTensor{Float64}}(), Dict{String,CheckpointTensor{Int64}}(), String[])
+    sd = StateDict(Dict{String, CheckpointTensor{Float64}}(), Dict{String, CheckpointTensor{Int64}}(), String[])
     walk_module!(sd, a, t, Int(t.root), "")
     return sd
 end

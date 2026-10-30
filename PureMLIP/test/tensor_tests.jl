@@ -10,8 +10,12 @@ end
 @testitem "strided view of a shared storage" setup = [ZipFixtures] begin
     F = ZipFixtures
     st() = F.pk_storage("DoubleStorage", "0", 6)
-    state = F.pk_module_state(params = ["x" => F.pk_tensor(st(), 1, [2], [2]),
-                                        "y" => F.pk_param(F.pk_tensor(st(), 0, [2, 3], [3, 1]), true)])
+    state = F.pk_module_state(
+        params = [
+            "x" => F.pk_tensor(st(), 1, [2], [2]),
+            "y" => F.pk_param(F.pk_tensor(st(), 0, [2, 3], [3, 1]), true),
+        ]
+    )
     z = F.zip_with_pickle(F.pk_finish(F.pk_module(state)), ["0" => F.f64bytes(1:6)])
     a = PureMLIP.open_torch_archive(z)
     sd = PureMLIP.read_state_dict(a, PureMLIP.unpickle(PureMLIP.entry_data(a, "data.pkl")))
@@ -27,13 +31,24 @@ end
 
 @testitem "state dict order, nesting, skips, int64, 0-dim" setup = [ZipFixtures] begin
     F = ZipFixtures
-    child = F.pk_module(F.pk_module_state(params = ["w" => F.pk_tensor(F.pk_storage("DoubleStorage", "0", 2), 0, [2], [1]),
-                                                    "skip" => F.pk_none()]))
-    root = F.pk_module(F.pk_module_state(
-        params = ["p" => F.pk_tensor(F.pk_storage("DoubleStorage", "0", 2), 0, Int[], Int[])],
-        buffers = ["b" => F.pk_tensor(F.pk_storage("LongStorage", "1", 3), 0, [3], [1]),
-                   "np" => F.pk_tensor(F.pk_storage("LongStorage", "1", 3), 0, Int[], Int[])],
-        modules = ["m" => child, "none" => F.pk_none()], nonpersistent = ["np"]))
+    child = F.pk_module(
+        F.pk_module_state(
+            params = [
+                "w" => F.pk_tensor(F.pk_storage("DoubleStorage", "0", 2), 0, [2], [1]),
+                "skip" => F.pk_none(),
+            ]
+        )
+    )
+    root = F.pk_module(
+        F.pk_module_state(
+            params = ["p" => F.pk_tensor(F.pk_storage("DoubleStorage", "0", 2), 0, Int[], Int[])],
+            buffers = [
+                "b" => F.pk_tensor(F.pk_storage("LongStorage", "1", 3), 0, [3], [1]),
+                "np" => F.pk_tensor(F.pk_storage("LongStorage", "1", 3), 0, Int[], Int[]),
+            ],
+            modules = ["m" => child, "none" => F.pk_none()], nonpersistent = ["np"]
+        )
+    )
     a = PureMLIP.open_torch_archive(F.zip_with_pickle(F.pk_finish(root), ["0" => F.f64bytes([5, 6]), "1" => F.i64bytes([7, 8, 9])]))
     sd = PureMLIP.read_state_dict(a, PureMLIP.unpickle(PureMLIP.entry_data(a, "data.pkl")))
     @test sd.names == ["p", "b", "m.w"]
