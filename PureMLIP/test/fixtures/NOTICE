@@ -1,0 +1,11 @@
+llmlip_mace_mp0b_inspection.json is copied verbatim from llmlip.rs:
+
+  Repository: https://github.com/mizukami-group/llmlip.rs
+  Path:       fixtures/mace/v0_3_16_4d2da09/mace_mp0b_inspection.json
+  Commit:     6bfb0418cc5aba0a13416fd783994fa82552cc34
+  License:    Apache License, Version 2.0 (that repository offers MIT OR Apache-2.0
+              for its original contributions; it is used here under Apache-2.0)
+
+A copy of the Apache License 2.0 is available at
+https://www.apache.org/licenses/LICENSE-2.0 and in LICENSE-APACHE of that repository.
+The file is unmodified.

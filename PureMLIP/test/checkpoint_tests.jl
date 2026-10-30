@@ -1,0 +1,76 @@
+@testitem "MP-0b3 matches the llmlip.rs inspection" setup = [Checkpoints] begin
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    ref = Checkpoints.inspection()
+    h = ck.hyperparameters
+    # The file holds 89 state tensors. The reference lists 93: its four extra entries
+    # are Wigner-3j buffers of e3nn's compiled tensor product, whose values sit inside
+    # TorchScript archives embedded in data.pkl as bytes rather than in the zip's tensor
+    # storages; torch recreates them when it rebuilds the tensor product.
+    @test length(ck.state.names) == 89
+    @test Checkpoints.absent(ck, ref) == sort(
+        [
+            "interactions.1.conv_tp._compiled_main_left_right._w3j_1_1_2",
+            "interactions.1.conv_tp._compiled_main_left_right._w3j_1_2_1",
+            "interactions.1.conv_tp._compiled_main_left_right._w3j_1_2_3",
+            "interactions.1.conv_tp._compiled_main_left_right._w3j_1_3_2",
+        ]
+    )
+    @test sum(PureMLIP.numel(ck.state.f64[n]) for n in ck.state.names if haskey(ck.state.f64, n) && ck.state.f64[n].requires_grad) == 9063204
+    @test h.r_max == 6.0 && h.num_interactions == 2 && h.heads == ["default"]
+    @test length(h.atomic_numbers) == 89 && h.atomic_numbers[(end - 2):end] == [92, 93, 94]
+    @test [i.class for i in h.interactions] == [
+        "mace.modules.blocks.RealAgnosticDensityInteractionBlock",
+        "mace.modules.blocks.RealAgnosticDensityResidualInteractionBlock",
+    ]
+    @test all(i -> i.avg_num_neighbors == 61.964672446250916 && i.radial_MLP == [64, 64, 64], h.interactions)
+    @test h.correlations == [3, 3]
+    @test h.readouts[2].hidden_irreps == [PureMLIP.IrrepMul(16, 0, 1)]
+    U = ck.state.f64["products.0.symmetric_contractions.contractions.0.U_matrix_3"]
+    @test U.shape == [16, 16, 16, 23] && count(!iszero, U.data) == 353
+    @test ck.state.f64["products.0.symmetric_contractions.contractions.0.weights_max"].shape == [89, 23, 128]
+    # Every tensor the reference lists (covered names, missing-tensor entries with shape,
+    # dtype and nonzero count, and all product-block parameters and buffers) is present
+    # with the same shape, dtype and nonzero count; the state holds nothing else.
+    @test Checkpoints.mismatches(ck, ref) == String[]
+    @test Checkpoints.interaction_mismatches(ck, ref) == String[]
+end
+
+@testitem "MPA-0 loads" setup = [Checkpoints] begin
+    h = load_mace_checkpoint(Checkpoints.fetch(:mpa0)).hyperparameters
+    @test h.r_max == 6.0 && h.correlations == [3, 3] && length(h.atomic_numbers) == 89
+    @test h.interactions[1].hidden_irreps == [PureMLIP.IrrepMul(128, 0, 1), PureMLIP.IrrepMul(128, 1, -1)]
+    @test all(i -> isfinite(i.avg_num_neighbors) && i.avg_num_neighbors > 0, h.interactions)
+end
+
+@testitem "non-MACE pickle is rejected" setup = [ZipFixtures] begin
+    @test_throws "not a MACE checkpoint: the pickle root is not a module" load_mace_checkpoint(ZipFixtures.dict_root_zip())
+end
+
+@testitem "avg_num_neighbors buffer form and irreps strings" setup = [ZipFixtures] begin
+    ck = load_mace_checkpoint(ZipFixtures.tiny_mace_zip(avg_buffer = true))
+    h = ck.hyperparameters
+    @test h.model_class == "mace.modules.models.ScaleShiftMACE"
+    @test h.interactions[1].avg_num_neighbors == 61.964672446250916
+    @test "interactions.0.avg_num_neighbors" in ck.state.names
+    @test h.interactions[1].hidden_irreps == [PureMLIP.IrrepMul(128, 0, 1), PureMLIP.IrrepMul(128, 1, -1)]
+    @test h.interactions[1].edge_attrs_irreps == [PureMLIP.IrrepMul(1, 0, 1), PureMLIP.IrrepMul(1, 1, -1)]
+    @test h.r_max == 5.0 && h.num_interactions == 1 && h.atomic_numbers == [1, 8] && h.heads == ["default"]
+    @test h.correlations == [3]
+    @test [r.class for r in h.readouts] == ["mace.modules.blocks.LinearReadoutBlock"] && isempty(h.readouts[1].hidden_irreps)
+    h2 = load_mace_checkpoint(ZipFixtures.tiny_mace_zip(avg_buffer = false)).hyperparameters
+    @test h2.interactions[1].avg_num_neighbors == 61.964672446250916
+end
+
+@testitem "unsupported model class" setup = [ZipFixtures] begin
+    @test_throws "unsupported model class mace.modules.blocks.LinearReadoutBlock" load_mace_checkpoint(
+        ZipFixtures.tiny_mace_zip(root_class = ("mace.modules.blocks", "LinearReadoutBlock"))
+    )
+end
+
+@testitem "load_mace_checkpoint reads a path" setup = [ZipFixtures] begin
+    mktempdir() do dir
+        p = joinpath(dir, "tiny.model")
+        write(p, ZipFixtures.tiny_mace_zip())
+        @test load_mace_checkpoint(p).hyperparameters.correlations == [3]
+    end
+end
