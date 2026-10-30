@@ -2,10 +2,10 @@
     ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
     ref = Checkpoints.inspection()
     h = ck.hyperparameters
-    # The file holds 89 state tensors. The reference lists 93: its four extra entries
-    # are Wigner-3j buffers of e3nn's compiled tensor product, whose values sit inside
-    # TorchScript archives embedded in data.pkl as bytes rather than in the zip's tensor
-    # storages; torch recreates them when it rebuilds the tensor product.
+    # The file holds 89 state tensors. The reference lists 93; the four extra names are
+    # `_compiled_main_left_right._w3j_*` buffers (llmlip classification
+    # `compiled_tensor_product_wigner_buffer`), which are absent from this state dict.
+    # data.pkl embeds TorchScript archive bytes.
     @test length(ck.state.names) == 89
     @test Checkpoints.absent(ck, ref) == sort(
         [

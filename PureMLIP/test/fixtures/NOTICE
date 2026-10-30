@@ -1,11 +1,41 @@
-llmlip_mace_mp0b_inspection.json is copied verbatim from llmlip.rs:
+llmlip_mace_mp0b_inspection.json is redistributed unmodified from llmlip.rs:
 
   Repository: https://github.com/mizukami-group/llmlip.rs
   Path:       fixtures/mace/v0_3_16_4d2da09/mace_mp0b_inspection.json
   Commit:     6bfb0418cc5aba0a13416fd783994fa82552cc34
-  License:    Apache License, Version 2.0 (that repository offers MIT OR Apache-2.0
-              for its original contributions; it is used here under Apache-2.0)
+  Copyright:  Copyright 2026 Mizukami Group and e3nn-core-rs contributors
+  License:    Apache License, Version 2.0; full text in LICENSE-APACHE in this
+              directory, copied from that repository at the same commit. That
+              repository offers MIT OR Apache-2.0 for its original contributions;
+              this file is used here under Apache-2.0.
 
-A copy of the Apache License 2.0 is available at
-https://www.apache.org/licenses/LICENSE-2.0 and in LICENSE-APACHE of that repository.
-The file is unmodified.
+The NOTICE file of llmlip.rs at that commit follows verbatim.
+
+----------------------------------------------------------------------------
+llmlip implementation attribution
+
+The ORB runtime in crates/llmlip/src/orb_v3_omol.rs follows implementations
+published by Orbital Materials in orb-models, v0.6.2, commit
+ a5f1a382a72126feff0594b19891e03cde5f843e
+https://github.com/orbital-materials/orb-models
+
+Relevant upstream sources:
+ orb_models/common/models/gns.py (Encoder, AttentionInteractionNetwork)
+ orb_models/common/models/nn_util.py (ChargeSpinEmbedding, get_cutoff)
+ orb_models/common/models/rbf.py (radial feature conventions)
+ orb_models/forcefield/models (conservative energy model interfaces)
+
+The Rust runtime is an altered implementation: fixed-weight storage and validation,
+explicit input derivatives, fused attention, CPU parallelism and BLAS operations
+replace the Python/PyTorch execution. It is not the upstream package and is not
+endorsed by its authors. The ORB runtime module is distributed under Apache-2.0;
+see LICENSE-APACHE and licenses/reference/orb.txt. Original contributions elsewhere
+retain their stated MIT OR Apache-2.0 choice, subject to other retained notices.
+
+The inspected upstream tree contains an Apache-2.0 LICENSE and identifies Orbital
+Materials as the package author; no separate NOTICE file was found. This file is
+this project's attribution, not a reproduction of an upstream NOTICE.
+
+Source and binary redistributions including the ORB runtime must retain applicable
+Apache-2.0 license and attribution notices. For precise scope, changes and the
+ORB-free LAMMPS build, see docs/ORB_LICENSE_SCOPE.md.
