@@ -1,2 +1,6 @@
 Manifest*.toml
 .superpowers/
+docs/build
+PureMLIP/docs/build
+PureMLIP/juliac/build/
+node_modules
