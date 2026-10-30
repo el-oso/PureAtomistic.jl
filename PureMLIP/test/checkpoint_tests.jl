@@ -74,3 +74,12 @@ end
         @test load_mace_checkpoint(p).hyperparameters.correlations == [3]
     end
 end
+
+@testitem "module without its dicts" setup = [ZipFixtures] begin
+    F = ZipFixtures
+    cls = ("mace.modules.models", "ScaleShiftMACE")
+    # A root module whose state has `_parameters` and `_modules` but no `_buffers`.
+    body = F.pk_dict("_parameters" => F.pk_dict(), "_modules" => F.pk_dict())
+    z = F.zip_with_pickle(F.pk_finish(F.pk_module(body; cls)), Pair{String,Vector{UInt8}}[])
+    @test_throws "checkpoint: root module has no _buffers" load_mace_checkpoint(z)
+end

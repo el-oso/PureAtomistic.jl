@@ -5,6 +5,8 @@
             using PureMLIP
         end,
         PureMLIP.load_mace_checkpoint(Vector{UInt8}),
-        PureMLIP.load_mace_checkpoint(String)
+        PureMLIP.load_mace_checkpoint(String),
+        PureMLIP.torch_array(PureMLIP.CheckpointTensor{Float64}, Val{3}),
+        PureMLIP.torch_array(PureMLIP.CheckpointTensor{Int64}, Val{1})
     )
 end

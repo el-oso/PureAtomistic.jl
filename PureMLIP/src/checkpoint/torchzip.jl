@@ -108,8 +108,10 @@ function open_torch_archive(bytes::Vector{UInt8})
         sz = Int(usize)
         data_offset + sz - 1 <= length(bytes) ||
             throw(ArgumentError(lazy"entry $name extends past the end of the archive (bytes $data_offset to $(data_offset + sz - 1) of $(length(bytes)))"))
+        haskey(entries, name) && throw(ArgumentError(lazy"duplicate zip entry: $name"))
         entries[name] = ZipEntry(name, data_offset, sz, crc)
-        if isempty(pkl_name) && (name == "data.pkl" || endswith(name, "/data.pkl"))
+        if name == "data.pkl" || endswith(name, "/data.pkl")
+            isempty(pkl_name) || throw(ArgumentError(lazy"more than one data.pkl entry in the archive: $pkl_name and $name"))
             pkl_name = name
         end
         pos = name_end + 1 + xlen + clen

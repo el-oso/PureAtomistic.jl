@@ -30,16 +30,26 @@ function dict_pairs(t::PickleTree, idx::Integer)
     return out
 end
 
+# How a module path reads in a message; the root module's path is empty.
+describe_module(path::String) = isempty(path) ? "root module" : string("module ", path)
+
+# One of the `_parameters`, `_buffers` or `_modules` dicts of the module state `st`.
+function module_dict(t::PickleTree, st::Int, key::String, path::String)
+    i = dict_get(t, st, key)
+    iszero(i) && error(lazy"checkpoint: $(describe_module(path)) has no $key")
+    return i
+end
+
 # The dict holding `_parameters`, `_buffers`, `_modules` for the module node `idx`.
 function module_state(t::PickleTree, idx::Integer, path::String)
     n = t.nodes[idx]
-    n.kind == PK_CALL || error(lazy"checkpoint: module $path is not an object")
+    n.kind == PK_CALL || error(lazy"checkpoint: $(describe_module(path)) is not an object")
     if node_is_call(t, idx, "torch.fx.graph_module.reduce_graph_module")
         args = call_args(t, idx)
-        isempty(args) && error(lazy"checkpoint: module $path has no body")
+        isempty(args) && error(lazy"checkpoint: $(describe_module(path)) has no body")
         return Int(args[1])
     end
-    length(n.items) == 3 || error(lazy"checkpoint: module $path has no state")
+    length(n.items) == 3 || error(lazy"checkpoint: $(describe_module(path)) has no state")
     return Int(n.items[3])
 end
 
@@ -86,7 +96,7 @@ end
 function walk_module!(sd::StateDict, a::TorchArchive, t::PickleTree, idx::Int, prefix::String)
     st = module_state(t, idx, prefix)
     for key in ("_parameters", "_buffers", "_modules")
-        dict_get(t, st, key) == 0 && error(lazy"checkpoint: module $prefix lacks $key")
+        module_dict(t, st, key, prefix)
     end
     skip = non_persistent_names(t, st)
     for (n, v) in dict_pairs(t, dict_get(t, st, "_parameters"))

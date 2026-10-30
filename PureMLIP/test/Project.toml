@@ -10,7 +10,9 @@ TrimCheck = "f940d764-e397-4179-96e0-76ce55cfe39b"
 
 [compat]
 JSON = "1.6"
+StrictMode = "0.5"
 StrictModeTest = "0.5"
+TestItemRunner = "1.3"
 TrimCheck = "0.1.5"
 
 [preferences.StrictMode]

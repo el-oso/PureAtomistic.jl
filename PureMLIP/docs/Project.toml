@@ -5,3 +5,7 @@ PureMLIP = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
 
 [sources]
 PureMLIP = {path = ".."}
+
+[compat]
+Documenter = "1.19"
+DocumenterVitepress = "0.3"

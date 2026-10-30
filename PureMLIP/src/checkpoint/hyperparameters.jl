@@ -49,24 +49,24 @@ end
 # Attribute `key` of the module state `st`; errors when absent.
 function attribute(t::PickleTree, st::Int, key::String, path::String)
     i = dict_get(t, st, key)
-    iszero(i) && error(lazy"checkpoint: module $path has no attribute $key")
+    iszero(i) && error(lazy"checkpoint: $(describe_module(path)) has no attribute $key")
     return i
 end
 
 # Submodule `key` of the module state `st`.
 function submodule(t::PickleTree, st::Int, key::String, path::String)
-    i = dict_get(t, dict_get(t, st, "_modules"), key)
-    (iszero(i) || t.nodes[i].kind == PK_NONE) && error(lazy"checkpoint: module $path has no submodule $key")
+    i = dict_get(t, module_dict(t, st, "_modules", path), key)
+    (iszero(i) || t.nodes[i].kind == PK_NONE) && error(lazy"checkpoint: $(describe_module(path)) has no submodule $key")
     return i
 end
 
 # Submodules of the ModuleList (or other container) state `st`, in order.
-submodules(t::PickleTree, st::Int) = [v for (_, v) in dict_pairs(t, dict_get(t, st, "_modules"))]
+submodules(t::PickleTree, st::Int, path::String) = [v for (_, v) in dict_pairs(t, module_dict(t, st, "_modules", path))]
 
 # The tensor stored under `key` in the `_buffers` dict of the module state `st`.
 function buffer_tensor(a::TorchArchive, t::PickleTree, st::Int, key::String, path::String)
-    i = dict_get(t, dict_get(t, st, "_buffers"), key)
-    (iszero(i) || !node_is_call(t, i, "torch._utils._rebuild_tensor_v2")) && error(lazy"checkpoint: module $path has no tensor buffer $key")
+    i = dict_get(t, module_dict(t, st, "_buffers", path), key)
+    (iszero(i) || !node_is_call(t, i, "torch._utils._rebuild_tensor_v2")) && error(lazy"checkpoint: $(describe_module(path)) has no tensor buffer $key")
     return read_tensor(a, t, i, string(path, key), false)
 end
 
@@ -148,7 +148,7 @@ end
 function read_interaction(a::TorchArchive, t::PickleTree, idx::Int, path::String)
     st = module_state(t, idx, path)
     # Newer MACE registers avg_num_neighbors as a buffer; older files keep a float attribute.
-    avg = if !iszero(dict_get(t, dict_get(t, st, "_buffers"), "avg_num_neighbors"))
+    avg = if !iszero(dict_get(t, module_dict(t, st, "_buffers", path), "avg_num_neighbors"))
         float_scalar(a, t, st, "avg_num_neighbors", path)
     else
         float_value(t, attribute(t, st, "avg_num_neighbors", path), string(path, "avg_num_neighbors"))
@@ -173,10 +173,10 @@ function read_correlation(t::PickleTree, idx::Int, path::String)
     cs_path = string(sc_path, "contractions.")
     cs = module_state(t, submodule(t, sc, "contractions", sc_path), cs_path)
     correlation = 0
-    for c in submodules(t, cs)
+    for c in submodules(t, cs, cs_path)
         cst = module_state(t, c, cs_path)
         w = module_state(t, submodule(t, cst, "weights", cs_path), cs_path)
-        k = length(dict_pairs(t, dict_get(t, w, "_parameters"))) + 1
+        k = length(dict_pairs(t, module_dict(t, w, "_parameters", cs_path))) + 1
         iszero(correlation) || k == correlation ||
             error(lazy"checkpoint: contractions of $path disagree on the correlation order ($correlation and $k)")
         correlation = k
@@ -216,15 +216,15 @@ function read_hyperparameters(a::TorchArchive, t::PickleTree)
     length(num_interactions) == 1 || error("checkpoint: num_interactions is not a scalar")
     n = num_interactions[1]
     interactions = InteractionSpec[]
-    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "interactions", ""), "interactions.")))
+    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "interactions", ""), "interactions."), "interactions."))
         push!(interactions, read_interaction(a, t, m, string("interactions.", k - 1, ".")))
     end
     correlations = Int[]
-    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "products", ""), "products.")))
+    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "products", ""), "products."), "products."))
         push!(correlations, read_correlation(t, m, string("products.", k - 1, ".")))
     end
     readouts = ReadoutSpec[]
-    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "readouts", ""), "readouts.")))
+    for (k, m) in enumerate(submodules(t, module_state(t, submodule(t, st, "readouts", ""), "readouts."), "readouts."))
         push!(readouts, read_readout(t, m, string("readouts.", k - 1, ".")))
     end
     (length(interactions) == n && length(correlations) == n && length(readouts) == n) ||

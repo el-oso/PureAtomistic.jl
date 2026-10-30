@@ -32,3 +32,9 @@ end
     a.bytes[31 + length("a/data.pkl")] ⊻= 0xff
     @test PureMLIP.entry_data(a, "data.pkl")[1] == 0xfe
 end
+
+@testitem "zip duplicate entries" setup = [ZipFixtures] begin
+    pkl = UInt8[1, 2, 3]
+    @test_throws "duplicate zip entry: a/x" PureMLIP.open_torch_archive(ZipFixtures.stored_zip(["a/data.pkl" => pkl, "a/x" => UInt8[1], "a/x" => UInt8[2]]))
+    @test_throws "more than one data.pkl entry in the archive: a/data.pkl and b/data.pkl" PureMLIP.open_torch_archive(ZipFixtures.stored_zip(["a/data.pkl" => pkl, "b/data.pkl" => pkl]))
+end

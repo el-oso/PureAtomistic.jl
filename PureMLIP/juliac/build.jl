@@ -1,6 +1,8 @@
 #!/usr/bin/env julia
 # Build the `mace_inspect` executable with juliac --trim. Run: `julia juliac/build.jl`.
 # The executable lands in `juliac/build/bin` with its libraries alongside.
+# The tool environment (`juliac/toolenv`) requires Julia 1.13, while the package itself
+# supports Julia 1.12.
 #
 # The driver is the registered package JuliaC.jl, resolved from `juliac/toolenv` (the
 # environment keeps no tracked Manifest). It runs in its own environment, so the package

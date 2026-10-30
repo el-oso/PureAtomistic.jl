@@ -93,8 +93,8 @@ end
 # Elements of a strided view of `bytes` in row-major order of the view.
 function gather(bytes::AbstractVector{UInt8}, ::Type{T}, offset::Int, shape::Vector{Int}, stride::Vector{Int}, name::String) where {T}
     nstorage = length(bytes) ÷ sizeof(T)
+    all(>=(0), shape) || error(lazy"checkpoint: tensor $name has a negative dimension")
     n = prod(shape; init = 1)
-    n >= 0 || error(lazy"checkpoint: tensor $name has a negative dimension")
     data = Vector{T}(undef, n)
     nd = length(shape)
     counter = zeros(Int, nd)

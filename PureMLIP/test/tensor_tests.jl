@@ -62,4 +62,7 @@ end
     @test_throws "tensor x reads outside its storage" read(F.zip_with_pickle(mod(["x" => t("DoubleStorage", 1, [2], [1])]), ["0" => F.f64bytes(1:2)]))
     dup = mod(["x" => t("DoubleStorage", 0, [2], [1])]; buffers = ["x" => t("DoubleStorage", 0, [2], [1])])
     @test_throws "duplicate state dict name x" read(F.zip_with_pickle(dup, ["0" => F.f64bytes(1:2)]))
+    for shape in ([-1, -1], [0, -1], [2, -1])
+        @test_throws "tensor x has a negative dimension" read(F.zip_with_pickle(mod(["x" => t("DoubleStorage", 0, shape, [1, 1])]), ["0" => F.f64bytes(1:2)]))
+    end
 end
