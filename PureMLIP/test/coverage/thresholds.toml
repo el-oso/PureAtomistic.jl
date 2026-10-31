@@ -19,3 +19,4 @@
 "src/model/Model.jl" = 1.00
 "src/model/neighbors.jl" = 1.00
 "src/precompile.jl" = 1.00
+"src/model/radial.jl" = 1.00
