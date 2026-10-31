@@ -89,3 +89,14 @@ end
     deflated[(e + 8):(e + 15)] = top
     @test_throws "zip entry a/data.pkl has an out-of-range compressed size" PureMLIP.open_torch_archive(deflated)
 end
+
+@testitem "local extra field is skipped before the entry data" setup = [ZipFixtures] begin
+    # The local header's extra-field length differs from the central record's, so the data
+    # offset must come from the local header.
+    for zip64 in (true, false), extra in (1, 13, 64)
+        z = ZipFixtures.stored_zip(["a/data.pkl" => UInt8[1, 2, 3], "a/b" => UInt8[9, 8, 7, 6]]; zip64, local_extra = extra)
+        a = PureMLIP.open_torch_archive(z)
+        @test PureMLIP.entry_data(a, "data.pkl") == UInt8[1, 2, 3]
+        @test PureMLIP.entry_data(a, "b") == UInt8[9, 8, 7, 6]
+    end
+end

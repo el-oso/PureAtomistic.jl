@@ -42,7 +42,7 @@ end
 end
 
 @testitem "gradient matches finite differences and ForwardDiff" begin
-    using ForwardDiff
+    using ForwardDiff, LinearAlgebra
     v = [1.0, 2.0, 3.0]; L = 4; n = PureMLIP.sh_length(L)
     Y = zeros(n); dY = zeros(n, 3); PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, L)
     J = ForwardDiff.jacobian(w -> PureMLIP.spherical_harmonics!(zeros(eltype(w), n), w, L), v)
@@ -53,9 +53,17 @@ end
         e = zeros(3); e[i] = h
         Yp = PureMLIP.spherical_harmonics!(zeros(n), v + e, L)
         Ym = PureMLIP.spherical_harmonics!(zeros(n), v - e, L)
-        # Rounding: the central difference loses about eps(Float64) · max|Y| / h = 2e-10; measured
-        # ‖dY - fd‖ ≤ 4.3e-10, and atol is 7 times that.
-        @test dY[:, i] ≈ (Yp - Ym) / 2h atol = 3.0e-9
+        # Bound on ‖dY[:, i] - fd‖, the sum of three terms:
+        #  - step: fl(v_i ± h) each err by at most eps·|v_i|/2, so the difference quotient is off by
+        #    a relative eps·|v_i|/(2h), times ‖dY[:, i]‖;
+        #  - evaluation: each Y evaluation errs by at most c·eps·‖Y‖ with c = 8 (the recurrence
+        #    has about 8 dependent operations per entry), giving c·eps·‖Y‖/h;
+        #  - truncation: (h²/6)·‖f'''‖, with f''' the third derivative along v_i by nested
+        #    ForwardDiff at the base point (it varies by a relative O(h) over the step).
+        g(t) = (ei = zeros(typeof(t), 3); ei[i] = t; PureMLIP.spherical_harmonics!(zeros(typeof(t), n), v .+ ei, L))
+        f3 = ForwardDiff.derivative(t -> ForwardDiff.derivative(s -> ForwardDiff.derivative(g, s), t), 0.0)
+        tol = eps() * abs(v[i]) * norm(dY[:, i]) / 2h + 8 * eps() * norm(Y) / h + h^2 / 6 * norm(f3)
+        @test dY[:, i] ≈ (Yp - Ym) / 2h atol = tol
     end
     @test Y == PureMLIP.spherical_harmonics!(zeros(n), v, L)
 end

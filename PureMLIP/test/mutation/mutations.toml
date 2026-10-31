@@ -1,5 +1,6 @@
 # Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureMLIP/;
-# `find` must occur exactly once in it; `expect` is a regex for the test item expected to fail.
+# `find` must occur exactly once in it; `expect` is a regex matched against
+# the names of the test items expected to fail.
 
 [[mutation]]
 name = "e3nn-sign-rule"
@@ -42,7 +43,7 @@ name = "e3nn-zero-threshold"
 file = "src/equivariant/e3nn.jl"
 find = 'const E3NN_W3J_ZERO = 1.0e-13'
 replace = 'const E3NN_W3J_ZERO = 1.0e-3'
-expect = "zero threshold"
+expect = "keeps true coefficients"
 
 [[mutation]]
 name = "sh-index-off-by-one"
@@ -137,7 +138,7 @@ name = "wigner-determinant-check"
 file = "src/equivariant/wigner_d.jl"
 find = 'abs(det(Rf) - 1) <= 1.0e-12'
 replace = 'true'
-expect = "real CG: norm, equivariance, errors"
+expect = "wigner_D is a representation"
 
 [[mutation]]
 name = "crc32-final-xor"
@@ -165,7 +166,7 @@ name = "zip-local-extra-field-ignored"
 file = "src/checkpoint/torchzip.jl"
 find = ' + Int(read_le(bytes, lh + 28, UInt16))'
 replace = ''
-expect = "MP-0b3|zip"
+expect = "local extra field"
 
 [[mutation]]
 name = "zip-duplicate-entry-allowed"
@@ -228,7 +229,7 @@ name = "statedict-byteorder-unchecked"
 file = "src/checkpoint/statedict.jl"
 find = 'String(bo[:]) == "little" ||'
 replace = 'true ||'
-expect = "byte"
+expect = "state dict errors"
 
 [[mutation]]
 name = "tensors-stride-ignored"
@@ -263,14 +264,14 @@ name = "hyper-irrep-y-parity"
 file = "src/checkpoint/hyperparameters.jl"
 find = "c == 'y' && return iseven(l) ? 1 : -1"
 replace = "c == 'y' && return iseven(l) ? -1 : 1"
-expect = "irreps strings"
+expect = "parse_irreps"
 
 [[mutation]]
 name = "hyper-irreps-default-multiplicity"
 file = "src/checkpoint/hyperparameters.jl"
 find = 'mul = length(parts) == 2 ? tryparse(Int, parts[1]) : 1'
 replace = 'mul = length(parts) == 2 ? tryparse(Int, parts[1]) : 2'
-expect = "irreps strings"
+expect = "parse_irreps"
 
 [[mutation]]
 name = "embedded-zip-magic"

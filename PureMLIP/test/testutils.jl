@@ -3,13 +3,15 @@
 
     le(x::Integer) = collect(reinterpret(UInt8, [htol(x)]))
 
-    # Build a ZIP archive of uncompressed entries. Local headers carry no extra field.
+    # Build a ZIP archive of uncompressed entries. Local headers carry an extra field of
+    # `local_extra` bytes (padding, as torch.save writes to align data), independent of the
+    # central records' extra field.
     # With `zip64`, central records use 0xFFFFFFFF sentinels plus a ZIP64 extra field,
     # and a ZIP64 end-of-central-directory record and locator precede the classic one.
     # `method` is written to both header kinds without compressing the data.
     # Entries named in `deflate` are stored with method 8 as one final DEFLATE "stored
     # block" (at most 65535 bytes): header 0x01, LEN, NLEN, then the data.
-    function stored_zip(entries::Vector{Pair{String, Vector{UInt8}}}; zip64::Bool = true, method::UInt16 = 0x0000, deflate::Vector{String} = String[])
+    function stored_zip(entries::Vector{Pair{String, Vector{UInt8}}}; zip64::Bool = true, method::UInt16 = 0x0000, deflate::Vector{String} = String[], local_extra::Int = 0)
         out = UInt8[]
         central = UInt8[]
         for (name, data) in entries
@@ -26,7 +28,7 @@
             end
             csz = length(payload)
             append!(out, le(0x04034b50), le(0x000a), le(0x0000), le(m), le(0x0000), le(0x0021))
-            append!(out, le(crc), le(UInt32(csz)), le(UInt32(sz)), le(UInt16(length(nm))), le(0x0000), nm, payload)
+            append!(out, le(crc), le(UInt32(csz)), le(UInt32(sz)), le(UInt16(length(nm))), le(UInt16(local_extra)), nm, fill(0xab, local_extra), payload)
             append!(central, le(0x02014b50), le(0x002d), le(0x000a), le(0x0000), le(m), le(0x0000), le(0x0021), le(crc))
             if zip64
                 extra = vcat(le(0x0001), le(UInt16(24)), le(UInt64(sz)), le(UInt64(csz)), le(UInt64(off)))
