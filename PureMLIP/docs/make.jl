@@ -14,7 +14,7 @@ makedocs(;
     draft = false,
     source = "src",
     build = "build",
-    pages = ["Home" => "index.md", "Equivariant math" => "equivariant.md"],
+    pages = ["Home" => "index.md", "Equivariant math" => "equivariant.md", "MACE model" => "model.md"],
 )
 
 DocumenterVitepress.deploydocs(;

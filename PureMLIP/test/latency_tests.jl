@@ -5,6 +5,7 @@
     calls = [
         "PureMLIP.spherical_harmonics!(zeros(16), [0.1, 0.2, 0.9], 3)",
         "PureMLIP.e3nn_wigner_3j(1, 2, 3)",
+        "PureMLIP.mace_energy_forces(PureMLIP.MACEModel(PureMLIP.load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint())), [0.0 1.4; 0.0 0.1; 0.0 0.3], [6.5 0 0; 0 6.2 0; 0 0 6.8], [29, 1])",
     ]
     r = test_latency(:PureMLIP; calls, precompile = false)
     # first_call_ms under-measures on Julia 1.13: it does not include first-call compilation,

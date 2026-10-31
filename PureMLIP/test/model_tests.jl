@@ -166,3 +166,10 @@ end
     # Rounding bound: 4·eps·N·max|terms|, N = 384 terms per output (three slots of 128).
     @test y ≈ naive atol = 4 * eps() * 384 * maximum(abs, x) * maximum(abs, W)
 end
+
+@testitem "_eachindex checks that axes match" begin
+    M = PureMLIP.Model
+    @test M._eachindex([1, 2], [3, 4], [5, 6]) == 1:2
+    @test collect(M._eachindex(ones(2, 2), ones(2, 2))) == collect(1:4)
+    @test_throws "model: arrays must share axes, got (Base.OneTo(2),) and (Base.OneTo(3),)" M._eachindex([1, 2], [1, 2, 3])
+end

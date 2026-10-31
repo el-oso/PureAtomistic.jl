@@ -245,7 +245,7 @@ function mace_energy!(
     symmetric_contraction!(B1, model.product[2], X2, species, ws.scratch)
     h2 = view(ws.h2, :, :, atoms)
     linear!(h2, model.product_linear[2], B1)
-    for q in eachindex(h2, sc)
+    for q in _eachindex(h2, sc)
         h2[q] += sc[q]
     end
 
@@ -254,7 +254,7 @@ function mace_energy!(
     linear!(e1, model.readout0, h1)
     gpre, g = view(ws.gpre, :, :, atoms), view(ws.g, :, :, atoms)
     linear!(gpre, model.readout1[1], h2)
-    for q in eachindex(g, gpre)
+    for q in _eachindex(g, gpre)
         g[q] = normalized_silu(gpre[q], model.readout_cst)[1]
     end
     e2 = view(ws.e2, :, :, atoms)
@@ -370,7 +370,7 @@ function mace_energy_forces!(
     fill!(de2, model.scale)
     dg, gpre = view(ws.dg, :, :, atoms), view(ws.gpre, :, :, atoms)
     linear_pullback!(dg, model.readout1[2], de2)
-    for q in eachindex(dg, gpre)
+    for q in _eachindex(dg, gpre)
         dg[q] *= normalized_silu(gpre[q], model.readout_cst)[2]
     end
     dh2 = view(ws.dh2, :, :, atoms)
@@ -396,7 +396,7 @@ function mace_energy_forces!(
     dx1 = view(ws.dx[2], :, :, atoms)
     _messages_pullback!(dx1, ws, model, 2, view(ws.x[2], :, :, atoms), dM1, ddens1, nl)
     linear_pullback!(part, model.up[2], dx1)
-    for q in eachindex(dh1, part)
+    for q in _eachindex(dh1, part)
         dh1[q] += part[q]
     end
 
@@ -440,7 +440,7 @@ function mace_energy_forces!(
         A[a, b] = w
         A[b, a] = w
     end
-    for q in eachindex(res.stress, A)
+    for q in _eachindex(res.stress, A)
         res.stress[q] = -A[q] / V
     end
     return res

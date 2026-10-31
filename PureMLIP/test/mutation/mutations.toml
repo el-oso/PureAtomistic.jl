@@ -446,3 +446,10 @@ file = "src/model/evaluate.jl"
 find = "ga += ws.dY[j, e] * ws.dYdr[j, a]"
 replace = "ga += zero(T)"
 expect = "forces"
+
+[[mutation]]
+name = "tiny-checkpoint-wrong-crc"
+file = "src/tiny_checkpoint.jl"
+find = "crc = crc32(data)"
+replace = 'crc = name == "archive/byteorder" ? crc32(data) ⊻ 0x00000001 : crc32(data)'
+expect = "tiny"

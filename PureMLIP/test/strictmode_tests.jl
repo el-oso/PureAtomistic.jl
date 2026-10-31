@@ -139,3 +139,18 @@ end
         @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
     end
 end
+
+# Borrow report for the StrictMode maintainers: reports whether a workspace escapes
+# `mace_energy_forces!`. StrictMode reports this check and does not fail on it.
+@testitem "StrictMode: MACEWorkspace borrow report" tags = [:checks] setup = [LammpsReference, Checkpoints] begin
+    using StrictMode
+    StrictMode.register_scoped!(PureMLIP.MACEWorkspace{Float64})
+    model = MACEModel{Float64}(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
+    s = first(filter(s -> s.name == "cu_vacancy", LammpsReference.structures(LammpsReference.load(:mp0b3_f64))))
+    n = size(s.positions, 2)
+    nl = neighbor_list(s.positions, s.cell, model.r_max)
+    ws = MACEWorkspace{Float64}(model, n, nl.n_edges)
+    res = MACEResult{Float64}(n)
+    StrictMode.@assert_noescape mace_energy_forces!(res, ws, model, s.positions, s.cell, s.atomic_numbers, nl)
+    @test isfinite(res.energy)
+end

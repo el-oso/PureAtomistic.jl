@@ -9,7 +9,7 @@ module Checkpoint
 
 export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, MACEConstants, CheckpointTensor, torch_array
 
-public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel
+public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel, crc32
 public StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
 public TorchArchive, ZipEntry
 public Normalize2Mom, LinearInstruction, LinearSpec, TPInstruction, TPSpec

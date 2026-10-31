@@ -67,7 +67,7 @@ Overwrites `y`.
 function linear!(y::AbstractArray{S, 3}, lin::E3nnLinear, x::AbstractArray{S, 3}) where {S}
     _check_linear(lin, y, x)
     fill!(y, zero(S))
-    for p in eachindex(lin.W, lin.pw, lin.slots)
+    for p in _eachindex(lin.W, lin.pw, lin.slots)
         i, o = lin.slots[p]
         for m in 1:(2 * lin.in_ls[i] + 1)
             mul!(view(y, :, lin.out_off[o] + m, :), lin.W[p], view(x, :, lin.in_off[i] + m, :), lin.pw[p], true)
@@ -84,7 +84,7 @@ The vector-Jacobian product of [`linear!`](@ref) with the cotangent `dy`. Overwr
 function linear_pullback!(dx::AbstractArray{S, 3}, lin::E3nnLinear, dy::AbstractArray{S, 3}) where {S}
     _check_linear(lin, dy, dx)
     fill!(dx, zero(S))
-    for p in eachindex(lin.W, lin.pw, lin.slots)
+    for p in _eachindex(lin.W, lin.pw, lin.slots)
         i, o = lin.slots[p]
         for m in 1:(2 * lin.in_ls[i] + 1)
             mul!(view(dx, :, lin.in_off[i] + m, :), transpose(lin.W[p]), view(dy, :, lin.out_off[o] + m, :), lin.pw[p], true)
@@ -160,7 +160,7 @@ the components of its slots. Overwrites `y`.
 function species_linear!(y::AbstractArray{S, 3}, sl::SpeciesLinear, x::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, y, x, species)
     fill!(y, zero(S))
-    for p in eachindex(sl.W, sl.c, sl.slots)
+    for p in _eachindex(sl.W, sl.c, sl.slots)
         i, o = sl.slots[p]
         d = 2 * sl.ls[i] + 1
         ri, ro = (sl.off[i] + 1):(sl.off[i] + d), (sl.off[o] + 1):(sl.off[o] + d)
@@ -179,7 +179,7 @@ The vector-Jacobian product of [`species_linear!`](@ref) with the cotangent `dy`
 function species_linear_pullback!(dx::AbstractArray{S, 3}, sl::SpeciesLinear, dy::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, dy, dx, species)
     fill!(dx, zero(S))
-    for p in eachindex(sl.W, sl.c, sl.slots)
+    for p in _eachindex(sl.W, sl.c, sl.slots)
         i, o = sl.slots[p]
         d = 2 * sl.ls[i] + 1
         ri, ro = (sl.off[i] + 1):(sl.off[i] + d), (sl.off[o] + 1):(sl.off[o] + d)
