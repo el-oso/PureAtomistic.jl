@@ -48,7 +48,7 @@ Plain rules for anyone (human or agent) changing this repository. Each rule carr
 - The juliac item (tag `:juliac`) builds `PureMLIP/juliac/build/bin/mace_inspect` with `--trim=safe` and runs it on MP-0b3. It runs only with `PUREMLIP_JULIAC_BUILD=1`. Reason: it proves the whole program trims, which per-function checks cannot, but it is slow.
 - Run the suite: `PUREMLIP_CHECKPOINT_DIR=<dir> julia --project=PureMLIP -e 'using Pkg; Pkg.test()'`. Tests download checkpoints by URL and verify SHA-256; `PUREMLIP_CHECKPOINT_DIR` names a local cache directory of your choice.
 - CI runs Julia 1.12 and 1.13 with `check_bounds: 'yes'`.
-- Coverage thresholds, once a gate exists, only rise. Reason: coverage cannot erode silently.
+- Per-file line coverage is gated: run the suite with `Pkg.test(coverage = true)`, then `julia --project=PureMLIP/test/coverage PureMLIP/test/coverage/check.jl`. It compares each `src/**/*.jl` file with its row in `PureMLIP/test/coverage/thresholds.toml` and fails on any file below its row or without one, so a new source file needs a row. CI runs it in a Julia 1.13 job. Ratchet rule: raise a row when coverage rises; lowering a row needs the user's approval. A file with no coverable lines has row 0.00. Reason: coverage cannot erode silently.
 
 ## Oracles and tolerances
 

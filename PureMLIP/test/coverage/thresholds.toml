@@ -1,0 +1,17 @@
+# Per-file line-coverage floors (covered / coverable lines), checked by check.jl.
+# A file with no coverable lines has floor 0.00. Floors only rise.
+"src/PureMLIP.jl" = 0.00
+"src/checkpoint/Checkpoint.jl" = 0.00
+"src/checkpoint/crc32.jl" = 0.41
+"src/checkpoint/embedded.jl" = 1.00
+"src/checkpoint/hyperparameters.jl" = 0.96
+"src/checkpoint/load.jl" = 1.00
+"src/checkpoint/pickle.jl" = 0.99
+"src/checkpoint/statedict.jl" = 1.00
+"src/checkpoint/tensors.jl" = 1.00
+"src/checkpoint/torchzip.jl" = 0.98
+"src/equivariant/Equivariant.jl" = 0.00
+"src/equivariant/clebsch_gordan.jl" = 1.00
+"src/equivariant/e3nn.jl" = 1.00
+"src/equivariant/spherical_harmonics.jl" = 1.00
+"src/equivariant/wigner_d.jl" = 1.00

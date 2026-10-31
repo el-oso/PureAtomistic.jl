@@ -4,3 +4,4 @@ docs/build
 PureMLIP/docs/build
 PureMLIP/juliac/build/
 node_modules
+*.cov

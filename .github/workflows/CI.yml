@@ -28,3 +28,24 @@ jobs:
         with:
           project: PureMLIP
           check_bounds: 'yes'
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          project: PureMLIP
+      - uses: julia-actions/julia-runtest@v1
+        with:
+          project: PureMLIP
+          check_bounds: 'yes'
+          coverage: 'true'
+      - name: Install coverage checker
+        run: julia --project=PureMLIP/test/coverage -e 'using Pkg; Pkg.instantiate()'
+      - name: Check per-file coverage thresholds
+        run: julia --project=PureMLIP/test/coverage PureMLIP/test/coverage/check.jl
