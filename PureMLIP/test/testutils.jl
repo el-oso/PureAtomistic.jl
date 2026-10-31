@@ -340,3 +340,35 @@ end
         return out
     end
 end
+
+@testmodule LammpsReference begin
+    using PureMLIP, JSON
+
+    const DIR = pkgdir(PureMLIP, "test", "fixtures", "lammps-mace")
+
+    load(name::Symbol) = JSON.parsefile(joinpath(DIR, string(name) * ".json"))
+
+    # A JSON array of equal-length rows as a Matrix{Float64}, one row per entry.
+    rows(a) = Float64[a[i][j] for i in eachindex(a), j in eachindex(first(a))]
+
+    # One structure of the reference: positions and forces 3×n, cell columns = lattice
+    # vectors, virial[a,b] = p_ab · volume / nktv2p in eV (symmetric 3×3).
+    function structure(ref, name::AbstractString)
+        s = ref["structures"][findfirst(x -> x["name"] == name, ref["structures"])]
+        pv = Float64.(s["pressure_virial_bar"])
+        pxx, pyy, pzz, pxy, pxz, pyz = pv
+        p = [pxx pxy pxz; pxy pyy pyz; pxz pyz pzz]
+        return (;
+            name = s["name"],
+            positions = permutedims(rows(s["positions"])),
+            cell = permutedims(rows(s["cell"])),
+            atomic_numbers = Int.(s["atomic_numbers"]),
+            energy = Float64(s["energy"]),
+            node_energies = Float64.(s["node_energies"]),
+            forces = permutedims(rows(s["forces"])),
+            virial = p .* (Float64(s["volume"]) / Float64(ref["nktv2p"])),
+        )
+    end
+
+    structures(ref) = [structure(ref, s["name"]) for s in ref["structures"]]
+end

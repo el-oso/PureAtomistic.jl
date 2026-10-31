@@ -1,0 +1,25 @@
+# Single-point LAMMPS-MACE evaluation. Variables supplied with -var:
+#   data      data file
+#   model     exported TorchScript model
+#   symbols   element symbol per atom type
+#   dumpfile  per-atom output
+units           metal
+atom_style      atomic
+atom_modify     map yes
+newton          on
+boundary        p p p
+read_data       ${data}
+mass            * 1.0
+pair_style      mace no_domain_decomposition
+pair_coeff      * * ${model} ${symbols}
+compute         pe_atom all pe/atom
+compute         pv all pressure NULL virial
+dump            d all custom 1 ${dumpfile} id fx fy fz c_pe_atom
+dump_modify     d sort id format float %.17g
+thermo_style    custom step pe c_pv[1] c_pv[2] c_pv[3] c_pv[4] c_pv[5] c_pv[6] vol
+run             0
+variable        e equal pe
+variable        v equal vol
+print           "RESULT energy $(v_e:%.17g)"
+print           "RESULT pressure $(c_pv[1]:%.17g) $(c_pv[2]:%.17g) $(c_pv[3]:%.17g) $(c_pv[4]:%.17g) $(c_pv[5]:%.17g) $(c_pv[6]:%.17g)"
+print           "RESULT volume $(v_v:%.17g)"
