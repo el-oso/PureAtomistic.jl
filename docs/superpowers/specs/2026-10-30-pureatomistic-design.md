@@ -29,6 +29,7 @@ Why Julia: generic code that specializes to fast native code for each element ty
 - **No Python in any project, in any capacity.** One exception was granted for a single run of MACE's `create_lammps_model.py`, in a throwaway folder outside all projects, to produce the LAMMPS reference model file. That folder is deleted afterward; only the exported file is kept as reference data.
 - **Reuse the Julia ecosystem; write from scratch only what does not exist.** Ranking for dependencies: (1) pure Julia with no `_jll`/artifacts anywhere in the dependency closure, (2) `juliac --trim` compatible, (3) features.
 - **Exception:** KernelAbstractions and GPU backends (Metal.jl, AMDGPU.jl, CUDA.jl) are accepted with all their dependencies as they are.
+- **Exception:** the LinearAlgebra and SparseArrays standard libraries may be used. Their OpenBLAS and SuiteSparse backends are to be replaced by PureBLAS and PureSparse through libblastrampoline, so they do not count as artifact dependencies.
 - **Makie** (visualization) is outside the core packages: a package extension or a separate small package. Its binary dependencies are acceptable there.
 - **License:** MIT or Apache-2.0 code only. fastatomstruct is GPL-3: do not read it for implementation, do not port it. MACE and e3nn are MIT, llmlip.rs is Apache-2.0, e3nn-core-rs is MIT/Apache.
 - The user's Julia rules apply (generic indexing over `AbstractArray` with axes, no `@inbounds` without a benchmark and test, concrete return types, `lazy"..."` in trimmed paths, StrictMode/StrictModeTest gates, Chairmarks for timing).
