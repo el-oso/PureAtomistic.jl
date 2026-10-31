@@ -37,17 +37,21 @@ function read_le(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T <: Unsi
     return x
 end
 
-# Unsigned little-endian field read as an Int. Sizes and offsets above 2^48 cannot address
-# any archive; rejecting them keeps position arithmetic from overflowing.
+# Largest accepted zip size or offset: 2^48 bytes (256 TiB) exceeds any archive, and it leaves
+# Int headroom for the offset + size arithmetic on positions.
+const MAX_ZIP_FIELD = UInt64(1) << 48
+
+# Unsigned little-endian field read as an Int. Sizes and offsets above `MAX_ZIP_FIELD` cannot
+# address any archive; rejecting them keeps position arithmetic from overflowing.
 function read_le_int(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T <: Unsigned}
     x = read_le(bytes, pos, T)
-    x <= UInt64(1) << 48 || throw(ArgumentError(lazy"zip field at byte $pos is out of range: $x"))
+    x <= MAX_ZIP_FIELD || throw(ArgumentError(lazy"zip field at byte $pos is out of range: $x"))
     return Int(x)
 end
 
 # Int value of a size or offset parsed from an entry header (see `read_le_int`).
 function header_int(x::UInt64, what::AbstractString, name::AbstractString)
-    x <= UInt64(1) << 48 || throw(ArgumentError(lazy"zip entry $name has an out-of-range $what: $x"))
+    x <= MAX_ZIP_FIELD || throw(ArgumentError(lazy"zip entry $name has an out-of-range $what: $x"))
     return Int(x)
 end
 

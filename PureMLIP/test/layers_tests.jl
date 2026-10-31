@@ -7,11 +7,11 @@
     )
 end
 
-# `test_layers` leaves out accesses between modules that share a root module, so the
-# no-private-access rule between PureMLIP's submodules is checked here. `allow_internal_accesses
-# = false` keeps those accesses; `from = (PureMLIP,)` judges only names owned by PureMLIP and its
-# submodules, so reads of Base, Core and other packages are out of scope. Only the package
-# source is parsed, not the test files.
+# An independent second check of the no-private-access rule between PureMLIP's submodules,
+# next to `test_layers` above. `allow_internal_accesses = false` keeps reads between modules of
+# one package; `from = (PureMLIP,)` judges only names owned by PureMLIP and its submodules, so
+# reads of Base, Core and other packages are out of scope. Only the package source is parsed,
+# not the test files.
 @testitem "submodules read only each other's public names" tags = [:checks] begin
     using ExplicitImports
     for M in (PureMLIP, PureMLIP.Checkpoint, PureMLIP.Equivariant)

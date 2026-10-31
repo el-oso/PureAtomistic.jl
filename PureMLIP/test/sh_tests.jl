@@ -57,7 +57,7 @@ end
         #  - step: fl(v_i ± h) each err by at most eps·|v_i|/2, so the difference quotient is off by
         #    a relative eps·|v_i|/(2h), times ‖dY[:, i]‖;
         #  - evaluation: each Y evaluation errs by at most c·eps·‖Y‖ with c = 8 (the recurrence
-        #    has about 8 dependent operations per entry), giving c·eps·‖Y‖/h;
+        #    is assumed to have about 8 dependent operations per entry), giving c·eps·‖Y‖/h;
         #  - truncation: (h²/6)·‖f'''‖, with f''' the third derivative along v_i by nested
         #    ForwardDiff at the base point (it varies by a relative O(h) over the step).
         g(t) = (ei = zeros(typeof(t), 3); ei[i] = t; PureMLIP.spherical_harmonics!(zeros(typeof(t), n), v .+ ei, L))
