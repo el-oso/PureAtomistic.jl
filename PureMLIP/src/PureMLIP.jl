@@ -18,6 +18,7 @@ export sh_length, sh_index, spherical_harmonics!, spherical_harmonics_and_gradie
 export clebsch_gordan_complex, real_clebsch_gordan, wigner_D
 export e3nn_spherical_harmonics!, e3nn_spherical_harmonics_and_gradient!, e3nn_basis_change, e3nn_wigner_3j
 export NeighborList, neighbor_list, neighbor_list!
+export MACEModel, MACEResult, MACEWorkspace, mace_energy!
 
 public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel
 public StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
