@@ -12,6 +12,6 @@ include("mace_model.jl")
 include("evaluate.jl")
 
 export NeighborList, neighbor_list, neighbor_list!
-export MACEModel, MACEResult, MACEWorkspace, mace_energy!
+export MACEModel, MACEResult, MACEWorkspace, mace_energy!, mace_energy_forces!, mace_energy_forces
 
 end

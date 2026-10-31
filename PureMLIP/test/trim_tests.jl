@@ -36,6 +36,11 @@
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
-        )
+        ),
+        PureMLIP.mace_energy_forces!(
+            PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
+            Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
+        ),
+        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int})
     )
 end

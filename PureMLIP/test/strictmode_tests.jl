@@ -43,6 +43,20 @@
                         Matrix{Float32}, Matrix{Float32}, Vector{Int}, P.NeighborList{Float32},
                     ),
                 ),
+                (
+                    P.mace_energy_forces!, (
+                        P.MACEResult{Float64}, P.MACEWorkspace{Float64}, P.MACEModel{Float64},
+                        Matrix{Float64}, Matrix{Float64}, Vector{Int}, P.NeighborList{Float64},
+                    ),
+                ),
+                (
+                    P.mace_energy_forces!, (
+                        P.MACEResult{Float32}, P.MACEWorkspace{Float32}, P.MACEModel{Float32},
+                        Matrix{Float32}, Matrix{Float32}, Vector{Int}, P.NeighborList{Float32},
+                    ),
+                ),
+                (P.mace_energy_forces, (P.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int})),
+                (P.mace_energy_forces, (P.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int})),
                 (P.Model.zbl_edge_energy, (Float64, Int, Int, P.Model.ZBLParams{Float64})),
                 (P.Model.zbl_edge_energy, (Float32, Int, Int, P.Model.ZBLParams{Float32})),
             ]; guarantees = (:typestable,)
@@ -54,6 +68,14 @@
     for S in (Float32, Float64)
         @test Base.return_types(M.zbl_edge_energy, (S, Int, Int, M.ZBLParams{S})) == [Tuple{S, S}]
         @test Base.return_types(M.radial_embedding!, (Vector{S}, Vector{S}, M.RadialEmbedding{S}, S, Int, Int)) == [Vector{S}]
+        @test Base.return_types(M.density_edge, (SubArray{S, 1, Matrix{S}, Tuple{Base.Slice{Base.OneTo{Int}}, Int}, true}, Vector{S})) == [Tuple{S, S}]
+        @test Base.return_types(M.normalized_silu, (S, S)) == [Tuple{S, S}]
+        @test Base.return_types(
+            mace_energy_forces!, (
+                MACEResult{S}, MACEWorkspace{S}, MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int}, NeighborList{S},
+            )
+        ) == [MACEResult{S}]
+        @test Base.return_types(mace_energy_forces, (MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int})) == [MACEResult{S}]
     end
 end
 
@@ -98,4 +120,22 @@ end
     res32 = MACEResult{Float32}(3)
     f!(res32, ws32, m32, P32, C32, Z, nl32)
     @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
+end
+
+@testitem "StrictMode: mace_energy_forces! is allocation-free" tags = [:checks] setup = [Checkpoints] begin
+    using StrictModeTest, StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    @noinline f!(res, ws, m, P, C, Z, nl) = mace_energy_forces!(res, ws, m, P, C, Z, nl)
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        # A chunk smaller than the edge count exercises the chunked radial MLP and its pullback.
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        res = MACEResult{T}(3)
+        f!(res, ws, m, PT, CT, Z, nl)
+        @test nl.n_edges > 7
+        @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
+    end
 end

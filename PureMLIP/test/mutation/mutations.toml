@@ -439,3 +439,10 @@ file = "src/model/evaluate.jl"
 find = "q = density[i] + 1"
 replace = "q = density[i]"
 expect = "energies match"
+
+[[mutation]]
+name = "forces-without-angular-term"
+file = "src/model/evaluate.jl"
+find = "ga += ws.dY[j, e] * ws.dYdr[j, a]"
+replace = "ga += zero(T)"
+expect = "forces"

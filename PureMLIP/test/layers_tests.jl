@@ -49,6 +49,8 @@ end
     P = [0.0 1.5; 0.0 0.0; 0.0 0.0]; cell = [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0]
     nl6 = neighbor_list(P, cell, model.r_max)
     mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(model, 2, nl6.n_edges), model, P, cell, [29, 13], nl6)
+    mace_energy_forces(model, P, cell, [29, 13])
+    mace_energy_forces(MACEModel{Float32}(ck), Float32.(P), Float32.(cell), [29, 13])
 
     test_calls(PureMLIP)
     for M in (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model)
