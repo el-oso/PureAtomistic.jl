@@ -38,4 +38,7 @@ end
     f!(Y, v); g!(Y, dY, v)
     @test_noalloc f!(Y, v)
     @test_noalloc g!(Y, dY, v)
+    @noinline h!(Y, dY, v) = PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, 4)
+    h!(Y, dY, v)
+    @test_noalloc h!(Y, dY, v)
 end

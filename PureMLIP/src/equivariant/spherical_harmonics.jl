@@ -89,6 +89,8 @@ function _real_sh!(Y::AbstractVector{T}, dY, vx::T, vy::T, vz::T, L::Int) where 
             Y[o + sh_index(l, m)] = ((2l - 1) * z * q(l - 1, m) - (l + m - 1) * q(l - 2, m)) / (l - m)
         end
     end
+    # Q_LL = (-1)^L (2L-1)!! (1-z²)^(L/2) is the largest entry; once it overflows the rest is Inf/NaN.
+    isfinite(q(L, L)) || throw(ArgumentError(lazy"lmax = $L overflows $T in the spherical-harmonic recurrence"))
 
     rt2 = sqrt(T(2))
     for l in L:-1:0

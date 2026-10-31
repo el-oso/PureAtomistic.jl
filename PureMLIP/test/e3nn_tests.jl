@@ -64,3 +64,19 @@ end
     @test_throws "real Clebsch-Gordan needs |l1-l2| ≤ l3 ≤ l1+l2 and even l1+l2+l3, got (1, 1, 1)" PureMLIP.e3nn_wigner_3j(1, 1, 1)
     @test_throws "got (1, 1, 4)" PureMLIP.e3nn_wigner_3j(1, 1, 4)
 end
+
+@testitem "e3nn_wigner_3j zero threshold separates residue from coefficients" begin
+    for l1 in 0:8, l2 in 0:8, l3 in abs(l1 - l2):min(l1 + l2, 8)
+        iseven(l1 + l2 + l3) || continue
+        raw = PureMLIP._e3nn_wigner_3j_unzeroed(l1, l2, l3)
+        W = PureMLIP.e3nn_wigner_3j(l1, l2, l3)
+        for i in eachindex(raw)
+            if iszero(W[i])
+                @test abs(raw[i]) <= 1.0e-14
+            else
+                @test abs(raw[i]) >= 1.0e-6
+                @test W[i] == raw[i]
+            end
+        end
+    end
+end

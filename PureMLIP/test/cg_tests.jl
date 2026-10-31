@@ -1,6 +1,6 @@
 @testitem "complex CG matches WignerSymbols" begin
     using WignerSymbols
-    for l1 in 0:6, l2 in 0:6, l3 in abs(l1 - l2):min(l1 + l2, 6), m1 in -l1:l1, m2 in -l2:l2
+    for l1 in 0:8, l2 in 0:8, l3 in abs(l1 - l2):min(l1 + l2, 8), m1 in -l1:l1, m2 in -l2:l2
         m3 = m1 + m2; abs(m3) <= l3 || continue
         @test PureMLIP.clebsch_gordan_complex(l1, m1, l2, m2, l3, m3) ≈ WignerSymbols.clebschgordan(Float64, l1, m1, l2, m2, l3, m3) atol = 1.0e-14
     end
@@ -46,4 +46,8 @@ end
     end
     @test_throws "rotation" PureMLIP.wigner_D(1, [2.0 0 0; 0 1 0; 0 0 1])
     @test_throws "rotation" PureMLIP.wigner_D(1, [1.0 0 0; 0 1 0; 0 0 -1])
+end
+
+@testitem "complex CG factorial range error" begin
+    @test_throws "factorial argument out of range: 181" PureMLIP.clebsch_gordan_complex(60, 0, 60, 0, 60, 0)
 end

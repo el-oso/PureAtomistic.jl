@@ -83,3 +83,21 @@ end
     Y64 = PureMLIP.spherical_harmonics!(zeros(25), Float64.(v), 4)
     @test Y ≈ Y64 atol = 1.0e-5
 end
+
+@testitem "poles: finite values and gradients matching ForwardDiff" begin
+    using ForwardDiff
+    L = 6; n = PureMLIP.sh_length(L)
+    for v in ([0.0, 0.0, 1.0], [1.0e-9, 0.0, 1.0], [0.0, 0.0, -2.0])
+        Y = zeros(n); dY = zeros(n, 3)
+        PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, L)
+        @test all(isfinite, Y) && all(isfinite, dY)
+        J = ForwardDiff.jacobian(w -> PureMLIP.spherical_harmonics!(zeros(eltype(w), n), w, L), v)
+        @test dY ≈ J atol = 1.0e-10
+    end
+end
+
+@testitem "recurrence overflow throws" begin
+    v = Float32[0.3, -0.5, 0.8]
+    @test_throws "lmax = 40 overflows Float32 in the spherical-harmonic recurrence" PureMLIP.spherical_harmonics!(zeros(Float32, 41^2), v, 40)
+    @test_throws ArgumentError PureMLIP.e3nn_spherical_harmonics!(zeros(Float32, 41^2), v, 40)
+end

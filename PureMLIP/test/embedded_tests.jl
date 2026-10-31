@@ -21,3 +21,15 @@ end
     @test length(with_data) == 1
     @test [with_data[1].entries[with_data[1].prefix * "data/$k"].size for k in 0:3] == [360, 360, 840, 840]
 end
+
+@testitem "MP-0b3 embedded data entries are deflated and inflate with a valid CRC" setup = [Checkpoints] begin
+    a = PureMLIP.open_torch_archive(read(Checkpoints.fetch(:mp0b3)))
+    archives = PureMLIP.embedded_archives(PureMLIP.unpickle(PureMLIP.entry_data(a, "data.pkl")))
+    inner = only(filter(x -> haskey(x.entries, x.prefix * "data/0"), archives))
+    code = filter(e -> startswith(e.name, inner.prefix * "code/"), collect(values(inner.entries)))
+    @test !isempty(code)
+    for e in code
+        @test e.method == 8
+        @test !isempty(PureMLIP.entry_data(inner, e.name[(ncodeunits(inner.prefix) + 1):end]))
+    end
+end

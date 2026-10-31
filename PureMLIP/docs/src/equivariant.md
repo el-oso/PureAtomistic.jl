@@ -77,6 +77,7 @@ PureMLIP.sh_length
 PureMLIP.sh_index
 PureMLIP.spherical_harmonics!
 PureMLIP.spherical_harmonics_and_gradient!
+PureMLIP.clebsch_gordan_complex
 PureMLIP.real_clebsch_gordan
 PureMLIP.wigner_D
 PureMLIP.e3nn_spherical_harmonics!

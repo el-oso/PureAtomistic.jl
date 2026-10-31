@@ -4,8 +4,6 @@
 # inside each l. Equivalently `Y_e3nn,l = sqrt(4π) · M_l · Y_l(v)` with
 # `M_l = wigner_D(l, R)` and `R` the rotation v ↦ (v3, v1, v2).
 
-const E3NN_AXES = [0.0 0.0 1.0; 1.0 0.0 0.0; 0.0 1.0 0.0]   # R: v ↦ (v3, v1, v2)
-
 """
     e3nn_spherical_harmonics!(Y, v, lmax) -> Y
 
@@ -60,11 +58,15 @@ Orthogonal matrix `M` of size `(2l+1, 2l+1)` with `Y_e3nn,l = sqrt(4π) · M · 
 `0..2l`, columns the native `m = -l..l`. It is `wigner_D(l, R)` for the rotation
 `R: v ↦ (v3, v1, v2)`.
 """
-e3nn_basis_change(l::Integer) = wigner_D(l, E3NN_AXES)
+function e3nn_basis_change(l::Integer)
+    R = [0.0 0.0 1.0; 1.0 0.0 0.0; 0.0 1.0 0.0]   # v ↦ (v3, v1, v2)
+    return wigner_D(l, R)
+end
 
 # Magnitude below which a coefficient of `e3nn_wigner_3j` is rounding residue and is stored as
 # an exact zero, so the sparsity pattern matches e3nn's. For every even triple with all l ≤ 8
-# the residue is below 1e-15 and the smallest true nonzero coefficient is above 7e-6.
+# the rounding residue is at most 8.3e-16, and the smallest true nonzero coefficient is 1.3e-3
+# for all l ≤ 8 (at least 5.7e-6 through l ≤ 16).
 const E3NN_W3J_ZERO = 1.0e-13
 
 """
@@ -79,6 +81,15 @@ e3nn's `wigner_3j(l1, l2, l3)`: the unit-norm coupling tensor of shape
 Throws `ArgumentError` unless `|l1-l2| ≤ l3 ≤ l1+l2` and `l1+l2+l3` is even.
 """
 function e3nn_wigner_3j(l1::Integer, l2::Integer, l3::Integer)
+    E = _e3nn_wigner_3j_unzeroed(l1, l2, l3)
+    for i in eachindex(E)
+        abs(E[i]) < E3NN_W3J_ZERO && (E[i] = 0.0)
+    end
+    return E
+end
+
+# The contraction of `e3nn_wigner_3j` before rounding residue is set to zero.
+function _e3nn_wigner_3j_unzeroed(l1::Integer, l2::Integer, l3::Integer)
     C = real_clebsch_gordan(l1, l2, l3)
     M1, M2, M3 = e3nn_basis_change(l1), e3nn_basis_change(l2), e3nn_basis_change(l3)
     s = iseven((l1 + l2 - l3) ÷ 2) ? 1.0 : -1.0
@@ -95,8 +106,6 @@ function e3nn_wigner_3j(l1::Integer, l2::Integer, l3::Integer)
     for c in axes(C, 3), p in axes(C, 3), b in axes(C, 2), a in axes(C, 1)
         E[a, b, c] += M3[c, p] * B[a, b, p]
     end
-    for i in eachindex(E)
-        E[i] = abs(E[i]) < E3NN_W3J_ZERO ? 0.0 : s * E[i]
-    end
+    E .*= s
     return E
 end

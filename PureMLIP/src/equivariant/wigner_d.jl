@@ -15,7 +15,7 @@ function _gauss_legendre(n::Int)
             dp = n * (z * p1 - p0) / (z^2 - 1)
             dz = p1 / dp
             z -= dz
-            abs(dz) < 1.0e-16 && break
+            abs(dz) <= 2eps(abs(z)) && break
         end
         x[k] = z
         w[k] = 2 / ((1 - z^2) * dp^2)
