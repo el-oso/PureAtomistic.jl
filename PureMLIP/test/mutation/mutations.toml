@@ -341,3 +341,17 @@ file = "src/model/neighbors.jl"
 find = "while prod(dims) > budget"
 replace = "while prod(dims) > 100 * budget"
 expect = "grown cell"
+
+[[mutation]]
+name = "radial-agnesi-exponent"
+file = "src/model/radial.jl"
+find = "xqp = x^(q - p)"
+replace = "xqp = x^(p - q)"
+expect = "radial functions match the MACE radial fixture"
+
+[[mutation]]
+name = "radial-zbl-half"
+file = "src/model/radial.jl"
+find = "return 0.5 * v * f, 0.5 * (dv * f + v * df)"
+replace = "return 1.0 * v * f, 1.0 * (dv * f + v * df)"
+expect = "radial functions match the MACE radial fixture"

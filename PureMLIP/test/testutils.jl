@@ -299,6 +299,8 @@ end
 
     load(name::AbstractString) = JSON.parsefile(joinpath(DIR, name * ".json"))
 
+    radial() = load("mace_radial_reference_f64")
+
     # A JSON array of equal-length rows as a Matrix{Float64}, one row per entry.
     rows(a) = Float64[a[i][j] for i in eachindex(a), j in eachindex(first(a))]
 
