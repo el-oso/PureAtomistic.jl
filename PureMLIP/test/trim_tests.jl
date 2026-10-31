@@ -15,6 +15,11 @@
         PureMLIP.spherical_harmonics_and_gradient!(Vector{Float64}, Matrix{Float64}, Vector{Float64}, Int),
         PureMLIP.e3nn_spherical_harmonics_and_gradient!(Vector{Float64}, Matrix{Float64}, Vector{Float64}, Int),
         PureMLIP.e3nn_wigner_3j(Int, Int, Int),
+        PureMLIP.e3nn_spherical_harmonics!(Vector{Float64}, Vector{Float64}, Int),
+        PureMLIP.e3nn_basis_change(Int),
+        PureMLIP.sh_length(Int),
+        PureMLIP.sh_index(Int, Int),
+        PureMLIP.embedded_archives(PureMLIP.PickleTree),
         PureMLIP.entry_data(PureMLIP.TorchArchive, String)
     )
 end
