@@ -1,7 +1,11 @@
 name = "PureMLIP"
 uuid = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
-authors = ["el_oso"]
 version = "0.1.0"
+authors = ["el_oso"]
+
+[deps]
+Inflate = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 
 [compat]
+Inflate = "0.1.5"
 julia = "1.12"

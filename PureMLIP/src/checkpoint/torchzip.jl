@@ -1,11 +1,15 @@
-# Reader for the ZIP container of a PyTorch checkpoint: uncompressed (STORED)
-# entries only, with optional ZIP64 records.
+# Reader for the ZIP container of a PyTorch checkpoint: STORED and DEFLATE entries,
+# with optional ZIP64 records.
+
+using Inflate: Inflate
 
 struct ZipEntry
     name::String
     data_offset::Int   # 1-based index of the first data byte in the archive buffer
-    size::Int
-    crc::UInt32
+    size::Int               # uncompressed size
+    compressed_size::Int
+    method::UInt16          # 0 (STORED) or 8 (DEFLATE)
+    crc::UInt32             # CRC-32 of the uncompressed data
 end
 
 struct TorchArchive
@@ -13,6 +17,7 @@ struct TorchArchive
     prefix::String                     # folder holding data.pkl, with a trailing '/'
     entries::Dict{String, ZipEntry}
     verified::Set{String}              # entries whose CRC has been checked
+    inflated::Dict{String, Vector{UInt8}}   # decoded DEFLATE entries
 end
 
 const SIG_LOCAL = 0x04034b50
@@ -104,18 +109,19 @@ function open_torch_archive(bytes::Vector{UInt8})
             found || throw(ArgumentError(lazy"zip64 extra field missing for entry $name"))
         end
 
-        method == 0 ||
+        (method == 0 || method == 8) ||
             throw(ArgumentError(lazy"compressed entries are not supported: $name (method $method)"))
-        csize == usize || throw(ArgumentError(lazy"stored entry $name has differing sizes: $csize vs $usize"))
+        method == 0 && csize != usize && throw(ArgumentError(lazy"stored entry $name has differing sizes: $csize vs $usize"))
         lh = Int(local_off) + 1
         read_le(bytes, lh, UInt32) == SIG_LOCAL ||
             throw(ArgumentError(lazy"bad local header for entry $name at byte $lh"))
         data_offset = lh + 30 + Int(read_le(bytes, lh + 26, UInt16)) + Int(read_le(bytes, lh + 28, UInt16))
         sz = Int(usize)
-        data_offset + sz - 1 <= length(bytes) ||
-            throw(ArgumentError(lazy"entry $name extends past the end of the archive (bytes $data_offset to $(data_offset + sz - 1) of $(length(bytes)))"))
+        csz = Int(csize)
+        data_offset + csz - 1 <= length(bytes) ||
+            throw(ArgumentError(lazy"entry $name extends past the end of the archive (bytes $data_offset to $(data_offset + csz - 1) of $(length(bytes)))"))
         haskey(entries, name) && throw(ArgumentError(lazy"duplicate zip entry: $name"))
-        entries[name] = ZipEntry(name, data_offset, sz, crc)
+        entries[name] = ZipEntry(name, data_offset, sz, csz, method, crc)
         if name == "data.pkl" || endswith(name, "/data.pkl")
             isempty(pkl_name) || throw(ArgumentError(lazy"more than one data.pkl entry in the archive: $pkl_name and $name"))
             pkl_name = name
@@ -124,19 +130,32 @@ function open_torch_archive(bytes::Vector{UInt8})
     end
     isempty(pkl_name) && throw(ArgumentError("no data.pkl entry in the archive"))
     prefix = pkl_name[1:(end - ncodeunits("data.pkl"))]
-    return TorchArchive(bytes, prefix, entries, Set{String}())
+    return TorchArchive(bytes, prefix, entries, Set{String}(), Dict{String, Vector{UInt8}}())
 end
 
 """
     entry_data(a::TorchArchive, name) -> view
 
-Bytes of the entry `a.prefix * name` as a view of the archive buffer. The CRC-32 is
-checked on first access to each entry.
+Bytes of the entry `a.prefix * name`: a view of the archive buffer for a STORED entry, a
+view of the decoded bytes for a DEFLATE entry (decoded once and cached in `a.inflated`).
+The CRC-32 is checked on first access to each entry.
 """
 function entry_data(a::TorchArchive, name::AbstractString)
     full = a.prefix * name
     e = get(a.entries, full, nothing)
     isnothing(e) && throw(ArgumentError(lazy"no entry $full in the archive"))
+    if e.method == 0x0008
+        out = get(a.inflated, full, nothing)
+        if isnothing(out)
+            raw = a.bytes[e.data_offset:(e.data_offset + e.compressed_size - 1)]
+            out = Inflate.inflate(raw)::Vector{UInt8}
+            length(out) == e.size || throw(ArgumentError(lazy"inflated size mismatch in $full"))
+            crc32(out) == e.crc || throw(ArgumentError(lazy"CRC mismatch in $full"))
+            a.inflated[full] = out
+            push!(a.verified, full)
+        end
+        return view(out, 1:length(out))
+    end
     v = view(a.bytes, e.data_offset:(e.data_offset + e.size - 1))
     if !(full in a.verified)
         crc32(v) == e.crc || throw(ArgumentError(lazy"CRC mismatch in $full"))

@@ -7,7 +7,9 @@
     # With `zip64`, central records use 0xFFFFFFFF sentinels plus a ZIP64 extra field,
     # and a ZIP64 end-of-central-directory record and locator precede the classic one.
     # `method` is written to both header kinds without compressing the data.
-    function stored_zip(entries::Vector{Pair{String, Vector{UInt8}}}; zip64::Bool = true, method::UInt16 = 0x0000)
+    # Entries named in `deflate` are stored with method 8 as one final DEFLATE "stored
+    # block" (at most 65535 bytes): header 0x01, LEN, NLEN, then the data.
+    function stored_zip(entries::Vector{Pair{String, Vector{UInt8}}}; zip64::Bool = true, method::UInt16 = 0x0000, deflate::Vector{String} = String[])
         out = UInt8[]
         central = UInt8[]
         for (name, data) in entries
@@ -15,15 +17,23 @@
             crc = PureMLIP.crc32(data)
             nm = collect(codeunits(name))
             sz = length(data)
-            append!(out, le(0x04034b50), le(0x000a), le(0x0000), le(method), le(0x0000), le(0x0021))
-            append!(out, le(crc), le(UInt32(sz)), le(UInt32(sz)), le(UInt16(length(nm))), le(0x0000), nm, data)
-            append!(central, le(0x02014b50), le(0x002d), le(0x000a), le(0x0000), le(method), le(0x0000), le(0x0021), le(crc))
+            m = method
+            payload = data
+            if name in deflate
+                sz <= 0xffff || throw(ArgumentError("deflate fixture entries are limited to 65535 bytes"))
+                m = 0x0008
+                payload = vcat(UInt8[0x01], le(UInt16(sz)), le(~UInt16(sz)), data)
+            end
+            csz = length(payload)
+            append!(out, le(0x04034b50), le(0x000a), le(0x0000), le(m), le(0x0000), le(0x0021))
+            append!(out, le(crc), le(UInt32(csz)), le(UInt32(sz)), le(UInt16(length(nm))), le(0x0000), nm, payload)
+            append!(central, le(0x02014b50), le(0x002d), le(0x000a), le(0x0000), le(m), le(0x0000), le(0x0021), le(crc))
             if zip64
-                extra = vcat(le(0x0001), le(UInt16(24)), le(UInt64(sz)), le(UInt64(sz)), le(UInt64(off)))
+                extra = vcat(le(0x0001), le(UInt16(24)), le(UInt64(sz)), le(UInt64(csz)), le(UInt64(off)))
                 append!(central, le(0xffffffff), le(0xffffffff), le(UInt16(length(nm))), le(UInt16(length(extra))))
                 append!(central, le(0x0000), le(0x0000), le(0x0000), le(0x00000000), le(0xffffffff), nm, extra)
             else
-                append!(central, le(UInt32(sz)), le(UInt32(sz)), le(UInt16(length(nm))), le(0x0000))
+                append!(central, le(UInt32(csz)), le(UInt32(sz)), le(UInt16(length(nm))), le(0x0000))
                 append!(central, le(0x0000), le(0x0000), le(0x0000), le(0x00000000), le(UInt32(off)), nm)
             end
         end
