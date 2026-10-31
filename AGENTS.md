@@ -6,7 +6,8 @@ Plain rules for anyone (human or agent) changing this repository. Each rule carr
 
 - The repository is a monorepo, `PureAtomistic.jl`. `PureMLIP/` is the only package now; `PureAtomistic/` (the simulation layer on top of PureMLIP) is added later.
 - Each package is self-contained: its own `Project.toml`, `src/`, `test/`, `docs/`. This keeps packages registrable and testable separately.
-- `PureMLIP/src/checkpoint` reads mace-torch `.model` checkpoints; `PureMLIP/src/equivariant` holds spherical harmonics, Clebsch-Gordan coefficients, Wigner D matrices and the e3nn conversion layer.
+- PureMLIP has two submodules. `PureMLIP.Checkpoint` (`src/checkpoint/`, entry file `Checkpoint.jl`) reads mace-torch `.model` checkpoints. `PureMLIP.Equivariant` (`src/equivariant/`, entry file `Equivariant.jl`) holds spherical harmonics, Clebsch-Gordan coefficients, Wigner D matrices and the e3nn conversion layer. Neither submodule uses the other. Reason: the reader and the math change independently, and code built on them depends only on their interfaces.
+- A submodule's interface is what it `export`s or declares `public`; everything else is its implementation. `PureMLIP` re-exports both submodules' exports and re-declares their `public` names, so `PureMLIP.x` reaches every interface name. Code outside a submodule uses only its interface. Reason: an implementation detail reached from outside cannot change without breaking the code that reaches it.
 - Designs live in `docs/superpowers/specs/`, implementation plans in `docs/superpowers/plans/`.
 
 ## Dependencies
@@ -15,7 +16,7 @@ Plain rules for anyone (human or agent) changing this repository. Each rule carr
 - LinearAlgebra and SparseArrays are allowed. Their BLAS and SuiteSparse backends are to be replaced by PureBLAS and PureSparse through libblastrampoline. Reason: the standard libraries stay usable while the pure-Julia backends take over.
 - KernelAbstractions and GPU backends are allowed (later plans). Reason: GPU execution needs no binary artifact from this repository.
 - Test-only dependencies live in `PureMLIP/test/Project.toml` and are exempt. Reason: they never ship in a built program. WignerSymbols is test-only because it fails TrimCheck.
-- Every dependency has a `[compat]` bound (stdlibs excepted). Reason: resolution stays reproducible and Julia 1.12 stays supported.
+- Every dependency has a `[compat]` bound. Stdlibs are excepted in the test project; the package bounds LinearAlgebra at `1.12` because Aqua's compat check requires a bound for every package dependency. Reason: resolution stays reproducible and Julia 1.12 stays supported.
 - No Python in any form: no interpreter, no Python-backed package, no Python-installed stack. When a capability seems to need Python, use a native library through `ccall` or a command-line tool. Reason: the repository targets standalone compiled programs with no interpreter.
 
 ## Conventions
@@ -40,6 +41,9 @@ Plain rules for anyone (human or agent) changing this repository. Each rule carr
 - Tests are `@testitem`s run by TestItemRunner, with shared setup in `@testmodule`s. Reason: each item can run alone.
 - Value items check results against oracles (see below); `OffsetArray`/`view` items check generic indexing; error items check each fail-fast message with `@test_throws "message"`. Reason: each kind of item proves a different property, and no one kind substitutes for another.
 - `TrimCheck` `@validate` and `StrictModeTest` `test_signatures(:typestable)` each cover every exported function (the exported types are not checked) plus the internal entry points `embedded_archives` and `entry_data`; the type-stability list also covers `open_torch_archive` and `unpickle`. A new exported function is added to both lists. Reason: inference failures are what `juliac --trim` rejects.
+- `test_layers` (StrictModeTest) checks the layer graph `PureMLIP => (Checkpoint, Equivariant)`, `Checkpoint => ()`, `Equivariant => ()`: no module adds a method to a function owned by a module it does not declare. Its second rule, that no qualified access reads another module's non-public name, does not fire between modules of one package: StrictModeTest 0.5.2 calls ExplicitImports with `allow_internal_accesses = true`, which drops every access whose two modules share a root module. Reason: the submodule boundaries hold only while something checks them.
+- `test_calls` (StrictModeTest) sweeps each submodule after the item has called its entry points, and requires the sweep to be non-empty: no compiled signature may carry a `MethodError` or `UndefVarError` report. An exemption names one function, with its reason in the commit body. Reason: a call that cannot resolve on an untested branch passes every other gate.
+- `Aqua.test_all(PureMLIP)` runs with every sub-check enabled (ambiguities, unbound type parameters, undefined exports, project comparison, stale dependencies, compat bounds, piracy, persistent tasks). Reason: these defects are mechanical to find and costly to find late.
 - `@test_noalloc` covers `spherical_harmonics!`, `spherical_harmonics_and_gradient!` and `e3nn_spherical_harmonics_and_gradient!`. Other `!` functions are not gated yet.
 - The juliac item (tag `:juliac`) builds `PureMLIP/juliac/build/bin/mace_inspect` with `--trim=safe` and runs it on MP-0b3. It runs only with `PUREMLIP_JULIAC_BUILD=1`. Reason: it proves the whole program trims, which per-function checks cannot, but it is slow.
 - Run the suite: `PUREMLIP_CHECKPOINT_DIR=<dir> julia --project=PureMLIP -e 'using Pkg; Pkg.test()'`. Tests download checkpoints by URL and verify SHA-256; `PUREMLIP_CHECKPOINT_DIR` names a local cache directory of your choice.
