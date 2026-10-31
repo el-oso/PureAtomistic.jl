@@ -11,8 +11,10 @@
     Wm, W0, W1 = (torch_array(st[p * k], Val(3)) for k in ("weights_max", "weights.0", "weights.1"))
     for a in 1:3, c in (1, 64, 128)
         s = species[a]; x = X[c, :, a]
-        C2 = [sum(U2[w, y, k] * W0[s, k, c] for k in axes(U2, 3)) +
-              sum(U3[w, y, i, k] * Wm[s, k, c] * x[i] for i in 1:16, k in axes(U3, 4)) for w in 1:16, y in 1:16]
+        C2 = [
+            sum(U2[w, y, k] * W0[s, k, c] for k in axes(U2, 3)) +
+                sum(U3[w, y, i, k] * Wm[s, k, c] * x[i] for i in 1:16, k in axes(U3, 4)) for w in 1:16, y in 1:16
+        ]
         C1 = [sum(U1[w, k] * W1[s, k, c] for k in axes(U1, 2)) + sum(C2[w, y] * x[y] for y in 1:16) for w in 1:16]
         # Rounding bound: 4·eps·N relative, N = 16·16·23 terms per output.
         @test B[c, 1, a] ≈ sum(C1[w] * x[w] for w in 1:16) rtol = 4 * eps() * 16 * 16 * 23
@@ -23,8 +25,10 @@
     Wm, W0, W1 = (torch_array(st[p * k], Val(3)) for k in ("weights_max", "weights.0", "weights.1"))
     for a in 1:3, c in (1, 64, 128), m in 1:3
         s = species[a]; x = X[c, :, a]
-        C2 = [sum(U2[m, w, y, k] * W0[s, k, c] for k in axes(U2, 4)) +
-              sum(U3[m, w, y, i, k] * Wm[s, k, c] * x[i] for i in 1:16, k in axes(U3, 5)) for w in 1:16, y in 1:16]
+        C2 = [
+            sum(U2[m, w, y, k] * W0[s, k, c] for k in axes(U2, 4)) +
+                sum(U3[m, w, y, i, k] * Wm[s, k, c] * x[i] for i in 1:16, k in axes(U3, 5)) for w in 1:16, y in 1:16
+        ]
         C1 = [sum(U1[m, w, k] * W1[s, k, c] for k in axes(U1, 3)) + sum(C2[w, y] * x[y] for y in 1:16) for w in 1:16]
         # Rounding bound: 4·eps·N relative, N = 16·16·51 terms per output.
         @test B[c, 1 + m, a] ≈ sum(C1[w] * x[w] for w in 1:16) rtol = 4 * eps() * 16 * 16 * 51

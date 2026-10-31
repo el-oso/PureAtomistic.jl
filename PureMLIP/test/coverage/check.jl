@@ -10,7 +10,7 @@ const SRC = joinpath(PKG, "src")
 thresholds = TOML.parsefile(joinpath(@__DIR__, "thresholds.toml"))
 # process_folder merges the .cov files of every process; a source file without
 # a .cov file reports all its coverable lines as uncovered.
-measured = Dict{String,Float64}()
+measured = Dict{String, Float64}()
 quiet = ConsoleLogger(stderr, Logging.Warn)
 for fc in with_logger(() -> CoverageTools.process_folder(SRC), quiet)
     covered, total = CoverageTools.get_summary(fc)

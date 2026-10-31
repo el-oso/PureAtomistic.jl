@@ -20,7 +20,9 @@
         @test f["agnesi"]["cotangent"][e][1] * dt ≈ f["agnesi"]["vjp_distances"][e][1] atol = 1.0e-10
     end
     zp = f["zbl"]["parameters"]
-    radii = zeros(119); for (z, r) in R; radii[z + 1] = r; end
+    radii = zeros(119); for (z, r) in R
+        radii[z + 1] = r
+    end
     zbl = M.ZBLParams{Float64}(Tuple(Float64.(zp["c"])), Float64(zp["p"]), zp["a_exp"], zp["a_prefactor"], radii)
     V = zeros(3); vjp = zeros(length(d))
     for e in eachindex(d)

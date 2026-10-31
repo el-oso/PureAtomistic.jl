@@ -5,9 +5,9 @@
         l1, l2, l3 = (E3nnFixtures.segment_degrees(d[k]) for k in ("irreps_in1", "irreps_in2", "irreps_out"))
         ins = [
             (
-                    d["instruction_in1_segment"][p] + 1, d["instruction_in2_segment"][p] + 1, d["instruction_out_segment"][p] + 1,
-                    Float64(d["instruction_path_weight"][p]),
-                ) for p in eachindex(d["instruction_path_weight"])
+                d["instruction_in1_segment"][p] + 1, d["instruction_in2_segment"][p] + 1, d["instruction_out_segment"][p] + 1,
+                Float64(d["instruction_path_weight"][p]),
+            ) for p in eachindex(d["instruction_path_weight"])
         ]
         tp = M.ChannelwiseTP{Float64}(l1, l2, l3, ins)
         for s in eachindex(d["x"])
@@ -70,9 +70,9 @@ end
     y = zeros(128, 16, 3); M.linear!(y, lin1, x10)
     naive = [
         sum(
-                pws[p] * sum(x10[u, off[p] + q - deg(q)^2, i] * W[((p - 1) * 128 + u - 1) * 128 + w] for u in 1:128)
-                    for p in 1:10 if out_slot[p] == deg(q) + 1
-            ) for w in 1:128, q in 1:16, i in 1:3
+            pws[p] * sum(x10[u, off[p] + q - deg(q)^2, i] * W[((p - 1) * 128 + u - 1) * 128 + w] for u in 1:128)
+                for p in 1:10 if out_slot[p] == deg(q) + 1
+        ) for w in 1:128, q in 1:16, i in 1:3
     ]
     # Rounding bound: 4·eps·N·max|terms|, N = 384 terms per output (three slots of 128).
     @test y ≈ naive atol = 4 * eps() * 384 * maximum(abs, x10) * maximum(abs, W)

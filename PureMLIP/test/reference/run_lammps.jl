@@ -12,15 +12,21 @@ include(joinpath(@__DIR__, "structures.jl"))
 const SYMBOLS = Dict(1 => "H", 6 => "C", 7 => "N", 8 => "O", 13 => "Al", 24 => "Cr", 26 => "Fe", 27 => "Co", 28 => "Ni", 29 => "Cu", 40 => "Zr", 74 => "W")
 
 const MODELS = [
-    (name = "mpa0_f64", file = "mpa0_f64-lammps.pt", model = "mace-mpa-0-medium",
+    (
+        name = "mpa0_f64", file = "mpa0_f64-lammps.pt", model = "mace-mpa-0-medium",
         url = "https://github.com/ACEsuit/mace-mp/releases/download/mace_mpa_0/mace-mpa-0-medium.model",
-        sha = "75428afe3a1d7d8062e19bcaabd5c433623cabf308242ec9fb493e38604fb638", dtype = "float64", default = "float64"),
-    (name = "mpa0_f32", file = "mpa0_f32-lammps.pt", model = "mace-mpa-0-medium",
+        sha = "75428afe3a1d7d8062e19bcaabd5c433623cabf308242ec9fb493e38604fb638", dtype = "float64", default = "float64",
+    ),
+    (
+        name = "mpa0_f32", file = "mpa0_f32-lammps.pt", model = "mace-mpa-0-medium",
         url = "https://github.com/ACEsuit/mace-mp/releases/download/mace_mpa_0/mace-mpa-0-medium.model",
-        sha = "75428afe3a1d7d8062e19bcaabd5c433623cabf308242ec9fb493e38604fb638", dtype = "float32", default = "float32"),
-    (name = "mp0b3_f64", file = "mp0b3_f64-lammps.pt", model = "mace-mp-0b3-medium",
+        sha = "75428afe3a1d7d8062e19bcaabd5c433623cabf308242ec9fb493e38604fb638", dtype = "float32", default = "float32",
+    ),
+    (
+        name = "mp0b3_f64", file = "mp0b3_f64-lammps.pt", model = "mace-mp-0b3-medium",
         url = "https://github.com/ACEsuit/mace-mp/releases/download/mace_mp_0b3/mace-mp-0b3-medium.model",
-        sha = "2f2be696351ac9e94fbe01cdfb6f017679acdbd2db7645209ef55fec9826b012", dtype = "float64", default = "float64"),
+        sha = "2f2be696351ac9e94fbe01cdfb6f017679acdbd2db7645209ef55fec9826b012", dtype = "float64", default = "float64",
+    ),
 ]
 
 const LAMMPS_REPOSITORY = "https://github.com/ACEsuit/lammps (branch mace)"
@@ -37,7 +43,7 @@ end
 
 function write_json(io, x, indent = 0)
     pad = "  "^indent
-    if x isa AbstractString
+    return if x isa AbstractString
         print(io, '"', x, '"')
     elseif x isa Integer
         print(io, x)
@@ -71,7 +77,7 @@ end
 function write_data(path, s, types)
     c = s.cell
     (c[1, 2] == 0 && c[1, 3] == 0 && c[2, 3] == 0) || error("cell is not in LAMMPS restricted triclinic form")
-    open(path, "w") do io
+    return open(path, "w") do io
         println(io, "reference structure ", s.name, "\n")
         println(io, size(s.positions, 1), " atoms\n", length(types), " atom types\n")
         println(io, "0.0 ", fmt(c[1, 1]), " xlo xhi")
@@ -119,7 +125,7 @@ function main()
     occursin(r"(?m)^\s*(\S+\s+)*mace\b", helptext) || error("pair style mace is not in the LAMMPS binary")
     machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String))
     structs = reference_structures()
-    mktempdir() do work
+    return mktempdir() do work
         for m in MODELS
             model = joinpath(dir, m.file)
             entries = []
@@ -138,15 +144,21 @@ function main()
                     forces[i, :] = parse.(Float64, r[2:4])
                     pe[i] = parse(Float64, r[5])
                 end
-                push!(entries, (; name = s.name, cell = s.cell, positions = s.positions, atomic_numbers = s.atomic_numbers,
-                    energy = only(res["energy"]), node_energies = pe, forces,
-                    pressure_virial_bar = res["pressure"], volume = only(res["volume"])))
+                push!(
+                    entries, (;
+                        name = s.name, cell = s.cell, positions = s.positions, atomic_numbers = s.atomic_numbers,
+                        energy = only(res["energy"]), node_energies = pe, forces,
+                        pressure_virial_bar = res["pressure"], volume = only(res["volume"]),
+                    )
+                )
             end
             doc = (;
                 schema = "puremlip-lammps-mace-v1",
                 model = (; name = m.model, source_url = m.url, source_sha256 = m.sha, export_sha256 = bytes2hex(open(sha256, model)), dtype = m.dtype, export_default_dtype = m.default),
-                software = (; lammps_version, lammps_repository = LAMMPS_REPOSITORY, lammps_commit = LAMMPS_COMMIT, libtorch = LIBTORCH_VERSION,
-                    torch = vers["torch"], mace = "0.3.16", mace_commit = vers["mace-torch"], e3nn = vers["e3nn"]),
+                software = (;
+                    lammps_version, lammps_repository = LAMMPS_REPOSITORY, lammps_commit = LAMMPS_COMMIT, libtorch = LIBTORCH_VERSION,
+                    torch = vers["torch"], mace = "0.3.16", mace_commit = vers["mace-torch"], e3nn = vers["e3nn"],
+                ),
                 machine,
                 nktv2p = NKTV2P,
                 structures = entries,
