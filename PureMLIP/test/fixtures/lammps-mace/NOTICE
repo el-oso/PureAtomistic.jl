@@ -31,3 +31,6 @@ GPL-2.0-only; the numerical values listed here are outputs of those programs.
 
 On macOS, set HWLOC_COMPONENTS=-darwin to run `lmp`: Open MPI's hwloc topology
 discovery otherwise hangs in MPI_Init.
+
+Sign convention: virial = p·V/nktv2p = -dE/dε (eV) with the kinetic part excluded and the
+LAMMPS sign (positive pressure is compressive); the stress dE/(V·dε) is therefore -virial/V.

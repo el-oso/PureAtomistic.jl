@@ -353,6 +353,8 @@ end
 
     # One structure of the reference: positions and forces 3×n, cell columns = lattice
     # vectors, virial[a,b] = p_ab · volume / nktv2p in eV (symmetric 3×3).
+    # virial = p·V/nktv2p = −∂E/∂ε with the kinetic part excluded and the LAMMPS sign (positive
+    # pressure is compressive); the stress ∂E/(V·∂ε) is therefore −virial/V.
     function structure(ref, name::AbstractString)
         s = ref["structures"][findfirst(x -> x["name"] == name, ref["structures"])]
         pv = Float64.(s["pressure_virial_bar"])
