@@ -10,7 +10,9 @@
 #   killed_elsewhere  test items failed, but none matches `expect`
 #   survived          the suite passed
 #
-# The exit status is nonzero when the control fails or any mutation is invalid or survives.
+# The exit status is nonzero when the control fails or any mutation is invalid, survives or is
+# killed elsewhere: `expect` names the item that must catch the bug, so a different item failing
+# means the intended test no longer does its job.
 #
 # Usage: julia run.jl [filter ...]
 # A filter is a regular expression matched against mutation names; with none, all run.
@@ -114,7 +116,7 @@ function main(args)
         if verdict in (:killed, :killed_elsewhere)
             println("    failed items: ", join(items, " | "))
         end
-        verdict in (:invalid, :survived) && push!(bad, string(m["name"], " (", verdict, ")"))
+        verdict in (:invalid, :survived, :killed_elsewhere) && push!(bad, string(m["name"], " (", verdict, ")"))
         flush(stdout)
     end
     if isempty(bad)

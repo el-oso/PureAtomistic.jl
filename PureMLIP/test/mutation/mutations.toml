@@ -46,10 +46,10 @@ replace = 'const E3NN_W3J_ZERO = 1.0e-3'
 expect = "keeps true coefficients"
 
 [[mutation]]
-name = "sh-index-off-by-one"
+name = "sh-index-m-negated"
 file = "src/equivariant/spherical_harmonics.jl"
 find = 'sh_index(l::Integer, m::Integer) = Int(l)^2 + Int(l) + Int(m) + 1'
-replace = 'sh_index(l::Integer, m::Integer) = Int(l)^2 + Int(l) + Int(m)'
+replace = 'sh_index(l::Integer, m::Integer) = Int(l)^2 + Int(l) - Int(m) + 1'
 expect = "closed forms|orthonormal|SH"
 
 [[mutation]]
@@ -88,10 +88,12 @@ replace = 'dY[i, j + 2] = gz - d * z'
 expect = "gradient matches"
 
 [[mutation]]
-name = "cg-dropped-phase-in-U"
+name = "cg-negated-cosine-rows-in-U"
 file = "src/equivariant/clebsch_gordan.jl"
-find = 'U[a, -m + l + 1] = -im * h * sgn(m)'
-replace = 'U[a, -m + l + 1] = -im * h'
+find = '''U[a, -m + l + 1] = h
+            U[a, m + l + 1] = h * sgn(m)'''
+replace = '''U[a, -m + l + 1] = -h
+            U[a, m + l + 1] = -h * sgn(m)'''
 expect = "real CG"
 
 [[mutation]]
