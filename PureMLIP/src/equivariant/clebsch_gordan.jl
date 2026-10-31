@@ -99,6 +99,6 @@ function real_clebsch_gordan(l1::Integer, l2::Integer, l3::Integer)
         end
         C[a, b, c] = s / sqrt(2l3 + 1)
     end
-    maximum(abs ∘ imag, C) < 1e-12 || error("real Clebsch-Gordan tensor has a nonzero imaginary part for ($l1, $l2, $l3)")
+    maximum(abs ∘ imag, C) < 1.0e-12 || error("real Clebsch-Gordan tensor has a nonzero imaginary part for ($l1, $l2, $l3)")
     return real.(C)
 end

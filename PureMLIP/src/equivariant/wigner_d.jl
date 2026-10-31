@@ -15,7 +15,7 @@ function _gauss_legendre(n::Int)
             dp = n * (z * p1 - p0) / (z^2 - 1)
             dz = p1 / dp
             z -= dz
-            abs(dz) < 1e-16 && break
+            abs(dz) < 1.0e-16 && break
         end
         x[k] = z
         w[k] = 2 / ((1 - z^2) * dp^2)
@@ -24,8 +24,8 @@ function _gauss_legendre(n::Int)
 end
 
 _det3(M) = M[1, 1] * (M[2, 2] * M[3, 3] - M[2, 3] * M[3, 2]) -
-           M[1, 2] * (M[2, 1] * M[3, 3] - M[2, 3] * M[3, 1]) +
-           M[1, 3] * (M[2, 1] * M[3, 2] - M[2, 2] * M[3, 1])
+    M[1, 2] * (M[2, 1] * M[3, 3] - M[2, 3] * M[3, 1]) +
+    M[1, 3] * (M[2, 1] * M[3, 2] - M[2, 2] * M[3, 1])
 
 """
     wigner_D(l, R) -> Matrix{Float64}
@@ -49,7 +49,7 @@ function wigner_D(l::Integer, R::AbstractMatrix{<:Real})
         s = Rf[1, i] * Rf[1, j] + Rf[2, i] * Rf[2, j] + Rf[3, i] * Rf[3, j]
         err = max(err, abs(s - (i == j ? 1.0 : 0.0)))
     end
-    if !(err <= 1e-12 && abs(_det3(Rf) - 1) <= 1e-12)
+    if !(err <= 1.0e-12 && abs(_det3(Rf) - 1) <= 1.0e-12)
         throw(ArgumentError("R is not a rotation: need R'R = I and det R = 1 to 1e-12"))
     end
     L = Int(l)
