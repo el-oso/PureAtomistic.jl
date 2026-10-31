@@ -7,11 +7,12 @@ of PureMLIP.
 """
 module Checkpoint
 
-export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, CheckpointTensor, torch_array
+export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, MACEConstants, CheckpointTensor, torch_array
 
 public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel
 public StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
 public TorchArchive, ZipEntry
+public Normalize2Mom, LinearInstruction, LinearSpec, TPInstruction, TPSpec
 public PK_NONE, PK_BOOL, PK_INT, PK_FLOAT, PK_STR, PK_BYTES, PK_TUPLE, PK_LIST, PK_DICT
 public PK_GLOBAL, PK_CALL, PK_PERSID
 
@@ -22,6 +23,7 @@ include("embedded.jl")
 include("tensors.jl")
 include("statedict.jl")
 include("hyperparameters.jl")
+include("constants.jl")
 include("load.jl")
 
 end

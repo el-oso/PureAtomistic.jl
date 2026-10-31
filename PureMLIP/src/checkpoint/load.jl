@@ -1,7 +1,8 @@
 """
     MACECheckpoint
 
-Fields: `hyperparameters`, a `MACEHyperparameters`, and `state`, the tensors stored in the
+Fields: `hyperparameters`, a `MACEHyperparameters`; `constants`, a `MACEConstants`; and
+`state`, the tensors stored in the
 file. `state` is a `StateDict` with `f64` (name to `CheckpointTensor{Float64}`), `i64`
 (name to `CheckpointTensor{Int64}`) and `names` (every name, in torch's `state_dict()`
 order). For example, `ck.state.i64["atomic_numbers"]`.
@@ -14,6 +15,7 @@ torch's in-memory `state_dict()`.
 struct MACECheckpoint
     hyperparameters::MACEHyperparameters
     state::StateDict
+    constants::MACEConstants
 end
 
 """
@@ -28,7 +30,7 @@ function load_mace_checkpoint(bytes::Vector{UInt8})
     t = unpickle(entry_data(a, "data.pkl"))
     t.nodes[t.root].kind == PK_CALL || error("not a MACE checkpoint: the pickle root is not a module")
     h = read_hyperparameters(a, t)
-    return MACECheckpoint(h, read_state_dict(a, t))
+    return MACECheckpoint(h, read_state_dict(a, t), read_constants(t))
 end
 
 load_mace_checkpoint(path::AbstractString) = load_mace_checkpoint(read(path))

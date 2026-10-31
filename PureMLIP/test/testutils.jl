@@ -126,7 +126,7 @@
     # A one-interaction ScaleShiftMACE skeleton: storage "0" holds Float64 values
     # [r_max, avg_num_neighbors, weights...], storage "1" Int64 [atomic numbers..., num_interactions].
     # `avg_buffer` stores avg_num_neighbors as a 0-dim buffer instead of a float attribute.
-    function tiny_mace_zip(; avg_buffer::Bool = true, root_class::Tuple{String, String} = ("mace.modules.models", "ScaleShiftMACE"))
+    function tiny_mace_zip(; avg_buffer::Bool = true, root_class::Tuple{String, String} = ("mace.modules.models", "ScaleShiftMACE"), extra_modules::Vector{Pair{String, Vector{UInt8}}} = Pair{String, Vector{UInt8}}[])
         f64(off, size) = pk_tensor(pk_storage("DoubleStorage", "0", 6), off, size, size == [2] ? [1] : Int[])
         i64(off, size) = pk_tensor(pk_storage("LongStorage", "1", 3), off, size, size == [2] ? [1] : Int[])
         avg = avg_buffer ? ["avg_num_neighbors" => f64(1, Int[])] : Pair{String, Vector{UInt8}}[]
@@ -156,7 +156,7 @@
             cls = ("mace.modules.symmetric_contraction", "SymmetricContraction")
         )
         product = pk_module(
-            pk_module_state(modules = ["symmetric_contractions" => sc]);
+            pk_module_state(modules = ["symmetric_contractions" => sc], attrs = ["use_sc" => pk_bool(false)]);
             cls = ("mace.modules.blocks", "EquivariantProductBasisBlock")
         )
         readout = pk_module(pk_module_state(); cls = ("mace.modules.blocks", "LinearReadoutBlock"))
@@ -164,7 +164,7 @@
         root = pk_module(
             pk_module_state(
                 buffers = ["atomic_numbers" => i64(0, [2]), "r_max" => f64(0, Int[]), "num_interactions" => i64(2, Int[])],
-                modules = ["interactions" => list(interaction), "products" => list(product), "readouts" => list(readout)],
+                modules = ["interactions" => list(interaction), "products" => list(product), "readouts" => list(readout), extra_modules...],
                 attrs = ["heads" => pk_list(pk_str("default"))]
             ); cls = root_class
         )

@@ -2,6 +2,7 @@
 # A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
 "src/PureMLIP.jl" = 1.00
 "src/checkpoint/Checkpoint.jl" = 1.00
+"src/checkpoint/constants.jl" = 1.00
 "src/checkpoint/crc32.jl" = 0.41
 "src/checkpoint/embedded.jl" = 1.00
 "src/checkpoint/hyperparameters.jl" = 0.98

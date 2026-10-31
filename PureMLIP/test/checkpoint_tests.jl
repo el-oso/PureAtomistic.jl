@@ -93,3 +93,62 @@ end
     @test_throws "unknown parity z" parse_irreps("1x0z")
     @test_throws "malformed irreps string" parse_irreps("1x2x0e")
 end
+
+@testitem "MPA-0 and MP-0b3 pickled constants" setup = [Checkpoints] begin
+    s3, s5, s7 = 1.7320508075688772, 2.23606797749979, 2.6457513110645907
+    a, b = 0.0625, 0.05103103630798288
+    for (name, cst, lin1) in ((:mpa0, 1.679176792398942, [a, b, b, a]), (:mp0b3, 1.6791767923989418, [a, a, b, b, b, b, b, b, a, a]))
+        k = load_mace_checkpoint(Checkpoints.fetch(name)).constants
+        acts = [["interactions.$i.conv_tp_weights.layer$j.act" for i in 0:1 for j in 0:2]; "readouts.1.non_linearity.acts.0"]
+        @test sort(collect(keys(k.normalize2mom))) == sort(acts)
+        # Pickled floats pass through unchanged: exact comparison.
+        @test all(k.normalize2mom[p].cst == cst && k.normalize2mom[p].f == "torch.nn.functional.silu" for p in acts)
+        @test cst != 1.6765324703310911                     # the exact second-moment integral
+        @test k.pair_repulsion && k.distance_transform == "mace.modules.radial.AgnesiTransform"
+        @test k.product_use_sc == [false, true]
+        lw(p) = [i.path_weight for i in k.linear[p].instructions]
+        tw(p) = [i.path_weight for i in k.tensor_product[p].instructions]
+        @test lw("node_embedding.linear") == [0.105999788000636]
+        @test lw("interactions.0.linear") == fill(0.08838834764831845, 4)
+        @test lw("interactions.1.linear_up") == fill(0.08838834764831845, 2)
+        @test lw("interactions.1.linear") == lin1
+        @test lw("readouts.1.linear_2") == [0.25]
+        @test tw("interactions.0.conv_tp") == [1.0, s3, s5, s7]
+        @test tw("interactions.1.conv_tp") == [1.0, 1.0, s3, s3, s3, s5, s5, s5, s7, s7]
+        @test tw("interactions.0.skip_tp") == [0.009369146112448268, 0.01622783709029683, 0.020950047598562217, 0.024788430610565716]
+        @test [(i.i_in1, i.i_in2, i.i_out) for i in k.tensor_product["interactions.1.conv_tp"].instructions] ==
+            [(0, 0, 0), (1, 1, 1), (0, 1, 2), (1, 0, 3), (1, 2, 4), (0, 2, 5), (1, 1, 6), (1, 3, 7), (0, 3, 8), (1, 2, 9)]
+        @test all(i -> i.connection_mode == "uvu", k.tensor_product["interactions.1.conv_tp"].instructions)
+    end
+    P = PureMLIP.Checkpoint.parse_irreps
+    @test load_mace_checkpoint(Checkpoints.fetch(:mpa0)).constants.linear["interactions.1.linear"].irreps_in == P("256x0e+384x1o+384x2e+256x3o")
+end
+
+@testitem "constants of a skeleton checkpoint" setup = [ZipFixtures] begin
+    k = load_mace_checkpoint(ZipFixtures.tiny_mace_zip()).constants
+    @test isempty(k.normalize2mom) && isempty(k.linear) && !k.pair_repulsion && k.distance_transform == ""
+    @test k.product_use_sc == [false]
+end
+
+@testitem "malformed pickled constants are rejected" setup = [ZipFixtures] begin
+    Z = ZipFixtures
+    n2m(; cst = Z.pk_float(1.5)) = Z.pk_module(
+        Z.pk_module_state(attrs = ["f" => Z.pk_global("torch.nn.functional", "silu"), "cst" => cst]);
+        cls = ("e3nn.math._normalize_activation", "normalize2mom")
+    )
+    lin(instr) = Z.pk_module(
+        Z.pk_module_state(attrs = ["irreps_in" => Z.pk_irreps((1, 0, 1)), "irreps_out" => Z.pk_irreps((1, 0, 1)), "instructions" => instr]);
+        cls = ("e3nn.o3._linear", "Linear")
+    )
+    linsn(args...) = Z.pk_call(Z.pk_global("e3nn.o3._linear", "Instruction"), Z.pk_tuple(args...))
+    load(m) = load_mace_checkpoint(Z.tiny_mace_zip(extra_modules = ["act" => m]))
+    # A well-formed module is read back.
+    k = load(n2m()).constants
+    @test k.normalize2mom["act"] == PureMLIP.Normalize2Mom(1.5, "torch.nn.functional.silu")
+    ok = linsn(Z.pk_int(0), Z.pk_int(0), Z.pk_tuple(Z.pk_int(1), Z.pk_int(1)), Z.pk_float(0.5))
+    @test load(lin(Z.pk_list(ok))).constants.linear["act"].instructions[1].path_weight == 0.5
+    @test_throws "checkpoint: act: malformed cst" load(n2m(cst = Z.pk_str("x")))
+    @test_throws "checkpoint: act: malformed instruction" load(lin(Z.pk_list(linsn(Z.pk_int(0)))))
+    @test_throws "checkpoint: act: malformed instruction" load(lin(Z.pk_list(linsn(Z.pk_int(0), Z.pk_int(0), Z.pk_int(1), Z.pk_float(0.5)))))
+    @test_throws "checkpoint: act: malformed instructions" load(lin(Z.pk_tuple()))
+end

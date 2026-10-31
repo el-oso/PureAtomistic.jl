@@ -288,3 +288,14 @@ file = "src/checkpoint/load.jl"
 find = 't.nodes[t.root].kind == PK_CALL ||'
 replace = 'true ||'
 expect = "non-MACE pickle"
+
+[[mutation]]
+name = "constants-tp-inputs-swapped"
+file = "src/checkpoint/constants.jl"
+find = '''
+                int_value(t, a[1], path, "instruction"), int_value(t, a[2], path, "instruction"),
+                int_value(t, a[3], path, "instruction"), t.nodes[a[4]].str,'''
+replace = '''
+                int_value(t, a[2], path, "instruction"), int_value(t, a[1], path, "instruction"),
+                int_value(t, a[3], path, "instruction"), t.nodes[a[4]].str,'''
+expect = "pickled constants"
