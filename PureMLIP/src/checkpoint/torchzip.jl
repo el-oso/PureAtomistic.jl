@@ -37,6 +37,20 @@ function read_le(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T <: Unsi
     return x
 end
 
+# Unsigned little-endian field read as an Int. Sizes and offsets above 2^48 cannot address
+# any archive; rejecting them keeps position arithmetic from overflowing.
+function read_le_int(bytes::Vector{UInt8}, pos::Integer, ::Type{T}) where {T <: Unsigned}
+    x = read_le(bytes, pos, T)
+    x <= UInt64(1) << 48 || throw(ArgumentError(lazy"zip field at byte $pos is out of range: $x"))
+    return Int(x)
+end
+
+# Int value of a size or offset parsed from an entry header (see `read_le_int`).
+function header_int(x::UInt64, what::AbstractString, name::AbstractString)
+    x <= UInt64(1) << 48 || throw(ArgumentError(lazy"zip entry $name has an out-of-range $what: $x"))
+    return Int(x)
+end
+
 function find_eocd(bytes::Vector{UInt8})
     last_start = length(bytes) - 21
     first_start = max(1, last_start - 0xffff)
@@ -54,11 +68,11 @@ function open_torch_archive(bytes::Vector{UInt8})
     if sentinel || (eocd > 20 && read_le(bytes, eocd - 20, UInt32) == SIG_ZIP64_LOCATOR)
         eocd > 20 && read_le(bytes, eocd - 20, UInt32) == SIG_ZIP64_LOCATOR ||
             throw(ArgumentError("zip64 end-of-central-directory locator missing"))
-        z64 = Int(read_le(bytes, eocd - 20 + 8, UInt64)) + 1
+        z64 = read_le_int(bytes, eocd - 20 + 8, UInt64) + 1
         read_le(bytes, z64, UInt32) == SIG_ZIP64_EOCD ||
             throw(ArgumentError(lazy"no zip64 end-of-central-directory record at byte $z64"))
-        nentries = Int(read_le(bytes, z64 + 32, UInt64))
-        cd_offset = Int(read_le(bytes, z64 + 48, UInt64))
+        nentries = read_le_int(bytes, z64 + 32, UInt64)
+        cd_offset = read_le_int(bytes, z64 + 48, UInt64)
     end
 
     entries = Dict{String, ZipEntry}()
@@ -112,12 +126,12 @@ function open_torch_archive(bytes::Vector{UInt8})
         (method == 0 || method == 8) ||
             throw(ArgumentError(lazy"compressed entries are not supported: $name (method $method)"))
         method == 0 && csize != usize && throw(ArgumentError(lazy"stored entry $name has differing sizes: $csize vs $usize"))
-        lh = Int(local_off) + 1
+        lh = header_int(local_off, "offset", name) + 1
         read_le(bytes, lh, UInt32) == SIG_LOCAL ||
             throw(ArgumentError(lazy"bad local header for entry $name at byte $lh"))
         data_offset = lh + 30 + Int(read_le(bytes, lh + 26, UInt16)) + Int(read_le(bytes, lh + 28, UInt16))
-        sz = Int(usize)
-        csz = Int(csize)
+        sz = header_int(usize, "size", name)
+        csz = header_int(csize, "compressed size", name)
         data_offset + csz - 1 <= length(bytes) ||
             throw(ArgumentError(lazy"entry $name extends past the end of the archive (bytes $data_offset to $(data_offset + csz - 1) of $(length(bytes)))"))
         haskey(entries, name) && throw(ArgumentError(lazy"duplicate zip entry: $name"))

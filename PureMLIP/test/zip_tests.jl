@@ -67,3 +67,25 @@ end
     T = SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int}}, true}
     @test Base.return_types(PureMLIP.entry_data, (PureMLIP.TorchArchive, String)) == [T]
 end
+
+@testitem "zip64 fields beyond the addressable range are rejected" setup = [ZipFixtures] begin
+    good = ZipFixtures.stored_zip(["a/data.pkl" => UInt8[1, 2, 3]])
+    eocd = length(good) - 21
+    top = fill(0xff, 8)
+    # ZIP64 locator offset, and the entry's size, compressed size and local-header offset.
+    locator = copy(good); locator[(eocd - 20 + 8):(eocd - 20 + 15)] = top
+    @test_throws "zip field at byte" PureMLIP.open_torch_archive(locator)
+    # First byte of the ZIP64 extra-field values (size, compressed size, offset) of the one entry.
+    extra_of(z) = Int(PureMLIP.Checkpoint.read_le(z, length(z) - 21 - 20 - 56 + 48, UInt64)) + 1 + 46 + ncodeunits("a/data.pkl") + 4
+    extra = extra_of(good)
+    # A STORED entry needs equal sizes, so both fields change together; a DEFLATE entry
+    # lets the compressed size differ.
+    sizes = copy(good); sizes[extra:(extra + 15)] = [top; top]
+    @test_throws "zip entry a/data.pkl has an out-of-range size" PureMLIP.open_torch_archive(sizes)
+    offset = copy(good); offset[(extra + 16):(extra + 23)] = top
+    @test_throws "zip entry a/data.pkl has an out-of-range offset" PureMLIP.open_torch_archive(offset)
+    deflated = ZipFixtures.stored_zip(["a/data.pkl" => UInt8[1, 2, 3]]; deflate = ["a/data.pkl"])
+    e = extra_of(deflated)
+    deflated[(e + 8):(e + 15)] = top
+    @test_throws "zip entry a/data.pkl has an out-of-range compressed size" PureMLIP.open_torch_archive(deflated)
+end

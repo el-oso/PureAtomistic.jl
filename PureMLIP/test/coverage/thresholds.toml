@@ -9,7 +9,7 @@
 "src/checkpoint/pickle.jl" = 0.99
 "src/checkpoint/statedict.jl" = 1.00
 "src/checkpoint/tensors.jl" = 1.00
-"src/checkpoint/torchzip.jl" = 0.98
+"src/checkpoint/torchzip.jl" = 1.00
 "src/equivariant/Equivariant.jl" = 0.00
 "src/equivariant/clebsch_gordan.jl" = 1.00
 "src/equivariant/e3nn.jl" = 1.00
