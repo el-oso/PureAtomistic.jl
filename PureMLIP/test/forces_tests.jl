@@ -134,3 +134,78 @@ end
         bad, ws, m, s.positions, s.cell, s.atomic_numbers, nl
     )
 end
+
+# The two composed pullbacks of the backward pass, each against a ForwardDiff directional
+# derivative of its forward function and a central difference along the same direction:
+# ⟨pullback(dout), v⟩ = d/dt ⟨dout, f(in + t v)⟩.
+@testitem "forces: density-normalization and message pullbacks" setup = [Checkpoints] begin
+    using ForwardDiff, Random
+    Mo = PureMLIP.Model
+    struct LayerTag end
+    D = ForwardDiff.Dual{LayerTag, Float64, 1}
+    dual(a, v) = D.(a, ForwardDiff.Partials.(tuple.(v)))
+    slope(y) = ForwardDiff.partials(y, 1)
+    rng = Xoshiro(7)
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    m = MACEModel(ck)
+    P = [0.0 2.5 1.2 0.4; 0.0 0.0 1.9 2.6; 0.0 0.0 0.3 1.8]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 1, 8, 13]
+    n = size(P, 2)
+    nl = neighbor_list(P, C, 6.0)
+    # A chunk smaller than the edge count: the message pullback recomputes the MLP per chunk.
+    chunk = 7
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = chunk)
+    mace_energy!(MACEResult{Float64}(n), ws, m, P, C, Z, nl)
+    @test nl.n_edges > 2 * chunk
+    # Measured margins over k = 1, 2 (largest |pullback − reference|): density normalization
+    # 4.3e-14 against ForwardDiff and 1.6e-9 against the central difference (h = 1e-5); messages
+    # 1.7e-12 and 6.4e-7. Each tolerance is 16-23 times its measurement.
+    tol_norm_ad, tol_norm_fd = 8.0e-13, 3.0e-8
+    tol_msg_ad, tol_msg_fd = 3.0e-11, 1.0e-5
+    for k in 1:2
+        # Normalized linear: L = linear(M) / (density + 1).
+        lin = m.linear[k]
+        M = randn(rng, size(ws.M[k])); dens = rand(rng, n)
+        vM = randn(rng, size(M)); vd = randn(rng, n)
+        L = zeros(lin.C_out, lin.K_out, n)
+        Mo._normalized_linear!(L, lin, M, dens)
+        dL = randn(rng, size(L))
+        dM = zeros(size(M)); dd = zeros(n)
+        Mo._normalized_linear_pullback!(dM, dd, lin, copy(dL), L, dens)
+        back = sum(dM .* vM) + sum(dd .* vd)
+        LD = zeros(D, size(L))
+        Mo._normalized_linear!(LD, lin, dual(M, vM), dual(dens, vd))
+        fwd = slope(sum(dL .* LD))
+        f(t) = sum(dL .* Mo._normalized_linear!(zeros(size(L)), lin, M .+ t .* vM, dens .+ t .* vd))
+        h = 1.0e-5
+        fd = (f(h) - f(-h)) / 2h
+        @test back ≈ fwd atol = tol_norm_ad
+        @test back ≈ fd atol = tol_norm_fd
+
+        # Messages of interaction k, as functions of the sender features x, the harmonics Y and
+        # the edge lengths d (through the radial features: feats + t·dfeats·v_d).
+        E = nl.n_edges
+        x = copy(view(ws.x[k], :, :, 1:n))
+        vx = randn(rng, size(x)); vY = randn(rng, 16, E); vdl = randn(rng, E)
+        Mk = zeros(size(ws.M[k])); densk = zeros(n)
+        dMk = randn(rng, size(Mk)); ddk = randn(rng, n)
+        feats, dfeats, Y = copy(ws.feats), copy(ws.dfeats), copy(ws.Y)
+        dx = zeros(size(x))
+        fill!(ws.dd, 0.0); fill!(ws.dY, 0.0)
+        Mo._messages_pullback!(dx, ws, m, k, x, dMk, ddk, nl)
+        back = sum(dx .* vx) + sum(ws.dY .* vY) + sum(ws.dd .* vdl)
+        wsD = MACEWorkspace{D}(m, n, E; edge_chunk = chunk)
+        wsD.feats .= dual(feats, dfeats .* vdl'); wsD.Y .= dual(Y, vY)
+        MD = zeros(D, size(Mk)); densD = zeros(D, n)
+        Mo._messages!(MD, densD, wsD, m, k, dual(x, vx), nl)
+        fwd = slope(sum(dMk .* MD) + sum(ddk .* densD))
+        function g(t)
+            ws.feats .= feats .+ t .* dfeats .* vdl'; ws.Y .= Y .+ t .* vY
+            Mo._messages!(Mk, densk, ws, m, k, x .+ t .* vx, nl)
+            return sum(dMk .* Mk) + sum(ddk .* densk)
+        end
+        fd = (g(h) - g(-h)) / 2h
+        ws.feats .= feats; ws.Y .= Y
+        @test back ≈ fwd atol = tol_msg_ad
+        @test back ≈ fd atol = tol_msg_fd
+    end
+end

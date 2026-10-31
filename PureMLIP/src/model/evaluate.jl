@@ -26,7 +26,9 @@ end
 The buffers of an evaluation of `model` on up to `n_atoms` atoms and `n_edges` directed edges.
 Per-edge geometry is held for every edge; the radial-MLP outputs (the tensor-product weights)
 are computed `edge_chunk` edges at a time. The workspace also holds the energy derivatives of
-the backward pass of [`mace_energy_forces!`](@ref).
+the backward pass of [`mace_energy_forces!`](@ref). The evaluation functions require `T` to be
+the element type of the model; the constructor reads only sizes from `model`, so `T` may also be
+a number type the layers accept, such as a dual number.
 """
 struct MACEWorkspace{T}
     n_atoms::Int
@@ -83,7 +85,7 @@ struct MACEWorkspace{T}
     dM::NTuple{2, Array{T, 3}}
     dx::NTuple{2, Array{T, 3}}
     ddensity::Matrix{T}              # n × 2
-    function MACEWorkspace{T}(model::MACEModel{T}, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096) where {T}
+    function MACEWorkspace{T}(model::MACEModel, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096) where {T}
         (n_atoms >= 0 && n_edges >= 0) ||
             throw(ArgumentError(lazy"model: workspace sizes must not be negative, got $n_atoms atoms and $n_edges edges"))
         edge_chunk > 0 || throw(ArgumentError(lazy"model: the edge chunk must be positive, got $edge_chunk"))
@@ -151,7 +153,7 @@ function _edges!(ws::MACEWorkspace{T}, model::MACEModel{T}, positions, cell, ato
 end
 
 # Messages of interaction `k` summed at the receivers, and the density of each receiver.
-function _messages!(M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, k::Int, x::AbstractArray{T, 3}, nl::NeighborList) where {T}
+function _messages!(M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACEWorkspace{T}, model::MACEModel, k::Int, x::AbstractArray{T, 3}, nl::NeighborList) where {T}
     fill!(M, zero(T))
     fill!(density, zero(T))
     mlp, tp = model.mlp[k], model.conv[k]
@@ -170,11 +172,15 @@ function _messages!(M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACE
     return nothing
 end
 
+# The divisor of the summed messages of a node with density ρ; the forward pass and its pullback
+# both use it.
+_density_norm(ρ) = ρ + one(ρ)
+
 # L = linear(M) / (density + 1), per node.
 function _normalized_linear!(L::AbstractArray{T, 3}, lin::E3nnLinear, M::AbstractArray{T, 3}, density::AbstractVector{T}) where {T}
     linear!(L, lin, M)
     for i in axes(L, 3)
-        q = density[i] + 1
+        q = _density_norm(density[i])
         for c in axes(L, 2), u in axes(L, 1)
             L[u, c, i] /= q
         end
@@ -279,7 +285,7 @@ function _normalized_linear_pullback!(
         L::AbstractArray{T, 3}, density::AbstractVector{T}
     ) where {T}
     for i in axes(dL, 3)
-        q = density[i] + one(T)
+        q = _density_norm(density[i])
         s = zero(T)
         for c in axes(dL, 2), u in axes(dL, 1)
             s += dL[u, c, i] * L[u, c, i]

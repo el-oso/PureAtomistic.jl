@@ -436,8 +436,8 @@ expect = "energies match"
 [[mutation]]
 name = "density-normalization-without-one"
 file = "src/model/evaluate.jl"
-find = "q = density[i] + 1"
-replace = "q = density[i]"
+find = "_density_norm(ρ) = ρ + one(ρ)"
+replace = "_density_norm(ρ) = ρ"
 expect = "energies match"
 
 [[mutation]]
