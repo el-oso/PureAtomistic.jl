@@ -12,6 +12,9 @@
                 (P.open_torch_archive, (Vector{UInt8},)),
                 (P.unpickle, (Vector{UInt8},)),
                 (P.torch_array, (P.CheckpointTensor{Float64}, Val{3})),
+                (P.wigner_D, (Int, Matrix{Float64})),
+                (P.real_clebsch_gordan, (Int, Int, Int)),
+                (P.clebsch_gordan_complex, (Int, Int, Int, Int, Int, Int)),
             ]; guarantees = (:typestable,)
         )
     end
