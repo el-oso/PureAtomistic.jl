@@ -5,6 +5,7 @@
         for i in axes(f.vectors, 1)
             Y = zeros(n); dY = zeros(n, 3)
             PureMLIP.e3nn_spherical_harmonics_and_gradient!(Y, dY, f.vectors[i, :], L)
+            # Oracle tolerance: e3nn-core-rs fixtures are stated to 1e-10.
             @test Y ≈ f.y[i, :] atol = 1.0e-10
             @test dY' * f.grad_y[i, :] ≈ f.grad_vectors[i, :] atol = 1.0e-10
             Y2 = zeros(n)
@@ -33,7 +34,8 @@ end
     for name in ("fully_connected_tensor_product_smoke_f64", "fully_connected_tensor_product_lmax4_smoke_f64")
         for (l1, l2, l3, entries) in E3nnFixtures.cg_instructions(name)
             C = PureMLIP.e3nn_wigner_3j(l1, l2, l3)
-            @test all(isapprox(C[i + 1, j + 1, k + 1], v; atol = 1.0e-12) for (i, j, k, v) in entries)
+            # Measured margin: largest entry difference 5.8e-16; atol is 17 times that.
+            @test all(isapprox(C[i + 1, j + 1, k + 1], v; atol = 1.0e-14) for (i, j, k, v) in entries)
             @test count(!iszero, C) == length(entries)
         end
     end
@@ -50,11 +52,14 @@ end
         )
         raw = reinterpret(Float64, collect(PureMLIP.entry_data(arch, entry)))
         T = [raw[1 + (i - 1) * strides[1] + (j - 1) * strides[2] + (k - 1) * strides[3]] for i in 1:shape[1], j in 1:shape[2], k in 1:shape[3]]
+        # Measured margin: ‖difference‖ ≤ 1.0e-15 for these four tables; atol is 10 times that.
         @test PureMLIP.e3nn_wigner_3j(l...) ≈ T atol = 1.0e-14
     end
 end
 
 @testitem "e3nn_basis_change for l = 1, 2" begin
+    # Measured margin: ‖difference‖ ≤ 1.0e-15 for l = 0, 1, 2 (entries are 0, ±1, ±1/2, ±√3/2);
+    # atol is 10 times that.
     @test PureMLIP.e3nn_basis_change(0) ≈ ones(1, 1) atol = 1.0e-14
     @test PureMLIP.e3nn_basis_change(1) ≈ [0 0 1; 1 0 0; 0 1 0] atol = 1.0e-14
     @test PureMLIP.e3nn_basis_change(2) ≈ [0 0 0 1 0; 1 0 0 0 0; 0 0 -1 / 2 0 -sqrt(3) / 2; 0 1 0 0 0; 0 0 sqrt(3) / 2 0 -1 / 2] atol = 1.0e-14
@@ -72,11 +77,24 @@ end
         W = PureMLIP.e3nn_wigner_3j(l1, l2, l3)
         for i in eachindex(raw)
             if iszero(W[i])
+                # Measured gap for l ≤ 8: residue ≤ 8.3e-16, smallest true coefficient 1.3e-3.
                 @test abs(raw[i]) <= 1.0e-14
             else
-                @test abs(raw[i]) >= 1.0e-6
+                @test abs(raw[i]) >= 1.0e-3
                 @test W[i] == raw[i]
             end
         end
+    end
+end
+
+@testitem "e3nn_wigner_3j keeps true coefficients below 1e-3" begin
+    # Each triple has a nonzero coefficient between 4e-4 and 8e-4, far above the 1e-13
+    # rounding residue: only a threshold above that magnitude would zero it.
+    for (l1, l2, l3) in ((4, 6, 10), (5, 5, 10), (4, 5, 9), (7, 8, 9))
+        raw = PureMLIP.Equivariant._e3nn_wigner_3j_unzeroed(l1, l2, l3)
+        W = PureMLIP.e3nn_wigner_3j(l1, l2, l3)
+        small = [i for i in eachindex(raw) if 1.0e-6 < abs(raw[i]) < 1.0e-3]
+        @test !isempty(small)
+        @test W[small] == raw[small]
     end
 end

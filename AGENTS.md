@@ -57,7 +57,11 @@ Plain rules for anyone (human or agent) changing this repository. Each rule carr
 
 ### Tolerance policy
 
-Written in a later step of the hardening plan.
+- Every numeric comparison in a test states its oracle and a tolerance justified by exactly one of: (a) the oracle's own stated tolerance (e3nn-core-rs fixtures: 1e-10); (b) a rounding bound `c · eps(T) · N`, with the constant `c` and the operation count or condition `N` written in a comment next to the comparison; (c) a measured margin: the largest error observed, written in the comment, with the tolerance at most 100 times that and normally 10 to 20 times. Reason: a tolerance with no stated source is either too loose to catch a wrong convention or too tight to survive another platform, and nobody can tell which.
+- A tolerance is never raised to make a test pass. A failure above the stated bound is investigated; the comment and the number change together only when the measurement or the bound changes. Reason: a loosened tolerance hides exactly the error the test exists to find.
+- A threshold that separates two populations (the `1e-13` zero threshold of `e3nn_wigner_3j`) is justified as a measured gap: the largest value on the low side and the smallest on the high side are both written down, and the threshold lies between them. The tests assert the gap at the measured extremes. Reason: a threshold with no gap measured is a guess that fails on the next input.
+- Equality `==` is used where the computation is exact by construction (copies, integer arithmetic, a value passed through unchanged). Reason: any tolerance there would only hide a defect.
+- The mutation smoke check (`PureMLIP/test/mutation/`, run by hand or by the `Mutation` workflow) applies one deliberate bug at a time from `mutations.toml` to a temporary copy of `PureMLIP/`, runs the full suite, and reports each mutation as killed (the suite fails) or survived (it passes). A survivor is a missing test and gets one. Each `find` string occurs exactly once in its file, so a stale entry fails the run instead of doing nothing. A new source file gets at least one mutation. Reason: coverage shows that a line ran, not that a test would notice it being wrong.
 
 ## Commits and publishing
 

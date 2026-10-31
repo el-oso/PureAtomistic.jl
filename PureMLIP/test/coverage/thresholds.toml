@@ -4,7 +4,7 @@
 "src/checkpoint/Checkpoint.jl" = 0.00
 "src/checkpoint/crc32.jl" = 0.41
 "src/checkpoint/embedded.jl" = 1.00
-"src/checkpoint/hyperparameters.jl" = 0.96
+"src/checkpoint/hyperparameters.jl" = 0.98
 "src/checkpoint/load.jl" = 1.00
 "src/checkpoint/pickle.jl" = 0.99
 "src/checkpoint/statedict.jl" = 1.00

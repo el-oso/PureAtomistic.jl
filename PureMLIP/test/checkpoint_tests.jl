@@ -83,3 +83,13 @@ end
     z = F.zip_with_pickle(F.pk_finish(F.pk_module(body; cls)), Pair{String, Vector{UInt8}}[])
     @test_throws "checkpoint: root module has no _buffers" load_mace_checkpoint(z)
 end
+
+@testitem "parse_irreps: implicit multiplicity and y parity" begin
+    parse_irreps = PureMLIP.Checkpoint.parse_irreps
+    I = PureMLIP.IrrepMul
+    # e3nn: a term without a multiplicity has multiplicity 1; parity 'y' is (-1)^l.
+    @test parse_irreps("0e + 1o + 2y + 3y") == [I(1, 0, 1), I(1, 1, -1), I(1, 2, 1), I(1, 3, -1)]
+    @test parse_irreps("16x2y") == [I(16, 2, 1)]
+    @test_throws "unknown parity z" parse_irreps("1x0z")
+    @test_throws "malformed irreps string" parse_irreps("1x2x0e")
+end

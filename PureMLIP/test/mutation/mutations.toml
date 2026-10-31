@@ -1,0 +1,287 @@
+# Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureMLIP/;
+# `find` must occur exactly once in it; `expect` is a regex for the test item expected to fail.
+
+[[mutation]]
+name = "e3nn-sign-rule"
+file = "src/equivariant/e3nn.jl"
+find = 's = iseven((l1 + l2 - l3) ÷ 2) ? 1.0 : -1.0'
+replace = 's = iseven((l1 + l2 - l3) ÷ 2) ? -1.0 : 1.0'
+expect = "e3nn_wigner_3j matches"
+
+[[mutation]]
+name = "e3nn-sqrt-4pi"
+file = "src/equivariant/e3nn.jl"
+find = '''
+    _real_sh!(Y, nothing, v[fv + 2], v[fv], v[fv + 1], Int(lmax))
+    c = sqrt(4 * T(π))'''
+replace = '''
+    _real_sh!(Y, nothing, v[fv + 2], v[fv], v[fv + 1], Int(lmax))
+    c = sqrt(2 * T(π))'''
+expect = "e3nn SH and gradient"
+
+[[mutation]]
+name = "e3nn-grad-columns-swapped"
+file = "src/equivariant/e3nn.jl"
+find = '''
+        dY[i, j] = c * d1
+        dY[i, j + 1] = c * d2'''
+replace = '''
+        dY[i, j] = c * d2
+        dY[i, j + 1] = c * d1'''
+expect = "e3nn SH and gradient"
+
+[[mutation]]
+name = "e3nn-axes-relabeled"
+file = "src/equivariant/e3nn.jl"
+find = 'R = [0.0 0.0 1.0; 1.0 0.0 0.0; 0.0 1.0 0.0]'
+replace = 'R = [0.0 1.0 0.0; 0.0 0.0 1.0; 1.0 0.0 0.0]'
+expect = "e3nn_basis_change|e3nn_wigner_3j"
+
+[[mutation]]
+name = "e3nn-zero-threshold"
+file = "src/equivariant/e3nn.jl"
+find = 'const E3NN_W3J_ZERO = 1.0e-13'
+replace = 'const E3NN_W3J_ZERO = 1.0e-3'
+expect = "zero threshold"
+
+[[mutation]]
+name = "sh-index-off-by-one"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'sh_index(l::Integer, m::Integer) = Int(l)^2 + Int(l) + Int(m) + 1'
+replace = 'sh_index(l::Integer, m::Integer) = Int(l)^2 + Int(l) + Int(m)'
+expect = "closed forms|orthonormal|SH"
+
+[[mutation]]
+name = "sh-condon-shortley-q11"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'Y[o + sh_index(1, 1)] = -one(T)'
+replace = 'Y[o + sh_index(1, 1)] = one(T)'
+expect = "closed forms|orthonormal"
+
+[[mutation]]
+name = "sh-recurrence-sign"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'Y[o + sh_index(l, l)] = -(2l - 1) * qll'
+replace = 'Y[o + sh_index(l, l)] = (2l - 1) * qll'
+expect = "closed forms|orthonormal"
+
+[[mutation]]
+name = "sh-prefactor-sign"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'F = -F / sqrt(T((l + m) * (l + 1 - m)))'
+replace = 'F = F / sqrt(T((l + m) * (l + 1 - m)))'
+expect = "closed forms|orthonormal"
+
+[[mutation]]
+name = "sh-grad-projector-identity"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'd = x * gx + y * gy + z * gz'
+replace = 'd = zero(T)'
+expect = "gradient matches"
+
+[[mutation]]
+name = "sh-grad-missing-1-over-r"
+file = "src/equivariant/spherical_harmonics.jl"
+find = 'dY[i, j + 2] = (gz - d * z) / r'
+replace = 'dY[i, j + 2] = gz - d * z'
+expect = "gradient matches"
+
+[[mutation]]
+name = "cg-dropped-phase-in-U"
+file = "src/equivariant/clebsch_gordan.jl"
+find = 'U[a, -m + l + 1] = -im * h * sgn(m)'
+replace = 'U[a, -m + l + 1] = -im * h'
+expect = "real CG"
+
+[[mutation]]
+name = "cg-racah-alternation"
+file = "src/equivariant/clebsch_gordan.jl"
+find = 's += (iseven(k) ? 1.0 : -1.0) / t'
+replace = 's += 1.0 / t'
+expect = "complex CG"
+
+[[mutation]]
+name = "cg-normalization"
+file = "src/equivariant/clebsch_gordan.jl"
+find = ' ./ sqrt(2l3 + 1)'
+replace = ' ./ sqrt(2l3)'
+expect = "real CG"
+
+[[mutation]]
+name = "cg-parity-check-dropped"
+file = "src/equivariant/clebsch_gordan.jl"
+find = '''
+iseven(l1 + l2 + l3))
+        throw(ArgumentError(lazy"real Clebsch-Gordan'''
+replace = '''
+true)
+        throw(ArgumentError(lazy"real Clebsch-Gordan'''
+expect = "real CG"
+
+[[mutation]]
+name = "wigner-gauss-legendre-nodes"
+file = "src/equivariant/wigner_d.jl"
+find = 'xs, ws = _gauss_legendre(L + 1)'
+replace = 'xs, ws = _gauss_legendre(max(L, 1))'
+expect = "wigner_D"
+
+[[mutation]]
+name = "wigner-quadrature-weight"
+file = "src/equivariant/wigner_d.jl"
+find = 'w[q] = ws[k] * 2pi / nφ'
+replace = 'w[q] = ws[k] / nφ'
+expect = "wigner_D"
+
+[[mutation]]
+name = "wigner-determinant-check"
+file = "src/equivariant/wigner_d.jl"
+find = 'abs(det(Rf) - 1) <= 1.0e-12'
+replace = 'true'
+expect = "real CG: norm, equivariance, errors"
+
+[[mutation]]
+name = "crc32-final-xor"
+file = "src/checkpoint/crc32.jl"
+find = '    return ~c'
+replace = '    return c'
+expect = "crc32"
+
+[[mutation]]
+name = "zip-stored-crc-check-dropped"
+file = "src/checkpoint/torchzip.jl"
+find = 'crc32(v) == e.crc || throw(ArgumentError(lazy"CRC mismatch in $full"))'
+replace = 'nothing'
+expect = "zip"
+
+[[mutation]]
+name = "zip-deflate-crc-check-dropped"
+file = "src/checkpoint/torchzip.jl"
+find = 'crc32(out) == e.crc ||'
+replace = 'true ||'
+expect = "deflated"
+
+[[mutation]]
+name = "zip-local-extra-field-ignored"
+file = "src/checkpoint/torchzip.jl"
+find = ' + Int(read_le(bytes, lh + 28, UInt16))'
+replace = ''
+expect = "MP-0b3|zip"
+
+[[mutation]]
+name = "zip-duplicate-entry-allowed"
+file = "src/checkpoint/torchzip.jl"
+find = 'haskey(entries, name) && throw('
+replace = 'false && throw('
+expect = "duplicate"
+
+[[mutation]]
+name = "pickle-binfloat-little-endian"
+file = "src/checkpoint/pickle.jl"
+find = 'x = (x << 8) | UInt64(take_byte!(u))'
+replace = 'x = (x >> 8) | (UInt64(take_byte!(u)) << 56)'
+expect = "unpickle"
+
+[[mutation]]
+name = "pickle-binint-unsigned"
+file = "src/checkpoint/pickle.jl"
+find = 'int = reinterpret(Int32, take_le!(u, UInt32))'
+replace = 'int = take_le!(u, UInt32)'
+expect = "unpickle"
+
+[[mutation]]
+name = "pickle-global-allowlist-dropped"
+file = "src/checkpoint/pickle.jl"
+find = 'full in ALLOWED_GLOBALS ||'
+replace = 'true ||'
+expect = "unknown globals"
+
+[[mutation]]
+name = "pickle-trailing-data-allowed"
+file = "src/checkpoint/pickle.jl"
+find = 'u.pos > lastindex(u.data) ||'
+replace = 'true ||'
+expect = "trailing"
+
+[[mutation]]
+name = "statedict-none-not-skipped"
+file = "src/checkpoint/statedict.jl"
+find = 'node.kind == PK_NONE && return nothing'
+replace = 'false && return nothing'
+expect = "state dict"
+
+[[mutation]]
+name = "statedict-none-module-not-skipped"
+file = "src/checkpoint/statedict.jl"
+find = 't.nodes[v].kind == PK_NONE && continue'
+replace = 'false && continue'
+expect = "state dict"
+
+[[mutation]]
+name = "statedict-non-persistent-kept"
+file = "src/checkpoint/statedict.jl"
+find = 'n in skip || add_tensor!'
+replace = 'add_tensor!'
+expect = "state dict"
+
+[[mutation]]
+name = "statedict-byteorder-unchecked"
+file = "src/checkpoint/statedict.jl"
+find = 'String(bo[:]) == "little" ||'
+replace = 'true ||'
+expect = "byte"
+
+[[mutation]]
+name = "tensors-stride-ignored"
+file = "src/checkpoint/tensors.jl"
+find = 'lin += stride[d]'
+replace = 'lin += 1'
+expect = "strided|MP-0b3"
+
+[[mutation]]
+name = "tensors-element-big-endian"
+file = "src/checkpoint/tensors.jl"
+find = 'u |= UInt64(bytes[base + b]) << (8b)'
+replace = 'u |= UInt64(bytes[base + b]) << (8 * (sizeof(T) - 1 - b))'
+expect = "tensor|MP-0b3"
+
+[[mutation]]
+name = "tensors-torch-array-order"
+file = "src/checkpoint/tensors.jl"
+find = 'rev = reshape(x.data, ntuple(d -> x.shape[N + 1 - d], Val(N)))'
+replace = 'rev = reshape(x.data, ntuple(d -> x.shape[d], Val(N)))'
+expect = "torch_array"
+
+[[mutation]]
+name = "hyper-correlation-off-by-one"
+file = "src/checkpoint/hyperparameters.jl"
+find = 'k = length(dict_pairs(t, module_dict(t, w, "_parameters", cs_path))) + 1'
+replace = 'k = length(dict_pairs(t, module_dict(t, w, "_parameters", cs_path)))'
+expect = "MP-0b3"
+
+[[mutation]]
+name = "hyper-irrep-y-parity"
+file = "src/checkpoint/hyperparameters.jl"
+find = "c == 'y' && return iseven(l) ? 1 : -1"
+replace = "c == 'y' && return iseven(l) ? -1 : 1"
+expect = "irreps strings"
+
+[[mutation]]
+name = "hyper-irreps-default-multiplicity"
+file = "src/checkpoint/hyperparameters.jl"
+find = 'mul = length(parts) == 2 ? tryparse(Int, parts[1]) : 1'
+replace = 'mul = length(parts) == 2 ? tryparse(Int, parts[1]) : 2'
+expect = "irreps strings"
+
+[[mutation]]
+name = "embedded-zip-magic"
+file = "src/checkpoint/embedded.jl"
+find = '0x4b, 0x03, 0x04]'
+replace = '0x4b, 0x03, 0x05]'
+expect = "embedded"
+
+[[mutation]]
+name = "load-root-kind-unchecked"
+file = "src/checkpoint/load.jl"
+find = 't.nodes[t.root].kind == PK_CALL ||'
+replace = 'true ||'
+expect = "non-MACE pickle"

@@ -1,0 +1,22 @@
+name: Mutation
+# Run by hand: each mutation runs the full test suite, which takes about a minute apiece.
+on:
+  workflow_dispatch:
+jobs:
+  mutation:
+    name: Mutation smoke check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          project: PureMLIP
+      - name: Apply each mutation and run the suite
+        env:
+          PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
+        run: julia PureMLIP/test/mutation/run.jl

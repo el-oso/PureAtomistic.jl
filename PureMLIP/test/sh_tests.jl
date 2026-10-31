@@ -23,6 +23,8 @@ end
     v = [0.3, -0.5, 0.8]; u = v / sqrt(sum(abs2, v)); x, y, z = u
     Y = zeros(9); PureMLIP.spherical_harmonics!(Y, v, 2)
     c0 = 1 / (2sqrt(pi)); c1 = sqrt(3 / (4pi)); c2 = sqrt(15 / (4pi)); c20 = sqrt(5 / (16pi))
+    # Rounding: each entry is a product of at most 4 factors of size ≤ 1.6, so the error is at
+    # most 4 · eps(Float64) · 1.6 = 1.4e-15; atol = 1e-14 is 7 times that. Measured: 0.
     @test Y ≈ [c0, c1 * y, c1 * z, c1 * x, c2 * x * y, c2 * y * z, c20 * (3z^2 - 1), c2 * x * z, c2 / 2 * (x^2 - y^2)] atol = 1.0e-14
 end
 
@@ -35,7 +37,8 @@ end
     for (w, v) in G
         PureMLIP.spherical_harmonics!(Y, v, L); S .+= w .* (Y * Y')
     end
-    @test maximum(abs, S - I) < 1.0e-12
+    # Measured margin: largest deviation 8.6e-15; the bound is 12 times that.
+    @test maximum(abs, S - I) < 1.0e-13
 end
 
 @testitem "gradient matches finite differences and ForwardDiff" begin
@@ -43,13 +46,16 @@ end
     v = [1.0, 2.0, 3.0]; L = 4; n = PureMLIP.sh_length(L)
     Y = zeros(n); dY = zeros(n, 3); PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, L)
     J = ForwardDiff.jacobian(w -> PureMLIP.spherical_harmonics!(zeros(eltype(w), n), w, L), v)
-    @test dY ≈ J atol = 1.0e-12
+    # Measured margin: ‖dY - J‖ ≤ 2.9e-16; atol is 34 times that.
+    @test dY ≈ J atol = 1.0e-14
     h = 1.0e-6
     for i in 1:3
         e = zeros(3); e[i] = h
         Yp = PureMLIP.spherical_harmonics!(zeros(n), v + e, L)
         Ym = PureMLIP.spherical_harmonics!(zeros(n), v - e, L)
-        @test dY[:, i] ≈ (Yp - Ym) / 2h atol = 1.0e-8
+        # Rounding: the central difference loses about eps(Float64) · max|Y| / h = 2e-10; measured
+        # ‖dY - fd‖ ≤ 4.3e-10, and atol is 7 times that.
+        @test dY[:, i] ≈ (Yp - Ym) / 2h atol = 3.0e-9
     end
     @test Y == PureMLIP.spherical_harmonics!(zeros(n), v, L)
 end
@@ -81,7 +87,8 @@ end
     v = Float32[0.3, -0.5, 0.8]; Y = zeros(Float32, 25); dY = zeros(Float32, 25, 3)
     @test PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, 4) isa Tuple{Vector{Float32}, Matrix{Float32}}
     Y64 = PureMLIP.spherical_harmonics!(zeros(25), Float64.(v), 4)
-    @test Y ≈ Y64 atol = 1.0e-5
+    # Rounding: 16 · eps(Float32) = 1.9e-6. Measured ‖Y - Y64‖ = 1.5e-7, 12 times smaller.
+    @test Y ≈ Y64 atol = 16 * eps(Float32)
 end
 
 @testitem "poles: finite values and gradients matching ForwardDiff" begin
@@ -92,7 +99,8 @@ end
         PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, L)
         @test all(isfinite, Y) && all(isfinite, dY)
         J = ForwardDiff.jacobian(w -> PureMLIP.spherical_harmonics!(zeros(eltype(w), n), w, L), v)
-        @test dY ≈ J atol = 1.0e-10
+        # Rounding: 4 · eps(Float64) · max|J|. Measured ‖dY - J‖ ≤ 5.3e-24.
+        @test dY ≈ J atol = 4 * eps() * maximum(abs, J)
     end
 end
 
