@@ -17,9 +17,10 @@
 "src/equivariant/spherical_harmonics.jl" = 1.00
 "src/equivariant/wigner_d.jl" = 1.00
 "src/model/Model.jl" = 1.00
-"src/model/neighbors.jl" = 1.00
-"src/precompile.jl" = 1.00
-"src/model/radial.jl" = 1.00
 "src/model/linear.jl" = 1.00
-"src/model/tensor_product.jl" = 1.00
+"src/model/neighbors.jl" = 1.00
+"src/model/radial.jl" = 1.00
 "src/model/radial_mlp.jl" = 1.00
+"src/model/symmetric_contraction.jl" = 1.00
+"src/model/tensor_product.jl" = 1.00
+"src/precompile.jl" = 1.00

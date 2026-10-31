@@ -355,6 +355,8 @@ file = "src/model/radial.jl"
 find = "return 0.5 * v * f, 0.5 * (dv * f + v * df)"
 replace = "return 1.0 * v * f, 1.0 * (dv * f + v * df)"
 expect = "radial functions match the MACE radial fixture"
+
+[[mutation]]
 name = "species-linear-coupling-norm"
 file = "src/model/linear.jl"
 find = "T(pw * (1 / sqrt(2 * ls[i] + 1)))"
@@ -416,3 +418,10 @@ file = "src/model/radial_mlp.jl"
 find = "c * (σ + s * (one(z) - σ))"
 replace = "c * (σ + z * (one(z) - σ))"
 expect = "layer pullbacks match ForwardDiff"
+
+[[mutation]]
+name = "symmetric-contraction-a2-first-index"
+file = "src/model/symmetric_contraction.jl"
+find = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, w, x]] * X[c, x, a]"
+replace = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, x, w]] * X[c, x, a]"
+expect = "symmetric contraction"
