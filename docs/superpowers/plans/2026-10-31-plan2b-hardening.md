@@ -31,7 +31,7 @@
 
 **Files:** Modify `PureMLIP/test/Project.toml` (`StrictMode = "0.5.3"` lower bound), create `AGENTS.md` at the repo root, create `CLAUDE.md` containing one line that points to `AGENTS.md`.
 
-- [ ] **Step 1:** Bump the StrictMode compat in the test project to `"0.5.3"`; resolve; run the full suite (`PUREMLIP_CHECKPOINT_DIR=/tmp/pm_ck julia --project=PureMLIP -e 'using Pkg; Pkg.test()'`). Expected: all pass. Record the resolved StrictMode and StrictModeTest versions.
+- [ ] **Step 1:** Bump the StrictMode compat in the test project to `"0.5.3"`; resolve; run the full suite (`PUREMLIP_CHECKPOINT_DIR=<dir> julia --project=PureMLIP -e 'using Pkg; Pkg.test()'`). Expected: all pass. Record the resolved StrictMode and StrictModeTest versions.
 - [ ] **Step 2:** Write `AGENTS.md` (plain, present-tense, ≤ 150 lines) with these sections, each stated as rules with the reason in one line: *Scope and layout* (monorepo, packages, submodules, where plans/specs live); *Dependencies* (PureMLIP deps list; pure Julia, no artifacts, LinearAlgebra/SparseArrays allowed, GPU backends allowed; test-only deps exempt; no Python); *Conventions* (textbook SH/CG, e3nn only through the conversion layer, index layout, even-sum restriction); *Code rules* (generic indexing, no `@inbounds`, concrete types, `!` allocation-free, fail-fast errors with module prefixes, `lazy"..."`, comments describe present code); *Gates* (every test item kind and what it proves; how to run the suite, the juliac item, coverage; thresholds only rise); *Oracles and tolerances* (the tolerance policy of Task 5); *Commits and publishing* (author identity, trailers, push to `main`, no PRs, no host names or local paths).
 - [ ] **Step 3:** Commit: `Bump StrictMode to 0.5.3 and add repository rules`.
 
