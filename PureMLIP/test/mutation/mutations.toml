@@ -355,3 +355,64 @@ file = "src/model/radial.jl"
 find = "return 0.5 * v * f, 0.5 * (dv * f + v * df)"
 replace = "return 1.0 * v * f, 1.0 * (dv * f + v * df)"
 expect = "radial functions match the MACE radial fixture"
+name = "species-linear-coupling-norm"
+file = "src/model/linear.jl"
+find = "T(pw * (1 / sqrt(2 * ls[i] + 1)))"
+replace = "T(pw * (1 / sqrt(2 * ls[i])))"
+expect = "MACE layers match the forward-pass formulas"
+
+[[mutation]]
+name = "linear-overwrites-shared-output"
+file = "src/model/linear.jl"
+find = "view(x, :, lin.in_off[i] + m, :), lin.pw[p], true)"
+replace = "view(x, :, lin.in_off[i] + m, :), lin.pw[p], false)"
+expect = "MACE layers match the forward-pass formulas"
+
+[[mutation]]
+name = "linear-pullback-untransposed"
+file = "src/model/linear.jl"
+find = "mul!(view(dx, :, lin.in_off[i] + m, :), transpose(lin.W[p])"
+replace = "mul!(view(dx, :, lin.in_off[i] + m, :), lin.W[p]"
+expect = "layer pullbacks match ForwardDiff"
+
+[[mutation]]
+name = "tp-coupling-swapped-inputs"
+file = "src/model/tensor_product.jl"
+find = "e3nn_wigner_3j(in1_ls[a], in2_ls[b], out_ls[c])"
+replace = "e3nn_wigner_3j(in2_ls[b], in1_ls[a], out_ls[c])"
+expect = "channelwise TP matches"
+
+[[mutation]]
+name = "tp-pullback-dY-sign"
+file = "src/model/tensor_product.jl"
+find = "dY[j] += acc"
+replace = "dY[j] -= acc"
+expect = "channelwise TP matches"
+
+[[mutation]]
+name = "radial-mlp-last-hidden-cst"
+file = "src/model/radial_mlp.jl"
+find = "view(act, :, :, 2), mlp.cst)"
+replace = "view(act, :, :, 2), one(mlp.cst))"
+expect = "MACE layers match the forward-pass formulas"
+
+[[mutation]]
+name = "radial-mlp-pullback-wrong-layer"
+file = "src/model/radial_mlp.jl"
+find = "_mlp_layer_pullback!(g1, view(pre, :, :, 1), mlp.cst)"
+replace = "_mlp_layer_pullback!(g1, view(pre, :, :, 2), mlp.cst)"
+expect = "layer pullbacks match ForwardDiff"
+
+[[mutation]]
+name = "density-derivative-tanh"
+file = "src/model/radial_mlp.jl"
+find = "(one(S) - ρ * ρ)"
+replace = "(one(S) - ρ)"
+expect = "layer pullbacks match ForwardDiff"
+
+[[mutation]]
+name = "normalized-silu-derivative"
+file = "src/model/radial_mlp.jl"
+find = "c * (σ + s * (one(z) - σ))"
+replace = "c * (σ + z * (one(z) - σ))"
+expect = "layer pullbacks match ForwardDiff"
