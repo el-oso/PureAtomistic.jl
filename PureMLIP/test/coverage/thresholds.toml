@@ -16,4 +16,6 @@
 "src/equivariant/e3nn.jl" = 1.00
 "src/equivariant/spherical_harmonics.jl" = 1.00
 "src/equivariant/wigner_d.jl" = 1.00
+"src/model/Model.jl" = 1.00
+"src/model/neighbors.jl" = 1.00
 "src/precompile.jl" = 1.00

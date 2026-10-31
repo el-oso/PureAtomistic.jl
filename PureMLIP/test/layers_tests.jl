@@ -1,7 +1,8 @@
 @testitem "layer graph holds" tags = [:checks] begin
     using StrictModeTest
     test_layers(
-        PureMLIP => (PureMLIP.Checkpoint, PureMLIP.Equivariant),
+        PureMLIP => (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model),
+        PureMLIP.Model => (PureMLIP.Checkpoint, PureMLIP.Equivariant),
         PureMLIP.Checkpoint => (),
         PureMLIP.Equivariant => ()
     )
@@ -14,7 +15,7 @@ end
 # not the test files.
 @testitem "submodules read only each other's public names" tags = [:checks] begin
     using ExplicitImports
-    for M in (PureMLIP, PureMLIP.Checkpoint, PureMLIP.Equivariant)
+    for M in (PureMLIP, PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model)
         @test isnothing(
             check_all_qualified_accesses_are_public(
                 M, pathof(PureMLIP); from = (PureMLIP,), allow_internal_accesses = false
@@ -41,9 +42,11 @@ end
     sh_index(2, 1); clebsch_gordan_complex(1, 0, 1, 0, 2, 0)
     real_clebsch_gordan(1, 1, 2); e3nn_wigner_3j(1, 1, 2); e3nn_basis_change(2)
     wigner_D(2, [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0])
+    nl = neighbor_list([0.0 1.5; 0.0 0.0; 0.0 0.0], [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0], 4.0)
+    neighbor_list!(nl, [0.0 1.5; 0.0 0.0; 0.0 0.0], [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0])
 
     test_calls(PureMLIP)
-    for M in (PureMLIP.Checkpoint, PureMLIP.Equivariant)
+    for M in (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model)
         @test length(test_calls(M)) > 0
     end
 end

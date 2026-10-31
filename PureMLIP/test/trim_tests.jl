@@ -20,6 +20,8 @@
         PureMLIP.sh_length(Int),
         PureMLIP.sh_index(Int, Int),
         PureMLIP.embedded_archives(PureMLIP.PickleTree),
-        PureMLIP.entry_data(PureMLIP.TorchArchive, String)
+        PureMLIP.entry_data(PureMLIP.TorchArchive, String),
+        PureMLIP.neighbor_list(Matrix{Float64}, Matrix{Float64}, Float64),
+        PureMLIP.neighbor_list!(PureMLIP.NeighborList{Float64}, Matrix{Float64}, Matrix{Float64})
     )
 end

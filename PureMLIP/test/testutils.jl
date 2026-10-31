@@ -374,3 +374,26 @@ end
 
     structures(ref) = [structure(ref, s["name"]) for s in ref["structures"]]
 end
+
+@testmodule NeighborOracle begin
+    using LinearAlgebra
+
+    # Every directed edge (sender, receiver, n) with 0 < ‖pos[:, receiver] - pos[:, sender] + cell * n‖ < r_cut,
+    # by exhaustive search over the images |n_k| ≤ ceil(r_cut / h_k), h_k the cell height along k
+    # (volume over the area of the other two vectors). Valid for positions inside the cell.
+    function brute_force(positions, cell, r_cut)
+        a1, a2, a3 = cell[:, 1], cell[:, 2], cell[:, 3]
+        vol = abs(dot(a1, cross(a2, a3)))
+        h = (vol / norm(cross(a2, a3)), vol / norm(cross(a3, a1)), vol / norm(cross(a1, a2)))
+        m = ceil.(Int, r_cut ./ h)
+        out = Set{Tuple{Int, Int, NTuple{3, Int}}}()
+        for i in axes(positions, 2), j in axes(positions, 2)
+            d = positions[:, j] - positions[:, i]
+            for n1 in (-m[1]):m[1], n2 in (-m[2]):m[2], n3 in (-m[3]):m[3]
+                r = d + cell * [n1, n2, n3]
+                0 < norm(r) < r_cut && push!(out, (i, j, (n1, n2, n3)))
+            end
+        end
+        return out
+    end
+end

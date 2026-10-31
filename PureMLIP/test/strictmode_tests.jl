@@ -25,6 +25,8 @@
                 (P.sh_index, (Int, Int)),
                 (P.embedded_archives, (P.PickleTree,)),
                 (P.entry_data, (P.TorchArchive, String)),
+                (P.neighbor_list, (Matrix{Float64}, Matrix{Float64}, Float64)),
+                (P.neighbor_list!, (P.NeighborList{Float64}, Matrix{Float64}, Matrix{Float64})),
             ]; guarantees = (:typestable,)
         )
     end
@@ -41,4 +43,13 @@ end
     @noinline h!(Y, dY, v) = PureMLIP.spherical_harmonics_and_gradient!(Y, dY, v, 4)
     h!(Y, dY, v)
     @test_noalloc h!(Y, dY, v)
+end
+
+@testitem "StrictMode: neighbor_list! is allocation-free" tags = [:checks] begin
+    using StrictModeTest, StrictMode
+    P = [0.0 1.5 0.2; 0.0 0.0 2.0; 0.0 0.0 1.0]; C = [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0]
+    nl = PureMLIP.neighbor_list(P, C, 4.0)
+    @noinline f!(nl, P, C) = PureMLIP.neighbor_list!(nl, P, C)
+    f!(nl, P, C)
+    @test_noalloc f!(nl, P, C)
 end

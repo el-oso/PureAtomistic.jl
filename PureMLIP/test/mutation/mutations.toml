@@ -299,3 +299,45 @@ replace = '''
                 int_value(t, a[2], path, "instruction"), int_value(t, a[1], path, "instruction"),
                 int_value(t, a[3], path, "instruction"), t.nodes[a[4]].str,'''
 expect = "pickled constants"
+
+[[mutation]]
+name = "neighbors-drop-self-images"
+file = "src/model/neighbors.jl"
+find = "(i == j && n1 == 0 && n2 == 0 && n3 == 0) && continue"
+replace = "i == j && continue"
+expect = "brute force"
+
+[[mutation]]
+name = "neighbors-image-sign"
+file = "src/model/neighbors.jl"
+find = "n1 = nl.image[1, i] - nl.image[1, j] - qx"
+replace = "n1 = nl.image[1, i] - nl.image[1, j] + qx"
+expect = "several grid cells"
+
+[[mutation]]
+name = "neighbors-reach-short"
+file = "src/model/neighbors.jl"
+find = "max(1, ceil(Int, T(nl.r_cut) * nb / h))"
+replace = "max(1, ceil(Int, T(nl.r_cut) * nb / h) - 1)"
+expect = "brute force"
+
+[[mutation]]
+name = "neighbors-cutoff-inclusive"
+file = "src/model/neighbors.jl"
+find = "d2 < rc2 || continue"
+replace = "d2 <= rc2 || continue"
+expect = "cutoff is exclusive"
+
+[[mutation]]
+name = "neighbors-capacity-off-by-one"
+file = "src/model/neighbors.jl"
+find = "m <= capacity ||"
+replace = "m < capacity ||"
+expect = "random triclinic cells"
+
+[[mutation]]
+name = "neighbors-grid-budget"
+file = "src/model/neighbors.jl"
+find = "while prod(dims) > budget"
+replace = "while prod(dims) > 100 * budget"
+expect = "grown cell"
