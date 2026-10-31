@@ -1,6 +1,9 @@
 [deps]
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 StrictMode = "0e98b4f4-d0e6-42ac-af0a-707c24852f32"
 StrictModeTest = "a64655d1-1e86-453c-b761-1219f9f51c2b"
@@ -9,7 +12,9 @@ TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 TrimCheck = "f940d764-e397-4179-96e0-76ce55cfe39b"
 
 [compat]
+ForwardDiff = "1.4"
 JSON = "1.6"
+OffsetArrays = "1.17"
 StrictMode = "0.5"
 StrictModeTest = "0.5"
 TestItemRunner = "1.3"
