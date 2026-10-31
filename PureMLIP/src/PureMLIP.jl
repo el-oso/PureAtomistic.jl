@@ -22,4 +22,6 @@ public TorchArchive, ZipEntry
 public PK_NONE, PK_BOOL, PK_INT, PK_FLOAT, PK_STR, PK_BYTES, PK_TUPLE, PK_LIST, PK_DICT
 public PK_GLOBAL, PK_CALL, PK_PERSID
 
+include("precompile.jl")
+
 end
