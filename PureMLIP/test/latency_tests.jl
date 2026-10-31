@@ -7,6 +7,8 @@
         "PureMLIP.e3nn_wigner_3j(1, 2, 3)",
     ]
     r = test_latency(:PureMLIP; calls, precompile = false)
+    # first_call_ms under-measures on Julia 1.13: it does not include first-call compilation,
+    # so the figures are indicative only (see the latency note in AGENTS.md).
     @info "PureMLIP cold-start latency" r
     @test r.target == "PureMLIP"
     @test isfinite(r.load_ms) && r.load_ms > 0
