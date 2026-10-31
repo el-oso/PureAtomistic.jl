@@ -28,7 +28,6 @@ end
         P, C = Float32.(s.positions), Float32.(s.cell)
         local nl = neighbor_list(P, C, 6.0)
         local r = mace_energy!(MACEResult{Float32}(size(P, 2)), MACEWorkspace{Float32}(m32, size(P, 2), nl.n_edges), m32, P, C, s.atomic_numbers, nl)
-        # Measured margin against the Float32 export: tol32 = 10-20 × the largest difference, recorded here.
         @test abs(r.energy - s.energy) <= tol32
     end
 end
@@ -62,6 +61,13 @@ end
             get(kw, :product_use_sc, k.product_use_sc)
         )
     )
+    bad_class = MACECheckpoint(
+        MACEHyperparameters(
+            "mace.modules.models.MACE", h.r_max, h.num_interactions, h.atomic_numbers, h.heads,
+            h.interactions, h.correlations, h.readouts
+        ), ck.state, ck.constants
+    )
+    @test_throws "model: unsupported checkpoint: model class \"mace.modules.models.MACE\", expected \"mace.modules.models.ScaleShiftMACE\"" MACEModel(bad_class)
     @test_throws "model: unsupported checkpoint: heads [\"a\", \"b\"], expected one head" MACEModel(with_h(heads = ["a", "b"]))
     @test_throws "model: unsupported checkpoint: interaction classes" MACEModel(with_h(interactions = h.interactions[1:1]))
     @test_throws "model: unsupported checkpoint: readout classes" MACEModel(with_h(readouts = reverse(h.readouts)))
@@ -95,10 +101,10 @@ end
     nl5 = neighbor_list(P, cell, 5.0)
     @test_throws "model: the neighbor list cutoff 5.0 is below r_max 6.0" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 29], nl5)
     @test_throws "model: the workspace holds 1 atoms, the neighbor list has 2" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 1, 2), m, P, cell, [29, 29], nl)
-    @test_throws DimensionMismatch mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29], nl)
-    @test_throws DimensionMismatch mace_energy!(MACEResult{Float64}(3), ws, m, P, cell, [29, 29], nl)
-    @test_throws DimensionMismatch mace_energy!(MACEResult{Float64}(2), ws, m, P, cell[1:2, :], [29, 29], nl)
-    @test_throws DimensionMismatch mace_energy!(MACEResult{Float64}(2), ws, m, [P [1.0; 1.0; 1.0]], cell, [29, 29, 29], nl)
+    @test_throws "model: 1 atomic numbers for 2 atoms" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29], nl)
+    @test_throws "model: the result holds 3 atoms, the neighbor list has 2" mace_energy!(MACEResult{Float64}(3), ws, m, P, cell, [29, 29], nl)
+    @test_throws "model: the cell has size (2, 3), expected (3, 3)" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell[1:2, :], [29, 29], nl)
+    @test_throws "model: positions have size (3, 3), the neighbor list has 2 atoms" mace_energy!(MACEResult{Float64}(2), ws, m, [P [1.0; 1.0; 1.0]], cell, [29, 29, 29], nl)
     @test_throws "model: element -1 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, -1], nl)
     @test_throws "model: element 1000 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 1000], nl)
     @test_throws "model: the edge chunk must be positive, got 0" MACEWorkspace{Float64}(m, 2, 2; edge_chunk = 0)

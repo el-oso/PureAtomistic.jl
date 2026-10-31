@@ -228,7 +228,7 @@ function mace_energy!(
     fill!(pair, zero(T))
     for e in 1:nl.n_edges
         s, r = nl.senders[e], nl.receivers[e]
-        pair[r] += T(zbl_edge_energy(ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[1])
+        pair[r] += zbl_edge_energy(ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[1]
     end
 
     E = zero(T)

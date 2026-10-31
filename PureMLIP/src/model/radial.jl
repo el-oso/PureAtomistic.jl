@@ -86,8 +86,9 @@ function zbl_edge_energy(d::S, Zu::Int, Zv::Int, zbl::ZBLParams) where {S <: Rea
     U = promote_type(S, typeof(R))
     d < R || return zero(U), zero(U)
     # Ziegler-Biersack-Littmark universal screening function (mace radial.py:203-216, MIT).
-    ks = (3.2, 0.9423, 0.4028, 0.2016)
-    a = zbl.a_prefactor * 0.529 / (Zu^zbl.a_exp + Zv^zbl.a_exp)
+    # The literals are converted to the working type `U`, so a Float32 model computes in Float32.
+    ks = (U(3.2), U(0.9423), U(0.4028), U(0.2016))
+    a = U(zbl.a_prefactor) * U(0.529) / (U(Zu)^U(zbl.a_exp) + U(Zv)^U(zbl.a_exp))
     ρ = d / a
     φ = zero(U)
     dφ = zero(U)
@@ -96,9 +97,10 @@ function zbl_edge_energy(d::S, Zu::Int, Zv::Int, zbl::ZBLParams) where {S <: Rea
         φ += term
         dφ -= ks[i] * term / a
     end
-    K = 14.3996 * Zu * Zv
+    K = U(14.3996) * U(Zu) * U(Zv)
     v = K / d * φ
     dv = K * (dφ / d - φ / d^2)
     f, df = _poly_envelope(d / R, zbl.p, inv(R))
-    return 0.5 * v * f, 0.5 * (dv * f + v * df)
+    h = U(0.5)
+    return h * v * f, h * (dv * f + v * df)
 end

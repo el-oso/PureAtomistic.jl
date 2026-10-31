@@ -10,6 +10,7 @@ const _INTERACTION_CLASSES = [
 ]
 const _READOUT_CLASSES = ["mace.modules.blocks.LinearReadoutBlock", "mace.modules.blocks.NonLinearReadoutBlock"]
 const _AGNESI = "mace.modules.radial.AgnesiTransform"
+const _SCALE_SHIFT_MACE = "mace.modules.models.ScaleShiftMACE"
 const _SILU = "torch.nn.functional.silu"
 
 _unsupported(what, found, expected) = throw(ArgumentError(lazy"model: unsupported checkpoint: $what $found, expected $expected"))
@@ -118,6 +119,7 @@ end
 
 function _validate(ck::MACECheckpoint)
     h, k = ck.hyperparameters, ck.constants
+    h.model_class == _SCALE_SHIFT_MACE || _unsupported("model class", _quoted(h.model_class), _quoted(_SCALE_SHIFT_MACE))
     classes = [i.class for i in h.interactions]
     classes == _INTERACTION_CLASSES || _unsupported("interaction classes", classes, _INTERACTION_CLASSES)
     h.correlations == [3, 3] || _unsupported("correlations", h.correlations, [3, 3])

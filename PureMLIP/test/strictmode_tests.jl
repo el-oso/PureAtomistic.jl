@@ -37,8 +37,23 @@
                         Matrix{Float64}, Matrix{Float64}, Vector{Int}, P.NeighborList{Float64},
                     ),
                 ),
+                (
+                    P.mace_energy!, (
+                        P.MACEResult{Float32}, P.MACEWorkspace{Float32}, P.MACEModel{Float32},
+                        Matrix{Float32}, Matrix{Float32}, Vector{Int}, P.NeighborList{Float32},
+                    ),
+                ),
+                (P.Model.zbl_edge_energy, (Float64, Int, Int, P.Model.ZBLParams{Float64})),
+                (P.Model.zbl_edge_energy, (Float32, Int, Int, P.Model.ZBLParams{Float32})),
             ]; guarantees = (:typestable,)
         )
+    end
+    # `:typestable` accepts a small union of isbits returns; the radial and ZBL kernels must
+    # return exactly their working type, so that a Float32 model computes in Float32.
+    M = PureMLIP.Model
+    for S in (Float32, Float64)
+        @test Base.return_types(M.zbl_edge_energy, (S, Int, Int, M.ZBLParams{S})) == [Tuple{S, S}]
+        @test Base.return_types(M.radial_embedding!, (Vector{S}, Vector{S}, M.RadialEmbedding{S}, S, Int, Int)) == [Vector{S}]
     end
 end
 
@@ -76,4 +91,11 @@ end
     f!(res, ws, m, P, C, Z, nl)
     @test nl.n_edges > 7
     @test_noalloc f!(res, ws, m, P, C, Z, nl)
+    m32 = MACEModel{Float32}(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
+    P32, C32 = Float32.(P), Float32.(C)
+    nl32 = neighbor_list(P32, C32, 6.0)
+    ws32 = MACEWorkspace{Float32}(m32, 3, nl32.n_edges; edge_chunk = 7)
+    res32 = MACEResult{Float32}(3)
+    f!(res32, ws32, m32, P32, C32, Z, nl32)
+    @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
 end

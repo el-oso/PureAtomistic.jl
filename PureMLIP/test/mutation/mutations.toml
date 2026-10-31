@@ -352,8 +352,8 @@ expect = "radial functions match the MACE radial fixture"
 [[mutation]]
 name = "radial-zbl-half"
 file = "src/model/radial.jl"
-find = "return 0.5 * v * f, 0.5 * (dv * f + v * df)"
-replace = "return 1.0 * v * f, 1.0 * (dv * f + v * df)"
+find = "h = U(0.5)"
+replace = "h = U(1.0)"
 expect = "radial functions match the MACE radial fixture"
 
 [[mutation]]
