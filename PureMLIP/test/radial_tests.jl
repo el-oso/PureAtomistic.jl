@@ -36,15 +36,19 @@ end
     M = PureMLIP.Model
     radii = fill(0.2, 119); radii[30] = 1.32; radii[14] = 1.21       # Cu, Al
     emb = M.RadialEmbedding{Float64}(pi / 6.0 .* (1:10), sqrt(2 / 6), 6.0, 5, 1.0805, 4.5791, 0.9183, radii)
+    embbig = M.RadialEmbedding{BigFloat}(emb.bessel_weights, emb.prefactor, emb.r_max, emb.cutoff_p, emb.agnesi_a, emb.agnesi_p, emb.agnesi_q, emb.covalent_radii)
     for d in 0.6:0.37:5.95
         F = zeros(10); dF = zeros(10)
         M.radial_embedding!(F, dF, emb, d, 29, 13)
         J = ForwardDiff.derivative(x -> M.radial_embedding!(zeros(typeof(x), 10), zeros(typeof(x), 10), emb, x, 29, 13), d)
-        # Measured margin: the largest elementwise |dF - J| over this scan is 68·eps. Both the
-        # analytic derivative and the dual-number derivative sit within 54·eps of a BigFloat
-        # evaluation (cancellation between the two terms of d/dx sin(wx)/x), so the pair
-        # cannot agree much better; tolerance 128·eps·max(1, max|J|), under 2 times the margin.
-        @test maximum(abs, dF .- J) <= 128 * eps() * max(1.0, maximum(abs, J))
+        # Reference: ForwardDiff through the same code with BigFloat parameters (the Float64
+        # inputs converted exactly), rounded to Float64. The analytic and the dual-number
+        # derivative are each compared with it, not with each other: d/dx sin(wx)/x cancels
+        # between two terms, so each carries an independent rounding error of tens of eps.
+        # Measured over this scan: max |dF - Jref| is 45·eps and max |J - Jref| is 55·eps.
+        Jref = Float64.(ForwardDiff.derivative(x -> M.radial_embedding!(zeros(typeof(x), 10), zeros(typeof(x), 10), embbig, x, 29, 13), BigFloat(d)))
+        @test maximum(abs, dF .- Jref) <= 64 * eps() * max(1.0, maximum(abs, Jref))
+        @test maximum(abs, J .- Jref) <= 64 * eps() * max(1.0, maximum(abs, Jref))
     end
     F = zeros(10); dF = zeros(10)
     @test M.radial_embedding!(F, dF, emb, 6.0, 29, 29) == zeros(10) && dF == zeros(10)      # at r_max: exactly zero
