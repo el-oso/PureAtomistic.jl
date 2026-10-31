@@ -289,3 +289,52 @@ end
         return out
     end
 end
+
+@testmodule E3nnFixtures begin
+    using PureMLIP, JSON
+
+    const DIR = pkgdir(PureMLIP, "test", "fixtures", "e3nn-core-rs")
+
+    load(name::AbstractString) = JSON.parsefile(joinpath(DIR, name * ".json"))
+
+    # A JSON array of equal-length rows as a Matrix{Float64}, one row per entry.
+    rows(a) = Float64[a[i][j] for i in eachindex(a), j in eachindex(first(a))]
+
+    # Spherical harmonics fixture for `lmax = L`: input vectors, values, cotangents and
+    # the vector-Jacobian product, each with one row per input vector.
+    function sh(L::Integer)
+        d = load("spherical_harmonics_lmax$(L)_component_normalized_f64")
+        return (; vectors = rows(d["vectors"]), y = rows(d["y"]), grad_y = rows(d["grad_y"]), grad_vectors = rows(d["grad_vectors"]))
+    end
+
+    # The degree of each irrep copy of an irreps string such as "2x0e+1x1o", in order;
+    # the fixtures number segments over these copies from 0.
+    function segment_degrees(s::AbstractString)
+        out = Int[]
+        for term in split(s, '+')
+            mul, ir = split(strip(term), 'x')
+            append!(out, fill(parse(Int, ir[1:(end - 1)]), parse(Int, mul)))
+        end
+        return out
+    end
+
+    # One `(l1, l2, l3, entries)` per tensor-product instruction of fixture `name`, with
+    # `entries` its sparse Wigner-3j coefficients `(i, j, k, value)`, `m` indices 0-based.
+    function cg_instructions(name::AbstractString)
+        d = load(name)
+        l1s, l2s, l3s = segment_degrees(d["irreps_in1"]), segment_degrees(d["irreps_in2"]), segment_degrees(d["irreps_out"])
+        out = Tuple{Int, Int, Int, Vector{Tuple{Int, Int, Int, Float64}}}[]
+        for n in eachindex(d["instruction_cg_offset"])
+            off, len = d["instruction_cg_offset"][n], d["instruction_cg_len"][n]
+            r = (off + 1):(off + len)
+            entries = [(Int(d["cg_i_m"][q]), Int(d["cg_j_m"][q]), Int(d["cg_k_m"][q]), Float64(d["cg_value"][q])) for q in r]
+            push!(
+                out, (
+                    l1s[d["instruction_in1_segment"][n] + 1], l2s[d["instruction_in2_segment"][n] + 1],
+                    l3s[d["instruction_out_segment"][n] + 1], entries,
+                )
+            )
+        end
+        return out
+    end
+end

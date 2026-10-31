@@ -1,0 +1,19 @@
+The files in this directory are redistributed unmodified from e3nn-core-rs:
+
+  Repository: https://github.com/mizukami-group/e3nn-core-rs
+  Commit:     9da369cf1d854da6af1a46928bc953c7966e9382
+  Copyright:  Copyright (c) 2026 Mizukami Group and e3nn-core-rs contributors
+  License:    MIT OR Apache-2.0; full texts in LICENSE-MIT and LICENSE-APACHE in
+              this directory, copied from the repository root at that commit.
+
+Fixtures, from crates/e3nn-core/fixtures/e3nn_torch/v0_6_0_2aa7f584/:
+
+  spherical_harmonics_lmax2_component_normalized_f64.json
+  spherical_harmonics_lmax3_component_normalized_f64.json
+  spherical_harmonics_lmax4_component_normalized_f64.json
+  fully_connected_tensor_product_smoke_f64.json
+  fully_connected_tensor_product_lmax4_smoke_f64.json
+
+THIRD_PARTY_NOTICES.md is that repository's notice file, copied from its root at
+the same commit. It names e3nn 0.6.0 (MIT) as the numerical reference from which
+these fixtures were generated and carries e3nn's license text.

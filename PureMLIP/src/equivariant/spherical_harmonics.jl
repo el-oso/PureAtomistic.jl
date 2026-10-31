@@ -64,7 +64,10 @@ end
 # never hold a Q, so writing Y_l,-m there is safe.
 function _real_sh!(Y::AbstractVector{T}, dY, v::AbstractVector{T}, L::Int) where {T}
     fv = firstindex(v)
-    vx, vy, vz = v[fv], v[fv + 1], v[fv + 2]
+    return _real_sh!(Y, dY, v[fv], v[fv + 1], v[fv + 2], L)
+end
+
+function _real_sh!(Y::AbstractVector{T}, dY, vx::T, vy::T, vz::T, L::Int) where {T}
     r2 = vx * vx + vy * vy + vz * vz
     iszero(r2) && throw(ArgumentError("spherical harmonics of a zero vector are undefined"))
     r = sqrt(r2)
