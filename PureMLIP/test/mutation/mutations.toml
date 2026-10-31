@@ -341,3 +341,10 @@ file = "src/model/neighbors.jl"
 find = "while prod(dims) > budget"
 replace = "while prod(dims) > 100 * budget"
 expect = "grown cell"
+
+[[mutation]]
+name = "symmetric-contraction-a2-first-index"
+file = "src/model/symmetric_contraction.jl"
+find = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, w, x]] * X[c, x, a]"
+replace = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, x, w]] * X[c, x, a]"
+expect = "symmetric contraction"
