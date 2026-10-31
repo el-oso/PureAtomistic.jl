@@ -15,7 +15,7 @@
     # starts in a PureMLIP source file, a Base-raised one in a Base file.
     function thrown_in_src(bt)
         frames = filter(f -> !f.from_c, stacktrace(bt))
-        return !isempty(frames) && startswith(String(first(frames).file), SRC_DIR)
+        return !isempty(frames) && startswith(String(first(frames).file), SRC_DIR * "/")
     end
 
     allowed(e, bt) = (e isa ArgumentError && thrown_in_src(bt)) ||
@@ -37,7 +37,7 @@
     # Applies one random mutation to a copy of `good`; returns the copy and a description.
     # `lo:hi` is the byte range that flips and window overwrites target.
     # Truncations keep at least `trunc_lo` bytes.
-function mutate(rng, good::Vector{UInt8}, kind::Integer, lo::Integer = 1, hi::Integer = length(good); trunc_lo::Integer = 0)
+    function mutate(rng, good::Vector{UInt8}, kind::Integer, lo::Integer = 1, hi::Integer = length(good); trunc_lo::Integer = 0)
         bad = copy(good)
         if kind == 0
             n = rand(rng, 1:8)
@@ -47,7 +47,7 @@ function mutate(rng, good::Vector{UInt8}, kind::Integer, lo::Integer = 1, hi::In
             end
             return bad, "flip bytes at $idx"
         elseif kind == 1
-            len = rand(rng, 0:(length(bad) - 1))
+            len = rand(rng, trunc_lo:(length(bad) - 1))
             resize!(bad, len)
             return bad, "truncate to $len bytes"
         else
@@ -231,4 +231,22 @@ end
     @info "MP-0b3 pickle fuzz" tally
     @test tally.loaded > 0
     @test tally.clean_error > 0
+end
+
+# `allowed` accepts an ArgumentError thrown from PureMLIP/src and rejects one thrown by Base.
+@testitem "fuzz error classifier separates reader errors from Base errors" setup = [Fuzz] begin
+    function caught(f)
+        try
+            f()
+        catch e
+            return e, catch_backtrace()
+        end
+        error("expected an exception")
+    end
+    e, bt = caught(() -> Vector{UInt8}(undef, -1))
+    @test e isa ArgumentError
+    @test !Fuzz.allowed(e, bt)
+    e, bt = caught(() -> PureMLIP.open_torch_archive(UInt8[1, 2, 3]))
+    @test e isa ArgumentError
+    @test Fuzz.allowed(e, bt)
 end
