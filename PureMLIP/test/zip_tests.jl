@@ -1,6 +1,6 @@
 @testitem "crc32 matches the IEEE check value" begin
-    @test PureMLIP.crc32(codeunits("123456789")) == 0xCBF43926
-    @test PureMLIP.crc32(UInt8[]) == 0x00000000
+    @test PureMLIP.Checkpoint.crc32(codeunits("123456789")) == 0xCBF43926
+    @test PureMLIP.Checkpoint.crc32(UInt8[]) == 0x00000000
 end
 
 @testitem "stored zip round trip" setup = [ZipFixtures] begin

@@ -68,7 +68,7 @@ end
 @testitem "e3nn_wigner_3j zero threshold separates residue from coefficients" begin
     for l1 in 0:8, l2 in 0:8, l3 in abs(l1 - l2):min(l1 + l2, 8)
         iseven(l1 + l2 + l3) || continue
-        raw = PureMLIP._e3nn_wigner_3j_unzeroed(l1, l2, l3)
+        raw = PureMLIP.Equivariant._e3nn_wigner_3j_unzeroed(l1, l2, l3)
         W = PureMLIP.e3nn_wigner_3j(l1, l2, l3)
         for i in eachindex(raw)
             if iszero(W[i])

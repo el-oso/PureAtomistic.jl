@@ -14,7 +14,7 @@
         central = UInt8[]
         for (name, data) in entries
             off = length(out)
-            crc = PureMLIP.crc32(data)
+            crc = PureMLIP.Checkpoint.crc32(data)
             nm = collect(codeunits(name))
             sz = length(data)
             m = method
@@ -252,7 +252,7 @@ end
         length(specs) == length(ref["interaction_blocks"]) || push!(out, "number of interaction blocks")
         for (spec, r) in zip(specs, ref["interaction_blocks"])
             for key in ("node_feats_irreps", "edge_attrs_irreps", "edge_feats_irreps", "target_irreps", "hidden_irreps")
-                want = r[key] isa AbstractString ? PureMLIP.parse_irreps(r[key]) :
+                want = r[key] isa AbstractString ? PureMLIP.Checkpoint.parse_irreps(r[key]) :
                     [PureMLIP.IrrepMul(m, lp[1], lp[2]) for (m, lp) in r[key]]
                 getfield(spec, Symbol(key)) == want || push!(out, string("interactions.", r["index"], ".", key))
             end

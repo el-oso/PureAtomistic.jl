@@ -10,7 +10,6 @@ module Checkpoint
 export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, CheckpointTensor, torch_array
 
 public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel
-public crc32, parse_irreps
 public StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
 public TorchArchive, ZipEntry
 public PK_NONE, PK_BOOL, PK_INT, PK_FLOAT, PK_STR, PK_BYTES, PK_TUPLE, PK_LIST, PK_DICT
