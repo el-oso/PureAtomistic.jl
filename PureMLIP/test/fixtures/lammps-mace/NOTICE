@@ -28,3 +28,6 @@ directory holding the exported models and the exporter's versions.txt, then run
 The reference code in test/reference/ is original to this repository. MACE is MIT
 licensed (Copyright (c) 2022 Ilyes Batatia, Gregor Simm and David Kovacs); LAMMPS is
 GPL-2.0-only; the numerical values listed here are outputs of those programs.
+
+On macOS, set HWLOC_COMPONENTS=-darwin to run `lmp`: Open MPI's hwloc topology
+discovery otherwise hangs in MPI_Init.
