@@ -244,7 +244,7 @@ function symmetric_contraction_from_state(st::Dict{String, CheckpointTensor{Floa
     contractions = Contraction{T}[]
     j = 0
     while true
-        p = string(prefix, ".symmetric_contractions.contractions.", j, ".")
+        p = string(prefix, ".symmetric_contractions.contractions.", j) * "."
         haskey(st, p * "U_matrix_1") || break
         u1, u2, u3 = _tensor(st, p * "U_matrix_1"), _tensor(st, p * "U_matrix_2"), _tensor(st, p * "U_matrix_3")
         Wmax = torch_array(_tensor(st, p * "weights_max"), Val(3))

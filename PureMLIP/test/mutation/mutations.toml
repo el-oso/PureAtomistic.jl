@@ -425,3 +425,17 @@ file = "src/model/symmetric_contraction.jl"
 find = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, w, x]] * X[c, x, a]"
 replace = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, x, w]] * X[c, x, a]"
 expect = "symmetric contraction"
+
+[[mutation]]
+name = "model-scale-applied-to-e0"
+file = "src/model/mace_model.jl"
+find = "z_table, T(r_max), T.(e0), T(_scalar(ck, \"scale_shift.scale\"))"
+replace = "z_table, T(r_max), T.(e0 .* _scalar(ck, \"scale_shift.scale\")), T(_scalar(ck, \"scale_shift.scale\"))"
+expect = "energies match"
+
+[[mutation]]
+name = "density-normalization-without-one"
+file = "src/model/evaluate.jl"
+find = "q = density[i] + 1"
+replace = "q = density[i]"
+expect = "energies match"

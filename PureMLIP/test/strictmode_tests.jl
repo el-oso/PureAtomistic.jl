@@ -27,6 +27,16 @@
                 (P.entry_data, (P.TorchArchive, String)),
                 (P.neighbor_list, (Matrix{Float64}, Matrix{Float64}, Float64)),
                 (P.neighbor_list!, (P.NeighborList{Float64}, Matrix{Float64}, Matrix{Float64})),
+                (P.MACEModel{Float64}, (P.MACECheckpoint,)),
+                (P.MACEModel{Float32}, (P.MACECheckpoint,)),
+                (P.MACEResult{Float64}, (Int,)),
+                (P.MACEWorkspace{Float64}, (P.MACEModel{Float64}, Int, Int)),
+                (
+                    P.mace_energy!, (
+                        P.MACEResult{Float64}, P.MACEWorkspace{Float64}, P.MACEModel{Float64},
+                        Matrix{Float64}, Matrix{Float64}, Vector{Int}, P.NeighborList{Float64},
+                    ),
+                ),
             ]; guarantees = (:typestable,)
         )
     end
@@ -52,4 +62,18 @@ end
     @noinline f!(nl, P, C) = PureMLIP.neighbor_list!(nl, P, C)
     f!(nl, P, C)
     @test_noalloc f!(nl, P, C)
+end
+
+@testitem "StrictMode: mace_energy! is allocation-free" tags = [:checks] setup = [Checkpoints] begin
+    using StrictModeTest, StrictMode
+    m = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    nl = neighbor_list(P, C, 6.0)
+    # A chunk smaller than the edge count exercises the chunked radial MLP.
+    ws = MACEWorkspace{Float64}(m, 3, nl.n_edges; edge_chunk = 7)
+    res = MACEResult{Float64}(3)
+    @noinline f!(res, ws, m, P, C, Z, nl) = mace_energy!(res, ws, m, P, C, Z, nl)
+    f!(res, ws, m, P, C, Z, nl)
+    @test nl.n_edges > 7
+    @test_noalloc f!(res, ws, m, P, C, Z, nl)
 end
