@@ -6,7 +6,7 @@
 
 **Architecture:** A third submodule, `PureMLIP.Model` (`src/model/`), built only on the public API of `PureMLIP.Checkpoint` and `PureMLIP.Equivariant`. `Checkpoint` additionally extracts the pickled constants the forward pass needs (`normalize2mom.cst`, e3nn instruction lists with path weights, flags). `Model` holds a CellListMap-backed periodic neighbor list, the layers of the ScaleShiftMACE forward pass written as plain generic loops plus `mul!`, a hand-written pullback per layer, and the assembled `mace_energy!` / `mace_energy_forces!` entry points. Reference data comes from one LAMMPS-MACE run on this Mac, committed as JSON.
 
-**Tech Stack:** Julia 1.12+ (CI 1.12 and 1.13). New package dependency: CellListMap.jl (pure Julia; dependency closure checked below). New test-side data: e3nn-core-rs `mace_radial_reference_f64.json`, LAMMPS-MACE reference JSON. Benchmark-only: Chairmarks.jl in `PureMLIP/bench/Project.toml`. Reference tooling outside the repository: LAMMPS (ACEsuit `mace` branch) with libtorch 2.8.0, Homebrew `cmake` and `open-mpi`.
+**Tech Stack:** Julia 1.12+ (CI 1.12 and 1.13). No new package dependency (the neighbor list is an own cell list). New test-side data: e3nn-core-rs `mace_radial_reference_f64.json`, LAMMPS-MACE reference JSON. Benchmark-only: Chairmarks.jl in `PureMLIP/bench/Project.toml`. Reference tooling outside the repository: LAMMPS (ACEsuit `mace` branch) with libtorch 2.8.0, Homebrew `cmake` and `open-mpi`.
 
 **Spec:** `docs/superpowers/specs/2026-10-30-pureatomistic-design.md`, sections 4 (constraints), 6.1 (PureMLIP parts), 6.3 (engineering stack), 7 (milestone 1), 9 (references), 13 (design calls), 14 (user decisions). Repository rules: `AGENTS.md`.
 
@@ -17,7 +17,7 @@
 - **Correctness target (Float64):** energy within 1e-6 eV absolute per structure and every force component within 1e-6 eV/Å of LAMMPS-MACE; per-atom energies within 1e-6 eV; virial components within 1e-6 eV. Physics checks: rotation and translation invariance, forces equal minus the finite-difference energy gradient, stress equals the strain derivative. Float32 tolerances are measured margins (AGENTS.md policy (c)).
 - **Forces and stress come from hand-written pullbacks, one per layer**, each checked against ForwardDiff and finite differences. ForwardDiff and any Enzyme use are test-only.
 - **`normalize2mom` constants are read from each checkpoint**, never hard-coded or recomputed (the stored value is 1.6e-3 relative above the exact integral, and MPA-0 and MP-0b3 differ by 1 ulp).
-- **PureMLIP `[deps]` after this plan:** CellListMap, Inflate, LinearAlgebra, PrecompileTools. Pure Julia; no `_jll`, no artifacts. Every dependency has a `[compat]` bound.
+- **PureMLIP `[deps]` after this plan:** Inflate, LinearAlgebra, PrecompileTools (unchanged; the neighbor list is an own cell list, not CellListMap). Pure Julia; no `_jll`, no artifacts. Every dependency has a `[compat]` bound.
 - **Code rules (AGENTS.md):** no `@inbounds`; generic indexing or a declared `Base.require_one_based_indexing`; concrete struct fields and return types; `!` functions allocation-free after warm-up; fail-fast errors with a module prefix (`"model: ..."`, `"neighbor list: ..."`, `"checkpoint: ..."`) or `ArgumentError`/`DimensionMismatch`; `lazy"..."` for interpolations of four or more pieces; comments state present facts only.
 - **Layer graph:** `PureMLIP => (Checkpoint, Equivariant, Model)`, `Model => (Checkpoint, Equivariant)`, `Checkpoint => ()`, `Equivariant => ()`. `Model` reads only exported or `public` names of `Checkpoint` and `Equivariant`.
 - **Gates for every new exported function:** TrimCheck `@validate` and `test_signatures(...; guarantees = (:typestable,))`; `@test_noalloc` for every exported `!` function; a row in `test/coverage/thresholds.toml` for every new `src` file; at least one entry in `test/mutation/mutations.toml` per new `src` file except declaration-only files (`src/model/Model.jl`).
@@ -258,22 +258,22 @@ end
 ### Task 2: `PureMLIP.Model` and the periodic neighbor list
 
 **Files:**
-- Modify: `PureMLIP/Project.toml` (`CellListMap` in `[deps]`, `[compat]` at the resolved `major.minor`)
-- Create: `PureMLIP/src/model/Model.jl` (module, `using ..Checkpoint, ..Equivariant, LinearAlgebra, CellListMap`, includes, exports), `PureMLIP/src/model/neighbors.jl`
+- Modify: none to `PureMLIP/Project.toml` (the neighbor list is an own cell list; CellListMap failed its gate)
+- Create: `PureMLIP/src/model/Model.jl` (module, `using ..Checkpoint, ..Equivariant, LinearAlgebra`, includes, exports), `PureMLIP/src/model/neighbors.jl`
 - Modify: `PureMLIP/src/PureMLIP.jl` (include, `using .Model`, re-export), `PureMLIP/test/layers_tests.jl` (graph, ExplicitImports loop, `test_calls` sweep of `Model`), `trim_tests.jl`, `strictmode_tests.jl`, `testutils.jl` (`@testmodule NeighborOracle`); Create: `PureMLIP/test/neighbor_tests.jl`
 
 **Interfaces:**
 - Produces (exported):
 
 ```julia
-mutable struct NeighborList{T, S}   # S: the CellListMap state type; fields concrete
+mutable struct NeighborList{T}   # fields concrete
     r_cut::Float64
     n_atoms::Int
     n_edges::Int
     senders::Vector{Int}            # length = capacity; first n_edges entries valid
     receivers::Vector{Int}
     shifts::Matrix{Int}             # 3 × capacity, integer image n_e: r_e = pos[:, receiver] - pos[:, sender] + cell * n_e
-    ...                             # CellListMap state and scratch
+    ...                             # cell-grid scratch
 end
 neighbor_list(positions::AbstractMatrix{T}, cell::AbstractMatrix{T}, r_cut::Real; extra_capacity::Integer = 0) -> NeighborList{T}
 neighbor_list!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T}) -> nl

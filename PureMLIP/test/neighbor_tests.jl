@@ -68,7 +68,8 @@ end
     p = [0.0 1.5; 0.0 0.0; 0.0 0.0]; small = [6.0 0 0; 0 6 0; 0 0 6]; big = 40 .* [1.0 0 0; 0 1 0; 0 0 1]
     nl2 = neighbor_list(p, small, 6.0)
     neighbor_list!(nl2, p, big)
-     Set((nl2.senders[e], nl2.receivers[e], Tuple(nl2.shifts[:, e])) for e in 1:nl2.n_edges) == NeighborOracle.brute_force(p, big, 6.0)
+    @test nl2.n_edges == 2
+    @test Set((nl2.senders[e], nl2.receivers[e], Tuple(nl2.shifts[:, e])) for e in 1:nl2.n_edges) == NeighborOracle.brute_force(p, big, 6.0)
     bad = copy(s.positions); bad[2, 4] = NaN
     @test_throws "neighbor list: positions and cell must be finite" neighbor_list(bad, s.cell, 6.0)
     c = copy(s.cell); c[:, 3] = c[:, 1]

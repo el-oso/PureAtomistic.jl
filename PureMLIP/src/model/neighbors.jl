@@ -62,7 +62,8 @@ end
 """
     neighbor_list!(nl, positions, cell) -> nl
 
-Rebuild `nl` for new `positions` and `cell` without allocating. Throws before changing the edges
+Rebuild `nl` for new `positions` and `cell` without allocating. After a capacity error `nl` must be
+rebuilt with `neighbor_list`: its scratch already describes the new positions. Throws before changing the edges
 if more than `length(nl.senders)` edges are found.
 """
 function neighbor_list!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T}) where {T}
