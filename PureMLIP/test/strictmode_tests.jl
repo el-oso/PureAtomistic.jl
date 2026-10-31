@@ -15,7 +15,21 @@
                 (P.wigner_D, (Int, Matrix{Float64})),
                 (P.real_clebsch_gordan, (Int, Int, Int)),
                 (P.clebsch_gordan_complex, (Int, Int, Int, Int, Int, Int)),
+                (P.spherical_harmonics!, (Vector{Float64}, Vector{Float64}, Int)),
+                (P.spherical_harmonics_and_gradient!, (Vector{Float64}, Matrix{Float64}, Vector{Float64}, Int)),
+                (P.e3nn_spherical_harmonics_and_gradient!, (Vector{Float64}, Matrix{Float64}, Vector{Float64}, Int)),
+                (P.e3nn_wigner_3j, (Int, Int, Int)),
             ]; guarantees = (:typestable,)
         )
     end
+end
+
+@testitem "StrictMode: spherical harmonics are allocation-free" tags = [:checks] begin
+    using StrictModeTest, StrictMode
+    Y = zeros(25); dY = zeros(25, 3); v = [0.1, 0.2, 0.9]
+    @noinline f!(Y, v) = PureMLIP.spherical_harmonics!(Y, v, 4)
+    @noinline g!(Y, dY, v) = PureMLIP.e3nn_spherical_harmonics_and_gradient!(Y, dY, v, 4)
+    f!(Y, v); g!(Y, dY, v)
+    @test_noalloc f!(Y, v)
+    @test_noalloc g!(Y, dY, v)
 end
