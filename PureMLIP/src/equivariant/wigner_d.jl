@@ -23,10 +23,6 @@ function _gauss_legendre(n::Int)
     return x, w
 end
 
-_det3(M) = M[1, 1] * (M[2, 2] * M[3, 3] - M[2, 3] * M[3, 2]) -
-    M[1, 2] * (M[2, 1] * M[3, 3] - M[2, 3] * M[3, 1]) +
-    M[1, 3] * (M[2, 1] * M[3, 2] - M[2, 2] * M[3, 1])
-
 """
     wigner_D(l, R) -> Matrix{Float64}
 
@@ -44,38 +40,34 @@ function wigner_D(l::Integer, R::AbstractMatrix{<:Real})
     size(R) == (3, 3) || throw(ArgumentError(lazy"rotation must be 3×3, got size $(size(R))"))
     Base.require_one_based_indexing(R)
     Rf = Matrix{Float64}(R)
-    err = 0.0
-    for i in 1:3, j in 1:3
-        s = Rf[1, i] * Rf[1, j] + Rf[2, i] * Rf[2, j] + Rf[3, i] * Rf[3, j]
-        err = max(err, abs(s - (i == j ? 1.0 : 0.0)))
-    end
-    if !(err <= 1.0e-12 && abs(_det3(Rf) - 1) <= 1.0e-12)
+    if !(norm(Rf' * Rf - I, Inf) <= 1.0e-12 && abs(det(Rf) - 1) <= 1.0e-12)
         throw(ArgumentError("R is not a rotation: need R'R = I and det R = 1 to 1e-12"))
     end
     L = Int(l)
     n = 2L + 1
     nφ = n
     xs, ws = _gauss_legendre(L + 1)
-    Y = Vector{Float64}(undef, sh_length(L))
-    Yr = Vector{Float64}(undef, sh_length(L))
+    Q = length(xs) * nφ
     rows = sh_index(L, -L):sh_index(L, L)
-    D = zeros(Float64, n, n)
+    Y = Vector{Float64}(undef, sh_length(L))
+    Ys = Matrix{Float64}(undef, n, Q)
+    Yrs = Matrix{Float64}(undef, n, Q)
+    w = Vector{Float64}(undef, Q)
     u = Vector{Float64}(undef, 3)
     v = Vector{Float64}(undef, 3)
+    q = 0
     for k in eachindex(xs), p in 0:(nφ - 1)
+        q += 1
         ct = xs[k]
         st = sqrt(1 - ct^2)
         φ = 2pi * p / nφ
         u[1] = st * cos(φ); u[2] = st * sin(φ); u[3] = ct
-        for i in 1:3
-            v[i] = Rf[i, 1] * u[1] + Rf[i, 2] * u[2] + Rf[i, 3] * u[3]
-        end
+        mul!(v, Rf, u)
         spherical_harmonics!(Y, u, L)
-        spherical_harmonics!(Yr, v, L)
-        w = ws[k] * 2pi / nφ
-        for j in 1:n, i in 1:n
-            D[i, j] += w * Yr[rows[i]] * Y[rows[j]]
-        end
+        copyto!(view(Ys, :, q), view(Y, rows))
+        spherical_harmonics!(Y, v, L)
+        copyto!(view(Yrs, :, q), view(Y, rows))
+        w[q] = ws[k] * 2pi / nφ
     end
-    return D
+    return (Yrs * Diagonal(w)) * Ys'
 end

@@ -93,19 +93,7 @@ function _e3nn_wigner_3j_unzeroed(l1::Integer, l2::Integer, l3::Integer)
     C = real_clebsch_gordan(l1, l2, l3)
     M1, M2, M3 = e3nn_basis_change(l1), e3nn_basis_change(l2), e3nn_basis_change(l3)
     s = iseven((l1 + l2 - l3) ÷ 2) ? 1.0 : -1.0
-    # Contract one index at a time: A = M1 on index 1, B = M2 on index 2, E = M3 on index 3.
-    A = zeros(Float64, size(C))
-    for c in axes(C, 3), b in axes(C, 2), a in axes(C, 1), p in axes(C, 1)
-        A[a, b, c] += M1[a, p] * C[p, b, c]
-    end
-    B = zeros(Float64, size(C))
-    for c in axes(C, 3), b in axes(C, 2), p in axes(C, 2), a in axes(C, 1)
-        B[a, b, c] += M2[b, p] * A[a, p, c]
-    end
-    E = zeros(Float64, size(C))
-    for c in axes(C, 3), p in axes(C, 3), b in axes(C, 2), a in axes(C, 1)
-        E[a, b, c] += M3[c, p] * B[a, b, p]
-    end
+    E = _mode_product(_mode_product(_mode_product(C, M1, 1), M2, 2), M3, 3)
     E .*= s
     return E
 end

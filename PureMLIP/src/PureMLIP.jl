@@ -1,5 +1,7 @@
 module PureMLIP
 
+using LinearAlgebra
+
 export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, CheckpointTensor, torch_array
 export sh_length, sh_index, spherical_harmonics!, spherical_harmonics_and_gradient!
 export clebsch_gordan_complex, real_clebsch_gordan, wigner_D

@@ -58,6 +58,19 @@ function _complex_to_real(l::Int)
     return U
 end
 
+# Mode-`k` product of a 3-way array with a matrix:
+# `B[.., i, ..] = Σ_p M[i, p] * A[.., p, ..]` with `i` and `p` at position `k`.
+function _mode_product(A::AbstractArray{T, 3}, M::AbstractMatrix, k::Int) where {T}
+    Base.require_one_based_indexing(A, M)
+    1 <= k <= 3 || throw(ArgumentError(lazy"mode must be 1, 2 or 3, got $k"))
+    size(M, 2) == size(A, k) || throw(DimensionMismatch(lazy"M has $(size(M, 2)) columns but mode $k of A has size $(size(A, k))"))
+    perm = k == 1 ? (1, 2, 3) : k == 2 ? (2, 1, 3) : (3, 1, 2)
+    Ap = permutedims(A, perm)
+    sz = size(Ap)
+    P = M * reshape(Ap, sz[1], sz[2] * sz[3])
+    return permutedims(reshape(P, size(M, 1), sz[2], sz[3]), invperm(perm))
+end
+
 """
     real_clebsch_gordan(l1, l2, l3) -> Array{Float64,3}
 
@@ -83,22 +96,7 @@ function real_clebsch_gordan(l1::Integer, l2::Integer, l3::Integer)
         abs(m3) <= l3 || continue
         cg[m1 + l1 + 1, m2 + l2 + 1, m3 + l3 + 1] = clebsch_gordan_complex(l1, m1, l2, m2, l3, m3)
     end
-    C = zeros(ComplexF64, size(cg))
-    for c in axes(C, 3), b in axes(C, 2), a in axes(C, 1)
-        s = zero(ComplexF64)
-        for m3 in axes(cg, 3)
-            u3 = U3[c, m3]
-            iszero(u3) && continue
-            for m2 in axes(cg, 2)
-                u2 = conj(U2[b, m2])
-                iszero(u2) && continue
-                for m1 in axes(cg, 1)
-                    s += conj(U1[a, m1]) * u2 * u3 * cg[m1, m2, m3]
-                end
-            end
-        end
-        C[a, b, c] = s / sqrt(2l3 + 1)
-    end
+    C = _mode_product(_mode_product(_mode_product(cg, conj(U1), 1), conj(U2), 2), U3, 3) ./ sqrt(2l3 + 1)
     maximum(abs ∘ imag, C) < 1.0e-12 || error("real Clebsch-Gordan tensor has a nonzero imaginary part for ($l1, $l2, $l3)")
     return real.(C)
 end
