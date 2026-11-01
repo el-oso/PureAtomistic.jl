@@ -28,6 +28,19 @@ jobs:
         with:
           project: PureMLIP
           check_bounds: 'yes'
+  pureblas:
+    name: PureBLAS active (Julia 1.13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+      - name: Instantiate the PureBLAS test environment
+        run: julia --project=PureMLIP/test/pureblas -e 'using Pkg; Pkg.instantiate()'
+      - name: Run the tests with PureBLAS active
+        run: julia --check-bounds=yes --project=PureMLIP/test/pureblas PureMLIP/test/pureblas/runtests.jl
   coverage:
     name: Coverage
     runs-on: ubuntu-latest

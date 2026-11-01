@@ -1,5 +1,6 @@
 # Compares BLAS backends on `mace_energy_forces!`: OpenBLAS (Julia's default), PureBLAS and,
-# on macOS, Apple Accelerate. One thread.
+# on macOS, Apple Accelerate. One thread. Run it periodically: it is the standing check of
+# PureBLAS against OpenBLAS and Accelerate on PureMLIP's own matrix products.
 #
 # Environment: PureBLAS and AppleAccelerate are not dependencies of PureMLIP or of the bench
 # project, so use a separate project and add them there. From the repository root:

@@ -76,6 +76,23 @@ must have the model's element type. Against LAMMPS-MACE on the reference structu
 largest Float32 energy difference is 1.6e-5 eV on an energy of -235 eV, and the largest force
 difference is 9.4e-6 eV/Å.
 
+## Using PureBLAS
+
+The matrix products of the model go through `LinearAlgebra.mul!`, so PureBLAS speeds them up
+without any change to PureMLIP:
+
+```julia
+using PureBLAS
+PureBLAS.activate()
+```
+
+PureBLAS requires Julia 1.13 and is not registered; add it with
+`Pkg.add(url = "https://github.com/el-oso/PureBLAS.jl")`. `PureBLAS.activate()` reroutes
+the BLAS calls of the whole process, not only PureMLIP's, and `PureBLAS.deactivate()` restores
+the previous libraries. PureMLIP does not depend on PureBLAS. The reference energies, forces and
+virials, and the allocation-free guarantee of `mace_energy!` and `mace_energy_forces!`, are
+tested with PureBLAS active in `PureMLIP/test/pureblas`.
+
 ## Reference
 
 ```@docs
