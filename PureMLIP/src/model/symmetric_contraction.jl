@@ -142,16 +142,27 @@ function _c2_c1!(scratch::AbstractArray{S}, ct::Contraction, X::AbstractArray{S,
     for ((m, w, x, k), v) in ct.U2, c in 1:C
         scratch[I2[c, m, w, x]] += v * ct.W0[c, k, s]
     end
-    for ((m, w, x, i, k), v) in ct.U3, c in 1:C
-        scratch[I2[c, m, w, x]] += v * ct.Wmax[c, k, s] * X[c, i, a]
+    for ((m, w, x, i, k), v) in ct.U3
+        C2 = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
+        Wk, Xi = view(ct.Wmax, :, k, s), view(X, :, i, a)
+        # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
+        @inbounds for c in _eachindex(C2, Wk, Xi)
+            C2[c] += v * Wk[c] * Xi[c]
+        end
     end
     for ((m, w, k), v) in ct.U1, c in 1:C
         scratch[o1 + I1[c, m, w]] += v * ct.W1[c, k, s]
     end
     # A2 contracts the last ell index of C2 with X. B alone would not change if it contracted
     # the first (Σ_{w,x} C2[w, x] X[w] X[x] is symmetric), but the pullback uses C1 itself.
-    for x in 1:L, w in 1:L, m in 1:M, c in 1:C
-        scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, w, x]] * X[c, x, a]
+    for x in 1:L, w in 1:L, m in 1:M
+        C1 = view(scratch, (o1 + I1[1, m, w]):(o1 + I1[C, m, w]))
+        C2wx = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
+        Xx = view(X, :, x, a)
+        # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
+        @inbounds for c in _eachindex(C1, C2wx, Xx)
+            C1[c] += C2wx[c] * Xx[c]
+        end
     end
     return I2, I1, o1
 end
@@ -215,16 +226,29 @@ function symmetric_contraction_pullback!(
             I2, I1, o1 = _c2_c1!(scratch, ct, X, a, s)
             C, M, L = size(ct.Wmax, 1), 2ct.l + 1, ct.n_ell
             # B = Σ_w C1 X[w]:  dX[w] += dB C1[w], and dC1[m, w] = dB[m] X[w].
-            for w in 1:L, m in 1:M, c in 1:C
-                dX[c, w, a] += dB[c, o + m, a] * scratch[o1 + I1[c, m, w]]
+            for w in 1:L, m in 1:M
+                dXw, dBm = view(dX, :, w, a), view(dB, :, o + m, a)
+                C1 = view(scratch, (o1 + I1[1, m, w]):(o1 + I1[C, m, w]))
+                for c in _eachindex(dXw, dBm, C1)
+                    dXw[c] += dBm[c] * C1[c]
+                end
             end
             # C1 ∋ Σ_x C2[w, x] X[x]:  dX[x] += dC1[m, w] C2[m, w, x], and dC2[m, w, x] = dC1[m, w] X[x].
-            for x in 1:L, w in 1:L, m in 1:M, c in 1:C
-                dX[c, x, a] += dB[c, o + m, a] * X[c, w, a] * scratch[I2[c, m, w, x]]
+            for x in 1:L, w in 1:L, m in 1:M
+                dXx, dBm, Xw = view(dX, :, x, a), view(dB, :, o + m, a), view(X, :, w, a)
+                C2 = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
+                for c in _eachindex(dXx, dBm, Xw, C2)
+                    dXx[c] += dBm[c] * Xw[c] * C2[c]
+                end
             end
             # C2 ∋ U3 Wmax X[i]:  dX[i] += U3 Wmax dC2.
-            for ((m, w, x, i, k), v) in ct.U3, c in 1:C
-                dX[c, i, a] += v * ct.Wmax[c, k, s] * dB[c, o + m, a] * X[c, w, a] * X[c, x, a]
+            for ((m, w, x, i, k), v) in ct.U3
+                dXi, Wk, dBm = view(dX, :, i, a), view(ct.Wmax, :, k, s), view(dB, :, o + m, a)
+                Xw, Xx = view(X, :, w, a), view(X, :, x, a)
+                # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
+                @inbounds for c in _eachindex(dXi, Wk, dBm, Xw, Xx)
+                    dXi[c] += v * Wk[c] * dBm[c] * Xw[c] * Xx[c]
+                end
             end
             o += M
         end

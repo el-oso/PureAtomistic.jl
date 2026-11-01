@@ -106,19 +106,25 @@ end
     out = zeros(512, nb); pre = zeros(64, nb, 3); act = zeros(64, nb, 3)
     M.radial_mlp!(out, pre, act, mlp, feats)
     ins = (feats, act[:, :, 1], act[:, :, 2], act[:, :, 3])
+    silu(z) = z / (1 + exp(-z))
     for j in 1:4
         local L = Ls[j]
         local h = size(L, 1)
         local X = ins[j]
         local naive = [sum(X[c, e] * (L[c, o] / sqrt(h)) for c in 1:h) for o in 1:size(L, 2), e in 1:nb]
-        local got = j == 4 ? out : pre[:, :, j]
         # Rounding bound: 4·eps·N·max|terms|, N = h (10 or 64) terms per output.
-        @test got ≈ naive atol = 4 * eps() * h * maximum(abs, X) * maximum(abs, L) / sqrt(h)
-    end
-    silu(z) = z / (1 + exp(-z))
-    for j in 1:3
-        # Rounding bound: 8·eps relative per element (exp, one add, one division, one product).
-        @test all(abs.(act[:, :, j] .- cst .* silu.(pre[:, :, j])) .<= 8 * eps() .* abs.(act[:, :, j]))
+        local zb = 4 * eps() * h * maximum(abs, X) * maximum(abs, L) / sqrt(h)
+        if j == 4
+            @test out ≈ naive atol = zb
+        else
+            # `pre` holds the logistic σ(z) of the pre-activations z = naive. Measured margin:
+            # largest error 1.5·eps (layer 3; 1.0·eps in layers 1 and 2): σ ≤ 1 rounds in exp, one
+            # add and one inverse, and the rounding of z reaches σ damped by |σ'| ≤ 1/4.
+            @test all(abs.(pre[:, :, j] .- 1 ./ (1 .+ exp.(-naive))) .<= 4 * eps())
+            # Rounding bound: 8·eps relative per element (exp, one add, one division, one product),
+            # plus the slope |∂act/∂z| ≤ 1.1·cst times the bound on z.
+            @test all(abs.(act[:, :, j] .- cst .* silu.(naive)) .<= 8 * eps() .* abs.(act[:, :, j]) .+ 1.1 * cst * zb)
+        end
     end
 
     # density_fn: ρ = tanh((feats · L/√10)²).
@@ -284,9 +290,21 @@ end
         M.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w)
         dxn, dYn, dwn = fill(T(NaN), C, 4), copy(dY0), copy(dw0)
         @test M.tp_edge_pullback_add!(dxn, dYn, dwn, tp, dM, x, Y, w; need_dx = false) === nothing
-        # The same operations in the same order give the same dY and dw; dx is never touched.
-        @test dYn == dY
+        # dw: each element gets the same operations in the same order in both loops, so it is equal.
         @test dwn == dw
+        # dY[j] sums `v * acc` over the n_j entries with that j, and each `acc` is a `@simd`
+        # reduction over C channels whose order LLVM chooses per loop, so the two loops may round
+        # differently. Rounding bound: each result is within (C + 2 + n_j)·eps/2·S_j of the exact
+        # value (C three-factor products and C - 1 additions, the scaling by v, n_j additions into
+        # dY[j]), where S_j = |dY0[j]| + Σ|v|·Σ_u|dM·w·x| is the sum of the absolute terms; their
+        # difference within c·eps·S_j with c = C + 2 + n_j.
+        S, nj = abs.(dY0), zeros(Int, length(dY0))
+        for p in eachindex(tp.paths), q in tp.paths[p]
+            i, j, k, v = tp.entries[q]
+            S[j] += abs(v) * sum(abs.(dM[:, k] .* w[:, p] .* x[:, i]))
+            nj[j] += 1
+        end
+        @test all(abs.(dYn .- dY) .<= (C .+ 2 .+ nj) .* eps(T) .* S)
         @test all(isnan, dxn)
     end
 end

@@ -66,19 +66,27 @@ function _check_mlp_pullback(mlp::RadialMLP, dfeats::AbstractMatrix, g::Abstract
     return nothing
 end
 
-# act = normalized_silu(pre) for one hidden layer.
+# One hidden layer at the pre-activation z = Wᵀ input: act = normalized_silu(z) = cst·z·σ(z), and
+# `pre` is overwritten with the logistic σ(z), from which the pullback gets the slope without `exp`.
 function _mlp_layer!(pre::AbstractMatrix, act::AbstractMatrix, W::AbstractMatrix, input::AbstractMatrix, cst)
     mul!(pre, transpose(W), input)
+    c = convert(eltype(act), cst)
     for q in eachindex(pre, act)
-        act[q] = normalized_silu(pre[q], cst)[1]
+        z = pre[q]
+        σ = inv(one(z) + exp(-z))
+        act[q] = z * σ * c
+        pre[q] = σ
     end
     return nothing
 end
 
-# g .*= ∂act/∂pre, turning an activation cotangent into a pre-activation cotangent.
-function _mlp_layer_pullback!(g::AbstractMatrix, pre::AbstractMatrix, cst)
-    for q in eachindex(g, pre)
-        g[q] *= normalized_silu(pre[q], cst)[2]
+# g .*= ∂act/∂z = cst·σ + act·(1 - σ), turning an activation cotangent into a pre-activation
+# cotangent; `σs` and `act` are the `pre` and `act` of `_mlp_layer!`.
+function _mlp_layer_pullback!(g::AbstractMatrix, σs::AbstractMatrix, act::AbstractMatrix, cst)
+    c = convert(eltype(g), cst)
+    for q in _eachindex(g, σs, act)
+        σ = σs[q]
+        g[q] *= c * σ + act[q] * (one(σ) - σ)
     end
     return nothing
 end
@@ -87,8 +95,9 @@ end
     radial_mlp!(out, pre, act, mlp::RadialMLP, feats) -> out
 
 `out = mlp(feats)` for `feats` (`n_basis × nb`) and `out` (`W_out × nb`), one column per edge.
-`pre[:, :, k]` and `act[:, :, k]` (`hidden × nb × 3`) receive the pre-activations and
-activations of hidden layer `k`, which [`radial_mlp_pullback!`](@ref) reads.
+`pre[:, :, k]` and `act[:, :, k]` (`hidden × nb × 3`) receive the logistic `σ(z)` of the
+pre-activations `z` and the activations `cst · z · σ(z)` of hidden layer `k`, which
+[`radial_mlp_pullback!`](@ref) reads.
 """
 function radial_mlp!(out::AbstractMatrix{S}, pre::AbstractArray{S, 3}, act::AbstractArray{S, 3}, mlp::RadialMLP, feats::AbstractMatrix{S}) where {S}
     _check_mlp(mlp, out, pre, act, feats)
@@ -103,17 +112,18 @@ end
     radial_mlp_pullback!(dfeats, g, mlp::RadialMLP, dout, pre, act) -> dfeats
 
 The vector-Jacobian product of [`radial_mlp!`](@ref) with the cotangent `dout`, from the `pre`
-and `act` that call stored. `g` (`hidden × nb × 2`) is scratch. Overwrites `dfeats`.
+(the logistic `σ`) and `act` that call stored: the slope of each activation is
+`cst · σ + act · (1 - σ)`. `g` (`hidden × nb × 2`) is scratch. Overwrites `dfeats`.
 """
 function radial_mlp_pullback!(dfeats::AbstractMatrix{S}, g::AbstractArray{S, 3}, mlp::RadialMLP, dout::AbstractMatrix{S}, pre::AbstractArray{S, 3}, act::AbstractArray{S, 3}) where {S}
     _check_mlp_pullback(mlp, dfeats, g, dout, pre, act)
     g1, g2 = view(g, :, :, 1), view(g, :, :, 2)
     mul!(g1, mlp.W[4], dout)
-    _mlp_layer_pullback!(g1, view(pre, :, :, 3), mlp.cst)
+    _mlp_layer_pullback!(g1, view(pre, :, :, 3), view(act, :, :, 3), mlp.cst)
     mul!(g2, mlp.W[3], g1)
-    _mlp_layer_pullback!(g2, view(pre, :, :, 2), mlp.cst)
+    _mlp_layer_pullback!(g2, view(pre, :, :, 2), view(act, :, :, 2), mlp.cst)
     mul!(g1, mlp.W[2], g2)
-    _mlp_layer_pullback!(g1, view(pre, :, :, 1), mlp.cst)
+    _mlp_layer_pullback!(g1, view(pre, :, :, 1), view(act, :, :, 1), mlp.cst)
     mul!(dfeats, mlp.W[1], g1)
     return dfeats
 end

@@ -387,22 +387,29 @@ expect = "channelwise TP matches"
 [[mutation]]
 name = "tp-pullback-dY-sign"
 file = "src/model/tensor_product.jl"
-find = "dY[j] += acc"
-replace = "dY[j] -= acc"
+find = "dY[j] += v * acc"
+replace = "dY[j] -= v * acc"
 expect = "channelwise TP matches"
 
 [[mutation]]
 name = "radial-mlp-last-hidden-cst"
 file = "src/model/radial_mlp.jl"
-find = "view(act, :, :, 2), mlp.cst)"
-replace = "view(act, :, :, 2), one(mlp.cst))"
+find = "mlp.W[3], view(act, :, :, 2), mlp.cst)"
+replace = "mlp.W[3], view(act, :, :, 2), one(mlp.cst))"
 expect = "MACE layers match the forward-pass formulas"
 
 [[mutation]]
 name = "radial-mlp-pullback-wrong-layer"
 file = "src/model/radial_mlp.jl"
-find = "_mlp_layer_pullback!(g1, view(pre, :, :, 1), mlp.cst)"
-replace = "_mlp_layer_pullback!(g1, view(pre, :, :, 2), mlp.cst)"
+find = "_mlp_layer_pullback!(g1, view(pre, :, :, 1), view(act, :, :, 1), mlp.cst)"
+replace = "_mlp_layer_pullback!(g1, view(pre, :, :, 2), view(act, :, :, 2), mlp.cst)"
+expect = "layer pullbacks match ForwardDiff"
+
+[[mutation]]
+name = "radial-mlp-logistic-slope"
+file = "src/model/radial_mlp.jl"
+find = "c * σ + act[q] * (one(σ) - σ)"
+replace = "c * σ + act[q] * σ"
 expect = "layer pullbacks match ForwardDiff"
 
 [[mutation]]
@@ -422,8 +429,8 @@ expect = "layer pullbacks match ForwardDiff"
 [[mutation]]
 name = "symmetric-contraction-a2-first-index"
 file = "src/model/symmetric_contraction.jl"
-find = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, w, x]] * X[c, x, a]"
-replace = "scratch[o1 + I1[c, m, w]] += scratch[I2[c, m, x, w]] * X[c, x, a]"
+find = "C2wx = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])"
+replace = "C2wx = view(scratch, I2[1, m, x, w]:I2[C, m, x, w])"
 expect = "symmetric contraction"
 
 [[mutation]]
