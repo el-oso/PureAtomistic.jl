@@ -24,11 +24,12 @@ end
     MACEWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096)
 
 The buffers of an evaluation of `model` on up to `n_atoms` atoms and `n_edges` directed edges.
-Per-edge geometry is held for every edge; the radial-MLP outputs (the tensor-product weights)
-are computed `edge_chunk` edges at a time. The workspace also holds the energy derivatives of
-the backward pass of [`mace_energy_forces!`](@ref). The evaluation functions require `T` to be
-the element type of the model; the constructor reads only sizes from `model`, so `T` may also be
-a number type the layers accept, such as a dual number.
+Per edge it holds the edge vector, its length and the energy gradient with respect to the edge
+vector; the spherical harmonics, the radial features and the radial-MLP outputs (the
+tensor-product weights) are recomputed from them `edge_chunk` edges at a time. The workspace
+also holds the energy derivatives of the backward pass of [`mace_energy_forces!`](@ref). The
+evaluation functions require `T` to be the element type of the model; the constructor reads only
+sizes from `model`, so `T` may also be a number type the layers accept, such as a dual number.
 """
 struct MACEWorkspace{T}
     n_atoms::Int
@@ -38,12 +39,11 @@ struct MACEWorkspace{T}
     # per edge
     r::Matrix{T}             # 3 × E, edge vectors
     d::Vector{T}             # edge lengths
-    Y::Matrix{T}             # 16 × E, e3nn spherical harmonics
-    feats::Matrix{T}         # n_basis × E, radial features
-    dfeats::Matrix{T}        # n_basis × E, their derivatives with respect to the length
-    dd::Vector{T}            # ∂E/∂d per edge, through the radial features
-    dY::Matrix{T}            # 16 × E, ∂E/∂Y per edge
-    # per chunk
+    dEdr::Matrix{T}          # 3 × E, ∂E/∂r per edge, accumulated by the backward pass
+    # per chunk, recomputed from r and d in each pass over the chunk
+    Y::Matrix{T}             # 16 × chunk, e3nn spherical harmonics
+    feats::Matrix{T}         # n_basis × chunk, radial features
+    dfeats::Matrix{T}        # n_basis × chunk, their derivatives with respect to the length
     tpw::Matrix{T}           # W × chunk, radial-MLP outputs
     tpw3::Array{T, 3}        # C × W/C × chunk, the same memory as tpw
     pre::Array{T, 3}         # hidden × chunk × 3
@@ -52,9 +52,9 @@ struct MACEWorkspace{T}
     dtpw3::Array{T, 3}       # the same memory as dtpw
     mlp_scratch::Array{T, 3} # hidden × chunk × 2
     dfeats_chunk::Matrix{T}  # n_basis × chunk, ∂E/∂feats through the radial MLP
-    # per edge, reused: harmonics and their gradient with respect to the edge vector
-    Ye::Vector{T}
-    dYdr::Matrix{T}          # 16 × 3
+    # per edge, reused: ∂E/∂Y of one edge and the gradient of its harmonics
+    dYe::Vector{T}
+    dYdr::Matrix{T}          # 16 × 3, ∂Y/∂r
     # Per node. The fields marked with a pool share memory with the other members of that pool;
     # the constructor lists the order in which each pool's members are used.
     h0::Array{T, 3}                  # pool `small`
@@ -120,7 +120,8 @@ struct MACEWorkspace{T}
         (), (dx1, dx0) = _pool(T, (), (dims(model.up[2]), dims(model.up[1])))
         return new{T}(
             n, E, chunk, zeros(Int, n),
-            zeros(T, 3, E), zeros(T, E), zeros(T, 16, E), zeros(T, nb, E), zeros(T, nb, E), zeros(T, E), zeros(T, 16, E),
+            zeros(T, 3, E), zeros(T, E), zeros(T, 3, E),
+            zeros(T, 16, chunk), zeros(T, nb, chunk), zeros(T, nb, chunk),
             tpw, reshape(tpw, C, W ÷ C, chunk), zeros(T, H, chunk, 3), zeros(T, H, chunk, 3),
             dtpw, reshape(dtpw, C, W ÷ C, chunk), zeros(T, H, chunk, 2), zeros(T, nb, chunk),
             zeros(T, 16), zeros(T, 16, 3),
@@ -167,24 +168,36 @@ end
     return nothing
 end
 
-# Edge vectors, lengths, spherical harmonics and radial features of every edge.
-function _edges!(ws::MACEWorkspace{T}, model::MACEModel{T}, positions, cell, atomic_numbers, nl::NeighborList) where {T}
+# Edge vectors and lengths of every edge.
+function _edges!(ws::MACEWorkspace{T}, positions, cell, nl::NeighborList) where {T}
     for e in 1:nl.n_edges
         s, r = nl.senders[e], nl.receivers[e]
         n1, n2, n3 = nl.shifts[1, e], nl.shifts[2, e], nl.shifts[3, e]
         for a in 1:3
             ws.r[a, e] = positions[a, r] - positions[a, s] + (cell[a, 1] * n1 + cell[a, 2] * n2 + cell[a, 3] * n3)
         end
-        d = sqrt(ws.r[1, e]^2 + ws.r[2, e]^2 + ws.r[3, e]^2)
-        ws.d[e] = d
-        e3nn_spherical_harmonics!(view(ws.Y, :, e), view(ws.r, :, e), 3)
-        radial_embedding!(view(ws.feats, :, e), view(ws.dfeats, :, e), model.radial, d, Int(atomic_numbers[s]), Int(atomic_numbers[r]))
+        ws.d[e] = sqrt(ws.r[1, e]^2 + ws.r[2, e]^2 + ws.r[3, e]^2)
     end
     return nothing
 end
 
-# Messages of interaction `k` summed at the receivers, and the density of each receiver.
-function _messages!(M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACEWorkspace{T}, model::MACEModel, k::Int, x::AbstractArray{T, 3}, nl::NeighborList) where {T}
+# Radial features and their length derivatives of edges `start:stop`, in columns `1:stop-start+1`
+# of `ws.feats` and `ws.dfeats`.
+function _chunk_radial!(ws::MACEWorkspace{T}, model::MACEModel, atomic_numbers, nl::NeighborList, start::Int, stop::Int) where {T}
+    for e in start:stop
+        s, r = nl.senders[e], nl.receivers[e]
+        j = e - start + 1
+        radial_embedding!(view(ws.feats, :, j), view(ws.dfeats, :, j), model.radial, ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]))
+    end
+    return nothing
+end
+
+# Messages of interaction `k` summed at the receivers, and the density of each receiver. The
+# harmonics and radial features are recomputed per chunk of `ws.chunk` edges from `ws.r` and `ws.d`.
+function _messages!(
+        M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACEWorkspace{T}, model::MACEModel, k::Int,
+        x::AbstractArray{T, 3}, atomic_numbers, nl::NeighborList
+    ) where {T}
     fill!(M, zero(T))
     fill!(density, zero(T))
     mlp, tp = model.mlp[k], model.conv[k]
@@ -193,11 +206,15 @@ function _messages!(M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACE
     for start in 1:ws.chunk:nl.n_edges
         stop = min(start + ws.chunk - 1, nl.n_edges)
         nb = stop - start + 1
-        radial_mlp!(view(ws.tpw, 1:W, 1:nb), view(ws.pre, :, 1:nb, :), view(ws.act, :, 1:nb, :), mlp, view(ws.feats, :, start:stop))
+        _chunk_radial!(ws, model, atomic_numbers, nl, start, stop)
+        radial_mlp!(view(ws.tpw, 1:W, 1:nb), view(ws.pre, :, 1:nb, :), view(ws.act, :, 1:nb, :), mlp, view(ws.feats, :, 1:nb))
         for e in start:stop
             s, r = nl.senders[e], nl.receivers[e]
-            tp_edge_add!(view(M, :, :, r), tp, view(x, :, :, s), view(ws.Y, :, e), view(ws.tpw3, :, 1:P, e - start + 1))
-            density[r] += density_edge(view(ws.feats, :, e), model.density[k])[1]
+            j = e - start + 1
+            Y = view(ws.Y, :, j)
+            e3nn_spherical_harmonics!(Y, view(ws.r, :, e), 3)
+            tp_edge_add!(view(M, :, :, r), tp, view(x, :, :, s), Y, view(ws.tpw3, :, 1:P, j))
+            density[r] += density_edge(view(ws.feats, :, j), model.density[k])[1]
         end
     end
     return nothing
@@ -241,7 +258,7 @@ function mace_energy!(
         s > 0 || throw(ArgumentError(lazy"model: element $z is not in the model's element table"))
         species[i] = s
     end
-    _edges!(ws, model, positions, cell, atomic_numbers, nl)
+    _edges!(ws, positions, cell, nl)
 
     # Embedding and interaction 0.
     h0 = view(ws.h0, :, :, atoms)
@@ -251,7 +268,7 @@ function mace_energy!(
     x0 = view(ws.x[1], :, :, atoms)
     linear!(x0, model.up[1], h0)
     M0, dens0 = view(ws.M[1], :, :, atoms), view(ws.density, atoms, 1)
-    _messages!(M0, dens0, ws, model, 1, x0, nl)
+    _messages!(M0, dens0, ws, model, 1, x0, atomic_numbers, nl)
     L0 = _normalized_linear!(view(ws.L[1], :, :, atoms), model.linear[1], M0, dens0)
     X1 = view(ws.X1, :, :, atoms)
     species_linear!(X1, model.skip[1], L0, species)
@@ -268,7 +285,7 @@ function mace_energy!(
     x1 = view(ws.x[2], :, :, atoms)
     linear!(x1, model.up[2], h1)
     M1, dens1 = view(ws.M[2], :, :, atoms), view(ws.density, atoms, 2)
-    _messages!(M1, dens1, ws, model, 2, x1, nl)
+    _messages!(M1, dens1, ws, model, 2, x1, atomic_numbers, nl)
     X2 = _normalized_linear!(view(ws.L[2], :, :, atoms), model.linear[2], M1, dens1)
 
     # Product 1 with the skip connection.
@@ -343,45 +360,61 @@ function _normalized_linear_pullback!(
 end
 
 # Pullback of `_messages!` for interaction `k`: overwrites `dx` (the derivative with respect to
-# the sender features) and adds to `ws.dd` and `ws.dY` per edge, from `dM` and `ddensity`. The
-# radial MLP is recomputed chunk by chunk. With `need_dx = false`, `dx` is neither read nor
-# written; only its size is checked.
+# the sender features) and adds to `ws.dEdr` per edge, from `dM` and `ddensity`. The harmonics,
+# radial features and radial MLP are recomputed over the same chunks as in `_messages!`. Each
+# edge's ∂E/∂Y and ∂E/∂d enter `ws.dEdr` through ∂Y/∂r and ∂d/∂r = r / d. With
+# `need_dx = false`, `dx` is neither read nor written; only its size is checked.
 function _messages_pullback!(
         dx::AbstractArray{T, 3}, ws::MACEWorkspace{T}, model::MACEModel{T}, k::Int, x::AbstractArray{T, 3},
-        dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, nl::NeighborList;
+        dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, atomic_numbers, nl::NeighborList;
         need_dx::Bool = true
     ) where {T}
     need_dx && fill!(dx, zero(T))
     mlp, tp, wd = model.mlp[k], model.conv[k], model.density[k]
     W = size(mlp.W[4], 2)
     P = length(tp.paths)
+    dYe, dYdr = ws.dYe, ws.dYdr
     for start in 1:ws.chunk:nl.n_edges
         stop = min(start + ws.chunk - 1, nl.n_edges)
         nb = stop - start + 1
+        _chunk_radial!(ws, model, atomic_numbers, nl, start, stop)
         pre, act = view(ws.pre, :, 1:nb, :), view(ws.act, :, 1:nb, :)
-        radial_mlp!(view(ws.tpw, 1:W, 1:nb), pre, act, mlp, view(ws.feats, :, start:stop))
+        radial_mlp!(view(ws.tpw, 1:W, 1:nb), pre, act, mlp, view(ws.feats, :, 1:nb))
         dw = view(ws.dtpw, 1:W, 1:nb)
         fill!(dw, zero(T))
         for e in start:stop
             s, r = nl.senders[e], nl.receivers[e]
             j = e - start + 1
+            Y = view(ws.Y, :, j)
+            e3nn_spherical_harmonics_and_gradient!(Y, dYdr, view(ws.r, :, e), 3)
+            fill!(dYe, zero(T))
             tp_edge_pullback_add!(
-                view(dx, :, :, s), view(ws.dY, :, e), view(ws.dtpw3, :, 1:P, j), tp,
-                view(dM, :, :, r), view(x, :, :, s), view(ws.Y, :, e), view(ws.tpw3, :, 1:P, j);
+                view(dx, :, :, s), dYe, view(ws.dtpw3, :, 1:P, j), tp,
+                view(dM, :, :, r), view(x, :, :, s), Y, view(ws.tpw3, :, 1:P, j);
                 need_dx
             )
+            for a in 1:3
+                acc = zero(T)
+                for i in axes(dYdr, 1)
+                    acc += dYe[i] * dYdr[i, a]
+                end
+                ws.dEdr[a, e] += acc
+            end
         end
         dfc = view(ws.dfeats_chunk, :, 1:nb)
         radial_mlp_pullback!(dfc, view(ws.mlp_scratch, :, 1:nb, :), mlp, dw, pre, act)
         for e in start:stop
             j = e - start + 1
             # ∂ρ/∂feats = c .* wd for the edge density ρ added to its receiver.
-            a = ddensity[nl.receivers[e]] * density_edge(view(ws.feats, :, e), wd)[2]
-            acc = zero(T)
+            a = ddensity[nl.receivers[e]] * density_edge(view(ws.feats, :, j), wd)[2]
+            dd = zero(T)
             for b in axes(dfc, 1)
-                acc += (dfc[b, j] + a * wd[b]) * ws.dfeats[b, e]
+                dd += (dfc[b, j] + a * wd[b]) * ws.dfeats[b, j]
             end
-            ws.dd[e] += acc
+            dd /= ws.d[e]
+            for c in 1:3
+                ws.dEdr[c, e] += dd * ws.r[c, e]
+            end
         end
     end
     return nothing
@@ -409,8 +442,15 @@ function mace_energy_forces!(
     atoms = 1:n
     E = nl.n_edges
     species = view(ws.species, atoms)
-    fill!(view(ws.dd, 1:E), zero(T))
-    fill!(view(ws.dY, :, 1:E), zero(T))
+    # ∂E/∂r per edge starts from the ZBL pair term; both message pullbacks add to it.
+    for e in 1:E
+        s, r = nl.senders[e], nl.receivers[e]
+        d = ws.d[e]
+        dd = model.scale * zbl_edge_energy(d, Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[2] / d
+        for a in 1:3
+            ws.dEdr[a, e] = dd * ws.r[a, e]
+        end
+    end
 
     # Readouts: ∂E/∂e1 = ∂E/∂e2 = scale per atom.
     de1, de2 = view(ws.de1, :, :, atoms), view(ws.de2, :, :, atoms)
@@ -442,7 +482,7 @@ function mace_energy_forces!(
     dM1, ddens1 = view(ws.dM[2], :, :, atoms), view(ws.ddensity, atoms, 2)
     _normalized_linear_pullback!(dM1, ddens1, model.linear[2], dX2, view(ws.L[2], :, :, atoms), view(ws.density, atoms, 2))
     dx1 = view(ws.dx[2], :, :, atoms)
-    _messages_pullback!(dx1, ws, model, 2, view(ws.x[2], :, :, atoms), dM1, ddens1, nl)
+    _messages_pullback!(dx1, ws, model, 2, view(ws.x[2], :, :, atoms), dM1, ddens1, atomic_numbers, nl)
     linear_pullback!(part, model.up[2], dx1)
     for q in eachindex(dh1, part)
         dh1[q] += part[q]
@@ -462,23 +502,17 @@ function mace_energy_forces!(
     _normalization_pullback!(ddens0, dL0, dX1, X1, view(ws.density, atoms, 1))
     linear_pullback!(dM0, model.linear[1], dL0)
     # With `need_dx = false` the sender derivative dx[1] is neither read nor written.
-    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, nl; need_dx = false)
+    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, atomic_numbers, nl; need_dx = false)
 
-    # Edge vectors: g_e = (∂E/∂d) r_e / d + (∂Y/∂r_e)ᵀ ∂E/∂Y, with the pair term in ∂E/∂d.
+    # Edge vectors: g_e = ∂E/∂r_e.
     F = res.forces
     fill!(F, zero(T))
     A = res.virial
     fill!(A, zero(T))
     for e in 1:E
         s, r = nl.senders[e], nl.receivers[e]
-        d = ws.d[e]
-        dd = ws.dd[e] + model.scale * zbl_edge_energy(d, Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[2]
-        e3nn_spherical_harmonics_and_gradient!(ws.Ye, ws.dYdr, view(ws.r, :, e), 3)
         for a in 1:3
-            ga = dd * ws.r[a, e] / d
-            for j in axes(ws.dYdr, 1)
-                ga += ws.dY[j, e] * ws.dYdr[j, a]
-            end
+            ga = ws.dEdr[a, e]
             F[a, s] += ga
             F[a, r] -= ga
             for b in 1:3

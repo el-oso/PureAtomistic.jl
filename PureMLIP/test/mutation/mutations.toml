@@ -464,8 +464,8 @@ expect = "density-normalization and message pullbacks"
 [[mutation]]
 name = "forces-without-angular-term"
 file = "src/model/evaluate.jl"
-find = "ga += ws.dY[j, e] * ws.dYdr[j, a]"
-replace = "ga += zero(T)"
+find = "acc += dYe[i] * dYdr[i, a]"
+replace = "acc += zero(T)"
 expect = "forces"
 
 [[mutation]]
