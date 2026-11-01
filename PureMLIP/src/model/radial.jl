@@ -32,12 +32,32 @@ function agnesi_transform(d::S, r0, a, p, q) where {S <: Real}
     return dt, ddt
 end
 
+_check_bessel(B, dB, weights) = axes(B) == axes(dB) == axes(weights) ||
+    throw(DimensionMismatch(lazy"model: B, dB and weights must share axes: $(axes(B)), $(axes(dB)), $(axes(weights))"))
+
 function bessel_basis!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
-    axes(B) == axes(dB) == axes(weights) || throw(DimensionMismatch(lazy"model: B, dB and weights must share axes: $(axes(B)), $(axes(dB)), $(axes(weights))"))
+    _check_bessel(B, dB, weights)
     for n in eachindex(B)
         s, c = sincos(weights[n] * x)
         B[n] = prefactor * s / x
         dB[n] = prefactor * (weights[n] * c / x - s / x^2)
+    end
+    return B
+end
+
+# `bessel_basis!` for weights that are the multiples k·w₁ (k = 1, 2, ...) of the first weight.
+# Then w_k x = k (w₁ x), so sin(w_k x) and cos(w_k x) follow exactly from one `sincos(w₁ x)` by
+# angle addition, s_{k+1} = s_k c₁ + c_k s₁ and c_{k+1} = c_k c₁ - s_k s₁: the result is the
+# function `bessel_basis!` computes, up to the rounding of the recurrence, which grows with k.
+function bessel_basis_multiples!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
+    _check_bessel(B, dB, weights)
+    isempty(B) && return B
+    s1, c1 = sincos(weights[firstindex(weights)] * x)
+    s, c = s1, c1
+    for n in eachindex(B)
+        B[n] = prefactor * s / x
+        dB[n] = prefactor * (weights[n] * c / x - s / x^2)
+        s, c = s * c1 + c * s1, c * c1 - s * s1
     end
     return B
 end
@@ -51,6 +71,25 @@ struct RadialEmbedding{T}
     agnesi_p::T
     agnesi_q::T
     covalent_radii::Vector{T}   # indexed by atomic number + 1
+    # The k-th Bessel weight equals k times the first, compared exactly in the element type the
+    # constructor was given (before conversion to T); `radial_embedding!` then uses the recurrence.
+    multiples::Bool
+    function RadialEmbedding{T}(bessel_weights, prefactor, r_max, cutoff_p, agnesi_a, agnesi_p, agnesi_q, covalent_radii) where {T}
+        return new{T}(
+            bessel_weights, prefactor, r_max, cutoff_p, agnesi_a, agnesi_p, agnesi_q, covalent_radii,
+            _integer_multiples(bessel_weights),
+        )
+    end
+end
+
+# Whether w[k] == k * w[1] exactly for every position k.
+function _integer_multiples(w::AbstractVector)
+    isempty(w) && return false
+    w1 = w[firstindex(w)]
+    for (k, i) in enumerate(eachindex(w))
+        w[i] == k * w1 || return false
+    end
+    return true
 end
 
 function radial_embedding!(feats::AbstractVector{S}, dfeats::AbstractVector{S}, emb::RadialEmbedding, d::S, Zu::Int, Zv::Int) where {S <: Real}
@@ -62,7 +101,11 @@ function radial_embedding!(feats::AbstractVector{S}, dfeats::AbstractVector{S}, 
     fc, dfc = polynomial_cutoff(d, emb.r_max, emb.cutoff_p)
     r0 = (emb.covalent_radii[Zu + 1] + emb.covalent_radii[Zv + 1]) / 2
     dt, ddt = agnesi_transform(d, r0, emb.agnesi_a, emb.agnesi_p, emb.agnesi_q)
-    bessel_basis!(feats, dfeats, dt, emb.bessel_weights, emb.prefactor)
+    if emb.multiples
+        bessel_basis_multiples!(feats, dfeats, dt, emb.bessel_weights, emb.prefactor)
+    else
+        bessel_basis!(feats, dfeats, dt, emb.bessel_weights, emb.prefactor)
+    end
     for n in eachindex(feats)
         B = feats[n]
         dfeats[n] = dfeats[n] * ddt * fc + B * dfc

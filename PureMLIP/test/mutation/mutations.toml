@@ -357,6 +357,13 @@ replace = "h = U(1.0)"
 expect = "radial functions match the MACE radial fixture"
 
 [[mutation]]
+name = "bessel-recurrence-cos-sign"
+file = "src/model/radial.jl"
+find = "s, c = s * c1 + c * s1, c * c1 - s * s1"
+replace = "s, c = s * c1 + c * s1, c * c1 + s * s1"
+expect = "Bessel recurrence matches per-term sincos"
+
+[[mutation]]
 name = "species-linear-coupling-norm"
 file = "src/tensors/linear.jl"
 find = "T(pw * (1 / sqrt(2 * ls[i] + 1)))"

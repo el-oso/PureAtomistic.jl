@@ -99,3 +99,52 @@ end
         @test de ≈ J atol = tol rtol = 0
     end
 end
+
+# MPA-0's Bessel weights are exact multiples k·w₁, so its radial embedding takes the angle-addition
+# recurrence; a weight vector that is not takes the per-term `sincos`.
+@testitem "Bessel recurrence matches per-term sincos" setup = [Checkpoints] begin
+    M = PureMLIP.Model
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    setprecision(BigFloat, 256) do
+        for T in (Float64, Float32)
+            emb = MACEModel{T}(ck).radial
+            @test emb.multiples
+            nb = length(emb.bessel_weights)
+            wbig = BigFloat(emb.bessel_weights[1]) .* (1:nb)
+            B, dB, F, dF = zeros(T, nb), zeros(T, nb), zeros(T, nb), zeros(T, nb)
+            Bb, dBb = zeros(BigFloat, nb), zeros(BigFloat, nb)
+            errB, errdB = 0.0, 0.0
+            for (Zu, Zv) in ((29, 29), (1, 8)), d in range(T(0.01), prevfloat(emb.r_max); length = 400)
+                fc, dfc = M.polynomial_cutoff(d, emb.r_max, emb.cutoff_p)
+                r0 = (emb.covalent_radii[Zu + 1] + emb.covalent_radii[Zv + 1]) / 2
+                x, dx = M.agnesi_transform(d, r0, emb.agnesi_a, emb.agnesi_p, emb.agnesi_q)
+                M.bessel_basis_multiples!(B, dB, x, emb.bessel_weights, emb.prefactor)
+                # radial_embedding! takes this path: the same arithmetic, so exactly equal.
+                M.radial_embedding!(F, dF, emb, d, Zu, Zv)
+                @test F == B .* fc && dF == dB .* dx .* fc .+ B .* dfc
+                M.bessel_basis!(Bb, dBb, BigFloat(x), wbig, BigFloat(emb.prefactor))
+                errB = max(errB, Float64(maximum(abs, B .- Bb) / max(1, maximum(abs, Bb))) / eps(T))
+                errdB = max(errdB, Float64(maximum(abs, dB .- dBb) / max(1, maximum(abs, dBb))) / eps(T))
+            end
+            # Oracle: per-term sincos in BigFloat at the same x, against the weights k·w₁. Measured
+            # over this scan, relative to max(1, |reference|): B 4.1·eps and dB 30·eps in both
+            # precisions (dB = w c / x - s / x² cancels between its terms); the bounds are 16 times
+            # these.
+            @test errB <= 64
+            @test errdB <= 480
+        end
+    end
+    # 4.5 is not an integer: the per-term path, exactly as bessel_basis! computes it.
+    radii = fill(0.2, 119)
+    emb = M.RadialEmbedding{Float64}(pi / 6.0 .* [1.0, 2.0, 3.0, 4.5], 0.5, 6.0, 5, 1.0805, 4.5791, 0.9183, radii)
+    @test !emb.multiples
+    @test M.RadialEmbedding{Float64}(pi / 6.0 .* (1:4), 0.5, 6.0, 5, 1.0805, 4.5791, 0.9183, radii).multiples
+    F, dF, B, dB = zeros(4), zeros(4), zeros(4), zeros(4)
+    for d in 0.5:0.5:5.5
+        M.radial_embedding!(F, dF, emb, d, 6, 8)
+        fc, dfc = M.polynomial_cutoff(d, emb.r_max, emb.cutoff_p)
+        x, dx = M.agnesi_transform(d, 0.2, emb.agnesi_a, emb.agnesi_p, emb.agnesi_q)
+        M.bessel_basis!(B, dB, x, emb.bessel_weights, emb.prefactor)
+        @test F == B .* fc && dF == dB .* dx .* fc .+ B .* dfc
+    end
+end
