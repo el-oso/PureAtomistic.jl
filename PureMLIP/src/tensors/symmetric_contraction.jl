@@ -21,27 +21,27 @@ struct Contraction{T}
             l::Int, U1::AbstractArray{<:Real}, U2::AbstractArray{<:Real}, U3::AbstractArray{<:Real},
             Wmax::AbstractArray{<:Real, 3}, W0::AbstractArray{<:Real, 3}, W1::AbstractArray{<:Real, 3}
         ) where {T}
-        l >= 0 || throw(ArgumentError(lazy"model: symmetric contraction: l must be non-negative, got $l"))
+        l >= 0 || throw(ArgumentError(lazy"tensors: symmetric contraction: l must be non-negative, got $l"))
         Base.require_one_based_indexing(U1, U2, U3, Wmax, W0, W1)
         nm = 2l + 1
         lead = l > 0
         if lead && !(ndims(U1) == 3 && ndims(U2) == 4 && ndims(U3) == 5 && size(U1, 1) == size(U2, 1) == size(U3, 1) == nm)
-            throw(ArgumentError(lazy"model: symmetric contraction: l = $l needs U arrays with a leading index of length $nm"))
+            throw(ArgumentError(lazy"tensors: symmetric contraction: l = $l needs U arrays with a leading index of length $nm"))
         end
         if !lead && !(ndims(U1) == 2 && ndims(U2) == 3 && ndims(U3) == 4)
-            throw(ArgumentError("model: symmetric contraction: l = 0 needs U arrays of 2, 3 and 4 dimensions"))
+            throw(ArgumentError("tensors: symmetric contraction: l = 0 needs U arrays of 2, 3 and 4 dimensions"))
         end
         s1, s2, s3 = _tail(size(U1), lead), _tail(size(U2), lead), _tail(size(U3), lead)
         L = s1[1]
         m_ = lead ? string(nm, ", ") : ""
-        s2[1] == s2[2] == L || throw(DimensionMismatch(lazy"model: symmetric contraction: U_matrix_2 has size $(size(U2)), expected ($m_$L, $L, K)"))
-        s3[1] == s3[2] == s3[3] == L || throw(DimensionMismatch(lazy"model: symmetric contraction: U_matrix_3 has size $(size(U3)), expected ($m_$L, $L, $L, K)"))
+        s2[1] == s2[2] == L || throw(DimensionMismatch(lazy"tensors: symmetric contraction: U_matrix_2 has size $(size(U2)), expected ($m_$L, $L, K)"))
+        s3[1] == s3[2] == s3[3] == L || throw(DimensionMismatch(lazy"tensors: symmetric contraction: U_matrix_3 has size $(size(U3)), expected ($m_$L, $L, $L, K)"))
         _check_weights(U3, "U_matrix_3", s3[4], Wmax, "weights_max")
         _check_weights(U2, "U_matrix_2", s2[3], W0, "weights.0")
         _check_weights(U1, "U_matrix_1", s1[2], W1, "weights.1")
         for (W, name) in ((W0, "weights.0"), (W1, "weights.1"))
             (size(W, 1), size(W, 3)) == (size(Wmax, 1), size(Wmax, 3)) ||
-                throw(DimensionMismatch(lazy"model: symmetric contraction: $name has size $(size(W)), expected $((size(Wmax, 1), size(W, 2), size(Wmax, 3)))"))
+                throw(DimensionMismatch(lazy"tensors: symmetric contraction: $name has size $(size(W)), expected $((size(Wmax, 1), size(W, 2), size(Wmax, 3)))"))
         end
         return new{T}(
             l, _nonzeros(T, U1, Val(3)), _nonzeros(T, U2, Val(4)), _nonzeros(T, U3, Val(5)),
@@ -53,7 +53,7 @@ end
 _tail(sz::Tuple, lead::Bool) = lead ? Base.tail(sz) : sz
 
 function _check_weights(U, uname::String, K::Int, W, wname::String)
-    size(W, 2) == K || throw(DimensionMismatch(lazy"model: symmetric contraction: $uname has size $(size(U)), $wname has size $(size(W))"))
+    size(W, 2) == K || throw(DimensionMismatch(lazy"tensors: symmetric contraction: $uname has size $(size(U)), $wname has size $(size(W))"))
     return nothing
 end
 
@@ -82,11 +82,11 @@ node, `K_out = Σ (2l + 1)`, with the components of contraction `j` following th
 struct SymmetricContraction{T}
     contractions::Vector{Contraction{T}}
     function SymmetricContraction{T}(contractions::Vector{Contraction{T}}) where {T}
-        isempty(contractions) && throw(ArgumentError("model: symmetric contraction needs at least one contraction"))
+        isempty(contractions) && throw(ArgumentError("tensors: symmetric contraction needs at least one contraction"))
         c1 = first(contractions)
         for ct in contractions
             (size(ct.Wmax, 1), ct.n_ell, size(ct.Wmax, 3)) == (size(c1.Wmax, 1), c1.n_ell, size(c1.Wmax, 3)) ||
-                throw(DimensionMismatch("model: symmetric contraction: contractions see different channel, ell or species counts"))
+                throw(DimensionMismatch("tensors: symmetric contraction: contractions see different channel, ell or species counts"))
         end
         return new{T}(contractions)
     end
@@ -115,16 +115,16 @@ function _check_args(sc::SymmetricContraction, B, bname::String, X, species, scr
     ct = first(sc.contractions)
     C, L, n = size(ct.Wmax, 1), ct.n_ell, size(X, 3)
     (size(X, 1), size(X, 2)) == (C, L) ||
-        throw(DimensionMismatch(lazy"model: symmetric contraction expects X of size ($C, $L, n), got $(size(X))"))
+        throw(DimensionMismatch(lazy"tensors: symmetric contraction expects X of size ($C, $L, n), got $(size(X))"))
     size(B) == (C, n_outputs(sc), n) ||
-        throw(DimensionMismatch(lazy"model: symmetric contraction expects $bname of size $((C, n_outputs(sc), n)), got $(size(B))"))
-    length(species) == n || throw(DimensionMismatch(lazy"model: symmetric contraction expects $n species, got $(length(species))"))
+        throw(DimensionMismatch(lazy"tensors: symmetric contraction expects $bname of size $((C, n_outputs(sc), n)), got $(size(B))"))
+    length(species) == n || throw(DimensionMismatch(lazy"tensors: symmetric contraction expects $n species, got $(length(species))"))
     need = symmetric_contraction_scratch_size(sc)
     length(scratch) >= need ||
-        throw(DimensionMismatch(lazy"model: symmetric contraction scratch has $(length(scratch)) elements, needs $need"))
+        throw(DimensionMismatch(lazy"tensors: symmetric contraction scratch has $(length(scratch)) elements, needs $need"))
     nspecies = size(ct.Wmax, 3)
     for s in species
-        1 <= s <= nspecies || throw(ArgumentError(lazy"model: species index $s is outside 1:$nspecies"))
+        1 <= s <= nspecies || throw(ArgumentError(lazy"tensors: species index $s is outside 1:$nspecies"))
     end
     return nothing
 end
@@ -226,7 +226,7 @@ function symmetric_contraction_pullback!(
     _check_args(sc, dB, "dB", X, species, scratch)
     Base.require_one_based_indexing(dX)
     size(dX) == size(X) ||
-        throw(DimensionMismatch(lazy"model: symmetric contraction expects dX of size $(size(X)), got $(size(dX))"))
+        throw(DimensionMismatch(lazy"tensors: symmetric contraction expects dX of size $(size(X)), got $(size(dX))"))
     fill!(dX, zero(S))
     for a in axes(X, 3)
         s = species[a]

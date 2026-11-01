@@ -32,12 +32,12 @@ struct E3nnLinear{T}
         Base.require_one_based_indexing(weight)
         blk = C_in * C_out
         length(weight) == length(instructions) * blk ||
-            throw(ArgumentError(lazy"model: linear weight has $(length(weight)) entries, expected $(length(instructions) * blk)"))
+            throw(ArgumentError(lazy"tensors: linear weight has $(length(weight)) entries, expected $(length(instructions) * blk)"))
         for (i, o, _) in instructions
             (i in eachindex(in_ls) && o in eachindex(out_ls)) ||
-                throw(ArgumentError(lazy"model: linear instruction ($i, $o) is outside the $(length(in_ls)) input and $(length(out_ls)) output slots"))
+                throw(ArgumentError(lazy"tensors: linear instruction ($i, $o) is outside the $(length(in_ls)) input and $(length(out_ls)) output slots"))
             in_ls[i] == out_ls[o] ||
-                throw(ArgumentError(lazy"model: linear instruction ($i, $o) couples l = $(in_ls[i]) to l = $(out_ls[o])"))
+                throw(ArgumentError(lazy"tensors: linear instruction ($i, $o) couples l = $(in_ls[i]) to l = $(out_ls[o])"))
         end
         W = [Matrix{T}(reshape(weight[((p - 1) * blk + 1):(p * blk)], C_out, C_in)) for p in eachindex(instructions)]
         pw = T[T(pwp) for (_, _, pwp) in instructions]
@@ -51,9 +51,9 @@ end
 function _check_linear(lin::E3nnLinear, y::AbstractArray, x::AbstractArray)
     Base.require_one_based_indexing(y, x)
     (size(x, 1) == lin.C_in && size(x, 2) == lin.K_in) ||
-        throw(DimensionMismatch(lazy"model: linear input has size $(size(x)), expected ($(lin.C_in), $(lin.K_in), n)"))
+        throw(DimensionMismatch(lazy"tensors: linear input has size $(size(x)), expected ($(lin.C_in), $(lin.K_in), n)"))
     size(y) == (lin.C_out, lin.K_out, size(x, 3)) ||
-        throw(DimensionMismatch(lazy"model: linear output has size $(size(y)), expected $((lin.C_out, lin.K_out, size(x, 3)))"))
+        throw(DimensionMismatch(lazy"tensors: linear output has size $(size(y)), expected $((lin.C_out, lin.K_out, size(x, 3)))"))
     return nothing
 end
 
@@ -126,12 +126,12 @@ struct SpeciesLinear{T}
         Base.require_one_based_indexing(weight)
         blk = C_in * n_species * C_out
         length(weight) == length(instructions) * blk ||
-            throw(ArgumentError(lazy"model: species linear weight has $(length(weight)) entries, expected $(length(instructions) * blk)"))
+            throw(ArgumentError(lazy"tensors: species linear weight has $(length(weight)) entries, expected $(length(instructions) * blk)"))
         for (i, o, _) in instructions
             (i in eachindex(ls) && o in eachindex(ls)) ||
-                throw(ArgumentError(lazy"model: species linear instruction ($i, $o) is outside the $(length(ls)) slots"))
+                throw(ArgumentError(lazy"tensors: species linear instruction ($i, $o) is outside the $(length(ls)) slots"))
             ls[i] == ls[o] ||
-                throw(ArgumentError(lazy"model: species linear instruction ($i, $o) couples l = $(ls[i]) to l = $(ls[o])"))
+                throw(ArgumentError(lazy"tensors: species linear instruction ($i, $o) couples l = $(ls[i]) to l = $(ls[o])"))
         end
         W = [
             Array{T, 3}(permutedims(reshape(weight[((p - 1) * blk + 1):(p * blk)], C_out, n_species, C_in), (1, 3, 2)))
@@ -147,13 +147,13 @@ end
 function _check_species_linear(sl::SpeciesLinear, y::AbstractArray, x::AbstractArray, species::AbstractVector{Int})
     Base.require_one_based_indexing(y, x, species)
     (size(x, 1) == sl.C_in && size(x, 2) == sl.K) ||
-        throw(DimensionMismatch(lazy"model: species linear input has size $(size(x)), expected ($(sl.C_in), $(sl.K), n)"))
+        throw(DimensionMismatch(lazy"tensors: species linear input has size $(size(x)), expected ($(sl.C_in), $(sl.K), n)"))
     size(y) == (sl.C_out, sl.K, size(x, 3)) ||
-        throw(DimensionMismatch(lazy"model: species linear output has size $(size(y)), expected $((sl.C_out, sl.K, size(x, 3)))"))
+        throw(DimensionMismatch(lazy"tensors: species linear output has size $(size(y)), expected $((sl.C_out, sl.K, size(x, 3)))"))
     length(species) == size(x, 3) ||
-        throw(DimensionMismatch(lazy"model: $(length(species)) species for $(size(x, 3)) nodes"))
+        throw(DimensionMismatch(lazy"tensors: $(length(species)) species for $(size(x, 3)) nodes"))
     for s in species
-        1 <= s <= sl.n_species || throw(ArgumentError(lazy"model: species index $s is outside 1:$(sl.n_species)"))
+        1 <= s <= sl.n_species || throw(ArgumentError(lazy"tensors: species index $s is outside 1:$(sl.n_species)"))
     end
     return nothing
 end

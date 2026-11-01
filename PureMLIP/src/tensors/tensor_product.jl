@@ -22,7 +22,7 @@ struct ChannelwiseTP{T}
         entries = Tuple{Int, Int, Int, T}[]
         for (a, b, c, pw) in instructions
             (a in eachindex(in1_ls) && b in eachindex(in2_ls) && c in eachindex(out_ls)) ||
-                throw(ArgumentError(lazy"model: tensor-product instruction ($a, $b, $c) is outside the $(length(in1_ls)), $(length(in2_ls)) and $(length(out_ls)) slots"))
+                throw(ArgumentError(lazy"tensors: tensor-product instruction ($a, $b, $c) is outside the $(length(in1_ls)), $(length(in2_ls)) and $(length(out_ls)) slots"))
             C = e3nn_wigner_3j(in1_ls[a], in2_ls[b], out_ls[c])
             start = length(entries) + 1
             for I in CartesianIndices(C)
@@ -41,13 +41,13 @@ function _check_tp(tp::ChannelwiseTP, M::AbstractMatrix, x::AbstractMatrix, Y::A
     Base.require_one_based_indexing(M, x, Y, w)
     C = size(M, 1)
     size(x) == (C, tp.K_in1) ||
-        throw(DimensionMismatch(lazy"model: tensor product with $C channels: $(names[1]) has size $(size(x)), expected $((C, tp.K_in1))"))
+        throw(DimensionMismatch(lazy"tensors: tensor product with $C channels: $(names[1]) has size $(size(x)), expected $((C, tp.K_in1))"))
     length(Y) == tp.K_in2 ||
-        throw(DimensionMismatch(lazy"model: tensor product with $C channels: $(names[2]) has length $(length(Y)), expected $(tp.K_in2)"))
+        throw(DimensionMismatch(lazy"tensors: tensor product with $C channels: $(names[2]) has length $(length(Y)), expected $(tp.K_in2)"))
     size(w) == (C, length(tp.paths)) ||
-        throw(DimensionMismatch(lazy"model: tensor product with $C channels: $(names[3]) has size $(size(w)), expected $((C, length(tp.paths)))"))
+        throw(DimensionMismatch(lazy"tensors: tensor product with $C channels: $(names[3]) has size $(size(w)), expected $((C, length(tp.paths)))"))
     size(M, 2) == tp.K_out ||
-        throw(DimensionMismatch(lazy"model: tensor product with $C channels: $(names[4]) has size $(size(M)), expected $((C, tp.K_out))"))
+        throw(DimensionMismatch(lazy"tensors: tensor product with $C channels: $(names[4]) has size $(size(M)), expected $((C, tp.K_out))"))
     return nothing
 end
 
