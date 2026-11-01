@@ -2,19 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `mace_energy_forces!` faster and its workspace about 3× smaller, add a small energy-only workspace, and make PureMLIP use PureBLAS for its matrix products whenever PureBLAS is loaded (package extension).
+**Goal:** Make `mace_energy_forces!` faster and its workspace about 3× smaller, add a small energy-only workspace, and test and measure PureMLIP with `PureBLAS.activate()`.
 
-**Architecture:** Vectorize the two hot kernel families (tensor-product pullback, symmetric contraction) where the bounds check blocks SIMD; then shrink `MACEWorkspace` in three steps (alias buffers by lifetime, recompute per-edge data per chunk, run the per-atom linear layers per block of receivers). PureMLIP sends its matrix products through one internal `_gemm!`; the PureBLAS extension adds a more specific method that calls `PureBLAS.gemm!`. Every step is gated by an interleaved A/B ratio against the previous main, by bytes per atom, and by the unchanged LAMMPS tolerances.
+**Architecture:** Vectorize the two hot kernel families (tensor-product pullback, symmetric contraction) where the bounds check blocks SIMD; then shrink `MACEWorkspace` in three steps (alias buffers by lifetime, recompute per-edge data per chunk, run the per-atom linear layers per block of receivers). `PureBLAS.activate()` redirects `mul!`, so PureMLIP uses PureBLAS with no code change; a separate Julia 1.13 test environment checks it. Every step is gated by an interleaved A/B ratio against the previous main, by bytes per atom, and by the unchanged LAMMPS tolerances.
 
-**Tech Stack:** Julia 1.12/1.13, LinearAlgebra, PureBLAS (weak dependency, Julia 1.13), Chairmarks, StrictMode/StrictModeTest 0.5.6, TrimCheck, TestItems.
+**Tech Stack:** Julia 1.12/1.13, LinearAlgebra, PureBLAS (via `activate()`, Julia 1.13, test environment only), Chairmarks, StrictMode/StrictModeTest 0.5.6, TrimCheck, TestItems.
 
 **Spec:** `docs/superpowers/specs/2026-10-30-pureatomistic-design.md` (sections 4, 6.1, 6.3, 9, 13). Measurements behind every number below: `plan4-recon.md` (kept outside the repo; facts restated here where a task needs them).
 
 ## Global Constraints
 
-- PureMLIP `[deps]` stay `Inflate, LinearAlgebra, PrecompileTools`; PureBLAS only in `[weakdeps]` + `[extensions]`, `[compat] PureBLAS = "0.1.2"`.
+- PureMLIP `[deps]` stay `Inflate, LinearAlgebra, PrecompileTools`; PureMLIP has no dependency on PureBLAS. Users switch with `using PureBLAS; PureBLAS.activate()`.
 - PureBLAS requires Julia 1.13; PureMLIP supports 1.12. PureBLAS must not enter `test/Project.toml`; it lives in `PureMLIP/test/pureblas/Project.toml` (`[sources]` by URL + commit), run only in a 1.13 CI job.
-- The extension never calls `PureBLAS.activate()` (process-global); it adds one more specific `_gemm!` method. Without PureBLAS loaded, behavior is identical to today.
 - Speed is gated only by **interleaved A/B ratios on one run** (task 1's harness), never absolute times: 1 thread, `BLAS.set_num_threads(1)`, swap must not grow during a pair, median over at least 5 pairs.
 - Accuracy: the LAMMPS reference items pass with unchanged tolerances (Float64 1e-6 eV target; Float32 margins as documented in `model_tests.jl`/`forces_tests.jl`).
 - Allocation-free after warm-up (`@test_noalloc`) for every evaluation entry point in Float64 and Float32; TrimCheck `@validate`, `test_signatures(:typestable)` with explicit `Base.return_types` checks, `conversion_report` and `resource_leak_report` gates cover every new public type and function.
@@ -26,7 +25,7 @@
 
 1. **Edge order within a receiver block:** block fusion (task 6) relies on edges sorted by receiver; a `NeighborList` built by hand or by another tool may not be sorted — expect a clear `model:` error, not wrong energies. Test in task 6.
 2. **Block size larger than the atom count or not dividing it** (e.g. 7 atoms, block 256; 500 atoms, block 64): results must equal the unblocked ones within rounding. Test in task 6.
-3. **Element types PureBLAS does not take** (ForwardDiff `Dual`, as the composed-pullback tests use): `_gemm!` must fall back to `mul!`, not error. Test in task 8.
+3. **PureBLAS active while the Dual-number tests run** (the composed-pullback tests push `ForwardDiff.Dual` through `mul!`): generic `mul!` on non-BLAS element types does not reach PureBLAS, so they must still pass. Test in task 8 by running the composed-pullback item in the PureBLAS environment.
 4. **Edge count growing within capacity after a `neighbor_list!` rebuild** (the documented repeated-evaluation sequence) must still work with the pooled and blocked buffers. Test in task 6 (extend the existing docs-sequence test).
 5. **Single atom / zero edges** through every new path (pooled, recomputed, blocked, energy-only): energy = E0, zero forces, no error. Test in tasks 6 and 7.
 
@@ -148,23 +147,22 @@
 - [ ] **Step 5:** A/B (`mace_energy!` with the energy workspace vs main's `mace_energy!`). Gate: ratio ≤ 1.00.
 - [ ] **Step 6:** Commit `Add an energy-only workspace`.
 
-### Task 8: The PureBLAS extension
+### Task 8: Run and test PureMLIP with `PureBLAS.activate()`
+
+PureMLIP's matrix products go through `mul!`, which `PureBLAS.activate()` redirects for the whole process. PureMLIP needs no code change and no dependency on PureBLAS (not even a weak one); this task adds the test environment, the CI job, the docs and the measurement.
 
 **Files:**
-- Create: `PureMLIP/ext/PureMLIPPureBLASExt.jl`, `PureMLIP/test/pureblas/Project.toml`, `PureMLIP/test/pureblas/runtests.jl`
-- Modify: `PureMLIP/Project.toml` (`[weakdeps]`, `[extensions]`, `[compat]`), `PureMLIP/src/model/Model.jl`, `linear.jl`, `radial_mlp.jl`, `PureMLIP/docs/src/model.md`, `.github/workflows/CI.yml` (a 1.13 job running `test/pureblas`), `test/layers_tests.jl` (layer graph + ExplicitImports include the extension), `AGENTS.md`
+- Create: `PureMLIP/test/pureblas/Project.toml`, `PureMLIP/test/pureblas/runtests.jl`
+- Modify: `PureMLIP/docs/src/model.md` (a "Using PureBLAS" section: `using PureBLAS; PureBLAS.activate()`, Julia 1.13, the effect is process-wide), `.github/workflows/CI.yml` (a 1.13 job running `test/pureblas`), `PureMLIP/bench/blas_compare.jl` header (it is the periodic check against OpenBLAS and Accelerate), `AGENTS.md`
 
 **Interfaces:**
-- Produces: `_gemm!(C, A, B, α, β) = mul!(C, A, B, α, β)` in Model (public, so the extension may extend it); every `mul!` site in `linear.jl` and `radial_mlp.jl` calls `_gemm!`. No workspace or API change.
-- `PureMLIPPureBLASExt` adds the more specific method `PureMLIP.Model._gemm!(C::StridedMatrix{T}, A::StridedMatrix{T}, B::StridedMatrix{T}, α, β) where {T<:Union{Float32,Float64}}` (also covering the `transpose`/`adjoint` wrappers the call sites use) that calls `PureBLAS.gemm!(C, A, B; alpha = α, beta = β)` and returns `C`. A new, more specific method, not an overwrite. No `__init__`, no `activate()`: loading PureBLAS makes PureMLIP use it, and nothing else in the process changes.
 - `test/pureblas/Project.toml`: `[sources] PureBLAS = {url = "https://github.com/el-oso/PureBLAS.jl", rev = "<PureBLAS master commit at task start>"}`, `PureMLIP = {path = "../.."}`.
+- `test/pureblas/runtests.jl` calls `PureBLAS.activate()` once, asserts `PureBLAS.is_active()`, then runs its items.
 
-- [ ] **Step 1:** Tests in `test/pureblas`: the extension is loaded and `which(_gemm!, …)` for Float64 strided arguments resolves to the extension's method; `BLAS.get_config()` is unchanged by loading PureBLAS (no process-global switch); all reference structures agree with an OpenBLAS run of the same code within `10eps(T)·1280` relative (both precisions; the OpenBLAS reference values are computed in a child process without PureBLAS, or stored from the main suite); `@test_noalloc` for both entry points; TrimCheck `@validate` with the evaluation roots (under PureBLAS's trim preferences from its `juliac/build.jl`); a `Dual`-element `_gemm!` call still takes the generic `mul!` path.
-- [ ] **Step 2:** Run: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Main suite (1.12 and 1.13) and `test/pureblas` (1.13): PASS.
-- [ ] **Step 5:** A/B with `PUREMLIP_AB_LOAD=PureBLAS` on the head side vs main at plan start (596b5b2, OpenBLAS). Gate: Float64 ≤ 0.50 (recon 0.453 with tasks 2–3); Float32 reported only, until PureBLAS's SME Float32 route lands. Without PureBLAS loaded, A/B vs the commit before the task: 1.00 ± 0.02. Record the one-time recompile cost of the first evaluation after `using PureBLAS` (from `test_latency`).
-- [ ] **Step 6:** Commit `Use PureBLAS for PureMLIP's matrix products when it is loaded`.
+- [ ] **Step 1:** Write the items: all reference structures within the LAMMPS tolerances of the main suite, both precisions; results agree with the main suite's OpenBLAS values within `10eps(T)·1280` relative (OpenBLAS values computed in a child process without PureBLAS, or stored by the main suite); `@test_noalloc` for both entry points with PureBLAS active.
+- [ ] **Step 2:** Run in the 1.13 environment: PASS (or report any disagreement as a PureBLAS bug, with the shape).
+- [ ] **Step 3:** A/B with `PUREMLIP_AB_LOAD=PureBLAS` (the head side runs `PureBLAS.activate()` before warm-up) vs main at plan start (596b5b2, OpenBLAS). Gate: Float64 ≤ 0.50 (recon 0.453 with tasks 2–3); Float32 reported only, until PureBLAS's SME Float32 route lands.
+- [ ] **Step 4:** Commit `Test and document PureMLIP with PureBLAS active`.
 
 ### Task 9: Record the results; push
 
