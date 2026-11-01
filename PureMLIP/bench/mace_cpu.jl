@@ -7,6 +7,9 @@
 #
 #   PUREMLIP_LAMMPS            the `lmp` binary (built with ML-MACE)
 #   PUREMLIP_LAMMPS_MODEL_DIR  directory with mpa0_f64-lammps.pt and mpa0_f32-lammps.pt
+#   PUREMLIP_BENCH_LOAD        "PureBLAS": load and activate PureBLAS before anything runs, and
+#                              measure the Julia side only (no LAMMPS); the environment must
+#                              provide PureBLAS (Julia 1.13)
 #   PUREMLIP_CHECKPOINT_DIR    directory with mace-mpa-0-medium.model
 #   PUREMLIP_BENCH_CASES       cases as "N:precision:rounds,...", precision 64 or 32
 #                              (default "5:64:5,5:32:5,7:64:3,7:32:3,8:32:3")
@@ -23,14 +26,22 @@
 # LAMMPS arm: `run 0` (setup and first evaluation), then `run 20` with a zero timestep; the
 # time is "Loop time" of `run 20` divided by 20, i.e. one force evaluation of the static
 # configuration, setup excluded.
-using PureMLIP, Chairmarks, JSON, LinearAlgebra, Printf, Statistics
+using PureMLIP, Chairmarks, JSON, LinearAlgebra, Pkg, Printf, Statistics
 
+const LOAD = get(ENV, "PUREMLIP_BENCH_LOAD", "")
+LOAD in ("", "PureBLAS") || error("PUREMLIP_BENCH_LOAD must be empty or PureBLAS")
+const JULIA_ONLY = LOAD == "PureBLAS"
+if LOAD == "PureBLAS"
+    pb = Base.require(Main, :PureBLAS)
+    Base.invokelatest(pb.activate)
+    Base.invokelatest(pb.is_active) || error("PureBLAS did not become active")
+end
 BLAS.set_num_threads(1)
 Threads.nthreads() == 1 || error("run with julia -t 1")
 include(joinpath(@__DIR__, "..", "test", "reference", "structures.jl"))
 
-const LMP = ENV["PUREMLIP_LAMMPS"]
-const MODEL_DIR = ENV["PUREMLIP_LAMMPS_MODEL_DIR"]
+const LMP = JULIA_ONLY ? "" : ENV["PUREMLIP_LAMMPS"]
+const MODEL_DIR = JULIA_ONLY ? "" : ENV["PUREMLIP_LAMMPS_MODEL_DIR"]
 const CK = joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model")
 const SPECS = [
     (parse(Int, a), b == "64" ? Float64 : Float32, parse(Int, c)) for (a, b, c) in
@@ -95,7 +106,17 @@ end
 load_state() = isfile(STATE) ? JSON.parsefile(STATE) : Dict{String, Any}()
 save_state(st) = isempty(STATE) || open(io -> JSON.json(io, st), STATE, "w")
 
+# The git revision the environment resolved PureBLAS to, when PureBLAS is loaded.
+function pureblas_revision()
+    LOAD == "PureBLAS" || return nothing
+    for (_, v) in Pkg.dependencies()
+        v.name == "PureBLAS" && return something(v.git_revision, v.tree_hash, missing)
+    end
+    return nothing
+end
+
 function main()
+    pureblas_commit = pureblas_revision()
     tmp = mktempdir()
     ck = load_mace_checkpoint(CK)
     cases = [make_case(N, T, r, ck, tmp) for (N, T, r) in SPECS]
@@ -106,49 +127,61 @@ function main()
     for r in 1:maximum(c.rounds for c in cases)
         for c in cases
             s = state[c.key]
-            (r <= c.rounds && length(s["lammps"]) < r) || continue
+            (r <= c.rounds && length(s["julia"]) < r) || continue
             time() < DEADLINE || (println("budget reached; rerun to resume"); return)
             local t, tn, l, rss, sw0, sw1
             for attempt in 1:3
                 sw0 = swap_used_mb()
                 t = [b.time for b in (@be c.eval!() evals = 1 samples = JULIA_SAMPLES seconds = 600).samples]
                 tn = [b.time for b in (@be c.nlup!() evals = 1 samples = JULIA_SAMPLES seconds = 600).samples]
-                l, rss = lammps_step_time(c.data, c.mfile)
+                l, rss = JULIA_ONLY ? (nothing, nothing) : lammps_step_time(c.data, c.mfile)
                 sw1 = swap_used_mb()
                 sw1 <= sw0 + 1 && break
                 println("swap grew ", sw0, " -> ", sw1, " MB during ", c.key, " round ", r, "; round discarded")
                 push!(get!(s, "discarded", Any[]), Dict("round" => r, "swap_start_mb" => sw0, "swap_end_mb" => sw1, "julia" => t, "lammps" => l))
                 attempt == 3 && error("swap keeps growing; the machine is paging")
             end
-            push!(s["julia"], t); push!(s["nl"], tn); push!(s["lammps"], l)
+            push!(s["julia"], t); push!(s["nl"], tn)
+            JULIA_ONLY || push!(s["lammps"], l)
             for (k, v) in ("rss_mib" => rss, "swap_start_mb" => sw0, "swap_end_mb" => sw1)
-                push!(get!(s, k, Any[]), v)
+                v === nothing || push!(get!(s, k, Any[]), v)
             end
             save_state(state)
-            @printf("round %d  %6d atoms %-7s  julia %.4f s  neighbor_list! %.4f s  lammps %.4f s  ratio %.3f\n", r, c.n, c.T, median(t), median(tn), l, l / median(t))
+            if JULIA_ONLY
+                @printf("round %d  %6d atoms %-7s  julia %.4f s  neighbor_list! %.4f s\n", r, c.n, c.T, median(t), median(tn))
+            else
+                @printf("round %d  %6d atoms %-7s  julia %.4f s  neighbor_list! %.4f s  lammps %.4f s  ratio %.3f\n", r, c.n, c.T, median(t), median(tn), l, l / median(t))
+            end
         end
     end
-    lammps_help = read(setenv(`$LMP -h`, merge(ENV, Dict("HWLOC_COMPONENTS" => "-darwin"))), String)
-    lammps_version = strip(match(r"Large-scale Atomic/Molecular Massively Parallel Simulator - (.+)", lammps_help)[1])
+    lammps_version = JULIA_ONLY ? nothing : strip(match(r"Large-scale Atomic/Molecular Massively Parallel Simulator - (.+)", read(setenv(`$LMP -h`, merge(ENV, Dict("HWLOC_COMPONENTS" => "-darwin"))), String))[1])
     entries = []
     for c in cases
         s = state[c.key]
-        J = [Float64.(x) for x in s["julia"]]; NL = [Float64.(x) for x in s["nl"]]; Lm = Float64.(s["lammps"])
+        J = [Float64.(x) for x in s["julia"]]; NL = [Float64.(x) for x in s["nl"]]
         jall = reduce(vcat, J); nall = reduce(vcat, NL)
+        common = (;
+            system = "cu_bench($(c.N))", n_atoms = c.n, n_edges = c.n_edges, precision = string(c.T),
+            workspace_bytes = c.ws_bytes, neighbor_list_bytes = c.nl_bytes,
+            julia_samples_s = J, neighbor_list_samples_s = NL,
+            julia_median_s = median(jall), neighbor_list_median_s = median(nall),
+            swap_checked = length(get(s, "swap_end_mb", [])) == length(J),
+            swap_start_mb = Float64.(get(s, "swap_start_mb", Float64[])), swap_end_mb = Float64.(get(s, "swap_end_mb", Float64[])),
+            discarded_rounds = get(s, "discarded", []),
+        )
+        if JULIA_ONLY
+            push!(entries, common)
+            continue
+        end
+        Lm = Float64.(s["lammps"])
         ratios = Lm ./ median.(J)
         push!(
             entries, (;
-                system = "cu_bench($(c.N))", n_atoms = c.n, n_edges = c.n_edges, precision = string(c.T),
-                workspace_bytes = c.ws_bytes, neighbor_list_bytes = c.nl_bytes,
-                julia_samples_s = J, neighbor_list_samples_s = NL, lammps_step_samples_s = Lm,
-                julia_median_s = median(jall), neighbor_list_median_s = median(nall), lammps_median_s = median(Lm),
+                common..., lammps_step_samples_s = Lm, lammps_median_s = median(Lm),
                 round_ratios_lammps_over_julia = ratios,
                 median_ratio_lammps_over_julia = median(Lm) / median(jall),
                 ratio_min = minimum(ratios), ratio_max = maximum(ratios),
-                swap_checked = length(get(s, "swap_end_mb", [])) == length(Lm),
                 lammps_peak_rss_mib = Float64.(get(s, "rss_mib", Float64[])),
-                swap_start_mb = Float64.(get(s, "swap_start_mb", Float64[])), swap_end_mb = Float64.(get(s, "swap_end_mb", Float64[])),
-                discarded_rounds = get(s, "discarded", []),
                 median_ratio_vs_julia_with_neighbor_list = median(Lm) / (median(jall) + median(nall)),
             )
         )
@@ -158,8 +191,9 @@ function main()
         machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String)),
         julia_version = string(VERSION), lammps_version, model = "mace-mpa-0-medium",
         threads = 1, blas_threads = BLAS.get_num_threads(), blas_libraries = [basename(l.libname) for l in BLAS.get_config().loaded_libs], julia_samples_per_round = JULIA_SAMPLES,
+        blas_vendor = LOAD == "PureBLAS" ? "PureBLAS" : "OpenBLAS", pureblas_loaded = LOAD == "PureBLAS", pureblas_commit,
         julia_timed = "mace_energy_forces! with a fixed neighbor list; neighbor_list! timed separately",
-        lammps_timed = "Loop time of 'run 20' (timestep 0.0, static atoms) divided by 20; setup and 'run 0' excluded",
+        lammps_timed = JULIA_ONLY ? nothing : "Loop time of 'run 20' (timestep 0.0, static atoms) divided by 20; setup and 'run 0' excluded",
         cases = entries,
     )
     open(io -> (JSON.json(io, doc; pretty = true); println(io)), OUT, "w")
