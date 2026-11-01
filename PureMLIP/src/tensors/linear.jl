@@ -64,15 +64,15 @@ end
 input slot holding component `k_in` to the output slot holding `k_out`, with matching `m`.
 Overwrites `y`.
 
-As an einsum: `ein"puw,uki,pkl->wli"(W, x, P)`, with `u` the input channel, `w` the output channel, `p`
-the instruction, `k` and `l` the input and output components and `i` the node; `P[p, k, l] = pw_p`
-where `k` and `l` are the same component `m` of the input and output slot of `p`, else zero (the
+As an einsum: `ein"puw,uki,pkq->wqi"(W, x, P)`, with `W[p, u, w]` in torch block order, `u` the input channel, `w` the output channel, `p`
+the instruction, `k` and `q` the input and output components and `i` the node; `P[p, k, q] = pw_p`
+where `k` and `q` are the same component `m` of the input and output slot of `p`, else zero (the
 matrix product is done per slot instead of with a dense `P`).
 """
 function linear!(y::AbstractArray{S, 3}, lin::E3nnLinear, x::AbstractArray{S, 3}) where {S}
     _check_linear(lin, y, x)
     fill!(y, zero(S))
-    for p in _eachindex(lin.W, lin.pw, lin.slots)
+    for p in checked_eachindex(lin.W, lin.pw, lin.slots)
         i, o = lin.slots[p]
         for m in 1:(2 * lin.in_ls[i] + 1)
             mul!(view(y, :, lin.out_off[o] + m, :), lin.W[p], view(x, :, lin.in_off[i] + m, :), lin.pw[p], true)
@@ -86,12 +86,12 @@ end
 
 The vector-Jacobian product of [`linear!`](@ref) with the cotangent `dy`. Overwrites `dx`.
 
-As an einsum: `ein"puw,wli,pkl->uki"(W, dy, P)`, with the labels of [`linear!`](@ref).
+As an einsum: `ein"puw,wqi,pkq->uki"(W, dy, P)`, with the labels of [`linear!`](@ref).
 """
 function linear_pullback!(dx::AbstractArray{S, 3}, lin::E3nnLinear, dy::AbstractArray{S, 3}) where {S}
     _check_linear(lin, dy, dx)
     fill!(dx, zero(S))
-    for p in _eachindex(lin.W, lin.pw, lin.slots)
+    for p in checked_eachindex(lin.W, lin.pw, lin.slots)
         i, o = lin.slots[p]
         for m in 1:(2 * lin.in_ls[i] + 1)
             mul!(view(dx, :, lin.in_off[i] + m, :), transpose(lin.W[p]), view(dy, :, lin.out_off[o] + m, :), lin.pw[p], true)
@@ -164,15 +164,15 @@ end
 `y[w, k, i] = c_p Σ_u W_p[u, species[i], w] x[u, k, i]` for each instruction `p`, with `k` over
 the components of its slots. Overwrites `y`.
 
-As an einsum: `ein"pusw,is,uki,pkl->wli"(W, onehot, x, P)`, with `u` the input channel, `w` the output
-channel, `p` the instruction, `s` the species, `k` and `l` the input and output components and `i`
-the node; `onehot[i, s] = (s == species[i])` and `P[p, k, l] = c_p` where `k` and `l` are the same
+As an einsum: `ein"pusw,is,uki,pkq->wqi"(W, onehot, x, P)`, with `W[p, u, s, w]` in torch block order, `u` the input
+channel, `w` the output channel, `p` the instruction, `s` the species, `k` and `q` the input and output components and `i`
+the node; `onehot[i, s] = (s == species[i])` and `P[p, k, q] = c_p` where `k` and `q` are the same
 component `m` of the input and output slot of `p`, else zero (the matrix product is done per slot).
 """
 function species_linear!(y::AbstractArray{S, 3}, sl::SpeciesLinear, x::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, y, x, species)
     fill!(y, zero(S))
-    for p in _eachindex(sl.W, sl.c, sl.slots)
+    for p in checked_eachindex(sl.W, sl.c, sl.slots)
         i, o = sl.slots[p]
         d = 2 * sl.ls[i] + 1
         ri, ro = (sl.off[i] + 1):(sl.off[i] + d), (sl.off[o] + 1):(sl.off[o] + d)
@@ -188,12 +188,12 @@ end
 
 The vector-Jacobian product of [`species_linear!`](@ref) with the cotangent `dy`. Overwrites `dx`.
 
-As an einsum: `ein"is,pusw,pkl,wli->uki"(onehot, W, P, dy)`, with the labels of [`species_linear!`](@ref).
+As an einsum: `ein"is,pusw,pkq,wqi->uki"(onehot, W, P, dy)`, with the labels of [`species_linear!`](@ref).
 """
 function species_linear_pullback!(dx::AbstractArray{S, 3}, sl::SpeciesLinear, dy::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, dy, dx, species)
     fill!(dx, zero(S))
-    for p in _eachindex(sl.W, sl.c, sl.slots)
+    for p in checked_eachindex(sl.W, sl.c, sl.slots)
         i, o = sl.slots[p]
         d = 2 * sl.ls[i] + 1
         ri, ro = (sl.off[i] + 1):(sl.off[i] + d), (sl.off[o] + 1):(sl.off[o] + d)

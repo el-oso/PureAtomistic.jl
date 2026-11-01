@@ -291,8 +291,8 @@ struct MACEModel{T <: AbstractFloat}
         conv[1].K_out == linear[1].K_in && conv[2].K_out == linear[2].K_in ||
             _unsupported("interaction linear inputs", (linear[1].K_in, linear[2].K_in), (conv[1].K_out, conv[2].K_out))
         linear[1].K_out == linear[2].K_out == skip[1].K == 16 || _unsupported("interaction outputs", linear[1].K_out, 16)
-        (_n_out(product[1]) == 4 && _n_out(product[2]) == 1) ||
-            _unsupported("product outputs", (_n_out(product[1]), _n_out(product[2])), (4, 1))
+        (n_outputs(product[1]) == 4 && n_outputs(product[2]) == 1) ||
+            _unsupported("product outputs", (n_outputs(product[1]), n_outputs(product[2])), (4, 1))
         product_linear[1].K_in == 4 && product_linear[2].K_in == 1 && skip[2].K == 1 && readout0.K_in == 4 ||
             _unsupported("product linear inputs", (product_linear[1].K_in, product_linear[2].K_in), (4, 1))
 

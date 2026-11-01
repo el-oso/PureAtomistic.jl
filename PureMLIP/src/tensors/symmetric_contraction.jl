@@ -92,7 +92,7 @@ struct SymmetricContraction{T}
     end
 end
 
-_n_out(sc::SymmetricContraction) = sum(ct -> 2ct.l + 1, sc.contractions)
+n_outputs(sc::SymmetricContraction) = sum(ct -> 2ct.l + 1, sc.contractions)
 
 """
     symmetric_contraction_scratch_size(sc) -> Int
@@ -116,8 +116,8 @@ function _check_args(sc::SymmetricContraction, B, bname::String, X, species, scr
     C, L, n = size(ct.Wmax, 1), ct.n_ell, size(X, 3)
     (size(X, 1), size(X, 2)) == (C, L) ||
         throw(DimensionMismatch(lazy"model: symmetric contraction expects X of size ($C, $L, n), got $(size(X))"))
-    size(B) == (C, _n_out(sc), n) ||
-        throw(DimensionMismatch(lazy"model: symmetric contraction expects $bname of size $((C, _n_out(sc), n)), got $(size(B))"))
+    size(B) == (C, n_outputs(sc), n) ||
+        throw(DimensionMismatch(lazy"model: symmetric contraction expects $bname of size $((C, n_outputs(sc), n)), got $(size(B))"))
     length(species) == n || throw(DimensionMismatch(lazy"model: symmetric contraction expects $n species, got $(length(species))"))
     need = symmetric_contraction_scratch_size(sc)
     length(scratch) >= need ||
@@ -145,8 +145,8 @@ function _c2_c1!(scratch::AbstractArray{S}, ct::Contraction, X::AbstractArray{S,
     for ((m, w, x, i, k), v) in ct.U3
         C2 = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
         Wk, Xi = view(ct.Wmax, :, k, s), view(X, :, i, a)
-        # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
-        @inbounds for c in _eachindex(C2, Wk, Xi)
+        # In range: c comes from `checked_eachindex` over exactly the arrays indexed, each a checked view.
+        @inbounds for c in checked_eachindex(C2, Wk, Xi)
             C2[c] += v * Wk[c] * Xi[c]
         end
     end
@@ -159,8 +159,8 @@ function _c2_c1!(scratch::AbstractArray{S}, ct::Contraction, X::AbstractArray{S,
         C1 = view(scratch, (o1 + I1[1, m, w]):(o1 + I1[C, m, w]))
         C2wx = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
         Xx = view(X, :, x, a)
-        # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
-        @inbounds for c in _eachindex(C1, C2wx, Xx)
+        # In range: c comes from `checked_eachindex` over exactly the arrays indexed, each a checked view.
+        @inbounds for c in checked_eachindex(C1, C2wx, Xx)
             C1[c] += C2wx[c] * Xx[c]
         end
     end
@@ -217,7 +217,7 @@ Overwrites `dX` with `Σ dB .* ∂B/∂X` for `B` of [`symmetric_contraction!`](
 
 As an einsum, `dX` is the sum, over each `X` factor of each of the three einsums of
 [`symmetric_contraction!`](@ref), of that einsum with the factor dropped, `dB[c, m, a]` (labels `cma`)
-added, and the factor's own labels (`cwa`, `cxa` or `cia`) as the output.
+as an extra operand, and the factor's own labels (`cwa`, `cxa` or `cia`) as the output.
 """
 function symmetric_contraction_pullback!(
         dX::AbstractArray{S, 3}, sc::SymmetricContraction, dB::AbstractArray{S, 3}, X::AbstractArray{S, 3},
@@ -238,7 +238,7 @@ function symmetric_contraction_pullback!(
             for w in 1:L, m in 1:M
                 dXw, dBm = view(dX, :, w, a), view(dB, :, o + m, a)
                 C1 = view(scratch, (o1 + I1[1, m, w]):(o1 + I1[C, m, w]))
-                for c in _eachindex(dXw, dBm, C1)
+                for c in checked_eachindex(dXw, dBm, C1)
                     dXw[c] += dBm[c] * C1[c]
                 end
             end
@@ -246,7 +246,7 @@ function symmetric_contraction_pullback!(
             for x in 1:L, w in 1:L, m in 1:M
                 dXx, dBm, Xw = view(dX, :, x, a), view(dB, :, o + m, a), view(X, :, w, a)
                 C2 = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])
-                for c in _eachindex(dXx, dBm, Xw, C2)
+                for c in checked_eachindex(dXx, dBm, Xw, C2)
                     dXx[c] += dBm[c] * Xw[c] * C2[c]
                 end
             end
@@ -254,8 +254,8 @@ function symmetric_contraction_pullback!(
             for ((m, w, x, i, k), v) in ct.U3
                 dXi, Wk, dBm = view(dX, :, i, a), view(ct.Wmax, :, k, s), view(dB, :, o + m, a)
                 Xw, Xx = view(X, :, w, a), view(X, :, x, a)
-                # In range: c comes from `_eachindex` over exactly the arrays indexed, each a checked view.
-                @inbounds for c in _eachindex(dXi, Wk, dBm, Xw, Xx)
+                # In range: c comes from `checked_eachindex` over exactly the arrays indexed, each a checked view.
+                @inbounds for c in checked_eachindex(dXi, Wk, dBm, Xw, Xx)
                     dXi[c] += v * Wk[c] * dBm[c] * Xw[c] * Xx[c]
                 end
             end

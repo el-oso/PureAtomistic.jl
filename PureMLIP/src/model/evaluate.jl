@@ -99,7 +99,7 @@ struct MACEWorkspace{T}
         dtpw = zeros(T, W, chunk)
         node(lin::E3nnLinear) = zeros(T, lin.C_out, lin.K_out, n)
         messages(k) = zeros(T, C, model.conv[k].K_out, n)
-        products(k) = zeros(T, C, _n_out(model.product[k]), n)
+        products(k) = zeros(T, C, n_outputs(model.product[k]), n)
         scratch = zeros(T, max(symmetric_contraction_scratch_size(model.product[1]), symmetric_contraction_scratch_size(model.product[2])))
         return new{T}(
             n, E, chunk, zeros(Int, n),

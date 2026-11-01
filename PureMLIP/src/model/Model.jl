@@ -1,7 +1,7 @@
 module Model
 
 using ..Checkpoint, ..Equivariant, ..Tensors, LinearAlgebra
-using ..Tensors: _eachindex, _n_out
+using ..Tensors: checked_eachindex, n_outputs
 
 include("neighbors.jl")
 include("radial.jl")

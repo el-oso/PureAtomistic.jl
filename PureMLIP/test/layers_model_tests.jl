@@ -1,5 +1,4 @@
 @testitem "channelwise TP matches the e3nn-core-rs tensor-product fixtures" setup = [E3nnFixtures] begin
-    M = PureMLIP.Model
     Tn = PureMLIP.Tensors
     for name in ("fully_connected_tensor_product_smoke_f64", "fully_connected_tensor_product_lmax4_smoke_f64")
         d = E3nnFixtures.load(name)
@@ -14,11 +13,11 @@
         for s in eachindex(d["x"])
             x = reshape(Float64.(d["x"][s]), 1, :); y = Float64.(d["y"][s]); w = reshape(Float64.(d["w"][s]), 1, :)
             out = zeros(1, length(d["out"][s]))
-            M.tp_edge_add!(out, tp, x, y, w)
+            Tn.tp_edge_add!(out, tp, x, y, w)
             # Oracle tolerance: e3nn-core-rs fixtures are stated to 1e-10.
             @test vec(out) ≈ d["out"][s] atol = 1.0e-10
             dx = zero(x); dy = zero(y); dw = zero(w)
-            M.tp_edge_pullback_add!(dx, dy, dw, tp, reshape(Float64.(d["grad_out"][s]), 1, :), x, y, w)
+            Tn.tp_edge_pullback_add!(dx, dy, dw, tp, reshape(Float64.(d["grad_out"][s]), 1, :), x, y, w)
             @test vec(dx) ≈ d["grad_x"][s] atol = 1.0e-10
             @test dy ≈ d["grad_y"][s] atol = 1.0e-10
             @test vec(dw) ≈ d["grad_w"][s] atol = 1.0e-10
@@ -39,7 +38,7 @@ end
     using Random
     x = randn(Xoshiro(3), 128, 16, 3)
     up = Tn.E3nnLinear{Float64}(st["interactions.0.linear_up.weight"].data, [0], [0], [(1, 1, 0.08838834764831845)], 128, 128)
-    y = zeros(128, 1, 3); M.linear!(y, up, view(x, :, 1:1, :))
+    y = zeros(128, 1, 3); Tn.linear!(y, up, view(x, :, 1:1, :))
     W = st["interactions.0.linear_up.weight"].data
     naive = [0.08838834764831845 * sum(x[u, 1, i] * W[(u - 1) * 128 + w] for u in 1:128) for w in 1:128, i in 1:3]
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
@@ -51,7 +50,7 @@ end
     # interactions.0.linear: one [128, 128] block per l, torch index (l·128 + u-1)·128 + w.
     W = st["interactions.0.linear.weight"].data
     lin = Tn.E3nnLinear{Float64}(W, [0, 1, 2, 3], [0, 1, 2, 3], [(p, p, 0.08838834764831845) for p in 1:4], 128, 128)
-    y = zeros(128, 16, 3); M.linear!(y, lin, x)
+    y = zeros(128, 16, 3); Tn.linear!(y, lin, x)
     naive = [
         0.08838834764831845 * sum(x[u, q, i] * W[(deg(q) * 128 + u - 1) * 128 + w] for u in 1:128)
             for w in 1:128, q in 1:16, i in 1:3
@@ -69,7 +68,7 @@ end
     lin1 = Tn.E3nnLinear{Float64}(W, in_ls, [0, 1, 2, 3], [(p, out_slot[p], pws[p]) for p in 1:10], 128, 128)
     x10 = randn(Xoshiro(4), 128, 40, 3)
     off = cumsum([0; [2l + 1 for l in in_ls]])
-    y = zeros(128, 16, 3); M.linear!(y, lin1, x10)
+    y = zeros(128, 16, 3); Tn.linear!(y, lin1, x10)
     naive = [
         sum(
             pws[p] * sum(x10[u, off[p] + q - deg(q)^2, i] * W[((p - 1) * 128 + u - 1) * 128 + w] for u in 1:128)
@@ -83,7 +82,7 @@ end
     species = [5, 89, 1]
     cl = [0.0093691461124482678, 0.0093691461124482695, 0.0093691461124482678, 0.009369146112448266]
     W = st["interactions.0.skip_tp.weight"].data
-    y = zeros(128, 16, 3); M.species_linear!(y, sk, x, species)
+    y = zeros(128, 16, 3); Tn.species_linear!(y, sk, x, species)
     blk = 128 * 89 * 128
     naive = [
         cl[deg(q) + 1] * sum(x[u, q, i] * W[deg(q) * blk + ((u - 1) * 89 + species[i] - 1) * 128 + w] for u in 1:128)
@@ -93,7 +92,7 @@ end
     @test y ≈ naive atol = 4 * eps() * 128 * maximum(abs, x) * maximum(abs, W)
     W = st["interactions.1.skip_tp.weight"].data
     sk1 = Tn.SpeciesLinear{Float64}(W, [0], [(1, 1, k.tensor_product["interactions.1.skip_tp"].instructions[1].path_weight)], 128, 89, 128)
-    y = zeros(128, 1, 3); M.species_linear!(y, sk1, view(x, :, 1:1, :), species)
+    y = zeros(128, 1, 3); Tn.species_linear!(y, sk1, view(x, :, 1:1, :), species)
     naive = [cl[1] * sum(x[u, 1, i] * W[((u - 1) * 89 + species[i] - 1) * 128 + w] for u in 1:128) for w in 1:128, i in 1:3]
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
     @test y[:, 1, :] ≈ naive atol = 4 * eps() * 128 * maximum(abs, x) * maximum(abs, W)
@@ -150,16 +149,16 @@ end
     # readouts.1.linear_1: [128, 16], torch index (u-1)·16 + w.
     W = st["readouts.1.linear_1.weight"].data
     r1 = Tn.E3nnLinear{Float64}(W, [0], [0], [(1, 1, 0.08838834764831845)], 128, 16)
-    y = zeros(16, 1, 3); M.linear!(y, r1, view(x, :, 1:1, :))
+    y = zeros(16, 1, 3); Tn.linear!(y, r1, view(x, :, 1:1, :))
     naive = [0.08838834764831845 * sum(x[u, 1, i] * W[(u - 1) * 16 + w] for u in 1:128) for w in 1:16, i in 1:3]
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
     @test y[:, 1, :] ≈ naive atol = 4 * eps() * 128 * maximum(abs, x) * maximum(abs, W)
 end
 
 @testitem "layer pullbacks match ForwardDiff" begin
-    using ForwardDiff, Random, LinearAlgebra
     M = PureMLIP.Model
     Tn = PureMLIP.Tensors
+    using ForwardDiff, Random, LinearAlgebra
     rng = Xoshiro(11)
     # Inputs, weights and cotangents are uniform in [-1, 1], so every product of them is at most 1
     # in magnitude and the rounding bounds below need only the term count and the constants.
@@ -176,9 +175,9 @@ end
     C_in, C_out, n = 5, 4, 3
     ins = [(1, 1, 0.3), (2, 1, 0.7), (3, 2, 0.5)]
     lin = Tn.E3nnLinear{Float64}(u(length(ins) * C_in * C_out), [0, 0, 1, 2], [0, 1, 2], ins, C_in, C_out)
-    flin(x) = M.linear!(zeros(eltype(x), C_out, 9, n), lin, x)
+    flin(x) = Tn.linear!(zeros(eltype(x), C_out, 9, n), lin, x)
     x = u(C_in, 10, n); dy = u(C_out, 9, n)
-    dx = M.linear_pullback!(zeros(C_in, 10, n), lin, dy)
+    dx = Tn.linear_pullback!(zeros(C_in, 10, n), lin, dy)
     g = ForwardDiff.gradient(x -> sum(dy .* flin(x)), x)
     # Rounding bound: 4·eps·N per element, N = C_out terms (|pw·W·dy| ≤ 1).
     @test dx ≈ g atol = 4 * eps() * C_out
@@ -191,9 +190,9 @@ end
     nS = 3
     sl = Tn.SpeciesLinear{Float64}(u(2 * C_in * nS * C_out), [0, 1], [(1, 1, 0.9), (2, 2, 0.6)], C_in, nS, C_out)
     species = [2, 3, 2]
-    fsl(x) = M.species_linear!(zeros(eltype(x), C_out, 4, n), sl, x, species)
+    fsl(x) = Tn.species_linear!(zeros(eltype(x), C_out, 4, n), sl, x, species)
     x = u(C_in, 4, n); dy = u(C_out, 4, n)
-    dx = M.species_linear_pullback!(zeros(C_in, 4, n), sl, dy, species)
+    dx = Tn.species_linear_pullback!(zeros(C_in, 4, n), sl, dy, species)
     g = ForwardDiff.gradient(x -> sum(dy .* fsl(x)), x)
     # Rounding bound: 4·eps·N per element, N = C_out terms (|c·W·dy| ≤ 1).
     @test dx ≈ g atol = 4 * eps() * C_out
@@ -213,12 +212,12 @@ end
     unpack(z) = (reshape(z[1:nx], C, 4), z[(nx + 1):(nx + nY)], reshape(z[(nx + nY + 1):end], C, 10))
     function ftp(z)
         x, Y, w = unpack(z)
-        return M.tp_edge_add!(zeros(eltype(z), C, 40), tp, x, Y, w)
+        return Tn.tp_edge_add!(zeros(eltype(z), C, 40), tp, x, Y, w)
     end
     z = u(nx + nY + nw); dM = u(C, 40)
     x, Y, w = unpack(z)
     dx, dY, dw = zero(x), zero(Y), zero(w)
-    @test M.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w) === nothing
+    @test Tn.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w) === nothing
     g = ForwardDiff.gradient(z -> sum(dM .* ftp(z)), z)
     nnz = length(tp.entries)
     vmax = maximum(e -> abs(e[4]), tp.entries)
@@ -228,7 +227,7 @@ end
     # The pullback accumulates: from a start of ones the result is 1 + gradient, within the
     # rounding bound above plus eps for the extra addition.
     dx2, dY2, dw2 = one.(dx), one.(dY), one.(dw)
-    M.tp_edge_pullback_add!(dx2, dY2, dw2, tp, dM, x, Y, w)
+    Tn.tp_edge_pullback_add!(dx2, dY2, dw2, tp, dM, x, Y, w)
     @test [vec(dx2); dY2; vec(dw2)] .- 1 ≈ [vec(dx); dY; vec(dw)] atol = 4 * eps() * nnz * C * vmax + 2 * eps()
     v = u(length(z))
     # Measured margin: largest error 1.2e-10 at h = 1e-5.
@@ -282,9 +281,8 @@ end
 end
 
 @testitem "TP pullback without dx matches the full pullback" begin
-    using Random
-    M = PureMLIP.Model
     Tn = PureMLIP.Tensors
+    using Random
     rng = Xoshiro(17)
     # The interaction-1 conv_tp structure; C = 37 is not a multiple of any SIMD width, so both
     # the vector body and the remainder of the channel loop run.
@@ -299,9 +297,9 @@ end
         x, Y, w, dM = randn(rng, T, C, 4), randn(rng, T, 16), randn(rng, T, C, 10), randn(rng, T, C, 40)
         dY0, dw0 = randn(rng, T, 16), randn(rng, T, C, 10)
         dx, dY, dw = zeros(T, C, 4), copy(dY0), copy(dw0)
-        M.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w)
+        Tn.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w)
         dxn, dYn, dwn = fill(T(NaN), C, 4), copy(dY0), copy(dw0)
-        @test M.tp_edge_pullback_add!(dxn, dYn, dwn, tp, dM, x, Y, w; need_dx = false) === nothing
+        @test Tn.tp_edge_pullback_add!(dxn, dYn, dwn, tp, dM, x, Y, w; need_dx = false) === nothing
         # dw: each element gets the same operations in the same order in both loops, so it is equal.
         @test dwn == dw
         # dY[j] sums `v * acc` over the n_j entries with that j, and each `acc` is a `@simd`
@@ -322,9 +320,8 @@ end
 end
 
 @testitem "layers accept views" begin
-    using Random, OffsetArrays
-    M = PureMLIP.Model
     Tn = PureMLIP.Tensors
+    using Random, OffsetArrays
     rng = Xoshiro(21)
     C_in, C_out, n = 6, 4, 3
     lin = Tn.E3nnLinear{Float64}(randn(rng, 2 * C_in * C_out), [0, 1], [0, 1], [(1, 1, 0.4), (2, 2, 0.4)], C_in, C_out)
@@ -337,8 +334,8 @@ end
     # 4·eps·N·max|terms|, N = C_in.
     tol(W) = 2 * 4 * eps() * C_in * maximum(abs, x) * maximum(abs, W)
     for (f!, W, y0) in (
-            ((y, x) -> M.linear!(y, lin, x), lin.W[1], zeros(C_out, 4, n)),
-            ((y, x) -> M.species_linear!(y, sl, x, species), sl.W[1], zeros(C_out, 4, n)),
+            ((y, x) -> Tn.linear!(y, lin, x), lin.W[1], zeros(C_out, 4, n)),
+            ((y, x) -> Tn.species_linear!(y, sl, x, species), sl.W[1], zeros(C_out, 4, n)),
         )
         f!(y0, xc)
         Y = fill(7.0, C_out + 3, 6, n + 1)
@@ -348,9 +345,9 @@ end
         @test all(==(7.0), Y)   # entries outside the view are untouched
         @test_throws "offset arrays are not supported" f!(OffsetArray(zeros(C_out, 4, n), 0, 0, -1), xc)
     end
-    dx0 = M.linear_pullback!(zeros(C_in, 4, n), lin, ones(C_out, 4, n))
+    dx0 = Tn.linear_pullback!(zeros(C_in, 4, n), lin, ones(C_out, 4, n))
     D = zeros(C_in + 1, 4, n)
-    M.linear_pullback!(view(D, 2:(C_in + 1), :, :), lin, view(ones(C_out, 5, n), :, 2:5, :))
+    Tn.linear_pullback!(view(D, 2:(C_in + 1), :, :), lin, view(ones(C_out, 5, n), :, 2:5, :))
     @test D[2:end, :, :] ≈ dx0 atol = tol(lin.W[1])
     @test all(iszero, D[1, :, :])
 end
@@ -362,29 +359,29 @@ end
     @test_throws "model: linear instruction (2, 1) is outside the 1 input and 1 output slots" Tn.E3nnLinear{Float64}(zeros(4), [0], [0], [(2, 1, 1.0)], 2, 2)
     @test_throws "model: linear instruction (1, 1) couples l = 0 to l = 1" Tn.E3nnLinear{Float64}(zeros(4), [0], [1], [(1, 1, 1.0)], 2, 2)
     lin = Tn.E3nnLinear{Float64}(zeros(4), [0], [0], [(1, 1, 1.0)], 2, 2)
-    @test_throws "model: linear input has size (3, 1, 2), expected (2, 1, n)" M.linear!(zeros(2, 1, 2), lin, zeros(3, 1, 2))
-    @test_throws "model: linear output has size (2, 1, 3), expected (2, 1, 2)" M.linear!(zeros(2, 1, 3), lin, zeros(2, 1, 2))
-    @test_throws "model: linear output has size (2, 2, 2), expected (2, 1, 2)" M.linear_pullback!(zeros(2, 1, 2), lin, zeros(2, 2, 2))
+    @test_throws "model: linear input has size (3, 1, 2), expected (2, 1, n)" Tn.linear!(zeros(2, 1, 2), lin, zeros(3, 1, 2))
+    @test_throws "model: linear output has size (2, 1, 3), expected (2, 1, 2)" Tn.linear!(zeros(2, 1, 3), lin, zeros(2, 1, 2))
+    @test_throws "model: linear output has size (2, 2, 2), expected (2, 1, 2)" Tn.linear_pullback!(zeros(2, 1, 2), lin, zeros(2, 2, 2))
 
     @test_throws "model: species linear weight has 3 entries, expected 8" Tn.SpeciesLinear{Float64}(zeros(3), [0], [(1, 1, 1.0)], 2, 2, 2)
     @test_throws "model: species linear instruction (1, 2) is outside the 1 slots" Tn.SpeciesLinear{Float64}(zeros(8), [0], [(1, 2, 1.0)], 2, 2, 2)
     @test_throws "model: species linear instruction (1, 2) couples l = 0 to l = 1" Tn.SpeciesLinear{Float64}(zeros(16), [0, 1], [(1, 2, 1.0), (2, 2, 1.0)], 2, 2, 2)
     sl = Tn.SpeciesLinear{Float64}(zeros(8), [0], [(1, 1, 1.0)], 2, 2, 2)
-    @test_throws "model: species linear input has size (3, 1, 2), expected (2, 1, n)" M.species_linear!(zeros(2, 1, 2), sl, zeros(3, 1, 2), [1, 1])
-    @test_throws "model: species linear output has size (2, 1, 1), expected (2, 1, 2)" M.species_linear_pullback!(zeros(2, 1, 2), sl, zeros(2, 1, 1), [1, 1])
-    @test_throws "model: 3 species for 2 nodes" M.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 1, 1])
-    @test_throws "model: species index 3 is outside 1:2" M.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 3])
+    @test_throws "model: species linear input has size (3, 1, 2), expected (2, 1, n)" Tn.species_linear!(zeros(2, 1, 2), sl, zeros(3, 1, 2), [1, 1])
+    @test_throws "model: species linear output has size (2, 1, 1), expected (2, 1, 2)" Tn.species_linear_pullback!(zeros(2, 1, 2), sl, zeros(2, 1, 1), [1, 1])
+    @test_throws "model: 3 species for 2 nodes" Tn.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 1, 1])
+    @test_throws "model: species index 3 is outside 1:2" Tn.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 3])
 
     @test_throws "model: tensor-product instruction (1, 2, 1) is outside the 1, 1 and 1 slots" Tn.ChannelwiseTP{Float64}([0], [0], [0], [(1, 2, 1, 1.0)])
     @test_throws ArgumentError Tn.ChannelwiseTP{Float64}([1], [1], [1], [(1, 1, 1, 1.0)])   # odd l1 + l2 + l3
     tp = Tn.ChannelwiseTP{Float64}([0], [1], [1], [(1, 1, 1, 1.0)])
-    @test_throws "model: tensor product with 2 channels: x has size (2, 2), expected (2, 1)" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 2), zeros(3), zeros(2, 1))
-    @test_throws "model: tensor product with 2 channels: Y has length 2, expected 3" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(2), zeros(2, 1))
-    @test_throws "model: tensor product with 2 channels: w has size (2, 2), expected (2, 1)" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(3), zeros(2, 2))
-    @test_throws "model: tensor product with 2 channels: the output has size (2, 2), expected (2, 3)" M.tp_edge_add!(zeros(2, 2), tp, zeros(2, 1), zeros(3), zeros(2, 1))
-    @test_throws "model: tensor product with 2 channels: dx has size (2, 2), expected (2, 1)" M.tp_edge_pullback_add!(zeros(2, 2), zeros(3), zeros(2, 1), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
-    @test_throws "model: tensor product with 2 channels: dY has length 2, expected 3" M.tp_edge_pullback_add!(zeros(2, 1), zeros(2), zeros(2, 1), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
-    @test_throws "model: tensor product with 2 channels: dw has size (2, 2), expected (2, 1)" M.tp_edge_pullback_add!(zeros(2, 1), zeros(3), zeros(2, 2), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: x has size (2, 2), expected (2, 1)" Tn.tp_edge_add!(zeros(2, 3), tp, zeros(2, 2), zeros(3), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: Y has length 2, expected 3" Tn.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(2), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: w has size (2, 2), expected (2, 1)" Tn.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(3), zeros(2, 2))
+    @test_throws "model: tensor product with 2 channels: the output has size (2, 2), expected (2, 3)" Tn.tp_edge_add!(zeros(2, 2), tp, zeros(2, 1), zeros(3), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: dx has size (2, 2), expected (2, 1)" Tn.tp_edge_pullback_add!(zeros(2, 2), zeros(3), zeros(2, 1), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: dY has length 2, expected 3" Tn.tp_edge_pullback_add!(zeros(2, 1), zeros(2), zeros(2, 1), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
+    @test_throws "model: tensor product with 2 channels: dw has size (2, 2), expected (2, 1)" Tn.tp_edge_pullback_add!(zeros(2, 1), zeros(3), zeros(2, 2), tp, zeros(2, 3), zeros(2, 1), zeros(3), zeros(2, 1))
 
     @test_throws "model: radial MLP layer 2 has 5 inputs, expected 6" M.RadialMLP{Float64}((zeros(3, 6), zeros(5, 6), zeros(6, 6), zeros(6, 2)), 1.0)
     @test_throws "model: radial MLP hidden layers must share one width, got 6 and 5" M.RadialMLP{Float64}((zeros(3, 6), zeros(6, 5), zeros(5, 6), zeros(6, 2)), 1.0)

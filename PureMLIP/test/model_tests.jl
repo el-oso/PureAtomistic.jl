@@ -142,7 +142,7 @@ end
 
 @testitem "model builds MPA-0's interactions.1.linear as ten slots" setup = [Checkpoints] begin
     using Random
-    M = PureMLIP.Tensors
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); m = MACEModel(ck)
     lin = m.linear[2]
     a, b = 0.0625, 0.05103103630798288
@@ -157,7 +157,7 @@ end
     off = cumsum([0; [2l + 1 for l in in_ls]])
     deg(q) = isqrt(q - 1)
     x = randn(Xoshiro(7), 128, 40, 2)
-    y = zeros(128, 16, 2); M.linear!(y, lin, x)
+    y = zeros(128, 16, 2); Tn.linear!(y, lin, x)
     naive = [
         sum(
             pws[p] * sum(x[u, off[p] + q - deg(q)^2, i] * W[((p - 1) * 128 + u - 1) * 128 + w] for u in 1:128)
@@ -168,8 +168,8 @@ end
     @test y ≈ naive atol = 4 * eps() * 384 * maximum(abs, x) * maximum(abs, W)
 end
 
-@testitem "_eachindex matches eachindex and reports mismatches" begin
-    E = PureMLIP.Tensors._eachindex
+@testitem "checked_eachindex matches eachindex and reports mismatches" begin
+    E = PureMLIP.Tensors.checked_eachindex
     a, b, c = zeros(4), ones(4), zeros(4)
     @test E(a, b, c) === eachindex(a, b, c)
     M = zeros(2, 3)

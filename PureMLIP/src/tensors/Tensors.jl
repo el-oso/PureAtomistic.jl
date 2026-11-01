@@ -16,7 +16,7 @@ export E3nnLinear, linear!, linear_pullback!, SpeciesLinear, species_linear!, sp
 export Contraction, SymmetricContraction, symmetric_contraction!, symmetric_contraction_pullback!
 export symmetric_contraction_scratch_size
 
-public _eachindex, _n_out
+public checked_eachindex, n_outputs
 
 include("eachindex.jl")
 include("linear.jl")

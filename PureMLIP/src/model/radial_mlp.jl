@@ -84,7 +84,7 @@ end
 # cotangent; `σs` and `act` are the `pre` and `act` of `_mlp_layer!`.
 function _mlp_layer_pullback!(g::AbstractMatrix, σs::AbstractMatrix, act::AbstractMatrix, cst)
     c = convert(eltype(g), cst)
-    for q in _eachindex(g, σs, act)
+    for q in checked_eachindex(g, σs, act)
         σ = σs[q]
         g[q] *= c * σ + act[q] * (one(σ) - σ)
     end

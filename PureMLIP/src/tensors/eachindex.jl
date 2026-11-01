@@ -1,9 +1,9 @@
 """
-    _eachindex(A, Bs...)
+    checked_eachindex(A, Bs...)
 
 `eachindex(A, Bs...)` with a mismatch error that `juliac --trim` resolves.
 """
-@inline function _eachindex(A, Bs::Vararg{Any, N}) where {N}
+@inline function checked_eachindex(A, Bs::Vararg{Any, N}) where {N}
     style = IndexStyle(A, Bs...)
     inds = eachindex(style, A)
     _check_eachindex(style, inds, Bs...)

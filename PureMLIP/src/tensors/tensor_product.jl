@@ -70,8 +70,8 @@ function tp_edge_add!(M::AbstractMatrix{S}, tp::ChannelwiseTP, x::AbstractMatrix
             i, j, k, v = tp.entries[q]
             vy = v * Y[j]
             Mk, xi = view(M, :, k), view(x, :, i)
-            # In range: u comes from `_eachindex` over exactly the arrays indexed, each a checked view.
-            @inbounds for u in _eachindex(Mk, wp, xi)
+            # In range: u comes from `checked_eachindex` over exactly the arrays indexed, each a checked view.
+            @inbounds for u in checked_eachindex(Mk, wp, xi)
                 Mk[u] += vy * wp[u] * xi[u]
             end
         end
@@ -105,14 +105,14 @@ function tp_edge_pullback_add!(
             acc = zero(S)
             if need_dx
                 dxi = view(dx, :, i)
-                @simd for u in _eachindex(dMk, wp, xi, dxi, dwp)
+                @simd for u in checked_eachindex(dMk, wp, xi, dxi, dwp)
                     g = dMk[u]
                     dxi[u] += vy * g * wp[u]
                     dwp[u] += vy * g * xi[u]
                     acc += g * wp[u] * xi[u]
                 end
             else
-                @simd for u in _eachindex(dMk, wp, xi, dwp)
+                @simd for u in checked_eachindex(dMk, wp, xi, dwp)
                     g = dMk[u]
                     dwp[u] += vy * g * xi[u]
                     acc += g * wp[u] * xi[u]
