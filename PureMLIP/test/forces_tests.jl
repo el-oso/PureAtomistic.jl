@@ -210,3 +210,48 @@ end
         @test back ≈ fd atol = tol_msg_fd
     end
 end
+
+@testitem "workspace memory per atom" setup = [Checkpoints, WorkspaceMemory] begin
+    m64 = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
+    # edges within r_max.
+    b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096)
+    @test b64 <= 180_000
+    GC.gc()
+end
+
+# Buffers whose lifetimes do not overlap share memory in MACEWorkspace. A buffer read after
+# another member of its pool was written would carry that member's values into the result, so
+# every buffer of one workspace, sized for the largest structure, is filled with NaN before each
+# evaluation: a value read before it is written then shows as a non-finite result.
+@testitem "forces: one workspace across structures, buffers filled with NaN" setup = [LammpsReference, Checkpoints] begin
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    # Float64: the LAMMPS targets of "forces and virial match LAMMPS-MACE". Float32: the measured
+    # margins of "forces: in-place form, Float32, zero edges, views and errors".
+    for (T, ref, tolf, tolv) in ((Float64, :mpa0_f64, 1.0e-6, 1.0e-6), (Float32, :mpa0_f32, 1.5e-4, 1.2e-3))
+        m = MACEModel{T}(ck)
+        structures = LammpsReference.structures(LammpsReference.load(ref))
+        lists = [neighbor_list(T.(s.positions), T.(s.cell), m.r_max) for s in structures]
+        ws = MACEWorkspace{T}(m, maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists))
+        for (s, nl) in zip(structures, lists)
+            P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
+            n = nl.n_atoms
+            for f in fieldnames(typeof(ws))
+                v = getfield(ws, f)
+                for a in (v isa Tuple ? v : (v,))
+                    a isa AbstractArray{T} && fill!(a, T(NaN))
+                end
+            end
+            re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            # A fresh workspace sized for this structure runs the same arithmetic.
+            rf = mace_energy_forces(m, P, C, Z)
+            @test re.energy == rf.energy && re.node_energies == rf.node_energies
+            @test r.energy == rf.energy && r.node_energies == rf.node_energies
+            @test r.forces == rf.forces && r.virial == rf.virial && r.stress == rf.stress
+            T === Float64 && @test abs(r.energy - s.energy) <= 1.0e-6
+            @test maximum(abs, r.forces - s.forces; init = 0.0) <= tolf
+            @test maximum(abs, r.virial - s.virial) <= tolv
+        end
+    end
+end

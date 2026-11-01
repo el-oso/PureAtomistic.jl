@@ -55,17 +55,18 @@ struct MACEWorkspace{T}
     # per edge, reused: harmonics and their gradient with respect to the edge vector
     Ye::Vector{T}
     dYdr::Matrix{T}          # 16 × 3
-    # per node
-    h0::Array{T, 3}
+    # Per node. The fields marked with a pool share memory with the other members of that pool;
+    # the constructor lists the order in which each pool's members are used.
+    h0::Array{T, 3}                  # pool `small`
     x::NTuple{2, Array{T, 3}}        # linear_up outputs
     density::Matrix{T}               # n × 2
-    M::NTuple{2, Array{T, 3}}        # summed messages
-    L::NTuple{2, Array{T, 3}}        # interaction linear outputs, density-normalized
+    M::NTuple{2, Array{T, 3}}        # summed messages; pool `big`
+    L::NTuple{2, Array{T, 3}}        # interaction linear outputs, density-normalized; L[1] in pool `mid`
     X1::Array{T, 3}                  # interaction 0 output (after skip_tp)
-    B::NTuple{2, Array{T, 3}}        # symmetric-contraction outputs
-    h1::Array{T, 3}
-    sc::Array{T, 3}
-    h2::Array{T, 3}
+    B::NTuple{2, Array{T, 3}}        # symmetric-contraction outputs; pool `small`
+    h1::Array{T, 3}                  # pool `small`
+    sc::Array{T, 3}                  # pool `small`
+    h2::Array{T, 3}                  # pool `small`
     gpre::Array{T, 3}                # nonlinear readout, before the activation
     g::Array{T, 3}                   # and after it
     e1::Array{T, 3}
@@ -80,10 +81,10 @@ struct MACEWorkspace{T}
     dh1::Array{T, 3}
     dh1_part::Array{T, 3}            # one contribution to dh1 before it is added
     dB::NTuple{2, Array{T, 3}}
-    dX1::Array{T, 3}
-    dL::NTuple{2, Array{T, 3}}
-    dM::NTuple{2, Array{T, 3}}
-    dx::NTuple{2, Array{T, 3}}
+    dX1::Array{T, 3}                 # pool `mid`
+    dL::NTuple{2, Array{T, 3}}       # dL[1] in pool `small`, dL[2] in pool `mid`
+    dM::NTuple{2, Array{T, 3}}       # pool `big`
+    dx::Array{T, 3}                  # ∂E/∂x[2]; ∂E/∂x[1] is not needed (see mace_energy_forces!)
     ddensity::Matrix{T}              # n × 2
     function MACEWorkspace{T}(model::MACEModel, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096) where {T}
         (n_atoms >= 0 && n_edges >= 0) ||
@@ -98,25 +99,49 @@ struct MACEWorkspace{T}
         tpw = zeros(T, W, chunk)
         dtpw = zeros(T, W, chunk)
         node(lin::E3nnLinear) = zeros(T, lin.C_out, lin.K_out, n)
-        messages(k) = zeros(T, C, model.conv[k].K_out, n)
-        products(k) = zeros(T, C, n_outputs(model.product[k]), n)
+        dims(lin::E3nnLinear) = (lin.C_out, lin.K_out, n)
+        messages(k) = (C, model.conv[k].K_out, n)
+        products(k) = (C, n_outputs(model.product[k]), n)
         scratch = zeros(T, max(symmetric_contraction_scratch_size(model.product[1]), symmetric_contraction_scratch_size(model.product[2])))
+        # Pools of buffers whose lifetimes do not overlap, in the order of use in
+        # `mace_energy_forces!`; each member is dead before the next one is written.
+        # - big: M[1], M[2] (forward), dM[2], dM[1] (backward).
+        # - mid: L[1] (read only by skip[1]), dL[2], dX1.
+        # - small: h0, h1, B[1], B[2], sc and h2 side by side (forward only; the backward reads
+        #   none of them), then dL[1] over all of them.
+        (), (M0, M1, dM0, dM1) = _pool(T, (), (messages(1), messages(2), messages(1), messages(2)))
+        (), (L0, dL1, dX1) = _pool(T, (), (dims(model.linear[1]), dims(model.linear[2]), (C, model.skip[1].K, n)))
+        (h0, h1, B0, B1, sc, h2), (dL0,) = _pool(
+            T, ((C, 1, n), dims(model.product_linear[1]), products(1), products(2), (C, model.skip[2].K, n), dims(model.product_linear[2])),
+            (dims(model.linear[1]),),
+        )
         return new{T}(
             n, E, chunk, zeros(Int, n),
             zeros(T, 3, E), zeros(T, E), zeros(T, 16, E), zeros(T, nb, E), zeros(T, nb, E), zeros(T, E), zeros(T, 16, E),
             tpw, reshape(tpw, C, W ÷ C, chunk), zeros(T, H, chunk, 3), zeros(T, H, chunk, 3),
             dtpw, reshape(dtpw, C, W ÷ C, chunk), zeros(T, H, chunk, 2), zeros(T, nb, chunk),
             zeros(T, 16), zeros(T, 16, 3),
-            zeros(T, C, 1, n), (node(model.up[1]), node(model.up[2])), zeros(T, n, 2),
-            (messages(1), messages(2)), (node(model.linear[1]), node(model.linear[2])), zeros(T, C, model.skip[1].K, n),
-            (products(1), products(2)), node(model.product_linear[1]), zeros(T, C, model.skip[2].K, n), node(model.product_linear[2]),
+            h0, (node(model.up[1]), node(model.up[2])), zeros(T, n, 2),
+            (M0, M1), (L0, node(model.linear[2])), zeros(T, C, model.skip[1].K, n),
+            (B0, B1), h1, sc, h2,
             node(model.readout1[1]), node(model.readout1[1]), node(model.readout0), node(model.readout1[2]), zeros(T, n), scratch,
             node(model.readout0), node(model.readout1[2]), node(model.readout1[1]), node(model.product_linear[2]),
-            node(model.product_linear[1]), node(model.product_linear[1]), (products(1), products(2)),
-            zeros(T, C, model.skip[1].K, n), (node(model.linear[1]), node(model.linear[2])), (messages(1), messages(2)),
-            (node(model.up[1]), node(model.up[2])), zeros(T, n, 2),
+            node(model.product_linear[1]), node(model.product_linear[1]), (zeros(T, products(1)), zeros(T, products(2))),
+            dX1, (dL0, dL1), (dM0, dM1), node(model.up[2]), zeros(T, n, 2),
         )
     end
+end
+
+# Zero-filled arrays of the sizes in `packed` and `shared` over one block of memory: the `packed`
+# arrays lie side by side from the block's first element, and every `shared` array starts at the
+# first element too, so it overlaps them and the other `shared` arrays. `Base.wrap` makes each an
+# `Array` over the block, so the layers see the same array type as for separately allocated buffers.
+function _pool(::Type{T}, packed::Tuple{Vararg{NTuple{3, Int}}}, shared::Tuple{Vararg{NTuple{3, Int}}}) where {T}
+    plen = map(prod, packed)
+    mem = Memory{T}(undef, max(sum(plen; init = 0), maximum(map(prod, shared); init = 0)))
+    fill!(mem, zero(T))
+    at(offset, dims) = Base.wrap(Array, iszero(offset) || iszero(prod(dims)) ? memoryref(mem) : memoryref(mem, offset + 1), dims)
+    return map(at, map(-, accumulate(+, plen; init = 0), plen), packed), map(d -> at(0, d), shared)
 end
 
 # Out of line: the cutoff comparison widens a Float32 model radius to the Float64 `r_cut`, and a
@@ -280,34 +305,49 @@ function mace_energy!(
     return res
 end
 
+# The density part of the pullback of L = linear(M) / q, q = density + 1: overwrites `ddensity`
+# with -⟨dL, L⟩ / q per node and scales `dL` by 1 / q in place. The inner product is taken as
+# ⟨dY, Y⟩, which equals ⟨dL, L⟩ when Y = A L and dY is its cotangent with dL = Aᵀ dY for a
+# per-node linear map A (with A = identity, `dY` and `Y` are `dL` and `L`).
+function _normalization_pullback!(
+        ddensity::AbstractVector{T}, dL::AbstractArray{T, 3}, dY::AbstractArray{T, 3}, Y::AbstractArray{T, 3},
+        density::AbstractVector{T}
+    ) where {T}
+    for i in axes(dL, 3)
+        q = _density_norm(density[i])
+        s = zero(T)
+        for c in axes(dY, 2), u in axes(dY, 1)
+            s += dY[u, c, i] * Y[u, c, i]
+        end
+        ddensity[i] = -s / q
+        for c in axes(dL, 2), u in axes(dL, 1)
+            dL[u, c, i] /= q
+        end
+    end
+    return nothing
+end
+
 # Pullback of L = linear(M) / (density + 1): overwrites `dM` and `ddensity` from `dL`, the
 # derivative with respect to L. `dL` is scaled by 1 / (density + 1) in place.
 function _normalized_linear_pullback!(
         dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, lin::E3nnLinear, dL::AbstractArray{T, 3},
         L::AbstractArray{T, 3}, density::AbstractVector{T}
     ) where {T}
-    for i in axes(dL, 3)
-        q = _density_norm(density[i])
-        s = zero(T)
-        for c in axes(dL, 2), u in axes(dL, 1)
-            s += dL[u, c, i] * L[u, c, i]
-            dL[u, c, i] /= q
-        end
-        ddensity[i] = -s / q
-    end
+    _normalization_pullback!(ddensity, dL, dL, L, density)
     linear_pullback!(dM, lin, dL)
     return nothing
 end
 
 # Pullback of `_messages!` for interaction `k`: overwrites `dx` (the derivative with respect to
 # the sender features) and adds to `ws.dd` and `ws.dY` per edge, from `dM` and `ddensity`. The
-# radial MLP is recomputed chunk by chunk. With `need_dx = false`, `dx` is left at zero.
+# radial MLP is recomputed chunk by chunk. With `need_dx = false`, `dx` is neither read nor
+# written; only its size is checked.
 function _messages_pullback!(
         dx::AbstractArray{T, 3}, ws::MACEWorkspace{T}, model::MACEModel{T}, k::Int, x::AbstractArray{T, 3},
         dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, nl::NeighborList;
         need_dx::Bool = true
     ) where {T}
-    fill!(dx, zero(T))
+    need_dx && fill!(dx, zero(T))
     mlp, tp, wd = model.mlp[k], model.conv[k], model.density[k]
     W = size(mlp.W[4], 2)
     P = length(tp.paths)
@@ -397,7 +437,7 @@ function mace_energy_forces!(
     # Interaction 1.
     dM1, ddens1 = view(ws.dM[2], :, :, atoms), view(ws.ddensity, atoms, 2)
     _normalized_linear_pullback!(dM1, ddens1, model.linear[2], dX2, view(ws.L[2], :, :, atoms), view(ws.density, atoms, 2))
-    dx1 = view(ws.dx[2], :, :, atoms)
+    dx1 = view(ws.dx, :, :, atoms)
     _messages_pullback!(dx1, ws, model, 2, view(ws.x[2], :, :, atoms), dM1, ddens1, nl)
     linear_pullback!(part, model.up[2], dx1)
     for q in eachindex(dh1, part)
@@ -408,13 +448,19 @@ function mace_energy_forces!(
     # with respect to the interaction-0 sender features is not needed.
     dB0 = view(ws.dB[1], :, :, atoms)
     linear_pullback!(dB0, model.product_linear[1], dh1)
-    dX1 = view(ws.dX1, :, :, atoms)
-    symmetric_contraction_pullback!(dX1, model.product[1], dB0, view(ws.X1, :, :, atoms), species, ws.scratch)
+    dX1, X1 = view(ws.dX1, :, :, atoms), view(ws.X1, :, :, atoms)
+    symmetric_contraction_pullback!(dX1, model.product[1], dB0, X1, species, ws.scratch)
     dL0 = view(ws.dL[1], :, :, atoms)
     species_linear_pullback!(dL0, model.skip[1], dX1, species)
     dM0, ddens0 = view(ws.dM[1], :, :, atoms), view(ws.ddensity, atoms, 1)
-    _normalized_linear_pullback!(dM0, ddens0, model.linear[1], dL0, view(ws.L[1], :, :, atoms), view(ws.density, atoms, 1))
-    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, nl; need_dx = false)
+    # L[1] shares memory with dL[2] and dX1 and no longer holds L0. X1 = skip[1](L0) is a linear
+    # map per atom and dL0 is its pullback of dX1, so ⟨dL0, L0⟩ = ⟨dX1, X1⟩.
+    _normalization_pullback!(ddens0, dL0, dX1, X1, view(ws.density, atoms, 1))
+    linear_pullback!(dM0, model.linear[1], dL0)
+    # With `need_dx = false` the sender derivative is neither read nor written, so x[1] stands in
+    # for it.
+    x0 = view(ws.x[1], :, :, atoms)
+    _messages_pullback!(x0, ws, model, 1, x0, dM0, ddens0, nl; need_dx = false)
 
     # Edge vectors: g_e = (∂E/∂d) r_e / d + (∂Y/∂r_e)ᵀ ∂E/∂Y, with the pair term in ∂E/∂d.
     F = res.forces
