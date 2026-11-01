@@ -61,11 +61,14 @@ sender features, `Y` (`K_in2`) the edge attributes and `w` (`C × n_instructions
 function tp_edge_add!(M::AbstractMatrix{S}, tp::ChannelwiseTP, x::AbstractMatrix{S}, Y::AbstractVector{S}, w::AbstractMatrix{S}) where {S}
     _check_tp(tp, M, x, Y, w, ("x", "Y", "w", "the output"))
     for p in eachindex(tp.paths)
+        wp = view(w, :, p)
         for q in tp.paths[p]
             i, j, k, v = tp.entries[q]
             vy = v * Y[j]
-            for u in axes(M, 1)
-                M[u, k] += vy * w[u, p] * x[u, i]
+            Mk, xi = view(M, :, k), view(x, :, i)
+            # In range: u comes from `_eachindex` over exactly the arrays indexed, each a checked view.
+            @inbounds for u in _eachindex(Mk, wp, xi)
+                Mk[u] += vy * wp[u] * xi[u]
             end
         end
     end
@@ -73,29 +76,41 @@ function tp_edge_add!(M::AbstractMatrix{S}, tp::ChannelwiseTP, x::AbstractMatrix
 end
 
 """
-    tp_edge_pullback_add!(dx, dY, dw, tp::ChannelwiseTP, dM, x, Y, w) -> nothing
+    tp_edge_pullback_add!(dx, dY, dw, tp::ChannelwiseTP, dM, x, Y, w; need_dx = true) -> nothing
 
 Adds the vector-Jacobian products of [`tp_edge_add!`](@ref) with the cotangent `dM` to `dx`,
-`dY` and `dw`.
+`dY` and `dw`. With `need_dx = false`, `dx` is neither read nor written.
 """
 function tp_edge_pullback_add!(
         dx::AbstractMatrix{S}, dY::AbstractVector{S}, dw::AbstractMatrix{S}, tp::ChannelwiseTP,
-        dM::AbstractMatrix{S}, x::AbstractMatrix{S}, Y::AbstractVector{S}, w::AbstractMatrix{S}
+        dM::AbstractMatrix{S}, x::AbstractMatrix{S}, Y::AbstractVector{S}, w::AbstractMatrix{S};
+        need_dx::Bool = true
     ) where {S}
     _check_tp(tp, dM, x, Y, w, ("x", "Y", "w", "the output"))
     _check_tp(tp, dM, dx, dY, dw, ("dx", "dY", "dw", "the output"))
     for p in eachindex(tp.paths)
+        wp, dwp = view(w, :, p), view(dw, :, p)
         for q in tp.paths[p]
             i, j, k, v = tp.entries[q]
             vy = v * Y[j]
+            dMk, xi = view(dM, :, k), view(x, :, i)
             acc = zero(S)
-            for u in axes(dM, 1)
-                g = v * dM[u, k]
-                dx[u, i] += g * Y[j] * w[u, p]
-                dw[u, p] += vy * dM[u, k] * x[u, i]
-                acc += g * w[u, p] * x[u, i]
+            if need_dx
+                dxi = view(dx, :, i)
+                @simd for u in _eachindex(dMk, wp, xi, dxi, dwp)
+                    g = dMk[u]
+                    dxi[u] += vy * g * wp[u]
+                    dwp[u] += vy * g * xi[u]
+                    acc += g * wp[u] * xi[u]
+                end
+            else
+                @simd for u in _eachindex(dMk, wp, xi, dwp)
+                    g = dMk[u]
+                    dwp[u] += vy * g * xi[u]
+                    acc += g * wp[u] * xi[u]
+                end
             end
-            dY[j] += acc
+            dY[j] += v * acc
         end
     end
     return nothing

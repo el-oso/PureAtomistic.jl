@@ -264,6 +264,33 @@ end
     end
 end
 
+@testitem "TP pullback without dx matches the full pullback" begin
+    using Random
+    M = PureMLIP.Model
+    rng = Xoshiro(17)
+    # The interaction-1 conv_tp structure; C = 37 is not a multiple of any SIMD width, so both
+    # the vector body and the remainder of the channel loop run.
+    C = 37
+    tins = [
+        (1, 1, 1, 1.0), (2, 2, 2, 1.0), (1, 2, 3, 1.7320508075688772), (2, 1, 4, 1.7320508075688772),
+        (2, 3, 5, 1.7320508075688772), (1, 3, 6, 2.23606797749979), (2, 2, 7, 2.23606797749979),
+        (2, 4, 8, 2.23606797749979), (1, 4, 9, 2.6457513110645907), (2, 3, 10, 2.6457513110645907),
+    ]
+    for T in (Float64, Float32)
+        tp = M.ChannelwiseTP{T}([0, 1], [0, 1, 2, 3], [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], tins)
+        x, Y, w, dM = randn(rng, T, C, 4), randn(rng, T, 16), randn(rng, T, C, 10), randn(rng, T, C, 40)
+        dY0, dw0 = randn(rng, T, 16), randn(rng, T, C, 10)
+        dx, dY, dw = zeros(T, C, 4), copy(dY0), copy(dw0)
+        M.tp_edge_pullback_add!(dx, dY, dw, tp, dM, x, Y, w)
+        dxn, dYn, dwn = fill(T(NaN), C, 4), copy(dY0), copy(dw0)
+        @test M.tp_edge_pullback_add!(dxn, dYn, dwn, tp, dM, x, Y, w; need_dx = false) === nothing
+        # The same operations in the same order give the same dY and dw; dx is never touched.
+        @test dYn == dY
+        @test dwn == dw
+        @test all(isnan, dxn)
+    end
+end
+
 @testitem "layers accept views" begin
     using Random, OffsetArrays
     M = PureMLIP.Model

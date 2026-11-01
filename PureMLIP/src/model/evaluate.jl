@@ -301,10 +301,11 @@ end
 
 # Pullback of `_messages!` for interaction `k`: overwrites `dx` (the derivative with respect to
 # the sender features) and adds to `ws.dd` and `ws.dY` per edge, from `dM` and `ddensity`. The
-# radial MLP is recomputed chunk by chunk.
+# radial MLP is recomputed chunk by chunk. With `need_dx = false`, `dx` is left at zero.
 function _messages_pullback!(
         dx::AbstractArray{T, 3}, ws::MACEWorkspace{T}, model::MACEModel{T}, k::Int, x::AbstractArray{T, 3},
-        dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, nl::NeighborList
+        dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, nl::NeighborList;
+        need_dx::Bool = true
     ) where {T}
     fill!(dx, zero(T))
     mlp, tp, wd = model.mlp[k], model.conv[k], model.density[k]
@@ -322,7 +323,8 @@ function _messages_pullback!(
             j = e - start + 1
             tp_edge_pullback_add!(
                 view(dx, :, :, s), view(ws.dY, :, e), view(ws.dtpw3, :, 1:P, j), tp,
-                view(dM, :, :, r), view(x, :, :, s), view(ws.Y, :, e), view(ws.tpw3, :, 1:P, j)
+                view(dM, :, :, r), view(x, :, :, s), view(ws.Y, :, e), view(ws.tpw3, :, 1:P, j);
+                need_dx
             )
         end
         dfc = view(ws.dfeats_chunk, :, 1:nb)
@@ -402,7 +404,8 @@ function mace_energy_forces!(
         dh1[q] += part[q]
     end
 
-    # Product 0 and interaction 0. The embedding h0 does not depend on positions.
+    # Product 0 and interaction 0. The embedding h0 does not depend on positions, so the derivative
+    # with respect to the interaction-0 sender features is not needed.
     dB0 = view(ws.dB[1], :, :, atoms)
     linear_pullback!(dB0, model.product_linear[1], dh1)
     dX1 = view(ws.dX1, :, :, atoms)
@@ -411,7 +414,7 @@ function mace_energy_forces!(
     species_linear_pullback!(dL0, model.skip[1], dX1, species)
     dM0, ddens0 = view(ws.dM[1], :, :, atoms), view(ws.ddensity, atoms, 1)
     _normalized_linear_pullback!(dM0, ddens0, model.linear[1], dL0, view(ws.L[1], :, :, atoms), view(ws.density, atoms, 1))
-    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, nl)
+    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, nl; need_dx = false)
 
     # Edge vectors: g_e = (∂E/∂d) r_e / d + (∂Y/∂r_e)ᵀ ∂E/∂Y, with the pair term in ∂E/∂d.
     F = res.forces
