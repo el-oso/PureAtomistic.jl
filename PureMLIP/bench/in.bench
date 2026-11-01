@@ -1,0 +1,19 @@
+# LAMMPS-MACE force-evaluation timing. Variables supplied with -var: data, model, symbols.
+# `run 0` performs setup and a first evaluation (model load, graph warm-up). With a zero
+# timestep the atoms never move, so the 20 steps of `run 20` are 20 force evaluations on
+# one configuration and Loop time excludes setup.
+units           metal
+atom_style      atomic
+atom_modify     map yes
+newton          on
+boundary        p p p
+read_data       ${data}
+mass            * 1.0
+pair_style      mace no_domain_decomposition
+pair_coeff      * * ${model} ${symbols}
+velocity        all set 0.0 0.0 0.0
+fix             nve all nve
+timestep        0.0
+thermo          20
+run             0
+run             20

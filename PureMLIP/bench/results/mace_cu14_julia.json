@@ -1,0 +1,583 @@
+{
+  "schema": "puremlip-mace-cu14-julia-v1",
+  "julia_version": "1.13.3",
+  "machine": "Apple M6",
+  "timed": "mace_energy_forces! with a fixed neighbor list, 3 samples, one thread",
+  "cases": [
+    {
+      "precision": "Float64",
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 3239737024,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 3816341504,
+      "julia_samples_s": [
+        33.749565042,
+        33.799553041,
+        33.782891917
+      ],
+      "julia_median_s": 33.782891917,
+      "neighbor_list_samples_s": [
+        0.041443959,
+        0.041157042000000005,
+        0.041184625
+      ],
+      "neighbor_list_median_s": 0.041184625,
+      "swap_start_mb": 14090.12,
+      "swap_end_mb": 14090.12
+    },
+    {
+      "precision": "Float32",
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 1619914048,
+      "neighbor_list_bytes": 35038532,
+      "julia_peak_rss_bytes_so_far": 6147293184,
+      "julia_samples_s": [
+        24.83200975,
+        24.9375755,
+        25.917527125000003
+      ],
+      "julia_median_s": 24.9375755,
+      "neighbor_list_samples_s": [
+        0.042863458,
+        0.042714333,
+        0.043113500000000006
+      ],
+      "neighbor_list_median_s": 0.042863458,
+      "swap_start_mb": 14090.12,
+      "swap_end_mb": 14090.12
+    }
+  ],
+  "workspace_float64_fields": [
+    {
+      "field": "M",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 2,
+      "bytes": 629407856,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dM",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 2,
+      "bytes": 629407856,
+      "scale": "per-atom"
+    },
+    {
+      "field": "L",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 2,
+      "bytes": 359661680,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dL",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 2,
+      "bytes": 359661680,
+      "scale": "per-atom"
+    },
+    {
+      "field": "X1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 1,
+      "bytes": 179830840,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dX1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        16,
+        10976
+      ],
+      "count": 1,
+      "bytes": 179830840,
+      "scale": "per-atom"
+    },
+    {
+      "field": "Y",
+      "type": "Matrix{Float64}",
+      "size": [
+        16,
+        856128
+      ],
+      "count": 1,
+      "bytes": 109584432,
+      "scale": "per-edge"
+    },
+    {
+      "field": "dY",
+      "type": "Matrix{Float64}",
+      "size": [
+        16,
+        856128
+      ],
+      "count": 1,
+      "bytes": 109584432,
+      "scale": "per-edge"
+    },
+    {
+      "field": "feats",
+      "type": "Matrix{Float64}",
+      "size": [
+        10,
+        856128
+      ],
+      "count": 1,
+      "bytes": 68490288,
+      "scale": "per-edge"
+    },
+    {
+      "field": "dfeats",
+      "type": "Matrix{Float64}",
+      "size": [
+        10,
+        856128
+      ],
+      "count": 1,
+      "bytes": 68490288,
+      "scale": "per-edge"
+    },
+    {
+      "field": "x",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 2,
+      "bytes": 56197232,
+      "scale": "per-atom"
+    },
+    {
+      "field": "B",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        4,
+        10976
+      ],
+      "count": 2,
+      "bytes": 56197232,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dB",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        4,
+        10976
+      ],
+      "count": 2,
+      "bytes": 56197232,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dx",
+      "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 2,
+      "bytes": 56197232,
+      "scale": "per-atom"
+    },
+    {
+      "field": "h1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        4,
+        10976
+      ],
+      "count": 1,
+      "bytes": 44957752,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dh1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        4,
+        10976
+      ],
+      "count": 1,
+      "bytes": 44957752,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dh1_part",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        4,
+        10976
+      ],
+      "count": 1,
+      "bytes": 44957752,
+      "scale": "per-atom"
+    },
+    {
+      "field": "tpw3",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        10,
+        4096
+      ],
+      "count": 1,
+      "bytes": 41943096,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "dtpw3",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        10,
+        4096
+      ],
+      "count": 1,
+      "bytes": 41943096,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "tpw",
+      "type": "Matrix{Float64}",
+      "size": [
+        1280,
+        4096
+      ],
+      "count": 1,
+      "bytes": 41943088,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "dtpw",
+      "type": "Matrix{Float64}",
+      "size": [
+        1280,
+        4096
+      ],
+      "count": 1,
+      "bytes": 41943088,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "r",
+      "type": "Matrix{Float64}",
+      "size": [
+        3,
+        856128
+      ],
+      "count": 1,
+      "bytes": 20547120,
+      "scale": "per-edge"
+    },
+    {
+      "field": "h0",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 11239480,
+      "scale": "per-atom"
+    },
+    {
+      "field": "sc",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 11239480,
+      "scale": "per-atom"
+    },
+    {
+      "field": "h2",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 11239480,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dh2",
+      "type": "Array{Float64, 3}",
+      "size": [
+        128,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 11239480,
+      "scale": "per-atom"
+    },
+    {
+      "field": "d",
+      "type": "Vector{Float64}",
+      "size": [
+        856128
+      ],
+      "count": 1,
+      "bytes": 6849064,
+      "scale": "per-edge"
+    },
+    {
+      "field": "dd",
+      "type": "Vector{Float64}",
+      "size": [
+        856128
+      ],
+      "count": 1,
+      "bytes": 6849064,
+      "scale": "per-edge"
+    },
+    {
+      "field": "pre",
+      "type": "Array{Float64, 3}",
+      "size": [
+        64,
+        4096,
+        3
+      ],
+      "count": 1,
+      "bytes": 6291512,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "act",
+      "type": "Array{Float64, 3}",
+      "size": [
+        64,
+        4096,
+        3
+      ],
+      "count": 1,
+      "bytes": 6291512,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "mlp_scratch",
+      "type": "Array{Float64, 3}",
+      "size": [
+        64,
+        4096,
+        2
+      ],
+      "count": 1,
+      "bytes": 4194360,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "gpre",
+      "type": "Array{Float64, 3}",
+      "size": [
+        16,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 1404984,
+      "scale": "per-atom"
+    },
+    {
+      "field": "g",
+      "type": "Array{Float64, 3}",
+      "size": [
+        16,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 1404984,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dg",
+      "type": "Array{Float64, 3}",
+      "size": [
+        16,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 1404984,
+      "scale": "per-atom"
+    },
+    {
+      "field": "scratch",
+      "type": "Vector{Float64}",
+      "size": [
+        104448
+      ],
+      "count": 1,
+      "bytes": 835624,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "dfeats_chunk",
+      "type": "Matrix{Float64}",
+      "size": [
+        10,
+        4096
+      ],
+      "count": 1,
+      "bytes": 327728,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "density",
+      "type": "Matrix{Float64}",
+      "size": [
+        10976,
+        2
+      ],
+      "count": 1,
+      "bytes": 175664,
+      "scale": "per-atom"
+    },
+    {
+      "field": "ddensity",
+      "type": "Matrix{Float64}",
+      "size": [
+        10976,
+        2
+      ],
+      "count": 1,
+      "bytes": 175664,
+      "scale": "per-atom"
+    },
+    {
+      "field": "e1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        1,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 87864,
+      "scale": "per-atom"
+    },
+    {
+      "field": "e2",
+      "type": "Array{Float64, 3}",
+      "size": [
+        1,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 87864,
+      "scale": "per-atom"
+    },
+    {
+      "field": "de1",
+      "type": "Array{Float64, 3}",
+      "size": [
+        1,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 87864,
+      "scale": "per-atom"
+    },
+    {
+      "field": "de2",
+      "type": "Array{Float64, 3}",
+      "size": [
+        1,
+        1,
+        10976
+      ],
+      "count": 1,
+      "bytes": 87864,
+      "scale": "per-atom"
+    },
+    {
+      "field": "species",
+      "type": "Vector{Int64}",
+      "size": [
+        10976
+      ],
+      "count": 1,
+      "bytes": 87848,
+      "scale": "per-atom"
+    },
+    {
+      "field": "pair",
+      "type": "Vector{Float64}",
+      "size": [
+        10976
+      ],
+      "count": 1,
+      "bytes": 87848,
+      "scale": "per-atom"
+    },
+    {
+      "field": "dYdr",
+      "type": "Matrix{Float64}",
+      "size": [
+        16,
+        3
+      ],
+      "count": 1,
+      "bytes": 432,
+      "scale": "fixed/chunk"
+    },
+    {
+      "field": "Ye",
+      "type": "Vector{Float64}",
+      "size": [
+        16
+      ],
+      "count": 1,
+      "bytes": 168,
+      "scale": "fixed/chunk"
+    }
+  ]
+}
