@@ -48,7 +48,7 @@ function _check_mlp(mlp::RadialMLP, out::AbstractMatrix, pre::AbstractArray, act
         throw(DimensionMismatch(lazy"model: radial MLP features have $(size(feats, 1)) rows, expected $(size(mlp.W[1], 1))"))
     size(out) == (size(mlp.W[4], 2), nb) ||
         throw(DimensionMismatch(lazy"model: radial MLP output has size $(size(out)), expected $((size(mlp.W[4], 2), nb))"))
-    _check_mlp_hidden(mlp, pre, nb, 3, "pre-activations have")
+    _check_mlp_hidden(mlp, pre, nb, 3, "logistic buffer has")
     _check_mlp_hidden(mlp, act, nb, 3, "activations have")
     return nothing
 end
@@ -60,7 +60,7 @@ function _check_mlp_pullback(mlp::RadialMLP, dfeats::AbstractMatrix, g::Abstract
         throw(DimensionMismatch(lazy"model: radial MLP output cotangent has $(size(dout, 1)) rows, expected $(size(mlp.W[4], 2))"))
     size(dfeats) == (size(mlp.W[1], 1), nb) ||
         throw(DimensionMismatch(lazy"model: radial MLP feature gradient has size $(size(dfeats)), expected $((size(mlp.W[1], 1), nb))"))
-    _check_mlp_hidden(mlp, pre, nb, 3, "pre-activations have")
+    _check_mlp_hidden(mlp, pre, nb, 3, "logistic buffer has")
     _check_mlp_hidden(mlp, act, nb, 3, "activations have")
     _check_mlp_hidden(mlp, g, nb, 2, "scratch has")
     return nothing

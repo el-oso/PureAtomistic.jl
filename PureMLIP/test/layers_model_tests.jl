@@ -100,30 +100,38 @@ end
     cst = k.normalize2mom["interactions.0.conv_tp_weights.layer0.act"].cst
     @test cst == 1.679176792398942
     Ls = ntuple(j -> torch_array(st["interactions.0.conv_tp_weights.layer$(j - 1).weight"], Val(2)), 4)
-    mlp = M.RadialMLP{Float64}(Ls, cst)
     nb = 7
     feats = randn(Xoshiro(5), 10, nb)
-    out = zeros(512, nb); pre = zeros(64, nb, 3); act = zeros(64, nb, 3)
-    M.radial_mlp!(out, pre, act, mlp, feats)
-    ins = (feats, act[:, :, 1], act[:, :, 2], act[:, :, 3])
     silu(z) = z / (1 + exp(-z))
-    for j in 1:4
-        local L = Ls[j]
-        local h = size(L, 1)
-        local X = ins[j]
-        local naive = [sum(X[c, e] * (L[c, o] / sqrt(h)) for c in 1:h) for o in 1:size(L, 2), e in 1:nb]
-        # Rounding bound: 4·eps·N·max|terms|, N = h (10 or 64) terms per output.
-        local zb = 4 * eps() * h * maximum(abs, X) * maximum(abs, L) / sqrt(h)
-        if j == 4
-            @test out ≈ naive atol = zb
-        else
-            # `pre` holds the logistic σ(z) of the pre-activations z = naive. Measured margin:
-            # largest error 1.5·eps (layer 3; 1.0·eps in layers 1 and 2): σ ≤ 1 rounds in exp, one
-            # add and one inverse, and the rounding of z reaches σ damped by |σ'| ≤ 1/4.
-            @test all(abs.(pre[:, :, j] .- 1 ./ (1 .+ exp.(-naive))) .<= 4 * eps())
-            # Rounding bound: 8·eps relative per element (exp, one add, one division, one product),
-            # plus the slope |∂act/∂z| ≤ 1.1·cst times the bound on z.
-            @test all(abs.(act[:, :, j] .- cst .* silu.(naive)) .<= 8 * eps() .* abs.(act[:, :, j]) .+ 1.1 * cst * zb)
+    for T in (Float64, Float32)
+        local mlp = M.RadialMLP{T}(Ls, cst)
+        local fT = T.(feats)
+        local out = zeros(T, 512, nb); local pre = zeros(T, 64, nb, 3); local act = zeros(T, 64, nb, 3)
+        M.radial_mlp!(out, pre, act, mlp, fT)
+        local ins = (fT, act[:, :, 1], act[:, :, 2], act[:, :, 3])
+        for j in 1:4
+            local L = Ls[j]
+            local h = size(L, 1)
+            local X = Float64.(ins[j])
+            # The oracle z = naive is computed in Float64 from the same inputs.
+            local naive = [sum(X[c, e] * (L[c, o] / sqrt(h)) for c in 1:h) for o in 1:size(L, 2), e in 1:nb]
+            # S[o, e]: the sum of the absolute terms of naive[o, e].
+            local S = [sum(abs(X[c, e] * L[c, o]) for c in 1:h) / sqrt(h) for o in 1:size(L, 2), e in 1:nb]
+            if j == 4
+                # Rounding bound: 4·eps·N·max|terms|, N = h (10 or 64) terms per output.
+                @test out ≈ naive atol = 4 * eps(T) * h * maximum(abs, X) * maximum(abs, L) / sqrt(h)
+            else
+                # `pre` holds the logistic σ(z) of the pre-activations z. Rounding bound: each z is
+                # within γ_h·S of the exact value (the Float32 kernel rounds each weight once more,
+                # and its Float64 oracle is exact to this order), so the computed z and the oracle
+                # differ by at most h·eps·S; σ' = σ(1 - σ), and the factor 1.1 covers its change
+                # over that gap; 4·eps covers the rounding of σ itself (exp, one add, one inverse).
+                local s = 1 ./ (1 .+ exp.(-naive))
+                @test all(abs.(pre[:, :, j] .- s) .<= 4 * eps(T) .+ 1.1 .* s .* (1 .- s) .* h .* eps(T) .* S)
+                # Rounding bound: 8·eps relative per element (exp, one add, one division, one
+                # product), plus the slope |∂act/∂z| ≤ 1.1·cst times the h·eps·S gap in z.
+                @test all(abs.(act[:, :, j] .- cst .* silu.(naive)) .<= 8 * eps(T) .* abs.(act[:, :, j]) .+ 1.1 * cst * h * eps(T) .* S)
+            end
         end
     end
 
@@ -294,10 +302,10 @@ end
         @test dwn == dw
         # dY[j] sums `v * acc` over the n_j entries with that j, and each `acc` is a `@simd`
         # reduction over C channels whose order LLVM chooses per loop, so the two loops may round
-        # differently. Rounding bound: each result is within (C + 2 + n_j)·eps/2·S_j of the exact
-        # value (C three-factor products and C - 1 additions, the scaling by v, n_j additions into
-        # dY[j]), where S_j = |dY0[j]| + Σ|v|·Σ_u|dM·w·x| is the sum of the absolute terms; their
-        # difference within c·eps·S_j with c = C + 2 + n_j.
+        # differently. Rounding bound, to first order: each result is within (C + 2 + n_j)·eps/2·S_j
+        # of the exact value (C three-factor products and C - 1 additions, the scaling by v, n_j
+        # additions into dY[j]), where S_j = |dY0[j]| + Σ|v|·Σ_u|dM·w·x| is the sum of the absolute
+        # terms; their difference is within c·eps·S_j with c = C + 2 + n_j.
         S, nj = abs.(dY0), zeros(Int, length(dY0))
         for p in eachindex(tp.paths), q in tp.paths[p]
             i, j, k, v = tp.entries[q]
@@ -378,7 +386,7 @@ end
     @test_throws "model: radial MLP features have 4 rows, expected 3" M.radial_mlp!(zeros(2, 5), zeros(6, 5, 3), zeros(6, 5, 3), mlp, zeros(4, 5))
     @test_throws "model: radial MLP output has size (2, 4), expected (2, 5)" M.radial_mlp!(zeros(2, 4), zeros(6, 5, 3), zeros(6, 5, 3), mlp, zeros(3, 5))
     @test_throws "model: radial MLP activations have size (6, 4, 3), expected (6, 5, 3)" M.radial_mlp!(zeros(2, 5), zeros(6, 5, 3), zeros(6, 4, 3), mlp, zeros(3, 5))
-    @test_throws "model: radial MLP pre-activations have size (6, 5, 2), expected (6, 5, 3)" M.radial_mlp!(zeros(2, 5), zeros(6, 5, 2), zeros(6, 5, 3), mlp, zeros(3, 5))
+    @test_throws "model: radial MLP logistic buffer has size (6, 5, 2), expected (6, 5, 3)" M.radial_mlp!(zeros(2, 5), zeros(6, 5, 2), zeros(6, 5, 3), mlp, zeros(3, 5))
     @test_throws "model: radial MLP scratch has size (6, 5, 3), expected (6, 5, 2)" M.radial_mlp_pullback!(zeros(3, 5), zeros(6, 5, 3), mlp, zeros(2, 5), zeros(6, 5, 3), zeros(6, 5, 3))
     @test_throws "model: radial MLP feature gradient has size (3, 4), expected (3, 5)" M.radial_mlp_pullback!(zeros(3, 4), zeros(6, 5, 2), mlp, zeros(2, 5), zeros(6, 5, 3), zeros(6, 5, 3))
     @test_throws "model: radial MLP output cotangent has 3 rows, expected 2" M.radial_mlp_pullback!(zeros(3, 5), zeros(6, 5, 2), mlp, zeros(3, 5), zeros(6, 5, 3), zeros(6, 5, 3))
