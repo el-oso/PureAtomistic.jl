@@ -84,7 +84,7 @@ struct MACEWorkspace{T}
     dX1::Array{T, 3}                 # pool `mid`
     dL::NTuple{2, Array{T, 3}}       # dL[1] in pool `small`, dL[2] in pool `mid`
     dM::NTuple{2, Array{T, 3}}       # pool `big`
-    dx::Array{T, 3}                  # ∂E/∂x[2]; ∂E/∂x[1] is not needed (see mace_energy_forces!)
+    dx::NTuple{2, Array{T, 3}}       # ∂E/∂x[2] in dx[2]; dx[1] (pool `dx`) is never written
     ddensity::Matrix{T}              # n × 2
     function MACEWorkspace{T}(model::MACEModel, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096) where {T}
         (n_atoms >= 0 && n_edges >= 0) ||
@@ -109,12 +109,15 @@ struct MACEWorkspace{T}
         # - mid: L[1] (read only by skip[1]), dL[2], dX1.
         # - small: h0, h1, B[1], B[2], sc and h2 side by side (forward only; the backward reads
         #   none of them), then dL[1] over all of them.
+        # - dx: dx[2], then dx[1], which interaction 0 passes with `need_dx = false`, so it is
+        #   neither read nor written; it holds no memory of its own.
         (), (M0, M1, dM0, dM1) = _pool(T, (), (messages(1), messages(2), messages(1), messages(2)))
         (), (L0, dL1, dX1) = _pool(T, (), (dims(model.linear[1]), dims(model.linear[2]), (C, model.skip[1].K, n)))
         (h0, h1, B0, B1, sc, h2), (dL0,) = _pool(
             T, ((C, 1, n), dims(model.product_linear[1]), products(1), products(2), (C, model.skip[2].K, n), dims(model.product_linear[2])),
             (dims(model.linear[1]),),
         )
+        (), (dx1, dx0) = _pool(T, (), (dims(model.up[2]), dims(model.up[1])))
         return new{T}(
             n, E, chunk, zeros(Int, n),
             zeros(T, 3, E), zeros(T, E), zeros(T, 16, E), zeros(T, nb, E), zeros(T, nb, E), zeros(T, E), zeros(T, 16, E),
@@ -127,7 +130,7 @@ struct MACEWorkspace{T}
             node(model.readout1[1]), node(model.readout1[1]), node(model.readout0), node(model.readout1[2]), zeros(T, n), scratch,
             node(model.readout0), node(model.readout1[2]), node(model.readout1[1]), node(model.product_linear[2]),
             node(model.product_linear[1]), node(model.product_linear[1]), (zeros(T, products(1)), zeros(T, products(2))),
-            dX1, (dL0, dL1), (dM0, dM1), node(model.up[2]), zeros(T, n, 2),
+            dX1, (dL0, dL1), (dM0, dM1), (dx0, dx1), zeros(T, n, 2),
         )
     end
 end
@@ -135,7 +138,8 @@ end
 # Zero-filled arrays of the sizes in `packed` and `shared` over one block of memory: the `packed`
 # arrays lie side by side from the block's first element, and every `shared` array starts at the
 # first element too, so it overlaps them and the other `shared` arrays. `Base.wrap` makes each an
-# `Array` over the block, so the layers see the same array type as for separately allocated buffers.
+# `Array` over the block, so every member keeps the type `Array{T, 3}` of a separately allocated
+# buffer. `Base.wrap` is documented in Base but not declared public.
 function _pool(::Type{T}, packed::Tuple{Vararg{NTuple{3, Int}}}, shared::Tuple{Vararg{NTuple{3, Int}}}) where {T}
     plen = map(prod, packed)
     mem = Memory{T}(undef, max(sum(plen; init = 0), maximum(map(prod, shared); init = 0)))
@@ -437,7 +441,7 @@ function mace_energy_forces!(
     # Interaction 1.
     dM1, ddens1 = view(ws.dM[2], :, :, atoms), view(ws.ddensity, atoms, 2)
     _normalized_linear_pullback!(dM1, ddens1, model.linear[2], dX2, view(ws.L[2], :, :, atoms), view(ws.density, atoms, 2))
-    dx1 = view(ws.dx, :, :, atoms)
+    dx1 = view(ws.dx[2], :, :, atoms)
     _messages_pullback!(dx1, ws, model, 2, view(ws.x[2], :, :, atoms), dM1, ddens1, nl)
     linear_pullback!(part, model.up[2], dx1)
     for q in eachindex(dh1, part)
@@ -457,10 +461,8 @@ function mace_energy_forces!(
     # map per atom and dL0 is its pullback of dX1, so ⟨dL0, L0⟩ = ⟨dX1, X1⟩.
     _normalization_pullback!(ddens0, dL0, dX1, X1, view(ws.density, atoms, 1))
     linear_pullback!(dM0, model.linear[1], dL0)
-    # With `need_dx = false` the sender derivative is neither read nor written, so x[1] stands in
-    # for it.
-    x0 = view(ws.x[1], :, :, atoms)
-    _messages_pullback!(x0, ws, model, 1, x0, dM0, ddens0, nl; need_dx = false)
+    # With `need_dx = false` the sender derivative dx[1] is neither read nor written.
+    _messages_pullback!(view(ws.dx[1], :, :, atoms), ws, model, 1, view(ws.x[1], :, :, atoms), dM0, ddens0, nl; need_dx = false)
 
     # Edge vectors: g_e = (∂E/∂d) r_e / d + (∂Y/∂r_e)ᵀ ∂E/∂Y, with the pair term in ∂E/∂d.
     F = res.forces

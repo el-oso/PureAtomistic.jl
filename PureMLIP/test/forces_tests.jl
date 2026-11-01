@@ -220,10 +220,11 @@ end
     GC.gc()
 end
 
-# Buffers whose lifetimes do not overlap share memory in MACEWorkspace. A buffer read after
-# another member of its pool was written would carry that member's values into the result, so
-# every buffer of one workspace, sized for the largest structure, is filled with NaN before each
-# evaluation: a value read before it is written then shows as a non-finite result.
+# Buffers whose lifetimes do not overlap share memory in MACEWorkspace. Every buffer of one
+# workspace, sized for the largest structure, is filled with NaN before each evaluation, so a
+# read that comes before any write within the call shows as a non-finite result. A read of a
+# buffer after another member of its pool was written gives finite, deterministic values, which
+# a fresh workspace with the same layout reproduces; the LAMMPS references catch those.
 @testitem "forces: one workspace across structures, buffers filled with NaN" setup = [LammpsReference, Checkpoints] begin
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
     # Float64: the LAMMPS targets of "forces and virial match LAMMPS-MACE". Float32: the measured

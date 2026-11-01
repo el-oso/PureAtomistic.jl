@@ -448,6 +448,20 @@ replace = "_density_norm(ρ) = ρ"
 expect = "energies match"
 
 [[mutation]]
+name = "density-derivative-from-overwritten-L0"
+file = "src/model/evaluate.jl"
+find = "_normalization_pullback!(ddens0, dL0, dX1, X1, view(ws.density, atoms, 1))"
+replace = "_normalization_pullback!(ddens0, dL0, dL0, view(ws.L[1], :, :, atoms), view(ws.density, atoms, 1))"
+expect = "forces and virial match LAMMPS-MACE"
+
+[[mutation]]
+name = "density-derivative-sign"
+file = "src/model/evaluate.jl"
+find = "ddensity[i] = -s / q"
+replace = "ddensity[i] = s / q"
+expect = "density-normalization and message pullbacks"
+
+[[mutation]]
 name = "forces-without-angular-term"
 file = "src/model/evaluate.jl"
 find = "ga += ws.dY[j, e] * ws.dYdr[j, a]"
