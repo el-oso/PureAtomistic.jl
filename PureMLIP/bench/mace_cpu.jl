@@ -157,7 +157,7 @@ function main()
         schema = "puremlip-mace-cpu-bench-v1",
         machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String)),
         julia_version = string(VERSION), lammps_version, model = "mace-mpa-0-medium",
-        threads = 1, blas_threads = BLAS.get_num_threads(), julia_samples_per_round = JULIA_SAMPLES,
+        threads = 1, blas_threads = BLAS.get_num_threads(), blas_libraries = [basename(l.libname) for l in BLAS.get_config().loaded_libs], julia_samples_per_round = JULIA_SAMPLES,
         julia_timed = "mace_energy_forces! with a fixed neighbor list; neighbor_list! timed separately",
         lammps_timed = "Loop time of 'run 20' (timestep 0.0, static atoms) divided by 20; setup and 'run 0' excluded",
         cases = entries,

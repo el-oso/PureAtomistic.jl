@@ -1,0 +1,902 @@
+{
+  "schema": "puremlip-blas-compare-v1",
+  "machine": "Apple M6",
+  "versions": {
+    "AppleAccelerate": "0.7.0",
+    "PureBLAS": "0.1.2",
+    "PureBLAS_commit": "2a6e03d0",
+    "PureMLIP": "0.1.0",
+    "julia": "1.13.3",
+    "macos": "27.0.1",
+    "openblas": "libopenblas64_.0.3.30.dylib"
+  },
+  "model": "mace-mpa-0-medium",
+  "threads": 1,
+  "blas_threads": 1,
+  "samples_per_round": 3,
+  "rounds": 5,
+  "timed": "mace_energy_forces! with a fixed neighbor list, one thread, backends interleaved within each round",
+  "agreement_bound": "c*eps(T)*N relative to the quantity's max magnitude, c = 10, N = 1280",
+  "cases": [
+    {
+      "system": "cu_bench(5)",
+      "n_atoms": 500,
+      "n_edges": 39000,
+      "precision": "Float64",
+      "backends": [
+        {
+          "backend": "OpenBLAS",
+          "active": {
+            "backend": "OpenBLAS",
+            "dgemm_owner": "libopenblas64_.0.3.30.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              1.529484375,
+              1.5307257090000002,
+              1.531679792
+            ],
+            [
+              1.6208608750000002,
+              1.533544166,
+              1.5325615830000001
+            ],
+            [
+              1.5351516250000001,
+              1.5343445,
+              1.535406292
+            ],
+            [
+              1.533781791,
+              1.533418291,
+              1.533740542
+            ],
+            [
+              1.5378482910000002,
+              1.535653791,
+              1.534970334
+            ]
+          ],
+          "round_medians_s": [
+            1.5307257090000002,
+            1.533544166,
+            1.5351516250000001,
+            1.533740542,
+            1.535653791
+          ],
+          "median_s": 1.533781791,
+          "ratio_over_openblas": 1.0,
+          "round_ratios_over_openblas": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "ratio_min": 1.0,
+          "ratio_max": 1.0,
+          "agreement_with_openblas": null
+        },
+        {
+          "backend": "PureBLAS",
+          "active": {
+            "backend": "PureBLAS",
+            "dgemm_owner": "unknown",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              1.0772762500000002,
+              1.0769375,
+              1.077307583
+            ],
+            [
+              1.0790405,
+              1.0787583330000001,
+              1.079824917
+            ],
+            [
+              1.0795331670000001,
+              1.079930875,
+              1.07944675
+            ],
+            [
+              1.079744916,
+              1.079764583,
+              1.0788713330000002
+            ],
+            [
+              1.0803265420000001,
+              1.080402166,
+              1.0811619160000001
+            ]
+          ],
+          "round_medians_s": [
+            1.0772762500000002,
+            1.0790405,
+            1.0795331670000001,
+            1.079744916,
+            1.080402166
+          ],
+          "median_s": 1.0795331670000001,
+          "ratio_over_openblas": 0.7038375167409978,
+          "round_ratios_over_openblas": [
+            0.7037683130727375,
+            0.7036253170422221,
+            0.7032094741781614,
+            0.7039945065232552,
+            0.7035454034834601
+          ],
+          "ratio_min": 0.7032094741781614,
+          "ratio_max": 0.7039945065232552,
+          "agreement_with_openblas": {
+            "rel_energy_error": 1.1127502155865705E-16,
+            "rel_forces_error": 4.4112570598823804E-15,
+            "rel_virial_error": 3.611857473196769E-15,
+            "rel_stress_error": 3.579960846074435E-15,
+            "bound": 2.8421709430404007E-12,
+            "within_bound": true
+          }
+        },
+        {
+          "backend": "Accelerate",
+          "active": {
+            "backend": "Accelerate",
+            "dgemm_owner": "libBLAS.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib",
+              "Accelerate",
+              "Accelerate"
+            ]
+          },
+          "samples_s": [
+            [
+              1.042996791,
+              1.0423865840000002,
+              1.043873125
+            ],
+            [
+              1.045276458,
+              1.044137625,
+              1.044173
+            ],
+            [
+              1.0447896250000002,
+              1.045199542,
+              1.0446235830000001
+            ],
+            [
+              1.0445309580000002,
+              1.04667025,
+              1.044731042
+            ],
+            [
+              1.046542209,
+              1.0469429590000001,
+              1.045368792
+            ]
+          ],
+          "round_medians_s": [
+            1.042996791,
+            1.044173,
+            1.0447896250000002,
+            1.044731042,
+            1.046542209
+          ],
+          "median_s": 1.044731042,
+          "ratio_over_openblas": 0.6811471150135724,
+          "round_ratios_over_openblas": [
+            0.6813740599427013,
+            0.6808887693945946,
+            0.6805774804166331,
+            0.681165434042494,
+            0.681496190829903
+          ],
+          "ratio_min": 0.6805774804166331,
+          "ratio_max": 0.681496190829903,
+          "agreement_with_openblas": {
+            "rel_energy_error": 0.0,
+            "rel_forces_error": 4.3174005266933935E-15,
+            "rel_virial_error": 2.0316698286731823E-15,
+            "rel_stress_error": 1.9527059160406007E-15,
+            "bound": 2.8421709430404007E-12,
+            "within_bound": true
+          }
+        }
+      ],
+      "swaps": [
+        {
+          "round": 1,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 2,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 3,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 4,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 5,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        }
+      ],
+      "discarded_rounds": []
+    },
+    {
+      "system": "cu_bench(5)",
+      "n_atoms": 500,
+      "n_edges": 39000,
+      "precision": "Float32",
+      "backends": [
+        {
+          "backend": "OpenBLAS",
+          "active": {
+            "backend": "OpenBLAS",
+            "dgemm_owner": "libopenblas64_.0.3.30.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              1.132973459,
+              1.133374458,
+              1.137488042
+            ],
+            [
+              1.135279584,
+              1.134771541,
+              1.1354405410000001
+            ],
+            [
+              1.134496417,
+              1.134401083,
+              1.1346992500000002
+            ],
+            [
+              1.136676583,
+              1.1365779580000002,
+              1.136065542
+            ],
+            [
+              1.137320833,
+              1.1388487090000001,
+              1.1371508750000001
+            ]
+          ],
+          "round_medians_s": [
+            1.133374458,
+            1.135279584,
+            1.134496417,
+            1.1365779580000002,
+            1.137320833
+          ],
+          "median_s": 1.1354405410000001,
+          "ratio_over_openblas": 1.0,
+          "round_ratios_over_openblas": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "ratio_min": 1.0,
+          "ratio_max": 1.0,
+          "agreement_with_openblas": null
+        },
+        {
+          "backend": "PureBLAS",
+          "active": {
+            "backend": "PureBLAS",
+            "dgemm_owner": "unknown",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              1.3029041670000001,
+              1.308455791,
+              1.2728890000000002
+            ],
+            [
+              1.22556075,
+              1.2249575000000001,
+              1.228722125
+            ],
+            [
+              1.225421334,
+              1.2251355830000001,
+              1.2252865000000002
+            ],
+            [
+              1.2261371250000002,
+              1.226984625,
+              1.226013625
+            ],
+            [
+              1.228313291,
+              1.2267502920000002,
+              1.2261144160000002
+            ]
+          ],
+          "round_medians_s": [
+            1.3029041670000001,
+            1.22556075,
+            1.2252865000000002,
+            1.2261371250000002,
+            1.2267502920000002
+          ],
+          "median_s": 1.2261371250000002,
+          "ratio_over_openblas": 1.0798778806331173,
+          "round_ratios_over_openblas": [
+            1.1495796096368356,
+            1.0795232885998944,
+            1.0800267692692063,
+            1.0787972055674864,
+            1.0786316898496489
+          ],
+          "ratio_min": 1.0786316898496489,
+          "ratio_max": 1.1495796096368356,
+          "agreement_with_openblas": {
+            "rel_energy_error": 0.0,
+            "rel_forces_error": 0.0000017384116972607444,
+            "rel_virial_error": 0.000003817657670879271,
+            "rel_stress_error": 0.000003844006641884334,
+            "bound": 0.00152587890625,
+            "within_bound": true
+          }
+        },
+        {
+          "backend": "Accelerate",
+          "active": {
+            "backend": "Accelerate",
+            "dgemm_owner": "libBLAS.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib",
+              "Accelerate",
+              "Accelerate"
+            ]
+          },
+          "samples_s": [
+            [
+              0.928630166,
+              0.9105080000000001,
+              0.9349870410000001
+            ],
+            [
+              0.8768390410000001,
+              0.8767781250000001,
+              0.8778525
+            ],
+            [
+              0.876353625,
+              0.8763871670000001,
+              0.8760375
+            ],
+            [
+              0.8760140420000001,
+              0.8763887920000001,
+              0.8763231250000001
+            ],
+            [
+              0.877554625,
+              0.8765966660000001,
+              0.877436583
+            ]
+          ],
+          "round_medians_s": [
+            0.928630166,
+            0.8768390410000001,
+            0.876353625,
+            0.8763231250000001,
+            0.877436583
+          ],
+          "median_s": 0.8767781250000001,
+          "ratio_over_openblas": 0.7721920200487187,
+          "round_ratios_over_openblas": [
+            0.8193498269218981,
+            0.772355156701206,
+            0.7724604607543684,
+            0.7710189334852471,
+            0.7714943378690401
+          ],
+          "ratio_min": 0.7710189334852471,
+          "ratio_max": 0.8193498269218981,
+          "agreement_with_openblas": {
+            "rel_energy_error": 1.194806173998586E-7,
+            "rel_forces_error": 0.000001965161118278047,
+            "rel_virial_error": 2.4239096774181235E-7,
+            "rel_stress_error": 2.6209136194665916E-7,
+            "bound": 0.00152587890625,
+            "within_bound": true
+          }
+        }
+      ],
+      "swaps": [
+        {
+          "round": 1,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 2,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 3,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 4,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 5,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        }
+      ],
+      "discarded_rounds": []
+    },
+    {
+      "system": "cu_bench(7)",
+      "n_atoms": 1372,
+      "n_edges": 107016,
+      "precision": "Float64",
+      "backends": [
+        {
+          "backend": "OpenBLAS",
+          "active": {
+            "backend": "OpenBLAS",
+            "dgemm_owner": "libopenblas64_.0.3.30.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              4.20993475,
+              4.209266958000001,
+              4.212096167
+            ],
+            [
+              4.207120875,
+              4.208781833000001,
+              4.208980209
+            ],
+            [
+              4.209099459,
+              4.207762875,
+              4.20628675
+            ],
+            [
+              4.208713916000001,
+              4.208282458,
+              4.20972825
+            ],
+            [
+              4.209550333,
+              4.210502625,
+              4.207549708
+            ]
+          ],
+          "round_medians_s": [
+            4.20993475,
+            4.208781833000001,
+            4.207762875,
+            4.208713916000001,
+            4.209550333
+          ],
+          "median_s": 4.208980209,
+          "ratio_over_openblas": 1.0,
+          "round_ratios_over_openblas": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "ratio_min": 1.0,
+          "ratio_max": 1.0,
+          "agreement_with_openblas": null
+        },
+        {
+          "backend": "PureBLAS",
+          "active": {
+            "backend": "PureBLAS",
+            "dgemm_owner": "unknown",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              2.963891625,
+              2.9635182500000004,
+              2.964323541
+            ],
+            [
+              2.968425125,
+              2.963940833,
+              2.9627030420000002
+            ],
+            [
+              2.964847583,
+              2.9656965410000002,
+              2.965101208
+            ],
+            [
+              2.9660789590000003,
+              2.9646387090000004,
+              2.964451792
+            ],
+            [
+              2.965504916,
+              2.966494791,
+              2.9662576670000003
+            ]
+          ],
+          "round_medians_s": [
+            2.963891625,
+            2.963940833,
+            2.965101208,
+            2.9646387090000004,
+            2.9662576670000003
+          ],
+          "median_s": 2.964847583,
+          "ratio_over_openblas": 0.7044099605553645,
+          "round_ratios_over_openblas": [
+            0.7040231739933736,
+            0.7042277197075136,
+            0.7046740265752262,
+            0.7044049009198562,
+            0.704649530793483
+          ],
+          "ratio_min": 0.7040231739933736,
+          "ratio_max": 0.7046740265752262,
+          "agreement_with_openblas": {
+            "rel_energy_error": 3.245398511154749E-16,
+            "rel_forces_error": 3.764599857917898E-15,
+            "rel_virial_error": 4.1661654025310914E-15,
+            "rel_stress_error": 4.120364091455823E-15,
+            "bound": 2.8421709430404007E-12,
+            "within_bound": true
+          }
+        },
+        {
+          "backend": "Accelerate",
+          "active": {
+            "backend": "Accelerate",
+            "dgemm_owner": "libBLAS.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib",
+              "Accelerate",
+              "Accelerate"
+            ]
+          },
+          "samples_s": [
+            [
+              2.860492541,
+              2.862544583,
+              2.8626866250000003
+            ],
+            [
+              2.862890709,
+              2.858766916,
+              2.8599487910000003
+            ],
+            [
+              2.865306459,
+              2.8643201250000003,
+              2.863544375
+            ],
+            [
+              2.86348225,
+              2.866957209,
+              2.865353541
+            ],
+            [
+              2.863185375,
+              2.866280167,
+              2.8659907920000003
+            ]
+          ],
+          "round_medians_s": [
+            2.862544583,
+            2.8599487910000003,
+            2.8643201250000003,
+            2.865353541,
+            2.8659907920000003
+          ],
+          "median_s": 2.86348225,
+          "ratio_over_openblas": 0.6803268506411739,
+          "round_ratios_over_openblas": [
+            0.6799498692942925,
+            0.6795193727020632,
+            0.6807227997609062,
+            0.6808145191591587,
+            0.6808306268564102
+          ],
+          "ratio_min": 0.6795193727020632,
+          "ratio_max": 0.6808306268564102,
+          "agreement_with_openblas": {
+            "rel_energy_error": 0.0,
+            "rel_forces_error": 3.8446977272353004E-15,
+            "rel_virial_error": 6.409485234663217E-16,
+            "rel_stress_error": 6.339021679162804E-16,
+            "bound": 2.8421709430404007E-12,
+            "within_bound": true
+          }
+        }
+      ],
+      "swaps": [
+        {
+          "round": 1,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 2,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 3,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 4,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 5,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        }
+      ],
+      "discarded_rounds": []
+    },
+    {
+      "system": "cu_bench(7)",
+      "n_atoms": 1372,
+      "n_edges": 107016,
+      "precision": "Float32",
+      "backends": [
+        {
+          "backend": "OpenBLAS",
+          "active": {
+            "backend": "OpenBLAS",
+            "dgemm_owner": "libopenblas64_.0.3.30.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              3.107053584,
+              3.105697917,
+              3.105594083
+            ],
+            [
+              3.1061815000000004,
+              3.106228541,
+              3.1066257090000002
+            ],
+            [
+              3.105831083,
+              3.105430875,
+              3.1049321250000004
+            ],
+            [
+              3.104972458,
+              3.1062605420000002,
+              3.106595625
+            ],
+            [
+              3.1057345,
+              3.1046820410000002,
+              3.1054464590000004
+            ]
+          ],
+          "round_medians_s": [
+            3.105697917,
+            3.106228541,
+            3.105430875,
+            3.1062605420000002,
+            3.1054464590000004
+          ],
+          "median_s": 3.1057345,
+          "ratio_over_openblas": 1.0,
+          "round_ratios_over_openblas": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "ratio_min": 1.0,
+          "ratio_max": 1.0,
+          "agreement_with_openblas": null
+        },
+        {
+          "backend": "PureBLAS",
+          "active": {
+            "backend": "PureBLAS",
+            "dgemm_owner": "unknown",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib"
+            ]
+          },
+          "samples_s": [
+            [
+              3.3593577920000004,
+              3.359796459,
+              3.3585947910000002
+            ],
+            [
+              3.359212083,
+              3.3593950830000003,
+              3.3590549170000004
+            ],
+            [
+              3.3599379170000003,
+              3.359246333,
+              3.3635470830000003
+            ],
+            [
+              3.359438792,
+              3.358995,
+              3.3603188750000004
+            ],
+            [
+              3.3589446670000003,
+              3.359812375,
+              3.3588889170000003
+            ]
+          ],
+          "round_medians_s": [
+            3.3593577920000004,
+            3.359212083,
+            3.3599379170000003,
+            3.359438792,
+            3.3589446670000003
+          ],
+          "median_s": 3.3593577920000004,
+          "ratio_over_openblas": 1.0816629019640926,
+          "round_ratios_over_openblas": [
+            1.0816756432142078,
+            1.0814439564445428,
+            1.0819554684178891,
+            1.0815057998441393,
+            1.081630197572825
+          ],
+          "ratio_min": 1.0814439564445428,
+          "ratio_max": 1.0819554684178891,
+          "agreement_with_openblas": {
+            "rel_energy_error": 8.711799637239892E-8,
+            "rel_forces_error": 0.0000018060978845824138,
+            "rel_virial_error": 0.000004559464741760166,
+            "rel_stress_error": 0.000004509339305514004,
+            "bound": 0.00152587890625,
+            "within_bound": true
+          }
+        },
+        {
+          "backend": "Accelerate",
+          "active": {
+            "backend": "Accelerate",
+            "dgemm_owner": "libBLAS.dylib",
+            "loaded_libraries": [
+              "libopenblas64_.0.3.30.dylib",
+              "Accelerate",
+              "Accelerate"
+            ]
+          },
+          "samples_s": [
+            [
+              2.4015340000000003,
+              2.4006715410000004,
+              2.4018407500000003
+            ],
+            [
+              2.401436084,
+              2.403358583,
+              2.401037333
+            ],
+            [
+              2.402489166,
+              2.400438208,
+              2.4047940000000003
+            ],
+            [
+              2.3997537920000003,
+              2.4026839580000003,
+              2.403639584
+            ],
+            [
+              2.4030811670000003,
+              2.403069834,
+              2.4004327500000002
+            ]
+          ],
+          "round_medians_s": [
+            2.4015340000000003,
+            2.401436084,
+            2.402489166,
+            2.4026839580000003,
+            2.403069834
+          ],
+          "median_s": 2.4018407500000003,
+          "ratio_over_openblas": 0.7733567534507538,
+          "round_ratios_over_openblas": [
+            0.7732670929952522,
+            0.7731034765480896,
+            0.7736411669443455,
+            0.773497240657413,
+            0.7738242683384804
+          ],
+          "ratio_min": 0.7731034765480896,
+          "ratio_max": 0.7738242683384804,
+          "agreement_with_openblas": {
+            "rel_energy_error": 8.711799637239892E-8,
+            "rel_forces_error": 0.0000020641118680941872,
+            "rel_virial_error": 7.74248690049717E-7,
+            "rel_stress_error": 7.657368428226619E-7,
+            "bound": 0.00152587890625,
+            "within_bound": true
+          }
+        }
+      ],
+      "swaps": [
+        {
+          "round": 1,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 2,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 3,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 4,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        },
+        {
+          "round": 5,
+          "swap_start_mb": 14042.12,
+          "swap_end_mb": 14042.12
+        }
+      ],
+      "discarded_rounds": []
+    }
+  ]
+}

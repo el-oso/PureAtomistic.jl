@@ -70,6 +70,7 @@ end
 doc = (;
     schema = "puremlip-mace-cu14-julia-v1", julia_version = string(VERSION),
     machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String)),
+    blas_libraries = [basename(l.libname) for l in BLAS.get_config().loaded_libs],
     timed = "mace_energy_forces! with a fixed neighbor list, 3 samples, one thread",
     cases, workspace_float64_fields = breakdown,
 )
