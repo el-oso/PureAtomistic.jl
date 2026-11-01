@@ -17,7 +17,8 @@
 # Usage: julia run.jl [filter ...]
 # A filter is a regular expression matched against mutation names; with none, all run.
 # Set PUREMLIP_CHECKPOINT_DIR to the checkpoint cache the suite reads, and
-# MUTATION_LOG_DIR to keep each run's log as <name>.log.
+# MUTATION_LOG_DIR to keep each run's log as <name>.log. Set MUTATION_NO_CONTROL=1 to skip
+# the control run when running the entries in several batches after one passing control.
 
 using TOML
 
@@ -109,10 +110,14 @@ function main(args)
     logdir = get(ENV, "MUTATION_LOG_DIR", "")
     isempty(logdir) || mkpath(logdir)
 
-    ok, _ = run_suite(nothing, logdir, "control")
-    println("control (unmutated): ", ok ? "passed" : "FAILED")
-    flush(stdout)
-    ok || return 1
+    if get(ENV, "MUTATION_NO_CONTROL", "") == "1"
+        println("control (unmutated): skipped")
+    else
+        ok, _ = run_suite(nothing, logdir, "control")
+        println("control (unmutated): ", ok ? "passed" : "FAILED")
+        flush(stdout)
+        ok || return 1
+    end
 
     bad = String[]
     for m in selected

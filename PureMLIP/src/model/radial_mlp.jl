@@ -69,7 +69,7 @@ end
 # act = normalized_silu(pre) for one hidden layer.
 function _mlp_layer!(pre::AbstractMatrix, act::AbstractMatrix, W::AbstractMatrix, input::AbstractMatrix, cst)
     mul!(pre, transpose(W), input)
-    for q in _eachindex(pre, act)
+    for q in eachindex(pre, act)
         act[q] = normalized_silu(pre[q], cst)[1]
     end
     return nothing
@@ -77,7 +77,7 @@ end
 
 # g .*= ∂act/∂pre, turning an activation cotangent into a pre-activation cotangent.
 function _mlp_layer_pullback!(g::AbstractMatrix, pre::AbstractMatrix, cst)
-    for q in _eachindex(g, pre)
+    for q in eachindex(g, pre)
         g[q] *= normalized_silu(pre[q], cst)[2]
     end
     return nothing
@@ -127,7 +127,7 @@ MACE's edge density `ρ = tanh(z²)`, `z = feats · (w / sqrt(n_basis))`, and `c
 function density_edge(feats::AbstractVector{S}, w::AbstractVector) where {S <: Real}
     r = sqrt(Float64(length(feats)))
     z = zero(S)
-    for b in _eachindex(feats, w)
+    for b in eachindex(feats, w)
         z += feats[b] * oftype(z, w[b] / r)
     end
     ρ = tanh(z * z)

@@ -453,3 +453,10 @@ file = "src/tiny_checkpoint.jl"
 find = "crc = crc32(data)"
 replace = 'crc = name == "archive/byteorder" ? crc32(data) ⊻ 0x00000001 : crc32(data)'
 expect = "tiny"
+
+[[mutation]]
+name = "eachindex-third-argument-unchecked"
+file = "src/model/eachindex.jl"
+find = "return _check_eachindex(style, inds, Bs...)"
+replace = "return nothing"
+expect = "_eachindex matches"

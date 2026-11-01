@@ -167,9 +167,18 @@ end
     @test y ≈ naive atol = 4 * eps() * 384 * maximum(abs, x) * maximum(abs, W)
 end
 
-@testitem "_eachindex checks that axes match" begin
-    M = PureMLIP.Model
-    @test M._eachindex([1, 2], [3, 4], [5, 6]) == 1:2
-    @test collect(M._eachindex(ones(2, 2), ones(2, 2))) == collect(1:4)
-    @test_throws "model: arrays must share axes, got (Base.OneTo(2),) and (Base.OneTo(3),)" M._eachindex([1, 2], [1, 2, 3])
+@testitem "_eachindex matches eachindex and reports mismatches" begin
+    E = PureMLIP.Model._eachindex
+    a, b, c = zeros(4), ones(4), zeros(4)
+    @test E(a, b, c) === eachindex(a, b, c)
+    M = zeros(2, 3)
+    V = view(zeros(4, 6), 1:2, 1:3)
+    @test E(M, V, M) === eachindex(M, V, M)
+    @test E(M, V) === eachindex(M, V)
+    @test E(zeros(2, 3), zeros(6)) === eachindex(zeros(2, 3), zeros(6))
+    @test E(a) === eachindex(a)
+    msg = "all inputs to eachindex must have the same indices, got Base.OneTo(5) and Base.OneTo(4)"
+    @test_throws msg E(zeros(5), zeros(4))
+    @test_throws msg E(zeros(5), zeros(5), zeros(4))
+    @test_throws msg E(zeros(5), zeros(4), zeros(5))
 end
