@@ -52,7 +52,7 @@ evaluations, allocate them once and call the in-place forms, which do not alloca
 
 ```julia
 nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-ws = MACEWorkspace{Float64}(model, size(positions, 2), nl.n_edges)
+ws = MACEWorkspace{Float64}(model, size(positions, 2), length(nl.senders))
 res = MACEResult{Float64}(size(positions, 2))
 neighbor_list!(nl, positions, cell)
 mace_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl)  # or mace_energy!
@@ -66,7 +66,8 @@ receiver. The model requires `r_cut >= model.r_max` and throws otherwise. Its ca
 number of edges found plus `extra_capacity`; `neighbor_list!` rebuilds the list for new
 positions in place and throws when the new edge count exceeds the capacity, in which case the
 list must be rebuilt with `neighbor_list`. A workspace is sized for a number of atoms and
-edges and is used with any structure within them.
+edges and is used with any structure within them; for repeated evaluation it must cover the
+list's capacity, `length(nl.senders)`, not only the current edge count `nl.n_edges`.
 
 ## Float32
 
@@ -74,3 +75,17 @@ edges and is used with any structure within them.
 must have the model's element type. Against LAMMPS-MACE on the reference structures, the
 largest Float32 energy difference is 1.6e-5 eV on an energy of -235 eV, and the largest force
 difference is 9.4e-6 eV/Å.
+
+## Reference
+
+```@docs
+NeighborList
+neighbor_list
+neighbor_list!
+MACEModel
+MACEResult
+MACEWorkspace
+mace_energy!
+mace_energy_forces!
+mace_energy_forces
+```

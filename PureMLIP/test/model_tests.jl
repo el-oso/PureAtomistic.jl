@@ -134,6 +134,7 @@ end
     big = MACEWorkspace{Float64}(m, n + 3, nl.n_edges + 7)
     rb = mace_energy!(MACEResult{Float64}(n), big, m, s.positions, s.cell, s.atomic_numbers, nl)
     @test abs(rb.energy - r.energy) <= 64 * eps() * sum(abs, r.node_energies)
+    # The message comes from Base.require_one_based_indexing, so only the type is checked.
     @test_throws ArgumentError mace_energy!(
         MACEResult{Float64}(n), ws, m, OffsetArray(s.positions, 0:2, 0:(n - 1)), s.cell, s.atomic_numbers, nl
     )
@@ -149,7 +150,7 @@ end
     out_slot = [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
     @test lin.pw == pws && lin.slots == [(p, out_slot[p]) for p in 1:10]
     @test MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mp0b3))).linear[2].pw == pws
-    # Section 8: out_l = pw_l · Σ over the slots of degree l of Σ_u M_slot[u, m] W_slot[u, w], each
+    # mace blocks.py, interactions.1.linear: out_l = pw_l · Σ over the slots of degree l of Σ_u M_slot[u, m] W_slot[u, w], each
     # slot its own consecutive [128, 128] block of interactions.1.linear.weight.
     W = ck.state.f64["interactions.1.linear.weight"].data
     in_ls = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3]

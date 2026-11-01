@@ -9,6 +9,8 @@
             new_model32(ck) = PureMLIP.MACEModel{Float32}(ck)
             new_result64(n) = PureMLIP.MACEResult{Float64}(n)
             new_workspace64(m, n, e) = PureMLIP.MACEWorkspace{Float64}(m, n, e)
+            new_result32(n) = PureMLIP.MACEResult{Float32}(n)
+            new_workspace32(m, n, e) = PureMLIP.MACEWorkspace{Float32}(m, n, e)
         end,
         PureMLIP.load_mace_checkpoint(Vector{UInt8}),
         PureMLIP.load_mace_checkpoint(String),
@@ -41,6 +43,19 @@
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
         ),
-        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int})
+        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int}),
+        PureMLIP.neighbor_list(Matrix{Float32}, Matrix{Float32}, Float32),
+        PureMLIP.neighbor_list!(PureMLIP.NeighborList{Float32}, Matrix{Float32}, Matrix{Float32}),
+        new_result32(Int),
+        new_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
+        PureMLIP.mace_energy!(
+            PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},
+            Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
+        ),
+        PureMLIP.mace_energy_forces!(
+            PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},
+            Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
+        ),
+        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int})
     )
 end

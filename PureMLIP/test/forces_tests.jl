@@ -90,6 +90,7 @@ end
         MACEResult{Float64}(n), ws, m, view(Pb, 2:4, 2:(n + 1)), view(Cb, 2:4, 1:3), view(Zb, 2:(n + 1)), nl
     )
     @test rv.energy == r.energy && rv.forces == r.forces && rv.virial == r.virial
+    # The message comes from Base.require_one_based_indexing, so only the type is checked.
     @test_throws ArgumentError mace_energy_forces!(
         MACEResult{Float64}(n), ws, m, OffsetArray(s.positions, 0:2, 0:(n - 1)), s.cell, s.atomic_numbers, nl
     )

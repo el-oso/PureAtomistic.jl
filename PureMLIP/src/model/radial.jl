@@ -33,7 +33,7 @@ function agnesi_transform(d::S, r0, a, p, q) where {S <: Real}
 end
 
 function bessel_basis!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
-    axes(B) == axes(dB) == axes(weights) || throw(DimensionMismatch("B, dB and weights must share axes: $(axes(B)), $(axes(dB)), $(axes(weights))"))
+    axes(B) == axes(dB) == axes(weights) || throw(DimensionMismatch(lazy"model: B, dB and weights must share axes: $(axes(B)), $(axes(dB)), $(axes(weights))"))
     for n in eachindex(B)
         s, c = sincos(weights[n] * x)
         B[n] = prefactor * s / x

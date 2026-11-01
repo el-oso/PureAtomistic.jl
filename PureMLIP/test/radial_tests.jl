@@ -83,5 +83,19 @@ end
     buf = zeros(8); dbuf = zeros(8)
     M.radial_embedding!(view(buf, 3:6), view(dbuf, 3:6), emb, 1.3, 6, 8)
     @test view(buf, 3:6) == F && view(dbuf, 3:6) == dF            # same arithmetic: exact
-    @test_throws "B, dB and weights must share axes" M.bessel_basis!(OffsetArray(zeros(4), 0:3), zeros(4), 1.0, emb.bessel_weights, 0.5)
+    @test_throws "model: B, dB and weights must share axes" M.bessel_basis!(OffsetArray(zeros(4), 0:3), zeros(4), 1.0, emb.bessel_weights, 0.5)
+end
+
+@testitem "ZBL edge derivative matches ForwardDiff" begin
+    using ForwardDiff
+    M = PureMLIP.Model
+    radii = fill(0.2, 119); radii[30] = 1.32; radii[2] = 0.31; radii[7] = 0.76    # Cu, H, C
+    zbl = M.ZBLParams{Float64}((0.1818, 0.5099, 0.2802, 0.02817), 6.0, 0.3, 0.4543, radii)
+    # Oracle: ForwardDiff through the energy. Measured margin: |de - J| is 7.5e-18 (Cu-Cu) and
+    # 4.8e-15 (H-C); the tolerances are 13 and 17 times these.
+    for (Zu, Zv, d, tol) in ((29, 29, 2.5, 1.0e-16), (1, 6, 1.0, 8.0e-14))
+        _, de = M.zbl_edge_energy(d, Zu, Zv, zbl)
+        J = ForwardDiff.derivative(x -> M.zbl_edge_energy(x, Zu, Zv, zbl)[1], d)
+        @test de ≈ J atol = tol rtol = 0
+    end
 end

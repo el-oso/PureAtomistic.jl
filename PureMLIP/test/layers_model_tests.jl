@@ -337,5 +337,6 @@ end
     @test_throws "model: radial MLP scratch has size (6, 5, 3), expected (6, 5, 2)" M.radial_mlp_pullback!(zeros(3, 5), zeros(6, 5, 3), mlp, zeros(2, 5), zeros(6, 5, 3), zeros(6, 5, 3))
     @test_throws "model: radial MLP feature gradient has size (3, 4), expected (3, 5)" M.radial_mlp_pullback!(zeros(3, 4), zeros(6, 5, 2), mlp, zeros(2, 5), zeros(6, 5, 3), zeros(6, 5, 3))
     @test_throws "model: radial MLP output cotangent has 3 rows, expected 2" M.radial_mlp_pullback!(zeros(3, 5), zeros(6, 5, 2), mlp, zeros(3, 5), zeros(6, 5, 3), zeros(6, 5, 3))
+    # The message comes from Base's eachindex over two vectors, so only the type is checked.
     @test_throws DimensionMismatch M.density_edge(zeros(3), zeros(4))
 end

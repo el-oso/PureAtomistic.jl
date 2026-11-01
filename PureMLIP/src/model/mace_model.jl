@@ -238,6 +238,10 @@ struct MACEModel{T <: AbstractFloat}
         (length(H) == 1 && H[1].l == 0) || _unsupported("readouts.1 hidden irreps", H, "Hx0e")
         readout1 = (_linear(T, ck, "readouts.1.linear_1", C, H[1].mul), _linear(T, ck, "readouts.1.linear_2", H[1].mul, 1))
 
+        # The workspace holds one radial-MLP buffer set for both interactions.
+        size(mlp[1].W[1], 2) == size(mlp[2].W[1], 2) ||
+            _unsupported("interactions.1.conv_tp_weights hidden width", size(mlp[2].W[1], 2), size(mlp[1].W[1], 2))
+
         # The feature shapes that connect the blocks.
         nb = length(bessel)
         for j in 1:2
