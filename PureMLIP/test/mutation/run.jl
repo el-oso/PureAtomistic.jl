@@ -74,6 +74,12 @@ function run_suite(m, logdir, name)
     try
         dst = joinpath(dir, "PureMLIP")
         copy_package(PKG_DIR, dst)
+        # The precompile workload loads and evaluates the tiny checkpoint, so a mutation that breaks
+        # either would fail package precompilation and read as invalid instead of being caught by a
+        # test. The workload is removed from every copy, the control included, so that all runs share
+        # one configuration; the import stays because Aqua's stale-dependency check requires it. The
+        # workload itself is exercised by the ordinary suite.
+        write(joinpath(dst, "src", "precompile.jl"), "using PrecompileTools: @setup_workload\n")
         isnothing(m) || apply_mutation(dst, m)
         logfile = joinpath(dir, "log.txt")
         cmd = `$(Base.julia_cmd()) --project=$dst -e "using Pkg; Pkg.test()"`

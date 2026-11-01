@@ -14,10 +14,12 @@ model32 = MACEModel{Float32}(ck) # Float32 parameters
 
 `MACEModel{T}(ck)` reads the channel, element, basis and radial-MLP sizes from the
 checkpoint and checks every other architectural choice against the supported architecture
-below. Any difference throws an `ArgumentError` that begins `model: unsupported checkpoint`
-and names the item found and the item expected. Public fields: `z_table` (the atomic numbers
-of the model's elements), `r_max` (cutoff, Å), `e0` (reference energy of each element, eV),
-`scale` and `shift`.
+below. A difference in an architectural choice throws an `ArgumentError` that begins
+`model: unsupported checkpoint` and names the item found and the item expected; a tensor of
+the wrong shape throws an `ArgumentError` or `DimensionMismatch` with a `model:` prefix.
+
+Public fields: `z_table` (the atomic numbers of the model's elements), `r_max` (cutoff, Å),
+`e0` (reference energy of each element, eV), `scale` and `shift`.
 
 The supported architecture is the one of MACE-MP-0b3 and MACE-MPA-0: a `ScaleShiftMACE` with
 one head, two density-normalized interactions (`RealAgnosticDensityInteractionBlock`, then
@@ -69,5 +71,6 @@ edges and is used with any structure within them.
 ## Float32
 
 `MACEModel{Float32}` computes in Float32 end to end. The arguments of the evaluation functions
-must have the model's element type. Against LAMMPS-MACE on the reference structures, the largest Float32 energy difference is 1.6e-5 eV on
-an energy of -235 eV, and the largest force difference is 9.4e-6 eV/Å.
+must have the model's element type. Against LAMMPS-MACE on the reference structures, the
+largest Float32 energy difference is 1.6e-5 eV on an energy of -235 eV, and the largest force
+difference is 9.4e-6 eV/Å.
