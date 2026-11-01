@@ -502,3 +502,24 @@ file = "src/model/blocks.jl"
 find = "issorted(receivers) ||"
 replace = "true ||"
 expect = "receiver order and range"
+
+[[mutation]]
+name = "energy-workspace-pair-doubled"
+file = "src/model/evaluate.jl"
+find = "pair[r - offset] += zbl_edge_energy("
+replace = "pair[r - offset] += 2 * zbl_edge_energy("
+expect = "energy workspace: energies equal"
+
+[[mutation]]
+name = "energy-workspace-readout-of-block-index"
+file = "src/model/evaluate.jl"
+find = "ws.e1[1, 1, i]"
+replace = "ws.e1[1, 1, j]"
+expect = "energy workspace: energies equal"
+
+[[mutation]]
+name = "radial-mlp-forward-only-last-hidden-cst"
+file = "src/model/radial_mlp.jl"
+find = "_mlp_layer!(a1, mlp.W[3], a2, mlp.cst)"
+replace = "_mlp_layer!(a1, mlp.W[3], a2, one(mlp.cst))"
+expect = "without derivatives equal the derivative forms"

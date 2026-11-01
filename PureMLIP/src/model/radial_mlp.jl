@@ -41,13 +41,19 @@ function _check_mlp_hidden(mlp::RadialMLP, A::AbstractArray, nb::Int, depth::Int
     return nothing
 end
 
-function _check_mlp(mlp::RadialMLP, out::AbstractMatrix, pre::AbstractArray, act::AbstractArray, feats::AbstractMatrix)
-    Base.require_one_based_indexing(out, pre, act, feats)
+# The sizes of the features and the output; returns the number of columns.
+function _check_mlp_io(mlp::RadialMLP, out::AbstractMatrix, feats::AbstractMatrix)
     nb = size(feats, 2)
     size(feats, 1) == size(mlp.W[1], 1) ||
         throw(DimensionMismatch(lazy"model: radial MLP features have $(size(feats, 1)) rows, expected $(size(mlp.W[1], 1))"))
     size(out) == (size(mlp.W[4], 2), nb) ||
         throw(DimensionMismatch(lazy"model: radial MLP output has size $(size(out)), expected $((size(mlp.W[4], 2), nb))"))
+    return nb
+end
+
+function _check_mlp(mlp::RadialMLP, out::AbstractMatrix, pre::AbstractArray, act::AbstractArray, feats::AbstractMatrix)
+    Base.require_one_based_indexing(out, pre, act, feats)
+    nb = _check_mlp_io(mlp, out, feats)
     _check_mlp_hidden(mlp, pre, nb, 3, "logistic buffer has")
     _check_mlp_hidden(mlp, act, nb, 3, "activations have")
     return nothing
@@ -89,6 +95,37 @@ function _mlp_layer_pullback!(g::AbstractMatrix, σs::AbstractMatrix, act::Abstr
         g[q] *= c * σ + act[q] * (one(σ) - σ)
     end
     return nothing
+end
+
+# The forward of `_mlp_layer!` without the logistic kept for a pullback: act = cst·z·σ(z) for
+# z = Wᵀ input, computed in place in `act`.
+function _mlp_layer!(act::AbstractMatrix, W::AbstractMatrix, input::AbstractMatrix, cst)
+    mul!(act, transpose(W), input)
+    c = convert(eltype(act), cst)
+    for q in eachindex(act)
+        z = act[q]
+        σ = inv(one(z) + exp(-z))
+        act[q] = z * σ * c
+    end
+    return nothing
+end
+
+"""
+    radial_mlp!(out, act, mlp::RadialMLP, feats) -> out
+
+`out = mlp(feats)` as the five-argument form computes it, keeping nothing for a pullback:
+`act` (`hidden × nb × 2`) holds the activations of the hidden layers alternately.
+"""
+function radial_mlp!(out::AbstractMatrix{S}, act::AbstractArray{S, 3}, mlp::RadialMLP, feats::AbstractMatrix{S}) where {S}
+    Base.require_one_based_indexing(out, act, feats)
+    nb = _check_mlp_io(mlp, out, feats)
+    _check_mlp_hidden(mlp, act, nb, 2, "activations have")
+    a1, a2 = view(act, :, :, 1), view(act, :, :, 2)
+    _mlp_layer!(a1, mlp.W[1], feats, mlp.cst)
+    _mlp_layer!(a2, mlp.W[2], a1, mlp.cst)
+    _mlp_layer!(a1, mlp.W[3], a2, mlp.cst)
+    mul!(out, transpose(mlp.W[4]), a1)
+    return out
 end
 
 """

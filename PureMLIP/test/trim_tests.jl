@@ -11,6 +11,8 @@
             new_workspace64(m, n, e) = PureMLIP.MACEWorkspace{Float64}(m, n, e)
             new_result32(n) = PureMLIP.MACEResult{Float32}(n)
             new_workspace32(m, n, e) = PureMLIP.MACEWorkspace{Float32}(m, n, e)
+            new_energy_workspace64(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float64}(m, n, e)
+            new_energy_workspace32(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float32}(m, n, e)
         end,
         PureMLIP.load_mace_checkpoint(Vector{UInt8}),
         PureMLIP.load_mace_checkpoint(String),
@@ -44,6 +46,11 @@
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
         ),
         PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int}),
+        new_energy_workspace64(PureMLIP.MACEModel{Float64}, Int, Int),
+        PureMLIP.mace_energy!(
+            PureMLIP.MACEResult{Float64}, PureMLIP.MACEEnergyWorkspace{Float64}, PureMLIP.MACEModel{Float64},
+            Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
+        ),
         PureMLIP.neighbor_list(Matrix{Float32}, Matrix{Float32}, Float32),
         PureMLIP.neighbor_list!(PureMLIP.NeighborList{Float32}, Matrix{Float32}, Matrix{Float32}),
         new_result32(Int),
@@ -56,6 +63,11 @@
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},
             Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
         ),
-        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int})
+        PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int}),
+        new_energy_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
+        PureMLIP.mace_energy!(
+            PureMLIP.MACEResult{Float32}, PureMLIP.MACEEnergyWorkspace{Float32}, PureMLIP.MACEModel{Float32},
+            Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
+        )
     )
 end

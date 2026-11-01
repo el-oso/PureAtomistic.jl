@@ -58,6 +58,18 @@ neighbor_list!(nl, positions, cell)
 mace_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl)  # or mace_energy!
 ```
 
+When only energies are needed, a `MACEEnergyWorkspace` takes the place of the `MACEWorkspace` in
+`mace_energy!`. It holds no derivatives and nothing for a backward pass, and runs the per-atom
+layers of both interactions on blocks of receivers, so it is several times smaller: about 14 kB
+per atom in Float64 for MACE-MPA-0 with 78 edges per atom, against about 88 kB for a
+`MACEWorkspace`. The energies are those of `mace_energy_forces!` up to rounding; the forces,
+virial and stress of the result are left as they were.
+
+```julia
+ws_e = MACEEnergyWorkspace{Float64}(model, size(positions, 2), length(nl.senders))
+mace_energy!(res, ws_e, model, positions, cell, atomic_numbers, nl)
+```
+
 ## The neighbor list
 
 `neighbor_list(positions, cell, r_cut)` returns the directed edges `(sender, receiver, shift)`
@@ -85,6 +97,7 @@ neighbor_list!
 MACEModel
 MACEResult
 MACEWorkspace
+MACEEnergyWorkspace
 mace_energy!
 mace_energy_forces!
 mace_energy_forces

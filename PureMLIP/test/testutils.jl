@@ -403,11 +403,12 @@ end
 @testmodule WorkspaceMemory begin
     using PureMLIP
 
-    # Bytes per atom of a workspace built for `n_atoms` atoms and `n_edges` edges, counting every
-    # buffer once even where buffers share memory. Nothing is evaluated, so a size that would
-    # take minutes to evaluate costs only the allocation.
-    function workspace_bytes_per_atom(model, ::Type{T}, n_atoms::Integer, n_edges::Integer; kw...) where {T}
-        ws = MACEWorkspace{T}(model, n_atoms, n_edges; kw...)
+    # Bytes per atom of a workspace (a MACEWorkspace unless `workspace` names another type) built
+    # for `n_atoms` atoms and `n_edges` edges, counting every buffer once even where buffers share
+    # memory. Nothing is evaluated, so a size that would take minutes to evaluate costs only the
+    # allocation.
+    function workspace_bytes_per_atom(model, ::Type{T}, n_atoms::Integer, n_edges::Integer; workspace = MACEWorkspace, kw...) where {T}
+        ws = workspace{T}(model, n_atoms, n_edges; kw...)
         return Base.summarysize(ws) / n_atoms
     end
 end

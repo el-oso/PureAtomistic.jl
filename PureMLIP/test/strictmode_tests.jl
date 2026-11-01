@@ -31,6 +31,20 @@
                 (P.MACEModel{Float32}, (P.MACECheckpoint,)),
                 (P.MACEResult{Float64}, (Int,)),
                 (P.MACEWorkspace{Float64}, (P.MACEModel{Float64}, Int, Int)),
+                (P.MACEEnergyWorkspace{Float64}, (P.MACEModel{Float64}, Int, Int)),
+                (P.MACEEnergyWorkspace{Float32}, (P.MACEModel{Float32}, Int, Int)),
+                (
+                    P.mace_energy!, (
+                        P.MACEResult{Float64}, P.MACEEnergyWorkspace{Float64}, P.MACEModel{Float64},
+                        Matrix{Float64}, Matrix{Float64}, Vector{Int}, P.NeighborList{Float64},
+                    ),
+                ),
+                (
+                    P.mace_energy!, (
+                        P.MACEResult{Float32}, P.MACEEnergyWorkspace{Float32}, P.MACEModel{Float32},
+                        Matrix{Float32}, Matrix{Float32}, Vector{Int}, P.NeighborList{Float32},
+                    ),
+                ),
                 (
                     P.mace_energy!, (
                         P.MACEResult{Float64}, P.MACEWorkspace{Float64}, P.MACEModel{Float64},
@@ -76,6 +90,12 @@
             )
         ) == [MACEResult{S}]
         @test Base.return_types(mace_energy_forces, (MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int})) == [MACEResult{S}]
+        for W in (MACEWorkspace{S}, MACEEnergyWorkspace{S})
+            @test Base.return_types(
+                mace_energy!, (MACEResult{S}, W, MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int}, NeighborList{S})
+            ) == [MACEResult{S}]
+        end
+        @test Base.return_types(MACEEnergyWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEEnergyWorkspace{S}]
     end
 end
 
@@ -120,6 +140,24 @@ end
     res32 = MACEResult{Float32}(3)
     f!(res32, ws32, m32, P32, C32, Z, nl32)
     @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
+end
+
+@testitem "StrictMode: mace_energy! with an energy workspace is allocation-free" tags = [:checks] setup = [Checkpoints] begin
+    using StrictModeTest, StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    @noinline f!(res, ws, m, P, C, Z, nl) = mace_energy!(res, ws, m, P, C, Z, nl)
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        # Chunks of 7 edges and blocks of 2 receivers exercise the chunked radial MLP and the blocks.
+        ws = MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2)
+        res = MACEResult{T}(3)
+        f!(res, ws, m, PT, CT, Z, nl)
+        @test nl.n_edges > 7
+        @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
+    end
 end
 
 @testitem "StrictMode: mace_energy_forces! is allocation-free" tags = [:checks] setup = [Checkpoints] begin
@@ -170,6 +208,7 @@ end
         ws = MACEWorkspace{T}(m, 3, nl.n_edges)
         res = MACEResult{T}(3)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
         M.zbl_edge_energy(T(0.5), 1, 1, m.zbl)
@@ -193,6 +232,7 @@ end
     P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
     for T in (Float32, Float64)
         StrictMode.register_scoped!(MACEWorkspace{T})
+        StrictMode.register_scoped!(MACEEnergyWorkspace{T})
         StrictMode.register_scoped!(NeighborList{T})
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
@@ -201,6 +241,7 @@ end
         res = MACEResult{T}(3)
         neighbor_list!(nl, PT, CT)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
     end
@@ -226,6 +267,7 @@ end
         res = MACEResult{T}(3)
         neighbor_list!(nl, PT, CT)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
     end

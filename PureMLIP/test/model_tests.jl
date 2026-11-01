@@ -183,3 +183,146 @@ end
     @test_throws msg E(zeros(5), zeros(5), zeros(4))
     @test_throws msg E(zeros(5), zeros(4), zeros(5))
 end
+
+# The energy workspace runs the forward pass of `mace_energy_forces!` with the per-atom layers of
+# both interactions fused per block of receivers. The oracle is `mace_energy_forces!` on a
+# MACEWorkspace; both compute the same energies, the energy workspace with its matrix products
+# split into blocks of receivers.
+@testitem "energy workspace: energies equal mace_energy_forces!" setup = [LammpsReference, Checkpoints] begin
+    for (src, refs) in ((:mpa0, (:mpa0_f64,)), (:mp0b3, (:mp0b3_f64,)))
+        ck = load_mace_checkpoint(Checkpoints.fetch(src))
+        for T in (Float64, Float32)
+            m = MACEModel{T}(ck)
+            structures = [s for ref in refs for s in LammpsReference.structures(LammpsReference.load(ref))]
+            lists = [neighbor_list(T.(s.positions), T.(s.cell), m.r_max) for s in structures]
+            # Rounding bound 10·eps(T)·N relative to the largest magnitude, with N = 1280 the
+            # largest inner dimension of any matrix product in the model.
+            tol = 10 * eps(T) * 1280
+            nmax, emax = maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists)
+            # One workspace for every structure, with blocks of 2 receivers and chunks of 37 edges.
+            shared = MACEEnergyWorkspace{T}(m, nmax, emax; edge_chunk = 37, block = 2)
+            for (s, nl) in zip(structures, lists)
+                P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
+                n = nl.n_atoms
+                ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges), m, P, C, Z, nl)
+                for ws in (MACEEnergyWorkspace{T}(m, n, nl.n_edges), shared)
+                    # Every buffer is filled with NaN first, so a read before a write within the
+                    # call shows as a non-finite energy.
+                    for f in fieldnames(typeof(ws))
+                        v = getfield(ws, f)
+                        for a in (v isa Tuple ? v : (v,))
+                            a isa AbstractArray{T} && fill!(a, T(NaN))
+                        end
+                    end
+                    res = MACEResult{T}(n)
+                    fill!(res.forces, T(7)); fill!(res.virial, T(7)); fill!(res.stress, T(7))
+                    @test mace_energy!(res, ws, m, P, C, Z, nl) === res
+                    @test abs(res.energy - ref.energy) <= tol * abs(ref.energy)
+                    @test maximum(abs, res.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
+                    # The forces, virial and stress of the result are left as they were.
+                    @test all(==(T(7)), res.forces) && all(==(T(7)), res.virial) && all(==(T(7)), res.stress)
+                end
+            end
+        end
+    end
+end
+
+@testitem "energy workspace: one atom and no edges give E0" setup = [LammpsReference, Checkpoints] begin
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "isolated_cu")
+        P, C = T.(s.positions), T.(s.cell)
+        nl = neighbor_list(P, C, m.r_max)
+        @test nl.n_atoms == 1 && nl.n_edges == 0
+        for block in (1, 256)
+            r = mace_energy!(MACEResult{T}(1), MACEEnergyWorkspace{T}(m, 1, 0; block), m, P, C, s.atomic_numbers, nl)
+            @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
+            @test r.node_energies == [r.energy]
+        end
+    end
+end
+
+@testitem "energy workspace memory per atom" setup = [Checkpoints, WorkspaceMemory] begin
+    m64 = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
+    # edges within r_max.
+    b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; workspace = MACEEnergyWorkspace, edge_chunk = 4096)
+    @test b64 <= 30_000
+    GC.gc()
+end
+
+@testitem "energy workspace: views, OffsetArrays and errors" setup = [LammpsReference, Checkpoints] begin
+    using OffsetArrays
+    m = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
+    s = LammpsReference.structure(LammpsReference.load(:mp0b3_f64), "triclinic_ni3al")
+    n = size(s.positions, 2)
+    nl = neighbor_list(s.positions, s.cell, 6.0)
+    ws = MACEEnergyWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = 50)
+    r = mace_energy!(MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, nl)
+    Pb = zeros(5, n + 2); Pb[2:4, 2:(n + 1)] = s.positions
+    Cb = zeros(4, 4); Cb[2:4, 1:3] = s.cell
+    Zb = [0; s.atomic_numbers; 0]
+    rv = mace_energy!(
+        MACEResult{Float64}(n), ws, m, view(Pb, 2:4, 2:(n + 1)), view(Cb, 2:4, 1:3), view(Zb, 2:(n + 1)), nl
+    )
+    # Same inputs, same arithmetic: exact.
+    @test rv.energy == r.energy && rv.node_energies == r.node_energies
+    # The message comes from Base.require_one_based_indexing, so only the type is checked.
+    @test_throws ArgumentError mace_energy!(
+        MACEResult{Float64}(n), ws, m, OffsetArray(s.positions, 0:2, 0:(n - 1)), s.cell, s.atomic_numbers, nl
+    )
+    @test_throws "model: the workspace holds 1 atoms, the neighbor list has $n" mace_energy!(
+        MACEResult{Float64}(n), MACEEnergyWorkspace{Float64}(m, 1, nl.n_edges), m, s.positions, s.cell, s.atomic_numbers, nl
+    )
+    @test_throws "model: the workspace holds 1 edges" mace_energy!(
+        MACEResult{Float64}(n), MACEEnergyWorkspace{Float64}(m, n, 1), m, s.positions, s.cell, s.atomic_numbers, nl
+    )
+    @test_throws "model: element 84 is not in the model's element table" mace_energy!(
+        MACEResult{Float64}(n), ws, m, s.positions, s.cell, fill(84, n), nl
+    )
+    bad = deepcopy(nl)
+    E = nl.n_edges
+    for v in (bad.senders, bad.receivers)
+        v[1], v[E] = v[E], v[1]
+    end
+    bad.shifts[:, [1, E]] = bad.shifts[:, [E, 1]]
+    @test_throws "model: neighbor list edges must be sorted by receiver" mace_energy!(
+        MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, bad
+    )
+    @test_throws "model: workspace sizes must not be negative, got -1 atoms and 2 edges" MACEEnergyWorkspace{Float64}(m, -1, 2)
+    @test_throws "model: the edge chunk must be positive, got 0" MACEEnergyWorkspace{Float64}(m, 2, 2; edge_chunk = 0)
+    @test_throws "model: the receiver block must be positive, got 0" MACEEnergyWorkspace{Float64}(m, 2, 2; block = 0)
+end
+
+# The energy workspace uses the radial MLP without its pullback buffers and the radial features
+# without their derivatives; the arithmetic of each value is that of the derivative form, so the
+# values are equal exactly.
+@testitem "radial MLP and features without derivatives equal the derivative forms" setup = [Checkpoints] begin
+    using Random
+    M = PureMLIP.Model
+    m = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    mlp = m.mlp[2]
+    nf, H, W = size(mlp.W[1], 1), size(mlp.W[1], 2), size(mlp.W[4], 2)
+    feats = randn(Xoshiro(3), nf, 9)
+    out5 = M.radial_mlp!(zeros(W, 9), zeros(H, 9, 3), zeros(H, 9, 3), mlp, feats)
+    out4 = zeros(W, 9)
+    @test M.radial_mlp!(out4, zeros(H, 9, 2), mlp, feats) === out4
+    @test out4 == out5
+    @test_throws "model: radial MLP activations have size ($H, 9, 3), expected ($H, 9, 2)" M.radial_mlp!(out4, zeros(H, 9, 3), mlp, feats)
+    @test_throws "model: radial MLP features have $(nf + 1) rows, expected $nf" M.radial_mlp!(out4, zeros(H, 9, 2), mlp, zeros(nf + 1, 9))
+    @test_throws "model: radial MLP output has size ($W, 8), expected ($W, 9)" M.radial_mlp!(zeros(W, 8), zeros(H, 9, 2), mlp, feats)
+
+    emb = m.radial
+    @test emb.multiples
+    for d in (0.9, 2.5, 5.9, 6.0, 6.5)       # r_max = 6.0: the last two give zero features
+        f, df = zeros(nf), zeros(nf)
+        M.radial_embedding!(f, df, emb, d, 29, 8)
+        @test M.radial_embedding!(zeros(nf), nothing, emb, d, 29, 8) == f
+    end
+    w = [1.0, 2.5, 3.25]                       # not multiples of the first: the per-term form
+    B, dB = zeros(3), zeros(3)
+    M.bessel_basis!(B, dB, 0.7, w, 1.3)
+    @test M.bessel_basis!(zeros(3), nothing, 0.7, w, 1.3) == B
+    @test_throws "model: B and weights must share axes: (Base.OneTo(2),), (Base.OneTo(3),)" M.bessel_basis!(zeros(2), nothing, 0.7, w, 1.3)
+end

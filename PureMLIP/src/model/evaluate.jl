@@ -93,13 +93,7 @@ struct MACEWorkspace{T}
     function MACEWorkspace{T}(
             model::MACEModel, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096, block::Integer = 256
         ) where {T}
-        (n_atoms >= 0 && n_edges >= 0) ||
-            throw(ArgumentError(lazy"model: workspace sizes must not be negative, got $n_atoms atoms and $n_edges edges"))
-        edge_chunk > 0 || throw(ArgumentError(lazy"model: the edge chunk must be positive, got $edge_chunk"))
-        block > 0 || throw(ArgumentError(lazy"model: the receiver block must be positive, got $block"))
-        n, E = Int(n_atoms), Int(n_edges)
-        chunk = min(Int(edge_chunk), max(E, 1))
-        nblock = min(Int(block), n)
+        n, E, chunk, nblock = _workspace_sizes(n_atoms, n_edges, edge_chunk, block)
         C = model.C
         nb = length(model.radial.bessel_weights)
         W = max(size(model.mlp[1].W[4], 2), size(model.mlp[2].W[4], 2))
@@ -149,6 +143,18 @@ struct MACEWorkspace{T}
     end
 end
 
+# The atoms, edges, edge chunk and block size of a workspace, checked: atoms and edges must not be
+# negative, the chunk and the block must be positive. The chunk holds at most every edge (and at
+# least one), the block at most every atom.
+function _workspace_sizes(n_atoms::Integer, n_edges::Integer, edge_chunk::Integer, block::Integer)
+    (n_atoms >= 0 && n_edges >= 0) ||
+        throw(ArgumentError(lazy"model: workspace sizes must not be negative, got $n_atoms atoms and $n_edges edges"))
+    edge_chunk > 0 || throw(ArgumentError(lazy"model: the edge chunk must be positive, got $edge_chunk"))
+    block > 0 || throw(ArgumentError(lazy"model: the receiver block must be positive, got $block"))
+    n, E = Int(n_atoms), Int(n_edges)
+    return n, E, min(Int(edge_chunk), max(E, 1)), min(Int(block), n)
+end
+
 # Zero-filled arrays over one block of memory, given as groups of sizes: the arrays of a group lie
 # side by side from the block's first element, and the groups overlap each other. `Base.wrap`
 # makes each an `Array` over the block, so every member keeps the type `Array{T, 3}` of a
@@ -164,9 +170,92 @@ function _pool(::Type{T}, groups::Tuple{Vararg{Tuple{Vararg{NTuple{3, Int}}}}}) 
     return map(place, groups)
 end
 
+"""
+    MACEEnergyWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096, block = 256)
+
+The buffers of [`mace_energy!`](@ref) on up to `n_atoms` atoms and `n_edges` directed edges,
+without forces: it holds no derivative and nothing kept for a backward pass, so it is several
+times smaller than a [`MACEWorkspace`](@ref) of the same sizes. Per edge it holds the edge vector
+and its length; the spherical harmonics, the radial features and the radial-MLP outputs are
+recomputed from them `edge_chunk` edges at a time. Per atom it holds the sender features of both
+interactions, the skip connection of the second interaction and the linear readout; every other
+per-atom layer runs on `block` receivers at a time, in buffers of `min(block, n_atoms)` atoms.
+`mace_energy!` with this workspace fills `res.energy` and `res.node_energies` and leaves the
+forces, virial and stress of `res` as they were.
+"""
+struct MACEEnergyWorkspace{T}
+    n_atoms::Int
+    n_edges::Int
+    chunk::Int
+    block::Int
+    species::Vector{Int}
+    # per edge
+    r::Matrix{T}             # 3 × E, edge vectors
+    d::Vector{T}             # edge lengths
+    # per chunk, recomputed from r and d
+    Y::Matrix{T}             # 16 × chunk, e3nn spherical harmonics
+    feats::Matrix{T}         # n_basis × chunk, radial features
+    tpw::Matrix{T}           # W × chunk, radial-MLP outputs
+    tpw3::Array{T, 3}        # C × W/C × chunk, the same memory as tpw
+    act::Array{T, 3}         # hidden × chunk × 2, radial-MLP activations
+    # per node
+    x::NTuple{2, Array{T, 3}}        # linear_up outputs, the sender features of each interaction
+    sc::Array{T, 3}                  # skip connection of interaction 1
+    e1::Array{T, 3}                  # linear readout
+    # Per block of `min(block, n_atoms)` nodes. The arrays from h0 to e2 share memory (pool `block`).
+    density::Vector{T}
+    pair::Vector{T}
+    h0::Array{T, 3}
+    M::NTuple{2, Array{T, 3}}        # summed messages
+    L0::Array{T, 3}                  # interaction 0 linear output, density-normalized
+    X1::Array{T, 3}                  # interaction 0 output (after skip_tp)
+    X2::Array{T, 3}                  # interaction 1 linear output, density-normalized
+    B::NTuple{2, Array{T, 3}}        # symmetric-contraction outputs
+    h1::Array{T, 3}
+    h2::Array{T, 3}
+    g::Array{T, 3}                   # nonlinear readout, before and after the activation
+    e2::Array{T, 3}
+    scratch::Vector{T}
+    function MACEEnergyWorkspace{T}(
+            model::MACEModel, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = 4096, block::Integer = 256
+        ) where {T}
+        n, E, chunk, nblock = _workspace_sizes(n_atoms, n_edges, edge_chunk, block)
+        C = model.C
+        nb = length(model.radial.bessel_weights)
+        W = max(size(model.mlp[1].W[4], 2), size(model.mlp[2].W[4], 2))
+        H = max(size(model.mlp[1].W[1], 2), size(model.mlp[2].W[1], 2))
+        tpw = zeros(T, W, chunk)
+        node(lin::E3nnLinear) = zeros(T, lin.C_out, lin.K_out, n)
+        dims(lin::E3nnLinear) = (lin.C_out, lin.K_out, nblock)
+        products(k) = (C, n_outputs(model.product[k]), nblock)
+        scratch = zeros(T, max(symmetric_contraction_scratch_size(model.product[1]), symmetric_contraction_scratch_size(model.product[2])))
+        # Pool `block`, in the order of use: h0 (embedding, before interaction 0), then the chain
+        # of interaction 0, then that of interaction 1.
+        ((h0,), (M0, L0, X1, B0, h1), (M1, X2, B1, h2, g, e2)) = _pool(
+            T, (
+                ((C, 1, nblock),),
+                ((C, model.conv[1].K_out, nblock), dims(model.linear[1]), (C, model.skip[1].K, nblock), products(1), dims(model.product_linear[1])),
+                (
+                    (C, model.conv[2].K_out, nblock), dims(model.linear[2]), products(2), dims(model.product_linear[2]),
+                    dims(model.readout1[1]), dims(model.readout1[2]),
+                ),
+            )
+        )
+        return new{T}(
+            n, E, chunk, Int(block), zeros(Int, n),
+            zeros(T, 3, E), zeros(T, E),
+            zeros(T, 16, chunk), zeros(T, nb, chunk), tpw, reshape(tpw, C, W ÷ C, chunk), zeros(T, H, chunk, 2),
+            (node(model.up[1]), node(model.up[2])), zeros(T, C, model.skip[2].K, n), node(model.readout0),
+            zeros(T, nblock), zeros(T, nblock), h0, (M0, M1), L0, X1, X2, (B0, B1), h1, h2, g, e2, scratch,
+        )
+    end
+end
+
+const _Workspace{T} = Union{MACEWorkspace{T}, MACEEnergyWorkspace{T}}
+
 # Out of line: the cutoff comparison widens a Float32 model radius to the Float64 `r_cut`, and a
 # conversion inlined into `mace_energy!` would hide behind it from the precision check.
-@noinline function _check_inputs(res::MACEResult, ws::MACEWorkspace, model::MACEModel, positions, cell, atomic_numbers, nl::NeighborList)
+@noinline function _check_inputs(res::MACEResult, ws::_Workspace, model::MACEModel, positions, cell, atomic_numbers, nl::NeighborList)
     Base.require_one_based_indexing(positions, cell, atomic_numbers)
     n, m = nl.n_atoms, nl.n_edges
     size(positions) == (3, n) ||
@@ -185,7 +274,7 @@ end
 end
 
 # Edge vectors and lengths of every edge.
-function _edges!(ws::MACEWorkspace{T}, positions, cell, nl::NeighborList) where {T}
+function _edges!(ws::_Workspace{T}, positions, cell, nl::NeighborList) where {T}
     for e in 1:nl.n_edges
         s, r = nl.senders[e], nl.receivers[e]
         n1, n2, n3 = nl.shifts[1, e], nl.shifts[2, e], nl.shifts[3, e]
@@ -197,14 +286,35 @@ function _edges!(ws::MACEWorkspace{T}, positions, cell, nl::NeighborList) where 
     return nothing
 end
 
-# Radial features and their length derivatives of edges `start:stop`, in columns `1:stop-start+1`
-# of `ws.feats` and `ws.dfeats`.
-function _chunk_radial!(ws::MACEWorkspace{T}, model::MACEModel, atomic_numbers, nl::NeighborList, start::Int, stop::Int) where {T}
+# Radial features of edges `start:stop`, in columns `1:stop-start+1` of `ws.feats`, and with a
+# MACEWorkspace their length derivatives in the same columns of `ws.dfeats`. The helpers below
+# return `nothing`, not a view of the workspace, so no borrow of it leaves them.
+function _chunk_radial!(ws::_Workspace{T}, model::MACEModel, atomic_numbers, nl::NeighborList, start::Int, stop::Int) where {T}
     for e in start:stop
         s, r = nl.senders[e], nl.receivers[e]
         j = e - start + 1
-        radial_embedding!(view(ws.feats, :, j), view(ws.dfeats, :, j), model.radial, ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]))
+        _radial_column!(ws, model.radial, j, ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]))
     end
+    return nothing
+end
+
+function _radial_column!(ws::MACEWorkspace{T}, emb::RadialEmbedding, j::Int, d::T, Zu::Int, Zv::Int) where {T}
+    radial_embedding!(view(ws.feats, :, j), view(ws.dfeats, :, j), emb, d, Zu, Zv)
+    return nothing
+end
+function _radial_column!(ws::MACEEnergyWorkspace{T}, emb::RadialEmbedding, j::Int, d::T, Zu::Int, Zv::Int) where {T}
+    radial_embedding!(view(ws.feats, :, j), nothing, emb, d, Zu, Zv)
+    return nothing
+end
+
+# The radial-MLP outputs of the first `nb` columns of `ws.feats` into `ws.tpw`; a MACEWorkspace
+# also keeps the logistic and activations its pullback reads.
+function _chunk_mlp!(ws::MACEWorkspace, mlp::RadialMLP, W::Int, nb::Int)
+    radial_mlp!(view(ws.tpw, 1:W, 1:nb), view(ws.pre, :, 1:nb, :), view(ws.act, :, 1:nb, :), mlp, view(ws.feats, :, 1:nb))
+    return nothing
+end
+function _chunk_mlp!(ws::MACEEnergyWorkspace, mlp::RadialMLP, W::Int, nb::Int)
+    radial_mlp!(view(ws.tpw, 1:W, 1:nb), view(ws.act, :, 1:nb, :), mlp, view(ws.feats, :, 1:nb))
     return nothing
 end
 
@@ -213,7 +323,7 @@ end
 # `density` is the receiver `first(atoms) + i - 1`. The harmonics and radial features are
 # recomputed per chunk of at most `ws.chunk` of these edges from `ws.r` and `ws.d`.
 function _messages!(
-        M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::MACEWorkspace{T}, model::MACEModel, k::Int,
+        M::AbstractArray{T, 3}, density::AbstractVector{T}, ws::_Workspace{T}, model::MACEModel, k::Int,
         x::AbstractArray{T, 3}, atomic_numbers, nl::NeighborList,
         atoms::UnitRange{Int} = 1:nl.n_atoms, edges::UnitRange{Int} = 1:nl.n_edges
     ) where {T}
@@ -227,7 +337,7 @@ function _messages!(
         stop = min(start + ws.chunk - 1, last(edges))
         nb = stop - start + 1
         _chunk_radial!(ws, model, atomic_numbers, nl, start, stop)
-        radial_mlp!(view(ws.tpw, 1:W, 1:nb), view(ws.pre, :, 1:nb, :), view(ws.act, :, 1:nb, :), mlp, view(ws.feats, :, 1:nb))
+        _chunk_mlp!(ws, mlp, W, nb)
         for e in start:stop
             s, r = nl.senders[e], nl.receivers[e] - offset
             j = e - start + 1
@@ -256,6 +366,19 @@ function _normalized_linear!(L::AbstractArray{T, 3}, lin::E3nnLinear, M::Abstrac
     return L
 end
 
+# The model's species index of each atom, into `species`.
+function _species!(species::AbstractVector{Int}, model::MACEModel, atomic_numbers)
+    for (i, z) in zip(eachindex(species), atomic_numbers)
+        s = 0 <= z < length(model.species) ? model.species[z + 1] : 0
+        s > 0 || throw(ArgumentError(lazy"model: element $z is not in the model's element table"))
+        species[i] = s
+    end
+    return species
+end
+
+# The energy of an atom of species `s` from its pair term and its two readouts.
+_node_energy(model::MACEModel, s::Int, pair, e1, e2) = model.e0[s] + (model.scale * ((pair + e1) + e2) + model.shift)
+
 """
     mace_energy!(res, ws, model, positions, cell, atomic_numbers, nl) -> res
 
@@ -263,7 +386,9 @@ Evaluate `model` on the periodic structure with `positions` (`3 × n`, Å), latt
 columns of `cell`, and `atomic_numbers`, over the edges of the neighbor list `nl` (built for
 these positions with a cutoff of at least `model.r_max`, and with its edges sorted by receiver as
 [`neighbor_list`](@ref) sorts them). Fills `res.energy` and `res.node_energies`: `E0` of the
-element plus `scale · (pair + readouts) + shift` per atom.
+element plus `scale · (pair + readouts) + shift` per atom. `ws` is a [`MACEWorkspace`](@ref) or,
+when no forces will follow, the smaller [`MACEEnergyWorkspace`](@ref), which leaves the forces,
+virial and stress of `res` as they were.
 """
 function mace_energy!(
         res::MACEResult{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, positions::AbstractMatrix{T},
@@ -272,13 +397,7 @@ function mace_energy!(
     _check_inputs(res, ws, model, positions, cell, atomic_numbers, nl)
     n = nl.n_atoms
     atoms = 1:n
-    species = view(ws.species, atoms)
-    for i in atoms
-        z = atomic_numbers[i]
-        s = 0 <= z < length(model.species) ? model.species[z + 1] : 0
-        s > 0 || throw(ArgumentError(lazy"model: element $z is not in the model's element table"))
-        species[i] = s
-    end
+    species = _species!(view(ws.species, atoms), model, atomic_numbers)
     _edges!(ws, positions, cell, nl)
 
     # Embedding and interaction 0.
@@ -348,9 +467,89 @@ function mace_energy!(
 
     E = zero(T)
     for i in atoms
-        ei = model.e0[species[i]] + (model.scale * ((pair[i] + e1[1, 1, i]) + e2[1, 1, i]) + model.shift)
+        ei = _node_energy(model, species[i], pair[i], e1[1, 1, i], e2[1, 1, i])
         res.node_energies[i] = ei
         E += ei
+    end
+    res.energy = E
+    return res
+end
+
+function mace_energy!(
+        res::MACEResult{T}, ws::MACEEnergyWorkspace{T}, model::MACEModel{T}, positions::AbstractMatrix{T},
+        cell::AbstractMatrix{T}, atomic_numbers::AbstractVector{<:Integer}, nl::NeighborList
+    ) where {T}
+    _check_inputs(res, ws, model, positions, cell, atomic_numbers, nl)
+    atoms = 1:nl.n_atoms
+    species = _species!(view(ws.species, atoms), model, atomic_numbers)
+    _edges!(ws, positions, cell, nl)
+    blocks = ReceiverBlocks(nl, ws.block)
+
+    # Embedding: the sender features of interaction 0.
+    for (blk, _) in blocks
+        h0 = view(ws.h0, :, :, 1:length(blk))
+        for (j, i) in enumerate(blk), w in axes(h0, 1)
+            h0[w, 1, j] = model.embedding[w, species[i]]
+        end
+        linear!(view(ws.x[1], :, :, blk), model.up[1], h0)
+    end
+
+    # Interaction 0 and product 0, then the per-atom inputs of interaction 1 and the readout.
+    x0 = view(ws.x[1], :, :, atoms)
+    for (blk, edges) in blocks
+        b = 1:length(blk)
+        sp = view(species, blk)
+        M0, dens = view(ws.M[1], :, :, b), view(ws.density, b)
+        _messages!(M0, dens, ws, model, 1, x0, atomic_numbers, nl, blk, edges)
+        L0 = _normalized_linear!(view(ws.L0, :, :, b), model.linear[1], M0, dens)
+        X1 = view(ws.X1, :, :, b)
+        species_linear!(X1, model.skip[1], L0, sp)
+        B0 = view(ws.B[1], :, :, b)
+        symmetric_contraction!(B0, model.product[1], X1, sp, ws.scratch)
+        h1 = view(ws.h1, :, :, b)
+        linear!(h1, model.product_linear[1], B0)
+        species_linear!(view(ws.sc, :, :, blk), model.skip[2], view(h1, :, 1:model.skip[2].K, :), sp)
+        linear!(view(ws.x[2], :, :, blk), model.up[2], h1)
+        linear!(view(ws.e1, :, :, blk), model.readout0, h1)
+    end
+
+    # Interaction 1, product 1 with the skip connection, the readout, the ZBL pair repulsion (half
+    # of each directed edge credited to its receiver) and the energy of each atom.
+    x1 = view(ws.x[2], :, :, atoms)
+    E = zero(T)
+    for (blk, edges) in blocks
+        b = 1:length(blk)
+        sp = view(species, blk)
+        M1, dens = view(ws.M[2], :, :, b), view(ws.density, b)
+        _messages!(M1, dens, ws, model, 2, x1, atomic_numbers, nl, blk, edges)
+        X2 = _normalized_linear!(view(ws.X2, :, :, b), model.linear[2], M1, dens)
+        B1 = view(ws.B[2], :, :, b)
+        symmetric_contraction!(B1, model.product[2], X2, sp, ws.scratch)
+        h2 = view(ws.h2, :, :, b)
+        linear!(h2, model.product_linear[2], B1)
+        sc = view(ws.sc, :, :, blk)
+        for q in eachindex(h2, sc)
+            h2[q] += sc[q]
+        end
+        g = view(ws.g, :, :, b)
+        linear!(g, model.readout1[1], h2)
+        for q in eachindex(g)
+            g[q] = normalized_silu(g[q], model.readout_cst)[1]
+        end
+        e2 = view(ws.e2, :, :, b)
+        linear!(e2, model.readout1[2], g)
+        pair = view(ws.pair, b)
+        fill!(pair, zero(T))
+        offset = first(blk) - 1
+        for e in edges
+            s, r = nl.senders[e], nl.receivers[e]
+            pair[r - offset] += zbl_edge_energy(ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[1]
+        end
+        for (j, i) in enumerate(blk)
+            ei = _node_energy(model, sp[j], pair[j], ws.e1[1, 1, i], e2[1, 1, j])
+            res.node_energies[i] = ei
+            E += ei
+        end
     end
     res.energy = E
     return res

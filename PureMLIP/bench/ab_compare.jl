@@ -23,6 +23,8 @@
 #                            before warm-up; the base side stays on OpenBLAS
 #   PUREMLIP_AB_PUREBLAS     PureBLAS checkout (a directory or a URL), required with
 #                            PUREMLIP_AB_LOAD=PureBLAS
+#   PUREMLIP_AB_ENERGY_WORKSPACE  "1": `mace_energy!` runs on a `MACEEnergyWorkspace` on each side
+#                            that defines one, and on the `MACEWorkspace` on a side that does not
 #
 # A pair is discarded, and measured again, when swap usage grew while it ran, or when a fixed
 # scalar calibration loop (independent of PureMLIP) shows the children ran at different speeds,
@@ -61,6 +63,7 @@ function child_main(structures, cases, load)
     end
     Base.invokelatest(measure, PM, cases)
     println("PKG\t", join(("$(v.name)=$(v.version)" for (_, v) in Pkg.dependencies() if v.version !== nothing), ","))
+    println("ENERGY_WORKSPACE\t", get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" && isdefined(PM, :MACEEnergyWorkspace) ? "MACEEnergyWorkspace" : "MACEWorkspace")
     println("BLAS\t", join((basename(l.libname) for l in BLAS.get_config().loaded_libs), ","))
     return
 end
@@ -80,6 +83,13 @@ function calibrate()
     return best
 end
 
+# The workspace of `mace_energy!`: a MACEEnergyWorkspace when PUREMLIP_AB_ENERGY_WORKSPACE=1 and
+# this side defines one, otherwise the MACEWorkspace `ws` of `mace_energy_forces!`.
+function energy_workspace(PM, ::Type{T}, model, n_atoms, n_edges, ws) where {T}
+    get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" && isdefined(PM, :MACEEnergyWorkspace) || return ws
+    return PM.MACEEnergyWorkspace{T}(model, n_atoms, n_edges)
+end
+
 function measure(PM, cases)
     ck = PM.load_mace_checkpoint(joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model"))
     for (N, T) in cases
@@ -90,10 +100,11 @@ function measure(PM, cases)
         z = cu.atomic_numbers
         nl = PM.neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
         ws = PM.MACEWorkspace{T}(model, length(z), nl.n_edges)
+        ews = energy_workspace(PM, T, model, length(z), nl.n_edges, ws)
         res = PM.MACEResult{T}(length(z))
         evals = (
             "mace_energy_forces!" => () -> PM.mace_energy_forces!(res, ws, model, positions, cell, z, nl),
-            "mace_energy!" => () -> PM.mace_energy!(res, ws, model, positions, cell, z, nl),
+            "mace_energy!" => () -> PM.mace_energy!(res, ews, model, positions, cell, z, nl),
         )
         for (name, f) in evals
             for _ in 1:WARMUP_EVALS
@@ -164,6 +175,7 @@ function run_child(env, structures, cases, load)
     out = read(cmd, String)
     results = Dict{Tuple{String, String}, NTuple{3, Float64}}()
     blas = String[]
+    energy_ws = ""
     pkgs = Dict{String, String}()
     for line in split(out, '\n')
         f = split(line, '\t')
@@ -171,6 +183,8 @@ function run_child(env, structures, cases, load)
             results[(f[2], f[3])] = (parse(Float64, f[4]), parse(Float64, f[5]), parse(Float64, f[6]))
         elseif f[1] == "BLAS"
             blas = split(f[2], ',')
+        elseif f[1] == "ENERGY_WORKSPACE"
+            energy_ws = String(f[2])
         elseif f[1] == "PKG"
             for kv in split(f[2], ',')
                 name, ver = split(kv, '=')
@@ -178,7 +192,7 @@ function run_child(env, structures, cases, load)
             end
         end
     end
-    return (; results, blas, pkgs)
+    return (; results, blas, pkgs, energy_ws)
 end
 
 first_times(r) = Dict(string(k[1], " ", k[2]) => v[1] for (k, v) in r)
@@ -266,6 +280,7 @@ function driver_main()
                 pureblas_commit, load = isempty(load) ? "none" : load,
                 threads = 1, blas_threads = 1,
                 blas_libraries = Dict(k => v.blas for (k, v) in last),
+                energy_workspace = Dict(k => v.energy_ws for (k, v) in last),
                 package_versions = Dict(k => v.pkgs for (k, v) in last),
                 samples_per_evaluation_point = SAMPLES, warmup_evaluations = WARMUP_EVALS,
                 ratio = "head/base per pair; below 1 means the head is faster",

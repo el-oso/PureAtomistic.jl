@@ -34,13 +34,15 @@ end
 
 _check_bessel(B, dB, weights) = axes(B) == axes(dB) == axes(weights) ||
     throw(DimensionMismatch(lazy"model: B, dB and weights must share axes: $(axes(B)), $(axes(dB)), $(axes(weights))"))
+_check_bessel(B, ::Nothing, weights) = axes(B) == axes(weights) ||
+    throw(DimensionMismatch(lazy"model: B and weights must share axes: $(axes(B)), $(axes(weights))"))
 
-function bessel_basis!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
+function bessel_basis!(B::AbstractVector{S}, dB::Union{AbstractVector{S}, Nothing}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
     _check_bessel(B, dB, weights)
     for n in eachindex(B)
         s, c = sincos(weights[n] * x)
         B[n] = prefactor * s / x
-        dB[n] = prefactor * (weights[n] * c / x - s / x^2)
+        isnothing(dB) || (dB[n] = prefactor * (weights[n] * c / x - s / x^2))
     end
     return B
 end
@@ -51,7 +53,7 @@ end
 # function `bessel_basis!` computes, up to the rounding of the recurrence, which grows with k.
 # dB uses the same frequency k·w₁ as B, not the stored weights[k] (which may differ from k·w₁ by
 # rounding), so it is the derivative of the computed B.
-function bessel_basis_multiples!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
+function bessel_basis_multiples!(B::AbstractVector{S}, dB::Union{AbstractVector{S}, Nothing}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
     _check_bessel(B, dB, weights)
     isempty(B) && return B
     w1 = weights[firstindex(weights)]
@@ -59,7 +61,7 @@ function bessel_basis_multiples!(B::AbstractVector{S}, dB::AbstractVector{S}, x:
     s, c = s1, c1
     for (k, n) in enumerate(eachindex(B))
         B[n] = prefactor * s / x
-        dB[n] = prefactor * (k * w1 * c / x - s / x^2)
+        isnothing(dB) || (dB[n] = prefactor * (k * w1 * c / x - s / x^2))
         s, c = s * c1 + c * s1, c * c1 - s * s1
     end
     return B
@@ -95,10 +97,13 @@ function _integer_multiples(w::AbstractVector)
     return true
 end
 
-function radial_embedding!(feats::AbstractVector{S}, dfeats::AbstractVector{S}, emb::RadialEmbedding, d::S, Zu::Int, Zv::Int) where {S <: Real}
+# Radial features of an edge of length `d` between elements `Zu` and `Zv` into `feats`, and their
+# derivatives with respect to `d` into `dfeats`. With `dfeats = nothing` (here and in the Bessel
+# functions), the derivatives are not computed; the features are the same.
+function radial_embedding!(feats::AbstractVector{S}, dfeats::Union{AbstractVector{S}, Nothing}, emb::RadialEmbedding, d::S, Zu::Int, Zv::Int) where {S <: Real}
     if !(d < emb.r_max)
         fill!(feats, zero(S))
-        fill!(dfeats, zero(S))
+        isnothing(dfeats) || fill!(dfeats, zero(S))
         return feats
     end
     fc, dfc = polynomial_cutoff(d, emb.r_max, emb.cutoff_p)
@@ -111,7 +116,7 @@ function radial_embedding!(feats::AbstractVector{S}, dfeats::AbstractVector{S}, 
     end
     for n in eachindex(feats)
         B = feats[n]
-        dfeats[n] = dfeats[n] * ddt * fc + B * dfc
+        isnothing(dfeats) || (dfeats[n] = dfeats[n] * ddt * fc + B * dfc)
         feats[n] = B * fc
     end
     return feats
