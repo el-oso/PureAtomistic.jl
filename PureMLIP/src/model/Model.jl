@@ -4,6 +4,7 @@ using ..Checkpoint, ..Equivariant, ..Tensors, LinearAlgebra
 using ..Tensors: checked_eachindex, n_outputs
 
 include("neighbors.jl")
+include("blocks.jl")
 include("radial.jl")
 include("radial_mlp.jl")
 include("mace_model.jl")

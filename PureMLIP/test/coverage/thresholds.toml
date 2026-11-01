@@ -17,6 +17,7 @@
 "src/equivariant/spherical_harmonics.jl" = 1.00
 "src/equivariant/wigner_d.jl" = 1.00
 "src/model/Model.jl" = 1.00
+"src/model/blocks.jl" = 1.00
 "src/model/evaluate.jl" = 1.00
 "src/model/mace_model.jl" = 1.00
 "src/model/neighbors.jl" = 1.00

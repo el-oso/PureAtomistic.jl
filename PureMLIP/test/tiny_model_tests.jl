@@ -25,18 +25,29 @@ end
     cell = [6.5 0 0; 0.4 6.2 0; 0.3 0.2 6.8]
     Z = [29, 1, 29]
     P = [0.0 1.4 0.2; 0.0 0.1 1.3; 0.0 0.3 0.1]
-    nl = neighbor_list(P, cell, m.r_max; extra_capacity = 64)
-    n0 = nl.n_edges
-    ws = MACEWorkspace{Float64}(m, size(P, 2), length(nl.senders))
-    res = MACEResult{Float64}(size(P, 2))
-    # Spreading the atoms apart brings periodic images inside the cutoff.
     P2 = [0.0 3.1 0.2; 0.0 3.0 3.3; 0.0 0.3 3.0]
-    neighbor_list!(nl, P2, cell)
-    @test n0 < nl.n_edges <= length(nl.senders)
-    r = mace_energy_forces!(res, ws, m, P2, cell, Z, nl)
-    @test r === res && isfinite(r.energy)
-    # The same positions through the allocating form give the same energy.
-    @test r.energy == mace_energy_forces(m, P2, cell, Z).energy
+    E2 = mace_energy_forces(m, P2, cell, Z).energy
+    # Receiver blocks of the default size and of 64 atoms each hold all three atoms; blocks of one
+    # atom split them.
+    for block in (256, 64, 1)
+        nl = neighbor_list(P, cell, m.r_max; extra_capacity = 64)
+        n0 = nl.n_edges
+        ws = MACEWorkspace{Float64}(m, size(P, 2), length(nl.senders); block)
+        res = MACEResult{Float64}(size(P, 2))
+        # Spreading the atoms apart brings periodic images inside the cutoff.
+        neighbor_list!(nl, P2, cell)
+        @test n0 < nl.n_edges <= length(nl.senders)
+        r = mace_energy_forces!(res, ws, m, P2, cell, Z, nl)
+        @test r === res && isfinite(r.energy)
+        # The same positions through the allocating form give the same energy: the same arithmetic
+        # with one block, and up to the rounding bound 10·eps·N of the matrix products with three
+        # (N = 1280, the largest inner dimension of any matrix product of a full-size model).
+        if block >= size(P, 2)
+            @test r.energy == E2
+        else
+            @test abs(r.energy - E2) <= 10 * eps() * 1280 * abs(E2)
+        end
+    end
 end
 
 @testitem "radial-MLP hidden widths must agree between the interactions" begin

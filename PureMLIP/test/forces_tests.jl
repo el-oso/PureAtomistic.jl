@@ -217,8 +217,107 @@ end
     # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
     # edges within r_max.
     b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096)
-    @test b64 <= 150_000
+    @test b64 <= 100_000
     GC.gc()
+    # The constructor reads only sizes from the model, so a Float32 workspace needs no Float32 model.
+    b32 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float32, 10_976, 856_128; edge_chunk = 4096)
+    @test b32 <= 50_000
+    GC.gc()
+end
+
+# The per-atom layers of each interaction run per block of receivers. Blocks of every size give
+# the unblocked result up to the rounding of the matrix products, whose columns are now split
+# into blocks; that covers a block of one atom, blocks that do not divide the atom count, and a
+# block larger than it.
+@testitem "forces: receiver blocks give the unblocked result" setup = [Checkpoints] begin
+    include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    cu = cu_bench(5)
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        P, C, Z = Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers
+        n = length(Z)
+        nl = neighbor_list(P, C, m.r_max)
+        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; block = n), m, P, C, Z, nl)
+        # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity, with N = 1280
+        # the largest inner dimension of any matrix product in the model. Measured: blocks of 7 or
+        # more atoms give the same results; blocks of one atom differ by at most 6.8·eps(T).
+        tol = 10 * eps(T) * 1280
+        for block in (1, 7, 64, 256, 10_000)
+            ws = MACEWorkspace{T}(m, n, nl.n_edges; block)
+            r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            @test abs(r.energy - ref.energy) <= tol * abs(ref.energy)
+            @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
+            @test maximum(abs, r.forces - ref.forces) <= tol * maximum(abs, ref.forces)
+            @test maximum(abs, r.virial - ref.virial) <= tol * maximum(abs, ref.virial)
+            @test maximum(abs, r.stress - ref.stress) <= tol * maximum(abs, ref.stress)
+        end
+    end
+end
+
+# Oracle: the edges of a block are those whose receiver lies in it, found by a full search.
+@testitem "receiver blocks partition the atoms and their edges" begin
+    RB = PureMLIP.Model.ReceiverBlocks
+    receivers = [1, 1, 2, 4, 4, 4, 5, 7, 7, 8]   # atoms 3 and 6 receive no edge
+    n = 8
+    for block in 1:(n + 1)
+        blocks = collect(RB(receivers, n, block))
+        @test eltype(blocks) == Tuple{UnitRange{Int}, UnitRange{Int}}
+        @test length(blocks) == cld(n, block)
+        @test reduce(vcat, [collect(atoms) for (atoms, _) in blocks]) == 1:n
+        @test all(length(atoms) <= block for (atoms, _) in blocks)
+        for (atoms, edges) in blocks
+            @test collect(edges) == findall(in(atoms), receivers)
+        end
+    end
+    @test isempty(collect(RB(Int[], 0, 4)))
+end
+
+# Receiver blocks need the edges sorted by receiver and every receiver an atom of the list.
+@testitem "forces: receiver order and range of a hand-built neighbor list" setup = [LammpsReference, Checkpoints] begin
+    m = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "triclinic_ni3al")
+    P, C, Z = s.positions, s.cell, s.atomic_numbers
+    n = length(Z)
+    nl = neighbor_list(P, C, m.r_max)
+    E = nl.n_edges
+    @test nl.receivers[1] < nl.receivers[E]
+    ws = MACEWorkspace{Float64}(m, n, E; block = 2)
+    for f in (mace_energy!, mace_energy_forces!)
+        # The first and last edges swapped: the same edges, out of order.
+        bad = deepcopy(nl)
+        for v in (bad.senders, bad.receivers)
+            v[1], v[E] = v[E], v[1]
+        end
+        bad.shifts[:, [1, E]] = bad.shifts[:, [E, 1]]
+        @test_throws "model: neighbor list edges must be sorted by receiver" f(MACEResult{Float64}(n), ws, m, P, C, Z, bad)
+        # Sorted, but the last receiver is not an atom of the list.
+        bad = deepcopy(nl)
+        bad.receivers[E] = n + 1
+        @test_throws "model: neighbor list receivers must lie in 1:$n" f(MACEResult{Float64}(n), ws, m, P, C, Z, bad)
+        bad.receivers[E] = nl.receivers[E]
+        bad.receivers[1:E] .= 0
+        @test_throws "model: neighbor list receivers must lie in 1:$n" f(MACEResult{Float64}(n), ws, m, P, C, Z, bad)
+    end
+    @test_throws "model: the receiver block must be positive, got 0" MACEWorkspace{Float64}(m, n, E; block = 0)
+end
+
+# One atom and no edges, through blocks of one atom and the default block.
+@testitem "forces: one atom and no edges in receiver blocks" setup = [LammpsReference, Checkpoints] begin
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "isolated_cu")
+        P, C = T.(s.positions), T.(s.cell)
+        nl = neighbor_list(P, C, m.r_max)
+        @test nl.n_atoms == 1 && nl.n_edges == 0
+        for block in (1, 256)
+            ws = MACEWorkspace{T}(m, 1, 0; block)
+            r = mace_energy_forces!(MACEResult{T}(1), ws, m, P, C, s.atomic_numbers, nl)
+            @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
+            @test r.forces == zeros(T, 3, 1) && r.virial == zeros(T, 3, 3) && r.stress == zeros(T, 3, 3)
+        end
+    end
 end
 
 # Buffers whose lifetimes do not overlap share memory in MACEWorkspace. Every buffer of one

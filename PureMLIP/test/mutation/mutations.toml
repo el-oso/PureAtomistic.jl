@@ -457,8 +457,8 @@ expect = "energies match"
 [[mutation]]
 name = "density-derivative-from-overwritten-L0"
 file = "src/model/evaluate.jl"
-find = "_normalization_pullback!(ddens0, dL0, dX1, X1, view(ws.density, atoms, 1))"
-replace = "_normalization_pullback!(ddens0, dL0, dL0, view(ws.L[1], :, :, atoms), view(ws.density, atoms, 1))"
+find = "_normalization_pullback!(ddens0, dL0, dX1b, X1b, view(ws.density, blk, 1))"
+replace = "_normalization_pullback!(ddens0, dL0, dL0, view(ws.L[1], :, :, b), view(ws.density, blk, 1))"
 expect = "forces and virial match LAMMPS-MACE"
 
 [[mutation]]
@@ -488,3 +488,17 @@ file = "src/tensors/eachindex.jl"
 find = "return _check_eachindex(style, inds, Bs...)"
 replace = "return nothing"
 expect = "checked_eachindex matches"
+
+[[mutation]]
+name = "receiver-block-edges-end-one-receiver-early"
+file = "src/model/blocks.jl"
+find = "stop = searchsortedlast(b.receivers, last(atoms))"
+replace = "stop = searchsortedlast(b.receivers, last(atoms) - 1)"
+expect = "receiver blocks give the unblocked result"
+
+[[mutation]]
+name = "receiver-order-unchecked"
+file = "src/model/blocks.jl"
+find = "issorted(receivers) ||"
+replace = "true ||"
+expect = "receiver order and range"
