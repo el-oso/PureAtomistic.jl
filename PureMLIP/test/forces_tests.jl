@@ -159,7 +159,7 @@ end
     @test nl.n_edges > 2 * chunk
     # Measured margins over k = 1, 2 (largest |pullback − reference|): density normalization
     # 4.3e-14 against ForwardDiff and 1.2e-9 against the central difference (h = 1e-5); messages
-    # 1.1e-12 and 6.8e-7. Each tolerance is 15-19 times its measurement.
+    # 1.1e-12 and 6.8e-7. Each tolerance is about 15-19 times its measurement.
     tol_norm_ad, tol_norm_fd = 8.0e-13, 2.0e-8
     tol_msg_ad, tol_msg_fd = 2.0e-11, 1.0e-5
     for k in 1:2

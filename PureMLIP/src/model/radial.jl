@@ -49,14 +49,17 @@ end
 # Then w_k x = k (w₁ x), so sin(w_k x) and cos(w_k x) follow exactly from one `sincos(w₁ x)` by
 # angle addition, s_{k+1} = s_k c₁ + c_k s₁ and c_{k+1} = c_k c₁ - s_k s₁: the result is the
 # function `bessel_basis!` computes, up to the rounding of the recurrence, which grows with k.
+# dB uses the same frequency k·w₁ as B, not the stored weights[k] (which may differ from k·w₁ by
+# rounding), so it is the derivative of the computed B.
 function bessel_basis_multiples!(B::AbstractVector{S}, dB::AbstractVector{S}, x::S, weights::AbstractVector, prefactor) where {S <: Real}
     _check_bessel(B, dB, weights)
     isempty(B) && return B
-    s1, c1 = sincos(weights[firstindex(weights)] * x)
+    w1 = weights[firstindex(weights)]
+    s1, c1 = sincos(w1 * x)
     s, c = s1, c1
-    for n in eachindex(B)
+    for (k, n) in enumerate(eachindex(B))
         B[n] = prefactor * s / x
-        dB[n] = prefactor * (weights[n] * c / x - s / x^2)
+        dB[n] = prefactor * (k * w1 * c / x - s / x^2)
         s, c = s * c1 + c * s1, c * c1 - s * s1
     end
     return B
