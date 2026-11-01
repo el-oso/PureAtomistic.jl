@@ -154,3 +154,59 @@ end
     StrictMode.@assert_noescape mace_energy_forces!(res, ws, model, s.positions, s.cell, s.atomic_numbers, nl)
     @test isfinite(res.energy)
 end
+
+# `:typestable` accepts a small union of isbits returns and a concrete wrong type, and a kernel that
+# computes in Float64 returns a flawless Float32: only the conversion instruction shows it.
+# `conversion_report` reads those instructions on the signatures that have compiled.
+@testitem "StrictMode: Float32 kernels do not widen to Float64" tags = [:checks] setup = [Checkpoints] begin
+    using StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    M = PureMLIP.Model
+    for T in (Float32, Float64)
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges)
+        res = MACEResult{T}(3)
+        mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces(m, PT, CT, Z)
+        M.zbl_edge_energy(T(0.5), 1, 1, m.zbl)
+        M.radial_embedding!(zeros(T, length(m.radial.bessel_weights)), zeros(T, length(m.radial.bessel_weights)), m.radial, T(2.0), 29, 8)
+    end
+    # Float32 -> Float64 conversions that are the intent of the code:
+    #   neighbor_list, _check_inputs: the Float64 `r_cut` meets Float32 coordinates and radius;
+    #   polynomial_cutoff, _poly_envelope: Base's integer power on a Float32 base widens inside Base.
+    allowed = ("#neighbor_list#1", "_check_inputs", "polynomial_cutoff", "_poly_envelope")
+    widened = filter(f -> occursin("Float32 to Float64", f.reason), StrictMode.conversion_report(M))
+    @test !isempty(widened)
+    @test isempty(filter(f -> f.func ∉ allowed, widened))
+end
+
+# The workspace and the neighbor list are owned by the caller; no evaluation function may hand a
+# borrow of one back, store it, or capture it in a task. The constructors return their own value,
+# and `neighbor_list!` returns its argument.
+@testitem "StrictMode: evaluation does not let the workspace or neighbor list escape" tags = [:checks] setup = [Checkpoints] begin
+    using StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    for T in (Float32, Float64)
+        StrictMode.register_scoped!(MACEWorkspace{T})
+        StrictMode.register_scoped!(NeighborList{T})
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges)
+        res = MACEResult{T}(3)
+        neighbor_list!(nl, PT, CT)
+        mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces(m, PT, CT, Z)
+    end
+    found = StrictMode.resource_leak_report(PureMLIP.Model)
+    @test !isempty(found)     # the constructors return their own value
+    # `neighbor_list!` returns the list it filled, handing back the argument the caller already owns.
+    constructors = ("neighbor_list", "#neighbor_list#1", "_", "neighbor_list!")
+    @test isempty(filter(f -> f.func ∉ constructors, found))
+end

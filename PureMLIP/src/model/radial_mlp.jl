@@ -125,11 +125,11 @@ MACE's edge density `ρ = tanh(z²)`, `z = feats · (w / sqrt(n_basis))`, and `c
 `∂ρ/∂feats = c .* w`.
 """
 function density_edge(feats::AbstractVector{S}, w::AbstractVector) where {S <: Real}
-    r = sqrt(Float64(length(feats)))
     z = zero(S)
+    r = sqrt(oftype(z, length(feats)))
     for b in eachindex(feats, w)
-        z += feats[b] * oftype(z, w[b] / r)
+        z += feats[b] * (oftype(z, w[b]) / r)
     end
     ρ = tanh(z * z)
-    return (ρ, 2 * z * (one(S) - ρ * ρ) / oftype(z, r))
+    return (ρ, 2 * z * (one(S) - ρ * ρ) / r)
 end

@@ -119,7 +119,9 @@ struct MACEWorkspace{T}
     end
 end
 
-function _check_inputs(res::MACEResult, ws::MACEWorkspace, model::MACEModel, positions, cell, atomic_numbers, nl::NeighborList)
+# Out of line: the cutoff comparison widens a Float32 model radius to the Float64 `r_cut`, and a
+# conversion inlined into `mace_energy!` would hide behind it from the precision check.
+@noinline function _check_inputs(res::MACEResult, ws::MACEWorkspace, model::MACEModel, positions, cell, atomic_numbers, nl::NeighborList)
     Base.require_one_based_indexing(positions, cell, atomic_numbers)
     n, m = nl.n_atoms, nl.n_edges
     size(positions) == (3, n) ||

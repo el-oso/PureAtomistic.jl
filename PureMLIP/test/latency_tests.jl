@@ -8,8 +8,6 @@
         "PureMLIP.mace_energy_forces(PureMLIP.MACEModel(PureMLIP.load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint())), [0.0 1.4; 0.0 0.1; 0.0 0.3], [6.5 0 0; 0 6.2 0; 0 0 6.8], [29, 1])",
     ]
     r = test_latency(:PureMLIP; calls, precompile = false)
-    # first_call_ms under-measures on Julia 1.13: it does not include first-call compilation,
-    # so the figures are indicative only (see the latency note in AGENTS.md).
     @info "PureMLIP cold-start latency" r
     @test r.target == "PureMLIP"
     @test isfinite(r.load_ms) && r.load_ms > 0

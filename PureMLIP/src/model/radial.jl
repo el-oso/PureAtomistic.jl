@@ -6,9 +6,9 @@
 # f = 1 - c1 t^p + c2 t^(p+1) - c3 t^(p+2) for t = d / scale, with the coefficients that
 # make the first two derivatives vanish at t = 1; and df/dd.
 @inline function _poly_envelope(t, p, inv_scale)
-    c1 = (p + 1) * (p + 2) / 2
-    c2 = p * (p + 2)
-    c3 = p * (p + 1) / 2
+    c1 = oftype(t, (p + 1) * (p + 2)) / 2
+    c2 = oftype(t, p * (p + 2))
+    c3 = oftype(t, p * (p + 1)) / 2
     f = 1 - c1 * t^p + c2 * t^(p + 1) - c3 * t^(p + 2)
     df = (-c1 * p * t^(p - 1) + c2 * (p + 1) * t^p - c3 * (p + 2) * t^(p + 1)) * inv_scale
     return f, df
