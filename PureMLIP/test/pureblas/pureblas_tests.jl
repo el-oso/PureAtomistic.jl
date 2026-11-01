@@ -12,6 +12,8 @@
         for s in LammpsReference.structures(LammpsReference.load(ref))
             r = mace_energy_forces(model, T.(s.positions), T.(s.cell), s.atomic_numbers)
             @test abs(r.energy - s.energy) <= tole
+            # Node energies: the main suite's 1e-6 eV against LAMMPS-MACE, Float64 models only.
+            T === Float64 && @test maximum(abs, r.node_energies - s.node_energies) <= 1.0e-6
             @test maximum(abs, r.forces - s.forces; init = 0.0) <= tolf
             @test maximum(abs, r.virial - s.virial) <= tolv
         end

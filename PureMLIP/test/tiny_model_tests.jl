@@ -41,7 +41,8 @@ end
         @test r === res && isfinite(r.energy)
         # The same positions through the allocating form give the same energy: the same arithmetic
         # with one block, and up to the rounding bound 10·eps·N of the matrix products with three
-        # (N = 1280, the largest inner dimension of any matrix product of a full-size model).
+        # (N = 1280, the largest inner dimension of any matrix product of a full-size model; the
+        # tiny model's largest is 10, the Bessel basis size, so the bound holds with a wide margin).
         if block >= size(P, 2)
             @test r.energy == E2
         else

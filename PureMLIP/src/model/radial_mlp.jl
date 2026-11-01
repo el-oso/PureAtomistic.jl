@@ -99,7 +99,7 @@ end
 
 # The forward of `_mlp_layer!` without the logistic kept for a pullback: act = cst·z·σ(z) for
 # z = Wᵀ input, computed in place in `act`.
-function _mlp_layer!(act::AbstractMatrix, W::AbstractMatrix, input::AbstractMatrix, cst)
+function _mlp_layer_forward!(act::AbstractMatrix, W::AbstractMatrix, input::AbstractMatrix, cst)
     mul!(act, transpose(W), input)
     c = convert(eltype(act), cst)
     for q in eachindex(act)
@@ -121,9 +121,9 @@ function radial_mlp!(out::AbstractMatrix{S}, act::AbstractArray{S, 3}, mlp::Radi
     nb = _check_mlp_io(mlp, out, feats)
     _check_mlp_hidden(mlp, act, nb, 2, "activations have")
     a1, a2 = view(act, :, :, 1), view(act, :, :, 2)
-    _mlp_layer!(a1, mlp.W[1], feats, mlp.cst)
-    _mlp_layer!(a2, mlp.W[2], a1, mlp.cst)
-    _mlp_layer!(a1, mlp.W[3], a2, mlp.cst)
+    _mlp_layer_forward!(a1, mlp.W[1], feats, mlp.cst)
+    _mlp_layer_forward!(a2, mlp.W[2], a1, mlp.cst)
+    _mlp_layer_forward!(a1, mlp.W[3], a2, mlp.cst)
     mul!(out, transpose(mlp.W[4]), a1)
     return out
 end

@@ -520,6 +520,6 @@ expect = "energy workspace: energies equal"
 [[mutation]]
 name = "radial-mlp-forward-only-last-hidden-cst"
 file = "src/model/radial_mlp.jl"
-find = "_mlp_layer!(a1, mlp.W[3], a2, mlp.cst)"
-replace = "_mlp_layer!(a1, mlp.W[3], a2, one(mlp.cst))"
+find = "_mlp_layer_forward!(a1, mlp.W[3], a2, mlp.cst)"
+replace = "_mlp_layer_forward!(a1, mlp.W[3], a2, one(mlp.cst))"
 expect = "without derivatives equal the derivative forms"
