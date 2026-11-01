@@ -73,6 +73,41 @@ function _linear(::Type{T}, ck::MACECheckpoint, path::String, C_in::Int, C_out::
     return E3nnLinear{T}(_f64(ck, path * ".weight").data, in_ls, out_ls, ins, C_in, C_out)
 end
 
+"""
+    symmetric_contraction_from_state(st, prefix, T) -> SymmetricContraction{T}
+
+The contractions `prefix.symmetric_contractions.contractions.0, 1, ...` of a MACE state dict,
+in order, pairing `weights_max` with `U_matrix_3`, `weights.0` with `U_matrix_2` and `weights.1`
+with `U_matrix_1`. The order `l` of each contraction is read from the shape of `U_matrix_1`
+(two dimensions for `l = 0`, a leading `2l + 1` otherwise).
+"""
+function symmetric_contraction_from_state(st::Dict{String, CheckpointTensor{Float64}}, prefix::String, ::Type{T}) where {T}
+    contractions = Contraction{T}[]
+    j = 0
+    while true
+        p = string(prefix, ".symmetric_contractions.contractions.", j) * "."
+        haskey(st, p * "U_matrix_1") || break
+        u1, u2, u3 = _tensor(st, p * "U_matrix_1"), _tensor(st, p * "U_matrix_2"), _tensor(st, p * "U_matrix_3")
+        Wmax = torch_array(_tensor(st, p * "weights_max"), Val(3))
+        W0 = torch_array(_tensor(st, p * "weights.0"), Val(3))
+        W1 = torch_array(_tensor(st, p * "weights.1"), Val(3))
+        ct = if length(u1.shape) == 3
+            Contraction{T}((u1.shape[1] - 1) ÷ 2, torch_array(u1, Val(3)), torch_array(u2, Val(4)), torch_array(u3, Val(5)), Wmax, W0, W1)
+        else
+            Contraction{T}(0, torch_array(u1, Val(2)), torch_array(u2, Val(3)), torch_array(u3, Val(4)), Wmax, W0, W1)
+        end
+        push!(contractions, ct)
+        j += 1
+    end
+    j > 0 || throw(ArgumentError("model: missing $prefix.symmetric_contractions.contractions.0.U_matrix_1"))
+    return SymmetricContraction{T}(contractions)
+end
+
+function _tensor(st::Dict{String, CheckpointTensor{Float64}}, key::String)
+    haskey(st, key) || throw(ArgumentError("model: missing $key"))
+    return st[key]
+end
+
 # Degrees of the irreps terms, each of multiplicity `mul`.
 function _degrees(irreps::Vector{Checkpoint.IrrepMul}, mul::Int, path::String)
     for ir in irreps

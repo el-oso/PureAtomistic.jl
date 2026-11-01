@@ -2,6 +2,7 @@ module PureMLIP
 
 include("checkpoint/Checkpoint.jl")
 include("equivariant/Equivariant.jl")
+include("tensors/Tensors.jl")
 include("model/Model.jl")
 
 using .Checkpoint, .Equivariant, .Model
@@ -12,7 +13,7 @@ using .Checkpoint: Normalize2Mom, LinearInstruction, LinearSpec, TPInstruction, 
 using .Checkpoint: PK_NONE, PK_BOOL, PK_INT, PK_FLOAT, PK_STR, PK_BYTES, PK_TUPLE, PK_LIST, PK_DICT
 using .Checkpoint: PK_GLOBAL, PK_CALL, PK_PERSID
 
-public Checkpoint, Equivariant, Model
+public Checkpoint, Equivariant, Tensors, Model
 export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, MACEConstants, CheckpointTensor, torch_array
 export sh_length, sh_index, spherical_harmonics!, spherical_harmonics_and_gradient!
 export clebsch_gordan_complex, real_clebsch_gordan, wigner_D

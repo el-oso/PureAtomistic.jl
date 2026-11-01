@@ -1,5 +1,6 @@
 @testitem "channelwise TP matches the e3nn-core-rs tensor-product fixtures" setup = [E3nnFixtures] begin
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     for name in ("fully_connected_tensor_product_smoke_f64", "fully_connected_tensor_product_lmax4_smoke_f64")
         d = E3nnFixtures.load(name)
         l1, l2, l3 = (E3nnFixtures.segment_degrees(d[k]) for k in ("irreps_in1", "irreps_in2", "irreps_out"))
@@ -9,7 +10,7 @@
                 Float64(d["instruction_path_weight"][p]),
             ) for p in eachindex(d["instruction_path_weight"])
         ]
-        tp = M.ChannelwiseTP{Float64}(l1, l2, l3, ins)
+        tp = Tn.ChannelwiseTP{Float64}(l1, l2, l3, ins)
         for s in eachindex(d["x"])
             x = reshape(Float64.(d["x"][s]), 1, :); y = Float64.(d["y"][s]); w = reshape(Float64.(d["w"][s]), 1, :)
             out = zeros(1, length(d["out"][s]))
@@ -27,16 +28,17 @@ end
 
 @testitem "MACE layers match the forward-pass formulas" setup = [Checkpoints] begin
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64; k = ck.constants
     # Folded skip_tp constants, bit-exact against the embedded TorchScript literals.
-    sk = M.SpeciesLinear{Float64}(
+    sk = Tn.SpeciesLinear{Float64}(
         st["interactions.0.skip_tp.weight"].data, [0, 1, 2, 3],
         [(p, p, k.tensor_product["interactions.0.skip_tp"].instructions[p].path_weight) for p in 1:4], 128, 89, 128
     )
     @test sk.c == [0.0093691461124482678, 0.0093691461124482695, 0.0093691461124482678, 0.009369146112448266]
     using Random
     x = randn(Xoshiro(3), 128, 16, 3)
-    up = M.E3nnLinear{Float64}(st["interactions.0.linear_up.weight"].data, [0], [0], [(1, 1, 0.08838834764831845)], 128, 128)
+    up = Tn.E3nnLinear{Float64}(st["interactions.0.linear_up.weight"].data, [0], [0], [(1, 1, 0.08838834764831845)], 128, 128)
     y = zeros(128, 1, 3); M.linear!(y, up, view(x, :, 1:1, :))
     W = st["interactions.0.linear_up.weight"].data
     naive = [0.08838834764831845 * sum(x[u, 1, i] * W[(u - 1) * 128 + w] for u in 1:128) for w in 1:128, i in 1:3]
@@ -48,7 +50,7 @@ end
 
     # interactions.0.linear: one [128, 128] block per l, torch index (l·128 + u-1)·128 + w.
     W = st["interactions.0.linear.weight"].data
-    lin = M.E3nnLinear{Float64}(W, [0, 1, 2, 3], [0, 1, 2, 3], [(p, p, 0.08838834764831845) for p in 1:4], 128, 128)
+    lin = Tn.E3nnLinear{Float64}(W, [0, 1, 2, 3], [0, 1, 2, 3], [(p, p, 0.08838834764831845) for p in 1:4], 128, 128)
     y = zeros(128, 16, 3); M.linear!(y, lin, x)
     naive = [
         0.08838834764831845 * sum(x[u, q, i] * W[(deg(q) * 128 + u - 1) * 128 + w] for u in 1:128)
@@ -64,7 +66,7 @@ end
     in_ls = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3]
     out_slot = [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
     pws = [a, a, b, b, b, b, b, b, a, a]
-    lin1 = M.E3nnLinear{Float64}(W, in_ls, [0, 1, 2, 3], [(p, out_slot[p], pws[p]) for p in 1:10], 128, 128)
+    lin1 = Tn.E3nnLinear{Float64}(W, in_ls, [0, 1, 2, 3], [(p, out_slot[p], pws[p]) for p in 1:10], 128, 128)
     x10 = randn(Xoshiro(4), 128, 40, 3)
     off = cumsum([0; [2l + 1 for l in in_ls]])
     y = zeros(128, 16, 3); M.linear!(y, lin1, x10)
@@ -90,7 +92,7 @@ end
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
     @test y ≈ naive atol = 4 * eps() * 128 * maximum(abs, x) * maximum(abs, W)
     W = st["interactions.1.skip_tp.weight"].data
-    sk1 = M.SpeciesLinear{Float64}(W, [0], [(1, 1, k.tensor_product["interactions.1.skip_tp"].instructions[1].path_weight)], 128, 89, 128)
+    sk1 = Tn.SpeciesLinear{Float64}(W, [0], [(1, 1, k.tensor_product["interactions.1.skip_tp"].instructions[1].path_weight)], 128, 89, 128)
     y = zeros(128, 1, 3); M.species_linear!(y, sk1, view(x, :, 1:1, :), species)
     naive = [cl[1] * sum(x[u, 1, i] * W[((u - 1) * 89 + species[i] - 1) * 128 + w] for u in 1:128) for w in 1:128, i in 1:3]
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
@@ -147,7 +149,7 @@ end
 
     # readouts.1.linear_1: [128, 16], torch index (u-1)·16 + w.
     W = st["readouts.1.linear_1.weight"].data
-    r1 = M.E3nnLinear{Float64}(W, [0], [0], [(1, 1, 0.08838834764831845)], 128, 16)
+    r1 = Tn.E3nnLinear{Float64}(W, [0], [0], [(1, 1, 0.08838834764831845)], 128, 16)
     y = zeros(16, 1, 3); M.linear!(y, r1, view(x, :, 1:1, :))
     naive = [0.08838834764831845 * sum(x[u, 1, i] * W[(u - 1) * 16 + w] for u in 1:128) for w in 1:16, i in 1:3]
     # Rounding bound: 4·eps·N·max|terms|, N = 128 terms per output.
@@ -157,6 +159,7 @@ end
 @testitem "layer pullbacks match ForwardDiff" begin
     using ForwardDiff, Random, LinearAlgebra
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     rng = Xoshiro(11)
     # Inputs, weights and cotangents are uniform in [-1, 1], so every product of them is at most 1
     # in magnitude and the rounding bounds below need only the term count and the constants.
@@ -172,7 +175,7 @@ end
     # 2e input slot has no instruction.
     C_in, C_out, n = 5, 4, 3
     ins = [(1, 1, 0.3), (2, 1, 0.7), (3, 2, 0.5)]
-    lin = M.E3nnLinear{Float64}(u(length(ins) * C_in * C_out), [0, 0, 1, 2], [0, 1, 2], ins, C_in, C_out)
+    lin = Tn.E3nnLinear{Float64}(u(length(ins) * C_in * C_out), [0, 0, 1, 2], [0, 1, 2], ins, C_in, C_out)
     flin(x) = M.linear!(zeros(eltype(x), C_out, 9, n), lin, x)
     x = u(C_in, 10, n); dy = u(C_out, 9, n)
     dx = M.linear_pullback!(zeros(C_in, 10, n), lin, dy)
@@ -186,7 +189,7 @@ end
 
     # SpeciesLinear: slots 0e, 1o, one weight block per slot and species.
     nS = 3
-    sl = M.SpeciesLinear{Float64}(u(2 * C_in * nS * C_out), [0, 1], [(1, 1, 0.9), (2, 2, 0.6)], C_in, nS, C_out)
+    sl = Tn.SpeciesLinear{Float64}(u(2 * C_in * nS * C_out), [0, 1], [(1, 1, 0.9), (2, 2, 0.6)], C_in, nS, C_out)
     species = [2, 3, 2]
     fsl(x) = M.species_linear!(zeros(eltype(x), C_out, 4, n), sl, x, species)
     x = u(C_in, 4, n); dy = u(C_out, 4, n)
@@ -205,7 +208,7 @@ end
         (2, 3, 5, 1.7320508075688772), (1, 3, 6, 2.23606797749979), (2, 2, 7, 2.23606797749979),
         (2, 4, 8, 2.23606797749979), (1, 4, 9, 2.6457513110645907), (2, 3, 10, 2.6457513110645907),
     ]
-    tp = M.ChannelwiseTP{Float64}([0, 1], [0, 1, 2, 3], [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], tins)
+    tp = Tn.ChannelwiseTP{Float64}([0, 1], [0, 1, 2, 3], [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], tins)
     nx, nY, nw = C * 4, 16, C * 10
     unpack(z) = (reshape(z[1:nx], C, 4), z[(nx + 1):(nx + nY)], reshape(z[(nx + nY + 1):end], C, 10))
     function ftp(z)
@@ -281,6 +284,7 @@ end
 @testitem "TP pullback without dx matches the full pullback" begin
     using Random
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     rng = Xoshiro(17)
     # The interaction-1 conv_tp structure; C = 37 is not a multiple of any SIMD width, so both
     # the vector body and the remainder of the channel loop run.
@@ -291,7 +295,7 @@ end
         (2, 4, 8, 2.23606797749979), (1, 4, 9, 2.6457513110645907), (2, 3, 10, 2.6457513110645907),
     ]
     for T in (Float64, Float32)
-        tp = M.ChannelwiseTP{T}([0, 1], [0, 1, 2, 3], [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], tins)
+        tp = Tn.ChannelwiseTP{T}([0, 1], [0, 1, 2, 3], [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], tins)
         x, Y, w, dM = randn(rng, T, C, 4), randn(rng, T, 16), randn(rng, T, C, 10), randn(rng, T, C, 40)
         dY0, dw0 = randn(rng, T, 16), randn(rng, T, C, 10)
         dx, dY, dw = zeros(T, C, 4), copy(dY0), copy(dw0)
@@ -320,10 +324,11 @@ end
 @testitem "layers accept views" begin
     using Random, OffsetArrays
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     rng = Xoshiro(21)
     C_in, C_out, n = 6, 4, 3
-    lin = M.E3nnLinear{Float64}(randn(rng, 2 * C_in * C_out), [0, 1], [0, 1], [(1, 1, 0.4), (2, 2, 0.4)], C_in, C_out)
-    sl = M.SpeciesLinear{Float64}(randn(rng, 2 * C_in * 2 * C_out), [0, 1], [(1, 1, 0.9), (2, 2, 0.6)], C_in, 2, C_out)
+    lin = Tn.E3nnLinear{Float64}(randn(rng, 2 * C_in * C_out), [0, 1], [0, 1], [(1, 1, 0.4), (2, 2, 0.4)], C_in, C_out)
+    sl = Tn.SpeciesLinear{Float64}(randn(rng, 2 * C_in * 2 * C_out), [0, 1], [(1, 1, 0.9), (2, 2, 0.6)], C_in, 2, C_out)
     species = [2, 1, 2]
     X = randn(rng, C_in + 2, 7, n + 2)
     x = view(X, 2:(C_in + 1), 2:5, 2:(n + 1))
@@ -352,26 +357,27 @@ end
 
 @testitem "layers reject inconsistent shapes" begin
     M = PureMLIP.Model
-    @test_throws "model: linear weight has 3 entries, expected 4" M.E3nnLinear{Float64}(zeros(3), [0], [0], [(1, 1, 1.0)], 2, 2)
-    @test_throws "model: linear instruction (2, 1) is outside the 1 input and 1 output slots" M.E3nnLinear{Float64}(zeros(4), [0], [0], [(2, 1, 1.0)], 2, 2)
-    @test_throws "model: linear instruction (1, 1) couples l = 0 to l = 1" M.E3nnLinear{Float64}(zeros(4), [0], [1], [(1, 1, 1.0)], 2, 2)
-    lin = M.E3nnLinear{Float64}(zeros(4), [0], [0], [(1, 1, 1.0)], 2, 2)
+    Tn = PureMLIP.Tensors
+    @test_throws "model: linear weight has 3 entries, expected 4" Tn.E3nnLinear{Float64}(zeros(3), [0], [0], [(1, 1, 1.0)], 2, 2)
+    @test_throws "model: linear instruction (2, 1) is outside the 1 input and 1 output slots" Tn.E3nnLinear{Float64}(zeros(4), [0], [0], [(2, 1, 1.0)], 2, 2)
+    @test_throws "model: linear instruction (1, 1) couples l = 0 to l = 1" Tn.E3nnLinear{Float64}(zeros(4), [0], [1], [(1, 1, 1.0)], 2, 2)
+    lin = Tn.E3nnLinear{Float64}(zeros(4), [0], [0], [(1, 1, 1.0)], 2, 2)
     @test_throws "model: linear input has size (3, 1, 2), expected (2, 1, n)" M.linear!(zeros(2, 1, 2), lin, zeros(3, 1, 2))
     @test_throws "model: linear output has size (2, 1, 3), expected (2, 1, 2)" M.linear!(zeros(2, 1, 3), lin, zeros(2, 1, 2))
     @test_throws "model: linear output has size (2, 2, 2), expected (2, 1, 2)" M.linear_pullback!(zeros(2, 1, 2), lin, zeros(2, 2, 2))
 
-    @test_throws "model: species linear weight has 3 entries, expected 8" M.SpeciesLinear{Float64}(zeros(3), [0], [(1, 1, 1.0)], 2, 2, 2)
-    @test_throws "model: species linear instruction (1, 2) is outside the 1 slots" M.SpeciesLinear{Float64}(zeros(8), [0], [(1, 2, 1.0)], 2, 2, 2)
-    @test_throws "model: species linear instruction (1, 2) couples l = 0 to l = 1" M.SpeciesLinear{Float64}(zeros(16), [0, 1], [(1, 2, 1.0), (2, 2, 1.0)], 2, 2, 2)
-    sl = M.SpeciesLinear{Float64}(zeros(8), [0], [(1, 1, 1.0)], 2, 2, 2)
+    @test_throws "model: species linear weight has 3 entries, expected 8" Tn.SpeciesLinear{Float64}(zeros(3), [0], [(1, 1, 1.0)], 2, 2, 2)
+    @test_throws "model: species linear instruction (1, 2) is outside the 1 slots" Tn.SpeciesLinear{Float64}(zeros(8), [0], [(1, 2, 1.0)], 2, 2, 2)
+    @test_throws "model: species linear instruction (1, 2) couples l = 0 to l = 1" Tn.SpeciesLinear{Float64}(zeros(16), [0, 1], [(1, 2, 1.0), (2, 2, 1.0)], 2, 2, 2)
+    sl = Tn.SpeciesLinear{Float64}(zeros(8), [0], [(1, 1, 1.0)], 2, 2, 2)
     @test_throws "model: species linear input has size (3, 1, 2), expected (2, 1, n)" M.species_linear!(zeros(2, 1, 2), sl, zeros(3, 1, 2), [1, 1])
     @test_throws "model: species linear output has size (2, 1, 1), expected (2, 1, 2)" M.species_linear_pullback!(zeros(2, 1, 2), sl, zeros(2, 1, 1), [1, 1])
     @test_throws "model: 3 species for 2 nodes" M.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 1, 1])
     @test_throws "model: species index 3 is outside 1:2" M.species_linear!(zeros(2, 1, 2), sl, zeros(2, 1, 2), [1, 3])
 
-    @test_throws "model: tensor-product instruction (1, 2, 1) is outside the 1, 1 and 1 slots" M.ChannelwiseTP{Float64}([0], [0], [0], [(1, 2, 1, 1.0)])
-    @test_throws ArgumentError M.ChannelwiseTP{Float64}([1], [1], [1], [(1, 1, 1, 1.0)])   # odd l1 + l2 + l3
-    tp = M.ChannelwiseTP{Float64}([0], [1], [1], [(1, 1, 1, 1.0)])
+    @test_throws "model: tensor-product instruction (1, 2, 1) is outside the 1, 1 and 1 slots" Tn.ChannelwiseTP{Float64}([0], [0], [0], [(1, 2, 1, 1.0)])
+    @test_throws ArgumentError Tn.ChannelwiseTP{Float64}([1], [1], [1], [(1, 1, 1, 1.0)])   # odd l1 + l2 + l3
+    tp = Tn.ChannelwiseTP{Float64}([0], [1], [1], [(1, 1, 1, 1.0)])
     @test_throws "model: tensor product with 2 channels: x has size (2, 2), expected (2, 1)" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 2), zeros(3), zeros(2, 1))
     @test_throws "model: tensor product with 2 channels: Y has length 2, expected 3" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(2), zeros(2, 1))
     @test_throws "model: tensor product with 2 channels: w has size (2, 2), expected (2, 1)" M.tp_edge_add!(zeros(2, 3), tp, zeros(2, 1), zeros(3), zeros(2, 2))

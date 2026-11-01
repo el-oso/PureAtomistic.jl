@@ -57,6 +57,10 @@ end
 Adds the message of one edge to `M` (`C × K_out`):
 `M[u, k] += Σ_p w[u, p] Σ_{i,j} pw_p C_p[i, j, k] x[u, i] Y[j]`, with `x` (`C × K_in1`) the
 sender features, `Y` (`K_in2`) the edge attributes and `w` (`C × n_instructions`) the weights.
+
+As an einsum: `ein"up,ui,j,pijk->uk"(w, x, Y, Cpw)`, with `u` the channel, `p` the instruction and
+`i`, `j`, `k` the components of `x`, `Y` and `M`; `Cpw[p, i, j, k]` is the dense form of the stored
+entries (zero outside the slots of instruction `p`).
 """
 function tp_edge_add!(M::AbstractMatrix{S}, tp::ChannelwiseTP, x::AbstractMatrix{S}, Y::AbstractVector{S}, w::AbstractMatrix{S}) where {S}
     _check_tp(tp, M, x, Y, w, ("x", "Y", "w", "the output"))
@@ -80,6 +84,10 @@ end
 
 Adds the vector-Jacobian products of [`tp_edge_add!`](@ref) with the cotangent `dM` to `dx`,
 `dY` and `dw`. With `need_dx = false`, `dx` is neither read nor written.
+
+As einsums, with `Cpw` and the labels of [`tp_edge_add!`](@ref):
+`dx += ein"up,uk,pijk,j->ui"(w, dM, Cpw, Y)`, `dY += ein"uk,up,ui,pijk->j"(dM, w, x, Cpw)` and
+`dw += ein"uk,ui,pijk,j->up"(dM, x, Cpw, Y)`.
 """
 function tp_edge_pullback_add!(
         dx::AbstractMatrix{S}, dY::AbstractVector{S}, dw::AbstractMatrix{S}, tp::ChannelwiseTP,

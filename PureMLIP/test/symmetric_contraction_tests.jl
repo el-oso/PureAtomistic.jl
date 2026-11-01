@@ -1,11 +1,12 @@
 @testitem "symmetric contraction matches the dense formula" setup = [Checkpoints] begin
     using Random
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
     sc = M.symmetric_contraction_from_state(st, "products.0", Float64)
     @test [[length(c.U1), length(c.U2), length(c.U3)] for c in sc.contractions] == [[1, 16, 353], [3, 70, 2846]]
     X = 0.3 .* randn(Xoshiro(5), 128, 16, 3); species = [29, 1, 63]                    # z-table indices
-    B = zeros(128, 4, 3); M.symmetric_contraction!(B, sc, X, species, zeros(M.symmetric_contraction_scratch_size(sc)))
+    B = zeros(128, 4, 3); M.symmetric_contraction!(B, sc, X, species, zeros(Tn.symmetric_contraction_scratch_size(sc)))
     p = "products.0.symmetric_contractions.contractions.0."
     U1, U2, U3 = torch_array(st[p * "U_matrix_1"], Val(2)), torch_array(st[p * "U_matrix_2"], Val(3)), torch_array(st[p * "U_matrix_3"], Val(4))
     Wm, W0, W1 = (torch_array(st[p * k], Val(3)) for k in ("weights_max", "weights.0", "weights.1"))
@@ -41,6 +42,7 @@ end
 @testitem "symmetric contraction is equivariant" setup = [Checkpoints] begin
     using Random
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
     sc = M.symmetric_contraction_from_state(st, "products.0", Float64)
     X = 0.3 .* randn(Xoshiro(11), 128, 16, 2); species = [29, 8]
@@ -53,7 +55,7 @@ end
         r = (l^2 + 1):((l + 1)^2)
         RX[c, r, a] = D[l + 1] * X[c, r, a]
     end
-    scratch = zeros(M.symmetric_contraction_scratch_size(sc))
+    scratch = zeros(Tn.symmetric_contraction_scratch_size(sc))
     B = zeros(128, 4, 2); BR = zeros(128, 4, 2)
     M.symmetric_contraction!(B, sc, X, species, scratch)
     M.symmetric_contraction!(BR, sc, RX, species, scratch)
@@ -65,12 +67,13 @@ end
 @testitem "symmetric contraction pullback matches ForwardDiff and finite differences" setup = [Checkpoints] begin
     using Random, ForwardDiff
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
     sc = M.symmetric_contraction_from_state(st, "products.0", Float64)
     rng = Xoshiro(17)
     X = 0.3 .* randn(rng, 128, 16, 2); species = [29, 1]
     dB = randn(rng, 128, 4, 2)
-    n = M.symmetric_contraction_scratch_size(sc)
+    n = Tn.symmetric_contraction_scratch_size(sc)
     function f(Y)
         S = eltype(Y)
         B = zeros(S, 128, 4, 2)
@@ -93,10 +96,11 @@ end
 @testitem "symmetric contraction: views, offset arrays, errors" setup = [Checkpoints] begin
     using Random, OffsetArrays
     M = PureMLIP.Model
+    Tn = PureMLIP.Tensors
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
     sc = M.symmetric_contraction_from_state(st, "products.0", Float64)
     X = 0.3 .* randn(Xoshiro(3), 128, 16, 2); species = [29, 1]
-    n = M.symmetric_contraction_scratch_size(sc)
+    n = Tn.symmetric_contraction_scratch_size(sc)
     B = zeros(128, 4, 2)
     M.symmetric_contraction!(B, sc, X, species, zeros(n))
     Xbig = zeros(130, 16, 3); Xbig[2:129, :, 2:3] = X
@@ -121,17 +125,17 @@ end
     # Direct construction validates the shapes of U and W against each other.
     U1 = zeros(16, 1); U2 = zeros(16, 16, 4); U3 = zeros(16, 16, 16, 23)
     W = zeros(89, 23, 128); W0 = zeros(89, 4, 128); W1 = zeros(89, 1, 128)
-    @test M.Contraction{Float64}(0, U1, U2, U3, W, W0, W1) isa M.Contraction{Float64}
-    @test_throws "model: symmetric contraction: U_matrix_3 has size (16, 16, 16, 23), weights_max has size (89, 22, 128)" M.Contraction{Float64}(0, U1, U2, U3, zeros(89, 22, 128), W0, W1)
-    @test_throws "model: symmetric contraction: U_matrix_2 has size (16, 15, 4), expected (16, 16, K)" M.Contraction{Float64}(0, U1, zeros(16, 15, 4), U3, W, W0, W1)
-    @test_throws "model: symmetric contraction: U_matrix_1 has size (16, 1), weights.1 has size (89, 2, 128)" M.Contraction{Float64}(0, U1, U2, U3, W, W0, zeros(89, 2, 128))
-    @test_throws "model: symmetric contraction: weights.0 has size (88, 4, 128), expected (89, 4, 128)" M.Contraction{Float64}(0, U1, U2, U3, W, zeros(88, 4, 128), W1)
-    @test_throws "model: symmetric contraction: l = 1 needs U arrays with a leading index of length 3" M.Contraction{Float64}(1, U1, U2, U3, W, W0, W1)
-    @test_throws "model: symmetric contraction: l must be non-negative, got -1" M.Contraction{Float64}(-1, U1, U2, U3, W, W0, W1)
-    @test_throws "model: symmetric contraction: l = 0 needs U arrays of 2, 3 and 4 dimensions" M.Contraction{Float64}(0, zeros(1, 16, 1), U2, U3, W, W0, W1)
-    @test_throws "model: symmetric contraction: U_matrix_3 has size (16, 16, 15, 23), expected (16, 16, 16, K)" M.Contraction{Float64}(0, U1, U2, zeros(16, 16, 15, 23), W, W0, W1)
-    @test_throws "model: symmetric contraction: U_matrix_2 has size (3, 16, 15, 6), expected (3, 16, 16, K)" M.Contraction{Float64}(1, zeros(3, 16, 1), zeros(3, 16, 15, 6), zeros(3, 16, 16, 16, 51), zeros(89, 51, 128), zeros(89, 6, 128), W1)
-    @test_throws "model: symmetric contraction needs at least one contraction" M.SymmetricContraction{Float64}(M.Contraction{Float64}[])
+    @test Tn.Contraction{Float64}(0, U1, U2, U3, W, W0, W1) isa Tn.Contraction{Float64}
+    @test_throws "model: symmetric contraction: U_matrix_3 has size (16, 16, 16, 23), weights_max has size (89, 22, 128)" Tn.Contraction{Float64}(0, U1, U2, U3, zeros(89, 22, 128), W0, W1)
+    @test_throws "model: symmetric contraction: U_matrix_2 has size (16, 15, 4), expected (16, 16, K)" Tn.Contraction{Float64}(0, U1, zeros(16, 15, 4), U3, W, W0, W1)
+    @test_throws "model: symmetric contraction: U_matrix_1 has size (16, 1), weights.1 has size (89, 2, 128)" Tn.Contraction{Float64}(0, U1, U2, U3, W, W0, zeros(89, 2, 128))
+    @test_throws "model: symmetric contraction: weights.0 has size (88, 4, 128), expected (89, 4, 128)" Tn.Contraction{Float64}(0, U1, U2, U3, W, zeros(88, 4, 128), W1)
+    @test_throws "model: symmetric contraction: l = 1 needs U arrays with a leading index of length 3" Tn.Contraction{Float64}(1, U1, U2, U3, W, W0, W1)
+    @test_throws "model: symmetric contraction: l must be non-negative, got -1" Tn.Contraction{Float64}(-1, U1, U2, U3, W, W0, W1)
+    @test_throws "model: symmetric contraction: l = 0 needs U arrays of 2, 3 and 4 dimensions" Tn.Contraction{Float64}(0, zeros(1, 16, 1), U2, U3, W, W0, W1)
+    @test_throws "model: symmetric contraction: U_matrix_3 has size (16, 16, 15, 23), expected (16, 16, 16, K)" Tn.Contraction{Float64}(0, U1, U2, zeros(16, 16, 15, 23), W, W0, W1)
+    @test_throws "model: symmetric contraction: U_matrix_2 has size (3, 16, 15, 6), expected (3, 16, 16, K)" Tn.Contraction{Float64}(1, zeros(3, 16, 1), zeros(3, 16, 15, 6), zeros(3, 16, 16, 16, 51), zeros(89, 51, 128), zeros(89, 6, 128), W1)
+    @test_throws "model: symmetric contraction needs at least one contraction" Tn.SymmetricContraction{Float64}(Tn.Contraction{Float64}[])
     @test_throws "model: symmetric contraction expects dX of size (128, 16, 2), got (128, 16, 3)" M.symmetric_contraction_pullback!(zeros(128, 16, 3), sc, dB, X, species, zeros(n))
-    @test_throws "model: symmetric contraction: contractions see different channel, ell or species counts" M.SymmetricContraction{Float64}([M.Contraction{Float64}(0, U1, U2, U3, W, W0, W1), M.Contraction{Float64}(0, U1, U2, U3, W[1:88, :, :], W0[1:88, :, :], W1[1:88, :, :])])
+    @test_throws "model: symmetric contraction: contractions see different channel, ell or species counts" Tn.SymmetricContraction{Float64}([Tn.Contraction{Float64}(0, U1, U2, U3, W, W0, W1), Tn.Contraction{Float64}(0, U1, U2, U3, W[1:88, :, :], W0[1:88, :, :], W1[1:88, :, :])])
 end

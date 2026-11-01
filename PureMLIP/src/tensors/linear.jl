@@ -63,6 +63,11 @@ end
 `y[w, k_out, i] = Σ_p pw_p Σ_u W_p[u, w] x[u, k_in, i]` over the instructions `p` that map the
 input slot holding component `k_in` to the output slot holding `k_out`, with matching `m`.
 Overwrites `y`.
+
+As an einsum: `ein"puw,uki,pkl->wli"(W, x, P)`, with `u` the input channel, `w` the output channel, `p`
+the instruction, `k` and `l` the input and output components and `i` the node; `P[p, k, l] = pw_p`
+where `k` and `l` are the same component `m` of the input and output slot of `p`, else zero (the
+matrix product is done per slot instead of with a dense `P`).
 """
 function linear!(y::AbstractArray{S, 3}, lin::E3nnLinear, x::AbstractArray{S, 3}) where {S}
     _check_linear(lin, y, x)
@@ -80,6 +85,8 @@ end
     linear_pullback!(dx, lin::E3nnLinear, dy) -> dx
 
 The vector-Jacobian product of [`linear!`](@ref) with the cotangent `dy`. Overwrites `dx`.
+
+As an einsum: `ein"puw,wli,pkl->uki"(W, dy, P)`, with the labels of [`linear!`](@ref).
 """
 function linear_pullback!(dx::AbstractArray{S, 3}, lin::E3nnLinear, dy::AbstractArray{S, 3}) where {S}
     _check_linear(lin, dy, dx)
@@ -156,6 +163,11 @@ end
 
 `y[w, k, i] = c_p Σ_u W_p[u, species[i], w] x[u, k, i]` for each instruction `p`, with `k` over
 the components of its slots. Overwrites `y`.
+
+As an einsum: `ein"pusw,is,uki,pkl->wli"(W, onehot, x, P)`, with `u` the input channel, `w` the output
+channel, `p` the instruction, `s` the species, `k` and `l` the input and output components and `i`
+the node; `onehot[i, s] = (s == species[i])` and `P[p, k, l] = c_p` where `k` and `l` are the same
+component `m` of the input and output slot of `p`, else zero (the matrix product is done per slot).
 """
 function species_linear!(y::AbstractArray{S, 3}, sl::SpeciesLinear, x::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, y, x, species)
@@ -175,6 +187,8 @@ end
     species_linear_pullback!(dx, sl::SpeciesLinear, dy, species) -> dx
 
 The vector-Jacobian product of [`species_linear!`](@ref) with the cotangent `dy`. Overwrites `dx`.
+
+As an einsum: `ein"is,pusw,pkl,wli->uki"(onehot, W, P, dy)`, with the labels of [`species_linear!`](@ref).
 """
 function species_linear_pullback!(dx::AbstractArray{S, 3}, sl::SpeciesLinear, dy::AbstractArray{S, 3}, species::AbstractVector{Int}) where {S}
     _check_species_linear(sl, dy, dx, species)

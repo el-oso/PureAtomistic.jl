@@ -358,35 +358,35 @@ expect = "radial functions match the MACE radial fixture"
 
 [[mutation]]
 name = "species-linear-coupling-norm"
-file = "src/model/linear.jl"
+file = "src/tensors/linear.jl"
 find = "T(pw * (1 / sqrt(2 * ls[i] + 1)))"
 replace = "T(pw * (1 / sqrt(2 * ls[i])))"
 expect = "MACE layers match the forward-pass formulas"
 
 [[mutation]]
 name = "linear-overwrites-shared-output"
-file = "src/model/linear.jl"
+file = "src/tensors/linear.jl"
 find = "view(x, :, lin.in_off[i] + m, :), lin.pw[p], true)"
 replace = "view(x, :, lin.in_off[i] + m, :), lin.pw[p], false)"
 expect = "MACE layers match the forward-pass formulas"
 
 [[mutation]]
 name = "linear-pullback-untransposed"
-file = "src/model/linear.jl"
+file = "src/tensors/linear.jl"
 find = "mul!(view(dx, :, lin.in_off[i] + m, :), transpose(lin.W[p])"
 replace = "mul!(view(dx, :, lin.in_off[i] + m, :), lin.W[p]"
 expect = "layer pullbacks match ForwardDiff"
 
 [[mutation]]
 name = "tp-coupling-swapped-inputs"
-file = "src/model/tensor_product.jl"
+file = "src/tensors/tensor_product.jl"
 find = "e3nn_wigner_3j(in1_ls[a], in2_ls[b], out_ls[c])"
 replace = "e3nn_wigner_3j(in2_ls[b], in1_ls[a], out_ls[c])"
 expect = "channelwise TP matches"
 
 [[mutation]]
 name = "tp-pullback-dY-sign"
-file = "src/model/tensor_product.jl"
+file = "src/tensors/tensor_product.jl"
 find = "dY[j] += v * acc"
 replace = "dY[j] -= v * acc"
 expect = "channelwise TP matches"
@@ -428,7 +428,7 @@ expect = "layer pullbacks match ForwardDiff"
 
 [[mutation]]
 name = "symmetric-contraction-a2-first-index"
-file = "src/model/symmetric_contraction.jl"
+file = "src/tensors/symmetric_contraction.jl"
 find = "C2wx = view(scratch, I2[1, m, w, x]:I2[C, m, w, x])"
 replace = "C2wx = view(scratch, I2[1, m, x, w]:I2[C, m, x, w])"
 expect = "symmetric contraction"
@@ -463,7 +463,7 @@ expect = "tiny"
 
 [[mutation]]
 name = "eachindex-third-argument-unchecked"
-file = "src/model/eachindex.jl"
+file = "src/tensors/eachindex.jl"
 find = "return _check_eachindex(style, inds, Bs...)"
 replace = "return nothing"
 expect = "_eachindex matches"

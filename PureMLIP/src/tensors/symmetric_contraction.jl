@@ -180,6 +180,11 @@ contraction `ct` of order `l`, with `s = species[a]` and the U and W of `ct`:
 
 where `o` is the number of components of the contractions before `ct`. `scratch` holds at least
 [`symmetric_contraction_scratch_size`](@ref)`(sc)` elements of the type of `X`.
+
+As einsums, with `z[a, s] = (s == species[a])`, `s` the species, `k` the coupling-tensor component and
+`m, w, x, i` the indices of the `U` arrays (`m` is 1 for `l = 0`): `B[c, m, a]` is the sum of
+`ein"mwk,skc,as,cwa->cma"(U1, W1, z, X)`, `ein"mwxk,skc,as,cxa,cwa->cma"(U2, W0, z, X, X)` and
+`ein"mwxik,skc,as,cia,cxa,cwa->cma"(U3, Wmax, z, X, X, X)`. The `U` arrays are stored as nonzero entries.
 """
 function symmetric_contraction!(
         B::AbstractArray{S, 3}, sc::SymmetricContraction, X::AbstractArray{S, 3},
@@ -209,6 +214,10 @@ end
 
 Overwrites `dX` with `Σ dB .* ∂B/∂X` for `B` of [`symmetric_contraction!`](@ref) at `X`.
 `C2` and `C1` are recomputed per node in `scratch`.
+
+As an einsum, `dX` is the sum, over each `X` factor of each of the three einsums of
+[`symmetric_contraction!`](@ref), of that einsum with the factor dropped, `dB[c, m, a]` (labels `cma`)
+added, and the factor's own labels (`cwa`, `cxa` or `cia`) as the output.
 """
 function symmetric_contraction_pullback!(
         dX::AbstractArray{S, 3}, sc::SymmetricContraction, dB::AbstractArray{S, 3}, X::AbstractArray{S, 3},
@@ -254,39 +263,4 @@ function symmetric_contraction_pullback!(
         end
     end
     return dX
-end
-
-"""
-    symmetric_contraction_from_state(st, prefix, T) -> SymmetricContraction{T}
-
-The contractions `prefix.symmetric_contractions.contractions.0, 1, ...` of a MACE state dict,
-in order, pairing `weights_max` with `U_matrix_3`, `weights.0` with `U_matrix_2` and `weights.1`
-with `U_matrix_1`. The order `l` of each contraction is read from the shape of `U_matrix_1`
-(two dimensions for `l = 0`, a leading `2l + 1` otherwise).
-"""
-function symmetric_contraction_from_state(st::Dict{String, CheckpointTensor{Float64}}, prefix::String, ::Type{T}) where {T}
-    contractions = Contraction{T}[]
-    j = 0
-    while true
-        p = string(prefix, ".symmetric_contractions.contractions.", j) * "."
-        haskey(st, p * "U_matrix_1") || break
-        u1, u2, u3 = _tensor(st, p * "U_matrix_1"), _tensor(st, p * "U_matrix_2"), _tensor(st, p * "U_matrix_3")
-        Wmax = torch_array(_tensor(st, p * "weights_max"), Val(3))
-        W0 = torch_array(_tensor(st, p * "weights.0"), Val(3))
-        W1 = torch_array(_tensor(st, p * "weights.1"), Val(3))
-        ct = if length(u1.shape) == 3
-            Contraction{T}((u1.shape[1] - 1) ÷ 2, torch_array(u1, Val(3)), torch_array(u2, Val(4)), torch_array(u3, Val(5)), Wmax, W0, W1)
-        else
-            Contraction{T}(0, torch_array(u1, Val(2)), torch_array(u2, Val(3)), torch_array(u3, Val(4)), Wmax, W0, W1)
-        end
-        push!(contractions, ct)
-        j += 1
-    end
-    j > 0 || throw(ArgumentError("model: missing $prefix.symmetric_contractions.contractions.0.U_matrix_1"))
-    return SymmetricContraction{T}(contractions)
-end
-
-function _tensor(st::Dict{String, CheckpointTensor{Float64}}, key::String)
-    haskey(st, key) || throw(ArgumentError("model: missing $key"))
-    return st[key]
 end

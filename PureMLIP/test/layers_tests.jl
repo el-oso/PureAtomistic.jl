@@ -1,8 +1,9 @@
 @testitem "layer graph holds" tags = [:checks] begin
     using StrictModeTest
     test_layers(
-        PureMLIP => (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model),
-        PureMLIP.Model => (PureMLIP.Checkpoint, PureMLIP.Equivariant),
+        PureMLIP => (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Tensors, PureMLIP.Model),
+        PureMLIP.Model => (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Tensors),
+        PureMLIP.Tensors => (PureMLIP.Equivariant,),
         PureMLIP.Checkpoint => (),
         PureMLIP.Equivariant => ()
     )
@@ -15,7 +16,7 @@ end
 # not the test files.
 @testitem "submodules read only each other's public names" tags = [:checks] begin
     using ExplicitImports
-    for M in (PureMLIP, PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model)
+    for M in (PureMLIP, PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Tensors, PureMLIP.Model)
         @test isnothing(
             check_all_qualified_accesses_are_public(
                 M, pathof(PureMLIP); from = (PureMLIP,), allow_internal_accesses = false
@@ -53,7 +54,7 @@ end
     mace_energy_forces(MACEModel{Float32}(ck), Float32.(P), Float32.(cell), [29, 13])
 
     test_calls(PureMLIP)
-    for M in (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Model)
+    for M in (PureMLIP.Checkpoint, PureMLIP.Equivariant, PureMLIP.Tensors, PureMLIP.Model)
         @test length(test_calls(M)) > 0
     end
 end

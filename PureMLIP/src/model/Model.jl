@@ -1,14 +1,11 @@
 module Model
 
-using ..Checkpoint, ..Equivariant, LinearAlgebra
+using ..Checkpoint, ..Equivariant, ..Tensors, LinearAlgebra
+using ..Tensors: _eachindex, _n_out
 
-include("eachindex.jl")
 include("neighbors.jl")
 include("radial.jl")
-include("linear.jl")
-include("tensor_product.jl")
 include("radial_mlp.jl")
-include("symmetric_contraction.jl")
 include("mace_model.jl")
 include("evaluate.jl")
 
