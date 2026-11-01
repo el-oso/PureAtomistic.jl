@@ -3,6 +3,8 @@
 #
 #   julia -t 1 --project=PureMLIP/bench PureMLIP/bench/large_julia_only.jl
 #
+# macOS only: it reads `sysctl` (swap usage, CPU brand).
+#
 #   PUREMLIP_CHECKPOINT_DIR  directory with mace-mpa-0-medium.model
 #   PUREMLIP_BENCH_OUT       JSON output path (default results/mace_cu14_julia.json)
 using PureMLIP, Chairmarks, JSON, LinearAlgebra, Statistics
@@ -14,15 +16,22 @@ const OUT = get(ENV, "PUREMLIP_BENCH_OUT", joinpath(@__DIR__, "results", "mace_c
 
 swap_used_mb() = parse(Float64, match(r"used = ([0-9.]+)M", read(`sysctl -n vm.swapusage`, String))[1])
 
-# Bytes of each workspace field, and which extent it scales with.
+# Bytes of each workspace field, and which extent it scales with. A tuple field holds arrays
+# of different sizes (`sizes` lists each one). A field whose arrays all share memory with an
+# earlier field (`tpw3` views `tpw`, `dtpw3` views `dtpw`) is an alias and is skipped, so the
+# rows sum to the workspace's memory.
 function field_breakdown(ws, n_atoms, n_edges)
     rows = []
+    seen = Set{Ptr{Nothing}}()
     for f in fieldnames(typeof(ws))
         v = getfield(ws, f)
         arrays = v isa AbstractArray ? (v,) : v isa Tuple && all(x -> x isa AbstractArray, v) ? v : continue
+        ptrs = [Ptr{Nothing}(pointer(a)) for a in arrays]
+        all(in(seen), ptrs) && continue
+        union!(seen, ptrs)
         sz = size(first(arrays))
-        scale = n_edges in sz ? "per-edge" : n_atoms in sz ? "per-atom" : "fixed/chunk"
-        push!(rows, (; field = string(f), type = string(typeof(v)), size = collect(sz), count = length(arrays), bytes = sum(Base.summarysize, arrays), scale))
+        scale = any(a -> n_edges in size(a), arrays) ? "per-edge" : any(a -> n_atoms in size(a), arrays) ? "per-atom" : "fixed/chunk"
+        push!(rows, (; field = string(f), type = string(typeof(v)), sizes = [collect(size(a)) for a in arrays], count = length(arrays), bytes = sum(Base.summarysize, arrays), scale))
     end
     sort!(rows; by = r -> -r.bytes)
     return rows

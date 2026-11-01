@@ -53,10 +53,17 @@
     {
       "field": "M",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ],
+        [
+          128,
+          40,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 629407856,
@@ -65,10 +72,17 @@
     {
       "field": "dM",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ],
+        [
+          128,
+          40,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 629407856,
@@ -77,10 +91,17 @@
     {
       "field": "L",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ],
+        [
+          128,
+          16,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 359661680,
@@ -89,10 +110,17 @@
     {
       "field": "dL",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ],
+        [
+          128,
+          16,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 359661680,
@@ -101,10 +129,12 @@
     {
       "field": "X1",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 179830840,
@@ -113,10 +143,12 @@
     {
       "field": "dX1",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        16,
-        10976
+      "sizes": [
+        [
+          128,
+          16,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 179830840,
@@ -125,9 +157,11 @@
     {
       "field": "Y",
       "type": "Matrix{Float64}",
-      "size": [
-        16,
-        856128
+      "sizes": [
+        [
+          16,
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 109584432,
@@ -136,9 +170,11 @@
     {
       "field": "dY",
       "type": "Matrix{Float64}",
-      "size": [
-        16,
-        856128
+      "sizes": [
+        [
+          16,
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 109584432,
@@ -147,9 +183,11 @@
     {
       "field": "feats",
       "type": "Matrix{Float64}",
-      "size": [
-        10,
-        856128
+      "sizes": [
+        [
+          10,
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 68490288,
@@ -158,9 +196,11 @@
     {
       "field": "dfeats",
       "type": "Matrix{Float64}",
-      "size": [
-        10,
-        856128
+      "sizes": [
+        [
+          10,
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 68490288,
@@ -169,10 +209,17 @@
     {
       "field": "x",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ],
+        [
+          128,
+          4,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 56197232,
@@ -181,10 +228,17 @@
     {
       "field": "B",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        4,
-        10976
+      "sizes": [
+        [
+          128,
+          4,
+          10976
+        ],
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 56197232,
@@ -193,10 +247,17 @@
     {
       "field": "dB",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        4,
-        10976
+      "sizes": [
+        [
+          128,
+          4,
+          10976
+        ],
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 56197232,
@@ -205,10 +266,17 @@
     {
       "field": "dx",
       "type": "Tuple{Array{Float64, 3}, Array{Float64, 3}}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ],
+        [
+          128,
+          4,
+          10976
+        ]
       ],
       "count": 2,
       "bytes": 56197232,
@@ -217,10 +285,12 @@
     {
       "field": "h1",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        4,
-        10976
+      "sizes": [
+        [
+          128,
+          4,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 44957752,
@@ -229,10 +299,12 @@
     {
       "field": "dh1",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        4,
-        10976
+      "sizes": [
+        [
+          128,
+          4,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 44957752,
@@ -241,45 +313,25 @@
     {
       "field": "dh1_part",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        4,
-        10976
+      "sizes": [
+        [
+          128,
+          4,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 44957752,
       "scale": "per-atom"
     },
     {
-      "field": "tpw3",
-      "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        10,
-        4096
-      ],
-      "count": 1,
-      "bytes": 41943096,
-      "scale": "fixed/chunk"
-    },
-    {
-      "field": "dtpw3",
-      "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        10,
-        4096
-      ],
-      "count": 1,
-      "bytes": 41943096,
-      "scale": "fixed/chunk"
-    },
-    {
       "field": "tpw",
       "type": "Matrix{Float64}",
-      "size": [
-        1280,
-        4096
+      "sizes": [
+        [
+          1280,
+          4096
+        ]
       ],
       "count": 1,
       "bytes": 41943088,
@@ -288,9 +340,11 @@
     {
       "field": "dtpw",
       "type": "Matrix{Float64}",
-      "size": [
-        1280,
-        4096
+      "sizes": [
+        [
+          1280,
+          4096
+        ]
       ],
       "count": 1,
       "bytes": 41943088,
@@ -299,9 +353,11 @@
     {
       "field": "r",
       "type": "Matrix{Float64}",
-      "size": [
-        3,
-        856128
+      "sizes": [
+        [
+          3,
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 20547120,
@@ -310,10 +366,12 @@
     {
       "field": "h0",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 11239480,
@@ -322,10 +380,12 @@
     {
       "field": "sc",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 11239480,
@@ -334,10 +394,12 @@
     {
       "field": "h2",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 11239480,
@@ -346,10 +408,12 @@
     {
       "field": "dh2",
       "type": "Array{Float64, 3}",
-      "size": [
-        128,
-        1,
-        10976
+      "sizes": [
+        [
+          128,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 11239480,
@@ -358,8 +422,10 @@
     {
       "field": "d",
       "type": "Vector{Float64}",
-      "size": [
-        856128
+      "sizes": [
+        [
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 6849064,
@@ -368,8 +434,10 @@
     {
       "field": "dd",
       "type": "Vector{Float64}",
-      "size": [
-        856128
+      "sizes": [
+        [
+          856128
+        ]
       ],
       "count": 1,
       "bytes": 6849064,
@@ -378,10 +446,12 @@
     {
       "field": "pre",
       "type": "Array{Float64, 3}",
-      "size": [
-        64,
-        4096,
-        3
+      "sizes": [
+        [
+          64,
+          4096,
+          3
+        ]
       ],
       "count": 1,
       "bytes": 6291512,
@@ -390,10 +460,12 @@
     {
       "field": "act",
       "type": "Array{Float64, 3}",
-      "size": [
-        64,
-        4096,
-        3
+      "sizes": [
+        [
+          64,
+          4096,
+          3
+        ]
       ],
       "count": 1,
       "bytes": 6291512,
@@ -402,10 +474,12 @@
     {
       "field": "mlp_scratch",
       "type": "Array{Float64, 3}",
-      "size": [
-        64,
-        4096,
-        2
+      "sizes": [
+        [
+          64,
+          4096,
+          2
+        ]
       ],
       "count": 1,
       "bytes": 4194360,
@@ -414,10 +488,12 @@
     {
       "field": "gpre",
       "type": "Array{Float64, 3}",
-      "size": [
-        16,
-        1,
-        10976
+      "sizes": [
+        [
+          16,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 1404984,
@@ -426,10 +502,12 @@
     {
       "field": "g",
       "type": "Array{Float64, 3}",
-      "size": [
-        16,
-        1,
-        10976
+      "sizes": [
+        [
+          16,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 1404984,
@@ -438,10 +516,12 @@
     {
       "field": "dg",
       "type": "Array{Float64, 3}",
-      "size": [
-        16,
-        1,
-        10976
+      "sizes": [
+        [
+          16,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 1404984,
@@ -450,8 +530,10 @@
     {
       "field": "scratch",
       "type": "Vector{Float64}",
-      "size": [
-        104448
+      "sizes": [
+        [
+          104448
+        ]
       ],
       "count": 1,
       "bytes": 835624,
@@ -460,9 +542,11 @@
     {
       "field": "dfeats_chunk",
       "type": "Matrix{Float64}",
-      "size": [
-        10,
-        4096
+      "sizes": [
+        [
+          10,
+          4096
+        ]
       ],
       "count": 1,
       "bytes": 327728,
@@ -471,9 +555,11 @@
     {
       "field": "density",
       "type": "Matrix{Float64}",
-      "size": [
-        10976,
-        2
+      "sizes": [
+        [
+          10976,
+          2
+        ]
       ],
       "count": 1,
       "bytes": 175664,
@@ -482,9 +568,11 @@
     {
       "field": "ddensity",
       "type": "Matrix{Float64}",
-      "size": [
-        10976,
-        2
+      "sizes": [
+        [
+          10976,
+          2
+        ]
       ],
       "count": 1,
       "bytes": 175664,
@@ -493,10 +581,12 @@
     {
       "field": "e1",
       "type": "Array{Float64, 3}",
-      "size": [
-        1,
-        1,
-        10976
+      "sizes": [
+        [
+          1,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87864,
@@ -505,10 +595,12 @@
     {
       "field": "e2",
       "type": "Array{Float64, 3}",
-      "size": [
-        1,
-        1,
-        10976
+      "sizes": [
+        [
+          1,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87864,
@@ -517,10 +609,12 @@
     {
       "field": "de1",
       "type": "Array{Float64, 3}",
-      "size": [
-        1,
-        1,
-        10976
+      "sizes": [
+        [
+          1,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87864,
@@ -529,10 +623,12 @@
     {
       "field": "de2",
       "type": "Array{Float64, 3}",
-      "size": [
-        1,
-        1,
-        10976
+      "sizes": [
+        [
+          1,
+          1,
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87864,
@@ -541,8 +637,10 @@
     {
       "field": "species",
       "type": "Vector{Int64}",
-      "size": [
-        10976
+      "sizes": [
+        [
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87848,
@@ -551,8 +649,10 @@
     {
       "field": "pair",
       "type": "Vector{Float64}",
-      "size": [
-        10976
+      "sizes": [
+        [
+          10976
+        ]
       ],
       "count": 1,
       "bytes": 87848,
@@ -561,9 +661,11 @@
     {
       "field": "dYdr",
       "type": "Matrix{Float64}",
-      "size": [
-        16,
-        3
+      "sizes": [
+        [
+          16,
+          3
+        ]
       ],
       "count": 1,
       "bytes": 432,
@@ -572,12 +674,15 @@
     {
       "field": "Ye",
       "type": "Vector{Float64}",
-      "size": [
-        16
+      "sizes": [
+        [
+          16
+        ]
       ],
       "count": 1,
       "bytes": 168,
       "scale": "fixed/chunk"
     }
-  ]
+  ],
+  "workspace_float64_fields_note": "sizes lists the size of each array in a tuple field. tpw3 and dtpw3 are views of tpw and dtpw and are omitted, so the rows sum to the workspace memory."
 }

@@ -92,7 +92,7 @@
       "ratio_min": 2.0747533364007587,
       "ratio_max": 2.0993194784118283,
       "swap_checked": true,
-      "lammps_peak_rss_mb": [
+      "lammps_peak_rss_mib": [
         10261.6875,
         10260.203125,
         10261.8125,
@@ -198,7 +198,7 @@
       "ratio_min": 1.7324466610101934,
       "ratio_max": 1.7559574412982921,
       "swap_checked": true,
-      "lammps_peak_rss_mb": [
+      "lammps_peak_rss_mib": [
         5174.125,
         5198.765625,
         4997.515625,
@@ -280,7 +280,7 @@
       "ratio_min": 2.9124481166841223,
       "ratio_max": 3.0791846409433474,
       "swap_checked": false,
-      "lammps_peak_rss_mb": [],
+      "lammps_peak_rss_mib": [],
       "swap_start_mb": [],
       "swap_end_mb": [],
       "discarded_rounds": [],
@@ -344,7 +344,7 @@
       "ratio_min": 1.8353187108452207,
       "ratio_max": 1.860750362815044,
       "swap_checked": false,
-      "lammps_peak_rss_mb": [],
+      "lammps_peak_rss_mib": [],
       "swap_start_mb": [],
       "swap_end_mb": [],
       "discarded_rounds": [],
@@ -408,7 +408,7 @@
       "ratio_min": 1.8625671728133597,
       "ratio_max": 1.8677728891664314,
       "swap_checked": false,
-      "lammps_peak_rss_mb": [],
+      "lammps_peak_rss_mib": [],
       "swap_start_mb": [],
       "swap_end_mb": [],
       "discarded_rounds": [],

@@ -2,6 +2,9 @@
 #
 #   julia -t 1 --project=PureMLIP/bench PureMLIP/bench/mace_cpu.jl
 #
+# macOS only: it reads `sysctl` (swap usage, CPU brand) and wraps LAMMPS in `/usr/bin/time -l`
+# (peak resident set size, reported in bytes by macOS).
+#
 #   PUREMLIP_LAMMPS            the `lmp` binary (built with ML-MACE)
 #   PUREMLIP_LAMMPS_MODEL_DIR  directory with mpa0_f64-lammps.pt and mpa0_f32-lammps.pt
 #   PUREMLIP_CHECKPOINT_DIR    directory with mace-mpa-0-medium.model
@@ -64,10 +67,10 @@ function lammps_step_time(data, model)
     out = IOBuffer()
     run(pipeline(cmd; stdout = out, stderr = out))
     text = String(take!(out))
-    rss_mb = parse(Float64, match(r"(\d+)\s+maximum resident set size", read(rssfile, String))[1]) / 2^20
+    rss_mib = parse(Float64, match(r"(\d+)\s+maximum resident set size", read(rssfile, String))[1]) / 2^20
     m = collect(eachmatch(LOOP, text))
     (!isempty(m) && parse(Int, m[end][2]) == 20) || error("unexpected LAMMPS output:\n", text)
-    return parse(Float64, m[end][1]) / 20, rss_mb
+    return parse(Float64, m[end][1]) / 20, rss_mib
 end
 
 function make_case(N, T, rounds, ck, tmp)
@@ -118,7 +121,7 @@ function main()
                 attempt == 3 && error("swap keeps growing; the machine is paging")
             end
             push!(s["julia"], t); push!(s["nl"], tn); push!(s["lammps"], l)
-            for (k, v) in ("rss_mb" => rss, "swap_start_mb" => sw0, "swap_end_mb" => sw1)
+            for (k, v) in ("rss_mib" => rss, "swap_start_mb" => sw0, "swap_end_mb" => sw1)
                 push!(get!(s, k, Any[]), v)
             end
             save_state(state)
@@ -143,10 +146,10 @@ function main()
                 median_ratio_lammps_over_julia = median(Lm) / median(jall),
                 ratio_min = minimum(ratios), ratio_max = maximum(ratios),
                 swap_checked = length(get(s, "swap_end_mb", [])) == length(Lm),
-lammps_peak_rss_mb = Float64.(get(s, "rss_mb", Float64[])),
-swap_start_mb = Float64.(get(s, "swap_start_mb", Float64[])), swap_end_mb = Float64.(get(s, "swap_end_mb", Float64[])),
-discarded_rounds = get(s, "discarded", []),
-median_ratio_vs_julia_with_neighbor_list = median(Lm) / (median(jall) + median(nall)),
+                lammps_peak_rss_mib = Float64.(get(s, "rss_mib", Float64[])),
+                swap_start_mb = Float64.(get(s, "swap_start_mb", Float64[])), swap_end_mb = Float64.(get(s, "swap_end_mb", Float64[])),
+                discarded_rounds = get(s, "discarded", []),
+                median_ratio_vs_julia_with_neighbor_list = median(Lm) / (median(jall) + median(nall)),
             )
         )
     end
