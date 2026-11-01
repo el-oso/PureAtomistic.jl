@@ -76,6 +76,26 @@
 - [ ] **Step 5:** A/B vs main at plan start (596b5b2). Gate: Float64 ≤ 0.75, Float32 ≤ 0.58 (recon 0.728 / 0.558 for tasks 2+3 together).
 - [ ] **Step 6:** Commit `Vectorize the symmetric contraction; keep the logistic in the radial MLP`.
 
+### Task 3b: The `PureMLIP.Tensors` submodule
+
+The equivariant tensor kernels move into their own submodule, so they can later become a standalone package (planned name: PureTensors) without renaming anything. Code, speed and results stay the same.
+
+**Files:**
+- Create: `PureMLIP/src/tensors/Tensors.jl` (module docstring; `using ..Equivariant, LinearAlgebra`; includes; exports)
+- Move (`git mv`): `src/model/eachindex.jl`, `src/model/tensor_product.jl`, `src/model/linear.jl`, `src/model/symmetric_contraction.jl` → `src/tensors/`
+- Modify: `src/PureMLIP.jl` (include `tensors/Tensors.jl` after Equivariant, before Model), `src/model/Model.jl` (`using ..Tensors`), `src/model/mace_model.jl` (receives `symmetric_contraction_from_state`, the only checkpoint-reading function among the moved files), `test/layers_tests.jl` (layer graph and ExplicitImports/`test_calls` sweeps include Tensors), `test/coverage/thresholds.toml` and `test/mutation/mutations.toml` (paths), `test/trim_tests.jl`/`test/strictmode_tests.jl` if they name moved functions by module, `AGENTS.md` (layer list)
+
+**Interfaces:**
+- Layer graph: `Checkpoint`, `Equivariant` (independent) → `Tensors` (depends on `Equivariant` only) → `Model` (depends on all three). `test_layers` enforces it.
+- `Tensors` owns and declares public: `ChannelwiseTP`, `tp_edge_add!`, `tp_edge_pullback_add!`, `E3nnLinear`, `linear!`, `linear_pullback!`, `SpeciesLinear`, `species_linear!`, `species_linear_pullback!`, `Contraction`, `SymmetricContraction`, `symmetric_contraction!`, `symmetric_contraction_pullback!`, `symmetric_contraction_scratch_size`, `_eachindex`. The `SymmetricContraction` constructor takes plain arrays (U matrices and weights); reading them from checkpoint tensors happens in `mace_model.jl`.
+- Each kernel's docstring states its contraction in OMEinsum `ein"…"` notation (for example the channel-wise tensor product as the contraction of node features, edge harmonics and the sparse coupling tensor over its index labels), so it can be compared with OMEinsum directly. No einsum parser is built.
+
+- [ ] **Step 1:** Extend `test_layers` with the `Tensors` layer and its allowed dependency; run it: FAIL (module missing).
+- [ ] **Step 2:** Move the files, create the module, move `symmetric_contraction_from_state`, update imports and test references.
+- [ ] **Step 3:** Full suite with coverage, coverage gate, TrimCheck, juliac item, runic: PASS with no test logic changed (only module paths). Mutation check on the moved entries: all killed.
+- [ ] **Step 4:** A/B vs the commit before the task (at least 7 pairs, median): 1.00 ± 0.02 for both entry points and precisions.
+- [ ] **Step 5:** Commit `Move the equivariant tensor kernels into PureMLIP.Tensors`.
+
 ### Task 4: Alias workspace buffers by lifetime (option A)
 
 **Files:**
