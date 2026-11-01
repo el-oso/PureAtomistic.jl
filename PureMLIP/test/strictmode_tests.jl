@@ -210,3 +210,27 @@ end
     constructors = ("neighbor_list", "#neighbor_list#1", "_", "neighbor_list!")
     @test isempty(filter(f -> f.func ∉ constructors, found))
 end
+
+# A store into `buf[Threads.threadid()]` is a data race once tasks migrate between threads. The
+# scan reads each signature's own IR and does not follow a call the optimizer left out of line,
+# so the sweep covers every signature the evaluation paths compiled, callees included.
+@testitem "StrictMode: evaluation holds no threadid-indexed state" tags = [:checks] setup = [Checkpoints] begin
+    using StrictModeTest, StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    for T in (Float32, Float64)
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        res = MACEResult{T}(3)
+        neighbor_list!(nl, PT, CT)
+        mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces(m, PT, CT, Z)
+    end
+    for M in (PureMLIP.Model, PureMLIP.Tensors, PureMLIP.Equivariant)
+        swept = test_compiled(M; guarantees = (:no_threadid_state,))
+        @test !isempty(swept)
+    end
+end
