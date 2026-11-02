@@ -370,3 +370,93 @@ file = "src/analysis/arrhenius.jl"
 find = "sxx += w * dx^2"
 replace = "sxx += dx^2"
 expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "verlet-kick-unit-factor"
+file = "src/integrators/verlet.jl"
+find = "f = τ / (m[a] * c)"
+replace = "f = τ / m[a]"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "verlet-drift-half-step"
+file = "src/integrators/verlet.jl"
+find = "X[k, a] += h * V[k, a]"
+replace = "X[k, a] += h * V[k, a] / 2"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "verlet-second-kick-missing"
+file = "src/integrators/verlet.jl"
+find = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+    _kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
+'''
+replace = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+'''
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "verlet-prepare-skipped"
+file = "src/integrators/verlet.jl"
+find = '''
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+    _kick!'''
+replace = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+    _kick!'''
+expect = "step moves atoms across the cell boundary"
+
+[[mutation]]
+name = "verlet-dt-zero-allowed"
+file = "src/integrators/verlet.jl"
+find = "(isfinite(dt) && dt > 0) ||"
+replace = "(isfinite(dt) && dt >= 0) ||"
+expect = "reject invalid arguments"
+
+[[mutation]]
+name = "driver-step-count"
+file = "src/driver.jl"
+find = "    sim.step_count += 1"
+replace = "    sim.step_count += 0"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "driver-observer-phase"
+file = "src/driver.jl"
+find = "i % every == 0"
+replace = "i % every == 1"
+expect = "observer every k steps"
+
+[[mutation]]
+name = "driver-total-energy-kinetic-only"
+file = "src/driver.jl"
+find = "kinetic_energy(sim.system) + T(sim.potential.result.energy)"
+replace = "kinetic_energy(sim.system)"
+expect = "tiny MACE checkpoint conserves energy"
+
+[[mutation]]
+name = "driver-initial-forces-missing"
+file = "src/driver.jl"
+find = '''
+    energy_forces!(potential, system.positions, system.cell)
+    return Simulation{'''
+replace = '''
+    return Simulation{'''
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "driver-negative-nsteps"
+file = "src/driver.jl"
+find = "nsteps >= 0 ||"
+replace = "nsteps >= -1 ||"
+expect = "reject invalid arguments"
+
+[[mutation]]
+name = "driver-atom-count-unchecked"
+file = "src/driver.jl"
+find = "n_atoms(potential) == natoms(system) ||"
+replace = "true ||"
+expect = "reject invalid arguments"

@@ -11,10 +11,15 @@ include("barostats/Barostats.jl")
 include("io/IO.jl")
 include("analysis/Analysis.jl")
 
+using .Systems: System, natoms, kinetic_energy
 using .Potentials: AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
     energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
+using .Integrators: AbstractIntegrator, VelocityVerlet, advance!
 export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
     energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
+export AbstractIntegrator, VelocityVerlet, Simulation, step!, run!, total_energy
+
+include("driver.jl")
 
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
