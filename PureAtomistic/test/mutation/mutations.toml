@@ -600,3 +600,10 @@ file = "src/optimize/fire.jl"
 find = "RelaxResult{T}(fm < tol, Int(maxsteps), E, fm)"
 replace = "RelaxResult{T}(false, Int(maxsteps), E, fm)"
 expect = "iteration count"
+
+[[mutation]]
+name = "optimize-power-sign"
+file = "src/optimize/fire.jl"
+find = "P += F[d, a] * V[d, a]"
+replace = "P -= F[d, a] * V[d, a]"
+expect = "FIRE rules"

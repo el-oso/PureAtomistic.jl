@@ -7,6 +7,9 @@
 #
 #   invalid           the package did not precompile or load, or the suite never reported
 #   killed            a test item failed, and a failing item matches `expect`
+#   killed_timeout    the run exceeded the time limit and was killed with its whole process
+#                     tree: the mutant makes the code loop (or run) without end, which a test
+#                     suite detects by never finishing; it counts as killed
 #   killed_elsewhere  test items failed, but none matches `expect`
 #   survived          the suite passed
 #
@@ -17,12 +20,15 @@
 # Usage: julia run.jl [filter ...]
 # A filter is a regular expression matched against mutation names; with none, all run.
 # Set PUREMLIP_CHECKPOINT_DIR to the checkpoint cache the suite reads, and
-# MUTATION_LOG_DIR to keep each run's log as <name>.log. Set MUTATION_NO_CONTROL=1 to skip
-# the control run when running the entries in several batches after one passing control.
+# MUTATION_LOG_DIR to keep each run's log as <name>.log. Set MUTATION_TIMEOUT_S to the time limit
+# in seconds for one mutated run (default 900); the unmutated control has no limit.
+# Set MUTATION_NO_CONTROL=1 to skip the control run when running the entries in several batches
+# after one passing control.
 
 using TOML
 
 const PKG_DIR = dirname(dirname(@__DIR__))
+const DEFAULT_TIMEOUT_S = 900.0
 const SKIP_DIRS = ("docs/build",)
 
 # Copy the package tree, leaving out build outputs and coverage files.
@@ -69,6 +75,31 @@ function classify(ok::Bool, log::AbstractString, expect::AbstractString)
     return any(i -> occursin(Regex(expect), i), items) ? :killed : :killed_elsewhere, items
 end
 
+# Run `cmd` with output to `io`. The child is its own process-group leader, so on timeout one
+# SIGKILL to the group ends it and every process it started (Pkg.test spawns further Julia
+# processes). Returns `(ok, timed_out)`.
+function run_limited(cmd, io, limit)
+    proc = run(pipeline(detach(cmd); stdout = io, stderr = io); wait = false)
+    pid = getpid(proc)
+    deadline = time() + limit
+    while process_running(proc)
+        if time() > deadline
+            run(ignorestatus(`kill -KILL -- -$pid`))
+            wait(proc)
+            return false, true
+        end
+        sleep(0.5)
+    end
+    return success(proc), false
+end
+
+# Time limit in seconds for one mutated run.
+function timeout_s()
+    t = tryparse(Float64, get(ENV, "MUTATION_TIMEOUT_S", string(DEFAULT_TIMEOUT_S)))
+    (isnothing(t) || t <= 0) && error("MUTATION_TIMEOUT_S must be a positive number of seconds")
+    return t
+end
+
 # Run the suite on a copy of the package, after applying `m` when it is given.
 function run_suite(m, logdir, name)
     dir = mktempdir()
@@ -84,12 +115,13 @@ function run_suite(m, logdir, name)
         isnothing(m) || apply_mutation(dst, m)
         logfile = joinpath(dir, "log.txt")
         cmd = `$(Base.julia_cmd()) --project=$dst -e "using Pkg; Pkg.test()"`
-        ok = open(logfile, "w") do io
-            success(pipeline(cmd; stdout = io, stderr = io))
+        limit = isnothing(m) ? Inf : timeout_s()
+        ok, timed_out = open(logfile, "w") do io
+            run_limited(cmd, io, limit)
         end
         log = read(logfile, String)
         isempty(logdir) || write(joinpath(logdir, name * ".log"), log)
-        return ok, log
+        return ok, log, timed_out
     finally
         rm(dir; recursive = true, force = true)
     end
@@ -113,7 +145,7 @@ function main(args)
     if get(ENV, "MUTATION_NO_CONTROL", "") == "1"
         println("control (unmutated): skipped")
     else
-        ok, _ = run_suite(nothing, logdir, "control")
+        ok, _, _ = run_suite(nothing, logdir, "control")
         println("control (unmutated): ", ok ? "passed" : "FAILED")
         flush(stdout)
         ok || return 1
@@ -121,11 +153,13 @@ function main(args)
 
     bad = String[]
     for m in selected
-        t = @elapsed ((ok, log) = run_suite(m, logdir, m["name"]))
-        verdict, items = classify(ok, log, m["expect"])
+        t = @elapsed ((ok, log, timed_out) = run_suite(m, logdir, m["name"]))
+        verdict, items = timed_out ? (:killed_timeout, String[]) : classify(ok, log, m["expect"])
         println(rpad(m["name"], 34), " ", rpad(verdict, 17), " (", round(Int, t), " s)")
         if verdict in (:killed, :killed_elsewhere)
             println("    failed items: ", join(items, " | "))
+        elseif verdict === :killed_timeout
+            println("    no result within ", timeout_s(), " s; process tree killed")
         end
         verdict in (:invalid, :survived, :killed_elsewhere) && push!(bad, string(m["name"], " (", verdict, ")"))
         flush(stdout)

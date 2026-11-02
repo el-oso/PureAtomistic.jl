@@ -25,7 +25,8 @@ Eliminating the half-step velocity gives the velocity form
 
 The positions-only form is due to L. Verlet, Phys. Rev. 159, 98 (1967); the velocity form is
 from W. C. Swope, H. C. Andersen, P. H. Berens and K. R. Wilson, J. Chem. Phys. 76, 637
-(1982).
+(1982). The update here is re-derived, not transcribed from either paper: the tests verify it
+(the `dt²` scaling of the error, time reversibility and momentum conservation).
 
 Forces are in eV/Å and masses in amu, so the acceleration is `F / (m · AMU_IN_EV_FS2_PER_A2)`
 in Å/fs².

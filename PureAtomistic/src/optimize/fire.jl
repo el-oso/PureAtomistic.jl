@@ -21,8 +21,9 @@ The state and parameters of the FIRE minimizer (Bitzek et al., Phys. Rev. Lett. 
 2006) for `natoms` atoms: the velocities, the current time step `dt`, the mixing parameter
 `alpha` and the count `npos` of steps since the power `F · v` was last non-positive.
 
-`nmin`, `finc`, `fdec`, `alpha_start` and `falpha` default to the values the paper reports
-(`N_min = 5`, `f_inc = 1.1`, `f_dec = 0.5`, `α_start = 0.1`, `f_α = 0.99`). `dt` is the
+`nmin`, `finc`, `fdec`, `alpha_start` and `falpha` default to the commonly used values
+(`N_min = 5`, `f_inc = 1.1`, `f_dec = 0.5`, `α_start = 0.1`, `f_α = 0.99`). `f_α = 0.99` is the
+commonly used value and was not verified against the text of the paper. `dt` is the
 starting time step and `dtmax` its ceiling; the paper estimates `Δt_max` as about ten times the
 time step of a molecular dynamics run, and the defaults keep that ratio. All atoms have unit
 mass and the forces are in eV/Å, so `dt` is a unitless scale. `maxstep` (Å) caps the largest
