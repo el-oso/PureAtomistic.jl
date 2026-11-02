@@ -1,6 +1,7 @@
 {
   "schema": "puremlip-mace-cpu-bench-v1",
   "machine": "Apple M6",
+  "note": "The PureMLIP commit was not recorded. The bench script that wrote this file was committed in f13d0ac after the run, so the run used an uncommitted working tree. The nearest earlier commit, 6e6918f, has the same PureMLIP/src as 735f470, which records this file; whether src had uncommitted changes during the run is not recorded.",
   "julia_version": "1.13.3",
   "lammps_version": null,
   "model": "mace-mpa-0-medium",

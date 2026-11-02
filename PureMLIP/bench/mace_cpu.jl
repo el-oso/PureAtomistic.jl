@@ -106,6 +106,13 @@ end
 load_state() = isfile(STATE) ? JSON.parsefile(STATE) : Dict{String, Any}()
 save_state(st) = isempty(STATE) || open(io -> JSON.json(io, st), STATE, "w")
 
+# The commit of this checkout, with "-dirty" when tracked files differ from it.
+function head_commit()
+    sha = readchomp(`git -C $(@__DIR__) rev-parse --short=12 HEAD`)
+    clean = isempty(readchomp(`git -C $(@__DIR__) status --porcelain --untracked-files=no`))
+    return clean ? sha : sha * "-dirty"
+end
+
 # The git revision the environment resolved PureBLAS to, when PureBLAS is loaded.
 function pureblas_revision()
     LOAD == "PureBLAS" || return nothing
@@ -116,6 +123,7 @@ function pureblas_revision()
 end
 
 function main()
+    commit = head_commit()
     pureblas_commit = pureblas_revision()
     tmp = mktempdir()
     ck = load_mace_checkpoint(CK)
@@ -187,7 +195,7 @@ function main()
         )
     end
     doc = (;
-        schema = "puremlip-mace-cpu-bench-v1",
+        schema = "puremlip-mace-cpu-bench-v1", head_commit = commit,
         machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String)),
         julia_version = string(VERSION), lammps_version, model = "mace-mpa-0-medium",
         threads = 1, blas_threads = BLAS.get_num_threads(), blas_libraries = [basename(l.libname) for l in BLAS.get_config().loaded_libs], julia_samples_per_round = JULIA_SAMPLES,

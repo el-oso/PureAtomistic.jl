@@ -7,6 +7,7 @@
   "base_commit": "596b5b2df85b",
   "head_commit": "e38ab7c18ec5",
   "pureblas_commit": null,
+  "note": "pureblas_commit is null: the head side took PureBLAS from its URL without a revision, so the environment resolved the default branch at run time, and the run recorded only the PureBLAS version (0.1.2). The revision that ran cannot be determined from this record. ab_plan_total_pureblas_mac.json makes the same comparison with PureBLAS c38f273fd758 recorded.",
   "load": "PureBLAS",
   "threads": 1,
   "blas_threads": 1,

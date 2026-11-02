@@ -6,6 +6,7 @@
   "base_ref": "HEAD",
   "base_commit": "cf8c30c50d58",
   "head_commit": "cf8c30c50d58-dirty",
+  "note": "head_commit carries -dirty because tracked files of the working tree differed from commit cf8c30c when the run started; the harness does not record which. cf8c30c already tracked this results file and PureMLIP/bench/ab_compare.jl, and the commit that records this file (85dcfe3) differs from cf8c30c only in those two files, both outside the PureMLIP package source. The record does not prove that nothing else was modified.",
   "pureblas_commit": null,
   "load": "none",
   "threads": 1,

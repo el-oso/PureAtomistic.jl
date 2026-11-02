@@ -23,6 +23,8 @@
 #                            before warm-up; the base side stays on OpenBLAS
 #   PUREMLIP_AB_PUREBLAS     PureBLAS checkout (a directory or a URL), required with
 #                            PUREMLIP_AB_LOAD=PureBLAS
+#   PUREMLIP_AB_PUREBLAS_REV branch, tag or full commit hash of a URL source (default HEAD, the
+#                            default branch); the commit it resolves to is pinned and recorded
 #   PUREMLIP_AB_ENERGY_WORKSPACE  "1": `mace_energy!` runs on a `MACEEnergyWorkspace` on each side
 #                            that defines one, and on the `MACEWorkspace` on a side that does not
 #
@@ -211,8 +213,20 @@ function pair_discard_reason(rb, rh, sw0, sw1)
     return nothing
 end
 
-function pureblas_source(spec)
-    return isdir(spec) ? "{path = \"$(abspath(spec))\"}" : "{url = \"$spec\"}"
+# The PureBLAS source of the head side, as a `[sources]` entry, and the commit it pins. A checkout
+# is used as it is and labeled like the PureMLIP trees. A URL is pinned to one commit: `rev` is a
+# full commit hash or a branch or tag that `git ls-remote` resolves to exactly one commit, so the
+# record names the PureBLAS revision that ran.
+function pureblas_source(spec, rev)
+    isdir(spec) && return "{path = \"$(abspath(spec))\"}", commit_label(spec)
+    sha = if occursin(r"^[0-9a-f]{40}$", rev)
+        rev
+    else
+        lines = filter(!isempty, split(readchomp(`git ls-remote $spec $rev`), '\n'))
+        length(lines) == 1 || error("PUREMLIP_AB_PUREBLAS_REV=$rev matches $(length(lines)) refs of $spec; give one branch, tag or full commit hash")
+        String(first(split(only(lines))))
+    end
+    return "{url = \"$spec\", rev = \"$sha\"}", sha[1:12]
 end
 
 function summarize(cases, kept)
@@ -249,8 +263,8 @@ function driver_main()
     if load == "PureBLAS"
         spec = get(ENV, "PUREMLIP_AB_PUREBLAS", "")
         isempty(spec) && error("PUREMLIP_AB_LOAD=PureBLAS needs PUREMLIP_AB_PUREBLAS (a checkout path or URL)")
-        head_extra["PureBLAS"] = ("cc9e14db-574f-4602-bf53-1167cc4b26d2", pureblas_source(spec))
-        isdir(spec) && (pureblas_commit = commit_label(spec))
+        source, pureblas_commit = pureblas_source(spec, get(ENV, "PUREMLIP_AB_PUREBLAS_REV", "HEAD"))
+        head_extra["PureBLAS"] = ("cc9e14db-574f-4602-bf53-1167cc4b26d2", source)
     end
     structures = joinpath(root, "PureMLIP", "test", "reference", "structures.jl")
 

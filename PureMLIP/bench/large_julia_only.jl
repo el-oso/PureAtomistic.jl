@@ -17,6 +17,13 @@ const OUT = get(ENV, "PUREMLIP_BENCH_OUT", joinpath(@__DIR__, "results", "mace_c
 
 swap_used_mb() = parse(Float64, match(r"used = ([0-9.]+)M", read(`sysctl -n vm.swapusage`, String))[1])
 
+# The commit of this checkout, with "-dirty" when tracked files differ from it.
+function head_commit()
+    sha = readchomp(`git -C $(@__DIR__) rev-parse --short=12 HEAD`)
+    clean = isempty(readchomp(`git -C $(@__DIR__) status --porcelain --untracked-files=no`))
+    return clean ? sha : sha * "-dirty"
+end
+
 # Bytes of the workspace's array fields, one row per distinct underlying `Memory`: several
 # arrays that share a block (a pool, or a reshape of an array) are listed under the one row that
 # counts the block once. A tuple field holds arrays of different sizes; each member is named
@@ -54,6 +61,7 @@ ck = load_mace_checkpoint(joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-m
 cu = cu_bench(14)
 z = cu.atomic_numbers
 n = length(z)
+const HEAD_COMMIT = head_commit()
 cases = []
 for T in (Float64, Float32), W in (MACEWorkspace, MACEEnergyWorkspace)
     model = MACEModel{T}(ck)
@@ -75,7 +83,7 @@ for T in (Float64, Float32), W in (MACEWorkspace, MACEEnergyWorkspace)
     ws = nothing; GC.gc()
 end
 doc = (;
-    schema = "puremlip-mace-cu14-julia-v2", julia_version = string(VERSION),
+    schema = "puremlip-mace-cu14-julia-v2", head_commit = HEAD_COMMIT, julia_version = string(VERSION),
     machine = strip(read(`sysctl -n machdep.cpu.brand_string`, String)),
     blas_libraries = [basename(l.libname) for l in BLAS.get_config().loaded_libs],
     measured = "workspace construction on cu_bench(14); no evaluation",
