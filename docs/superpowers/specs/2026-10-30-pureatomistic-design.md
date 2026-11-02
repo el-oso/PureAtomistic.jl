@@ -14,7 +14,7 @@ Why Julia: generic code that specializes to fast native code for each element ty
 1. **PureMLIP.jl** evaluates ScaleShiftMACE models: energy, forces, stress (virial), per-atom energies. It loads published mace-torch `.model` checkpoints (MPA-0 first, also the MP-0 family) through a pure-Julia parser and reproduces mace-torch results.
 2. **PureAtomistic.jl** runs MD with any potential that implements its potential interface, with PureMLIP as the main one.
 3. Training and fine-tuning of PureMLIP models (milestone 2), including fine-tuning from a foundation checkpoint.
-4. Speed: **2x faster than mace-torch on the same machine** for MD steps per second; **1.05x is accepted for the first attempt**. Measured on each target machine (section 5).
+4. Speed: **faster than the Rust MACE engine fastatomstruct** (its `mace-tenferro` crate) on the same machine, device and precision, measured on every target machine and, once GPU kernels exist, on every supported GPU type (Metal, AMD, NVIDIA). mace-torch, through LAMMPS-MACE, is a second reference: **2x faster** is the target, **1.05x** accepted for the first attempt. Speed is reported as speed-up (reference time ÷ our time).
 
 ## 3. Non-goals for now
 
@@ -122,7 +122,7 @@ References come from existing files (option B) and LAMMPS (option C). Nothing ru
 - **Model structure:** llmlip.rs (Apache-2.0) inspection file for MACE-MP-0b3 (irreps per block, `avg_num_neighbors` = 61.964672446250916, interaction class) checked against our parsed MP-0b3 checkpoint.
 - **End to end:** LAMMPS with MACE's libtorch pair style (C++ at run time) on the same machine, with the model file from the one-time export. Energies and forces must match to about 1e-6 eV (llmlip.rs reports 5e-6 eV energy error on MP-0b3, so this level is reachable).
 - **Physics checks:** energy invariant under rotation and translation; forces equal finite-difference gradients; NVE energy conservation.
-- **Speed:** MD steps per second against the LAMMPS-MACE run on the same machine, at each system size, on each target machine. Timing with Chairmarks; samples saved as JSON.
+- **Speed:** energy-and-forces evaluations per second (and MD steps per second once the driver exists) against fastatomstruct and against LAMMPS-MACE on the same machine, at each system size, on each target machine. fastatomstruct is GPL-3: it is built and run outside the repositories for benchmarking only, and none of its code is read for implementation or committed. Timing with Chairmarks; samples saved as JSON.
 
 ## 10. Tensor contractions: decided by measurement
 
@@ -176,3 +176,4 @@ Findings that constrain the build:
 - **Trimmed binary (option C):** everything builds with `juliac --trim`: the MD driver, the model, the neighbor list, the trajectory writer, and the `.model` reader. A trim gate (TrimCheck test items plus a real `juliac` build) covers the whole path from reading a `.model` file to writing a trajectory. GPU paths in the trimmed binary are not required for milestone 1 (unverified whether they can be trimmed).
 - **Python session (agreed):** one session exports three files: MPA-0 Float64, MPA-0 Float32, MP-0b3 Float64. No later additions.
 - **Milestones (agreed):** milestone 1 supports MPA-0 only (MP-0b3 is used only as a parser test against llmlip.rs's inspection file). Milestone 2 is the first training set in section 8, on CPU first. Everything else in the mace-torch training list (LoRA, multi-head replay, the other losses, other interaction blocks, GPU training) is backlog without a date.
+- **Speed target (user, 2026-11-02):** the target comparison is the Rust MACE engine fastatomstruct, on each target machine and on every supported GPU type once GPU kernels exist. Measured on the Apple M6 (MPA-0, 500 Cu atoms, energy + forces + stress, one thread, fastatomstruct's native CPU backend): PureMLIP is 7.4x (Float64) and 9.5x (Float32) faster with OpenBLAS, 12.1x and 15.1x with PureBLAS active, at 0.6 GB peak memory against 10–20 GB.

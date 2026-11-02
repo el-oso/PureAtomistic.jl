@@ -192,3 +192,27 @@ PureMLIP's matrix products go through `mul!`, which `PureBLAS.activate()` redire
 - [ ] **Step 1:** Run both benches (OpenBLAS, and with PureBLAS loaded in the PureBLAS environment), LAMMPS only at sizes that keep its resident set under 12 GB and swap flat.
 - [ ] **Step 2:** Full suite, coverage gate, juliac item, mutation check on the new entries.
 - [ ] **Step 3:** Commit `Record CPU speed and memory after the workspace changes` with the tables in the body; whole-branch review; push to main.
+
+### Task 10: Example gallery
+
+Runnable examples that the documentation build executes and renders, each with a GLMakie animation. PureMLIP gets no new dependency: Literate, GLMakie and the example inputs live in the docs environment only.
+
+**Files:**
+- Create: `PureMLIP/docs/examples/*.jl` (Literate scripts), `PureMLIP/docs/src/examples/` (generated pages, git-ignored if generated at build time), the gallery index page
+- Modify: `PureMLIP/docs/Project.toml` (Literate, GLMakie; `[compat]` bounds), `PureMLIP/docs/make.jl` (run Literate, add the gallery pages), `.github/workflows/docs.yml` (run the build under `xvfb-run`; download the MPA-0 checkpoint with its SHA-256 check)
+
+**Interfaces:**
+- One script per example, each runnable alone with `julia --project=PureMLIP/docs PureMLIP/docs/examples/<name>.jl`, writing its animation as an mp4 next to the page:
+  1. `load_model.jl`: load MPA-0; the radial basis and cutoff animated as one atom moves away from another.
+  2. `energy_forces.jl`: energy, forces and stress of a Cu cell; the cell rotating with its force arrows rotating with it while the energy stays constant (printed per frame).
+  3. `vacancy.jl`: vacancy formation energy in Cu; a neighbor sliding step by step into the vacancy, with forces and the energy along the path.
+  4. `lattice_constant.jl`: energy as the cell expands and shrinks, drawn frame by frame; the minimum gives the lattice constant.
+  5. `energy_workspace.jl`: a large cell with `MACEEnergyWorkspace`; memory per atom of both workspaces as a still bar chart from `bench/results`.
+  6. `pureblas.jl`: speed-up with `PureBLAS.activate()`, a still bar chart from `bench/results` (the docs build does not time anything).
+  7. `tensors.jl`: real spherical harmonics on a rotating sphere; each `PureMLIP.Tensors` kernel shown beside its `ein"…"` string.
+- Fallback: if GLMakie cannot run in CI under `xvfb-run`, the scripts switch to CairoMakie by changing the `using` line only.
+
+- [ ] **Step 1:** Write the scripts; each runs alone and produces its animation.
+- [ ] **Step 2:** Build the docs locally; every page shows its output and animation.
+- [ ] **Step 3:** CI docs job green under `xvfb-run` (or the CairoMakie fallback, stated in the commit).
+- [ ] **Step 4:** Commit `Add an example gallery with animations`.
