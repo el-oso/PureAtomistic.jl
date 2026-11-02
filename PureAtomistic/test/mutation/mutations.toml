@@ -3,3 +3,73 @@
 # the names of the test items expected to fail.
 # A source file that holds only module, `import`, `include`, `export` and `public` declarations
 # needs no entry; every file that computes a value gets at least one.
+
+[[mutation]]
+name = "analysis-ws-farthest-site"
+file = "src/analysis/vacancy.jl"
+find = "if d2 < bestd"
+replace = "if d2 > bestd"
+expect = "wigner_seitz_occupancy! counts"
+
+[[mutation]]
+name = "analysis-fcc-basis"
+file = "src/analysis/vacancy.jl"
+find = "(1, 1, 0))"
+replace = "(1, 1, 1))"
+expect = "reference_sites builds"
+
+[[mutation]]
+name = "analysis-no-drift-removal"
+file = "src/analysis/vacancy.jl"
+find = "_assign!(tr.occ, tr.owner, tr.avg, drift, tr.sites, cm, ci)"
+replace = "_assign!(tr.occ, tr.owner, tr.avg, zero3, tr.sites, cm, ci)"
+expect = "vacancy tracker follows"
+
+[[mutation]]
+name = "analysis-window-no-minimum-image"
+file = "src/analysis/vacancy.jl"
+find = "acc = _add3(acc, _minimg(_sub3(h, ref), cm, ci))"
+replace = "acc = _add3(acc, _sub3(h, ref))"
+expect = "window averaging"
+
+[[mutation]]
+name = "analysis-dwell-off-by-one"
+file = "src/analysis/vacancy.jl"
+find = "if tr.candcount >= tr.dwell"
+replace = "if tr.candcount > tr.dwell"
+expect = "dwell filter"
+
+[[mutation]]
+name = "analysis-frenkel-accepted"
+file = "src/analysis/vacancy.jl"
+find = "(nempty == 1 && nmulti == 0) ||"
+replace = "true ||"
+expect = "Frenkel pair"
+
+[[mutation]]
+name = "analysis-poisson-error"
+file = "src/analysis/diffusion.jl"
+find = "sqrt(T(tr.nhops)) / total"
+replace = "T(tr.nhops) / total"
+expect = "dwell filter"
+
+[[mutation]]
+name = "analysis-msd-dimension"
+file = "src/analysis/diffusion.jl"
+find = "x = num / (6 * den)"
+replace = "x = num / (4 * den)"
+expect = "msd_diffusion fits"
+
+[[mutation]]
+name = "analysis-arrhenius-sign"
+file = "src/analysis/arrhenius.jl"
+find = "return (E_m = -slope,"
+replace = "return (E_m = slope,"
+expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "analysis-arrhenius-error"
+file = "src/analysis/arrhenius.jl"
+find = "sxx += w * dx^2"
+replace = "sxx += dx^2"
+expect = "arrhenius_fit recovers"
