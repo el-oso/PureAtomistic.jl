@@ -37,6 +37,10 @@
 
 - [ ] `MACEWorkspace{T}(…; nchunks = 1)` owns `nchunks` chunk scratches (radial buffers, block buffers, `dx`, force and virial accumulators); `nchunks = 1` keeps today's layout and memory. Tests: memory per atom stated for `nchunks = 1, 4, 8`; serial results bit-identical to main; noalloc.
 
+### Task 2b: Symmetric contraction as matrix products
+
+- [ ] Product 1 (forward and pullback) and the product-2 pullback become per-channel GEMMs over 64-atom chunks (channel-batched strided layout, measured best in the spike report `gemm-spike-report.md`, outside the repo); the product-2 forward and the tensor product stay loops. Dense per-element tensors (U·W combined, and the symmetrized pullback tensor) are built only for the elements present in the structure, cached per workspace, about 25 MB per element in Float64. Tests: agreement with the loop kernels within `10·eps(T)·1280` relative in both precisions, pullback against ForwardDiff and finite differences, LAMMPS references unchanged, noalloc after warm-up (tensors built at workspace construction), TrimCheck; memory stated per element. Gate: end-to-end A/B of `mace_energy_forces!` against the commit before the task with OpenBLAS and with PureBLAS active (speed-ups reported; the spike estimated about 1.3× end to end, unmeasured).
+
 ### Task 3: Threaded forward pass
 
 - [ ] Chunks of receiver blocks run as tasks for the messages, per-atom layers, readouts and ZBL; energy and node energies reduced in fixed order. Tests: equality with serial within the bound, bit-reproducibility, Review Focus 1, 2, 5; `:concurrency_safe` and `:no_threadid_state` sweeps; A/B speed-up at 4 and 8 threads.
