@@ -264,7 +264,7 @@ end
     #   polynomial_cutoff, _poly_envelope: Base's integer power on a Float32 base widens inside Base.
     # Tensors and Equivariant have no intended widening.
     allowed = ("#neighbor_list#1", "_check_inputs", "polynomial_cutoff", "_poly_envelope")
-    widened(mod) = filter(f -> occursin("Float32 to Float64", f.reason), StrictMode.conversion_report(mod))
+    widened(mod) = StrictMode.conversion_report(mod; from = Float32, to = Float64)
     w_model = widened(M)
     @test !isempty(w_model)
     @test isempty(filter(f -> f.func ∉ allowed, w_model))
@@ -323,5 +323,33 @@ end
     for M in (PureMLIP.Model, PureMLIP.Tensors, PureMLIP.Equivariant)
         swept = test_compiled(M; guarantees = (:no_threadid_state,))
         @test !isempty(swept)
+    end
+end
+
+# `:concurrency_safe` reads each signature's IR for a store into argument 1, the slot that holds the
+# plan or workspace shared between tasks. A `:fail` is a write the scan read; an `:info` is a call it
+# could not resolve, which it declines to claim either way. The guarantee is not in the `:all` policy
+# set, so the sweep names it.
+@testitem "StrictMode: evaluation is concurrency-safe" tags = [:checks] setup = [Checkpoints] begin
+    using StrictMode
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
+    P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
+    for T in (Float32, Float64)
+        m = MACEModel{T}(ck)
+        PT, CT = T.(P), T.(C)
+        nl = neighbor_list(PT, CT, 6.0)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        res = MACEResult{T}(3)
+        neighbor_list!(nl, PT, CT)
+        mace_energy!(res, ws, m, PT, CT, Z, nl)
+        mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
+        mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
+        mace_energy_forces(m, PT, CT, Z)
+    end
+    for M in (PureMLIP.Model, PureMLIP.Tensors, PureMLIP.Equivariant)
+        found = audit(M; sweep = true, guarantees = (:concurrency_safe,))
+        scanned = filter(f -> f.guarantee === :concurrency_safe, found)
+        @test !isempty(scanned)
+        @test isempty(filter(f -> f.status === :fail, found))
     end
 end
