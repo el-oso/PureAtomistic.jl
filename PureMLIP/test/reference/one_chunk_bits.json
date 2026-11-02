@@ -1,0 +1,30 @@
+{
+  "pureMLIP_commit": "ef63ada5a9bcefeadd6b513eedd33d8d838cdc0c",
+  "structure": "cu_bench(2)",
+  "checkpoint": "mace-mpa-0-medium.model",
+  "platform": {
+    "blas_libraries": ["libopenblas64_.0.3.30.dylib"],
+    "blas_versions": ["OpenBLAS 0.3.30  USE64BITINT DYNAMIC_ARCH NO_AFFINITY neoversen1 MAX_THREADS=512"],
+    "cpu": "Apple M6",
+    "julia_version": "1.13.3",
+    "check_bounds": "default",
+    "code_coverage": "off",
+    "blas_threads": "1"
+  },
+  "bits": {
+    "Float32": {
+      "energy": ["c302b2a2"],
+      "forces": ["3eb66517", "be24feca", "be740482", "be87a642", "3e7c7c69", "3e413255", "be8adbfa", "bee07f50", "3c9e63c1", "3e8c4d6f", "3ec2c4a2", "be186796", "beb6962a", "3db5408d", "3e7ecc4b", "3eb39b7d", "be986816", "beaf5284", "3e50f7a5", "3f05e32d", "3dda4c3d", "beabdc91", "beb7982e", "3e2f7942", "3ebaf73d", "bdfe5c9e", "be7b4827", "bea845f7", "3e141dab", "3e810042", "be29015e", "bed0557d", "bdca12ba", "3e6cad7f", "3ed6bc57", "be0f1915", "bec8b898", "3d1c1f2f", "3e897239", "3ed64094", "be4b47c5", "bebac9b0", "3e0c7005", "3efd32f2", "3e579877", "be9c550a", "becd5dad", "3e151482", "3eea8a24", "bd04f232", "be93ddac", "bea4b665", "3e162e26", "3e536db2", "bdd6f1d4", "bed5a6b8", "be2a86ba", "3e75a79b", "3f03625d", "bdaf7b7e", "beeefdbd", "bdae3d80", "3e981ecf", "3ec155d2", "be1daaa4", "bea50bcb", "3dd18c1c", "3eef4cee", "3e61577f", "be766954", "bed19b47", "3dd523ba", "3edbf8bc", "bc683fa5", "be7eaed3", "beb70985", "3d80c930", "3e79a140", "bd03052f", "beca810c", "be809a80", "3e362caf", "3f01ff43", "bd6c1066", "bef6a18d", "bde2c680", "3e8ca359", "3ed584d3", "bd51b4cf", "bea3418f", "3d8620ec", "3edd9b42", "3e9ee6b8", "be38924b", "bed1b2c1", "3d4d2c23"],
+      "node_energies": ["c082d24e", "c082d519", "c08293f8", "c082b525", "c082c4e6", "c082a426", "c0829847", "c082b2e8", "c082c374", "c082d0d2", "c082a654", "c082aac6", "c082c9bc", "c082a1b5", "c082a0ac", "c082ad19", "c082beac", "c082be75", "c082acf9", "c082aa08", "c082ab0c", "c082b235", "c082a73d", "c082ac8c", "c082b88c", "c082bad4", "c082ae82", "c082ab1f", "c082b4cf", "c082b0b1", "c082a534", "c082b402"],
+      "stress": ["bcb68ab2", "ba3792b4", "3a93795f", "ba3792b4", "bcb6ca5d", "b9d81fbb", "3a93795f", "b9d81fbb", "bcab7864"],
+      "virial": ["4106be4a", "3e87812a", "bed9b758", "3e87812a", "4106ed49", "3e1f8832", "bed9b758", "3e1f8832", "40fd244a"]
+    },
+    "Float64": {
+      "energy": ["c06056544c922c16"],
+      "forces": ["3fd6cca87fb10286", "bfc49fd221274e03", "bfce809da3d95130", "bfd0f4ca136cdda1", "3fcf8f84ed208a7c", "3fc826456b206016", "bfd15b81941f6ee0", "bfdc0fe970e93ba5", "3f93cbd76862009e", "3fd189a68b7c4374", "3fd8588f7c643dbb", "bfc30ce5ed104797", "bfd6d2d10d853f9a", "3fb6a85f3848c7e0", "3fcfd981fa5fa61a", "3fd673747b1e6b5a", "bfd30d0796816269", "bfd5ea4fe6a3a723", "3fca1ef5fdd5135f", "3fe0bc67e8267732", "3fbb49b56e433544", "bfd57b8fbbfcc71b", "bfd6f30538efa6c1", "3fc5ef456b940cd4", "3fd75eeb9831c199", "bfbfcb9d1468d004", "bfcf690b05365916", "bfd508c2094a8514", "3fc283c3e2eadabe", "3fd02005da52d272", "bfc52027aee47cf7", "bfda0aad96e8ed4d", "bfb942576ce51d1a", "3fcd95bdf0b41ccf", "3fdad77fe1d428b9", "bfc1e3187bf0f3a3", "bfd91717d0bf8507", "3fa383bd1e18f538", "3fd12e403169d1c1", "3fdac80e7327f80d", "bfc9690f51cc92f5", "bfd759394c2340e3", "3fc18e0b60e34134", "3fdfa6586c700915", "3fcaf30d3f2126ac", "bfd38aa0b7c9522e", "bfd9abb3b4f6906e", "3fc2a2918611ae45", "3fdd513f56974b60", "bfa09e7f6bea4d75", "bfd27bad4fc04061", "bfd496c1d7e023ad", "3fc2c5c5a5884071", "3fca6dad1815dd17", "bfbade23127d9297", "bfdab4d1366ec20d", "bfc550dca702a3b5", "3fceb505b1e0d588", "3fe06c520254e9fc", "bfb5ef8618be25c6", "bfdddfb68824819b", "bfb5c7b40264a816", "3fd303d7d5b87d93", "3fd82abea4eda73b", "bfc3b562f18d8136", "bfd4a17e2052e5fd", "3fba3166c8832fdc", "3fdde9aa581ebbbe", "3fcc2aeff0f5fc36", "bfcecd3e83696286", "bfda33682f44a299", "3fbaa4684ec6ba34", "3fdb7f1eaf3ddfac", "bf8d08f1613f7498", "bfcfd5da4f7167e9", "bfd6e12f9efc3586", "3fb0191e65ec9909", "3fcf343e80a712a7", "bfa060c613d34898", "bfd9501ec36b26a3", "bfd013500d29de03", "3fc6c58fda7db6c8", "3fe03fe64a8d29c7", "bfad81f71a15bc4f", "bfded43a54eb2a47", "bfbc58ea2015d105", "3fd1946cf395e80e", "3fdab0929fc78d91", "bfaa36789b867b84", "bfd4683b17fe8804", "3fb0c42f5cc4216d", "3fdbb3647fd0b913", "3fd3dcdfdb8fbd2a", "bfc7123db8b157de", "bfda364e11795dfa", "3fa9a58f548142ea"],
+      "node_energies": ["c0105a49d8cb9309", "c0105aa382d63360", "c010527f00f6f2fa", "c01056a4fd541c97", "c010589cec5c2446", "c0105484b9ee92e7", "c010530903e4b060", "c010565ce57a59e4", "c010586eb10fcd9e", "c0105a1a24259945", "c01054ca854b5132", "c0105559134a8070", "c0105937d7880f96", "c010543657028046", "c0105415a9798254", "c01055a2e36a9ff2", "c01057d59574046e", "c01057cee201c192", "c010559eee818c62", "c0105541157ad44a", "c0105561a98a81a0", "c0105646946c22ae", "c01054e7a7a46a58", "c0105591b60ed2f8", "c01057113bc82b5e", "c010575ae3f5c6b8", "c01055d029fe0e1e", "c01055641d3482e6", "c0105699d49468a0", "c0105616119a56ec", "c01054a6ac2a4dee", "c01056806f0f67a6"],
+      "stress": ["bf96d157cb243c82", "bf46f29e9ea4111d", "3f526f3c11597630", "bf46f29e9ea4111d", "bf96d94ad7d8295f", "bf3b049ecd066e97", "3f526f3c11597630", "bf3b049ecd066e97", "bf956f093f996ef6"],
+      "virial": ["4020d7ca53b6c035", "3fd0f05a80c3bada", "bfdb3702d23fd451", "3fd0f05a80c3bada", "4020dda87ffc740a", "3fc3f181c3bf4fd6", "bfdb3702d23fd451", "3fc3f181c3bf4fd6", "401fa4846460dfab"]
+    }
+  }
+}

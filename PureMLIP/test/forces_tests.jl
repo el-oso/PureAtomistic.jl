@@ -288,8 +288,8 @@ end
         nl = neighbor_list(P, C, m.r_max)
         ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk), m, P, C, Z, nl)
         # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity, with N = 1280
-        # the largest inner dimension of any matrix product in the model. Measured with 4 and 8
-        # chunks: at most 4.8·eps(T).
+        # the largest inner dimension of any matrix product in the model. Measured with 2, 3 and 8
+        # chunks: at most 4.65·eps(T) in Float64 and in Float32.
         tol = 10 * eps(T) * 1280
         for nchunks in (2, 3, 8)
             ws = MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk, nchunks)
@@ -317,6 +317,38 @@ end
     @test abs(r.energy - s.energy) <= 1.0e-6
     @test maximum(abs, r.forces - s.forces) <= 1.0e-6
     @test maximum(abs, r.virial - s.virial) <= 1.0e-6
+end
+
+# Oracle: the bits that the evaluation before receiver chunks existed gave for cu_bench(2), stored
+# by `test/reference/one_chunk_bits.jl` with the platform they depend on. One chunk must reproduce
+# every bit. Rounding differs between BLAS libraries, CPUs, Julia versions and bounds-checking
+# modes, so on another platform the item records a skip that names the differences.
+@testitem "forces: one chunk reproduces the stored reference bits" setup = [Checkpoints] begin
+    using JSON, LinearAlgebra
+    include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
+    include(pkgdir(PureMLIP, "test", "reference", "one_chunk_bits.jl"))
+    ref = JSON.parsefile(pkgdir(PureMLIP, "test", "reference", "one_chunk_bits.json"))
+    threads = BLAS.get_num_threads()
+    BLAS.set_num_threads(1)
+    try
+        here = platform()
+        differ = sort([k for (k, v) in ref["platform"] if here[k] != v])
+        shown(v) = v isa AbstractVector ? join(v, "; ") : v
+        if isempty(differ)
+            bits = reference_bits(PureMLIP, cu_bench(2), load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+            for (T, qs) in ref["bits"], (q, v) in qs
+                @test bits[T][q] == v
+            end
+        else
+            println(
+                "SKIPPED \"forces: one chunk reproduces the stored reference bits\": this platform differs from the record in ",
+                join((string(k, " (record ", shown(ref["platform"][k]), ", here ", shown(here[k]), ")") for k in differ), ", ")
+            )
+            @test_skip isempty(differ)
+        end
+    finally
+        BLAS.set_num_threads(threads)
+    end
 end
 
 # Oracle: the edges of a block are those whose receiver lies in it, found by a full search.
