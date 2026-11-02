@@ -8,3 +8,5 @@
 "src/potentials/Potentials.jl" = 1.00
 "src/systems/Systems.jl" = 1.00
 "src/thermostats/Thermostats.jl" = 1.00
+"src/io/extxyz.jl" = 1.00
+"src/io/trajectory.jl" = 1.00
