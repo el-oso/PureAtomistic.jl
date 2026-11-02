@@ -361,7 +361,7 @@ end
 @testitem "arrhenius_fit recovers a chosen activation energy" tags = [:analysis] begin
     using PureAtomistic.Analysis
     using Random
-    kB = PureAtomistic.Analysis.BOLTZMANN_EV_PER_K
+    kB = PureAtomistic.Systems.KB_EV_PER_K
     @test kB == 1.380649e-23 / 1.602176634e-19
     E, Γ0 = 0.7, 6.0e13
     temps = collect(800.0:100.0:1300.0)

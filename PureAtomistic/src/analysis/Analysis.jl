@@ -1,5 +1,7 @@
 module Analysis
 
+using ..Systems: KB_EV_PER_K
+
 include("vacancy.jl")
 include("diffusion.jl")
 include("arrhenius.jl")

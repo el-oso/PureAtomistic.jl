@@ -1,9 +1,5 @@
 # Arrhenius fit of a thermally activated rate.
 
-# Boltzmann constant in eV/K: k = 1.380649e-23 J/K (exact in the 2019 SI) divided by
-# e = 1.602176634e-19 C (exact), giving 8.617333262145179e-5 eV/K.
-const BOLTZMANN_EV_PER_K = 8.617333262145179e-5
-
 """
     arrhenius_fit(temps, rates, errors)
 
@@ -21,7 +17,7 @@ function arrhenius_fit(temps::AbstractVector, rates::AbstractVector, errors::Abs
     all(>(0), temps) || throw(ArgumentError("pureatomistic: arrhenius_fit needs positive temperatures"))
     all(>(0), rates) || throw(ArgumentError("pureatomistic: arrhenius_fit needs positive rates"))
     all(>(0), errors) || throw(ArgumentError("pureatomistic: arrhenius_fit needs positive errors"))
-    kB = T(BOLTZMANN_EV_PER_K)
+    kB = T(KB_EV_PER_K)
     sw = zero(T)
     swx = zero(T)
     for i in eachindex(temps, rates, errors)
