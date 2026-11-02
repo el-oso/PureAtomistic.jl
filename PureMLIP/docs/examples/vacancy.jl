@@ -13,7 +13,7 @@ model = MACEModel(load_mace_checkpoint(checkpoint_path(:mpa0)));
 #
 # The energy per atom of the four-atom conventional cell at nine lattice constants around the
 # minimum, fitted by a parabola. The [lattice constant example](lattice_constant.md) draws the
-# whole curve.
+# whole curve; it fits over a different window, so the last digit of the two values can differ.
 
 as = range(3.6, 3.68; length = 9)
 Es = [mace_energy_forces(model, fcc(a, 1)..., fill(29, 4)).energy / 4 for a in as]
@@ -85,7 +85,9 @@ E_vac_relaxed = r_relaxed.energy - (N - 1) / N * E_N
 #
 # The nearest neighbor at `a0/2 · (1, 1, 0)` from the vacancy moves in a straight line onto the
 # vacant site, in 25 steps, while every other atom stays on its lattice site. The energy along
-# this path is measured from its starting value.
+# this path is measured from its starting value, the unrelaxed vacancy. Its maximum is the maximum
+# along an unrelaxed straight-line path; the migration barrier is the maximum of the relaxed
+# minimum-energy path, which this page does not compute.
 
 j = findfirst(k -> norm(perfect[:, k] - perfect[:, v] - a0 / 2 * [1, 1, 0]) < 1.0e-8, keep)
 start, stop = defect[:, j], perfect[:, v]
@@ -101,7 +103,7 @@ i_max = argmax(E_path)
 for (t, p, e) in zip(ts, path, E_path)
     @printf("t = %.3f  E − E(0) = %7.4f eV  force on the moving atom = %.3f eV/Å\n", t, e, norm(p.F[:, j]))
 end
-@printf("unrelaxed path maximum (an upper bound, not the migration barrier): %.3f eV at t = %.2f\n", E_path[i_max], ts[i_max])
+@printf("unrelaxed straight-line path maximum (not the migration barrier): %.3f eV at t = %.2f\n", E_path[i_max], ts[i_max])
 
 # ## Animation
 #
@@ -122,7 +124,7 @@ limits!(ax2, -0.02, 1.02, -0.1 * E_path[i_max], 1.15 * E_path[i_max])
 lines!(ax2, @lift(Point2f.(ts[1:$k_now], E_path[1:$k_now])); color = :crimson, linewidth = 2)
 scatter!(ax2, @lift([Point2f(ts[$k_now], E_path[$k_now])]); color = :crimson)
 text!(
-    ax2, ts[i_max], E_path[i_max]; text = @lift($k_now >= i_max ? "unrelaxed path maximum\n(an upper bound, not the migration barrier)" : ""),
+    ax2, ts[i_max], E_path[i_max]; text = @lift($k_now >= i_max ? "unrelaxed straight-line path maximum\n(not the migration barrier)" : ""),
     align = (:center, :bottom), offset = (0, 6), fontsize = 12
 )
 record(fig, media("vacancy.mp4"), eachindex(path); framerate = 8) do k

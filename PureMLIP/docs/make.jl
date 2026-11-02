@@ -28,6 +28,7 @@ makedocs(;
         "Home" => "index.md",
         "Equivariant math" => "equivariant.md",
         "MACE model" => "model.md",
+        "Tensor kernels" => "tensors.md",
         "Examples" => ["gallery.md"; ["examples/$name.md" for name in EXAMPLES]],
     ],
 )

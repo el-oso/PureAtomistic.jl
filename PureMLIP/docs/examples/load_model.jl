@@ -19,9 +19,11 @@ model = MACEModel(ck)
 # ## Radial features of an edge
 #
 # Each edge of length `d` enters the model through a Bessel basis on an Agnesi-transformed
-# distance, multiplied by a polynomial cutoff that goes smoothly to zero at `r_max`. The
-# function that evaluates it, `PureMLIP.Model.radial_embedding!`, is internal (not part of the
-# interface); it is used here only to draw the features.
+# distance, multiplied by a polynomial cutoff that goes smoothly to zero at `r_max`. This
+# section uses internal names, which are not part of the interface and may change: the field
+# `model.radial` and its fields `bessel_weights`, `r_max` and `cutoff_p`, and the functions
+# `PureMLIP.Model.radial_embedding!` and `PureMLIP.Model.polynomial_cutoff`. They are used here
+# only to draw the features.
 
 emb = model.radial
 nb = length(emb.bessel_weights)

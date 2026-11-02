@@ -92,6 +92,12 @@ struct SymmetricContraction{T}
     end
 end
 
+"""
+    n_outputs(sc) -> Int
+
+The size of the second dimension of the output `B` of [`symmetric_contraction!`](@ref):
+`2l + 1` summed over the contractions of `sc`.
+"""
 n_outputs(sc::SymmetricContraction) = sum(ct -> 2ct.l + 1, sc.contractions)
 
 """

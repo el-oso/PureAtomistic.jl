@@ -27,11 +27,13 @@ c = [ones(length(window)) as[window] as[window] .^ 2] \ E[window]
 a0 = -c[2] / (2c[3])
 E0 = c[1] + c[2] * a0 + c[3] * a0^2
 @printf("lattice constant: %.4f Å (fit over %.4f–%.4f Å), energy %.5f eV/atom\n", a0, as[first(window)], as[last(window)], E0)
-@printf("experimental value for Cu: 3.615 Å; difference %+.4f Å (%+.2f%%)\n", a0 - 3.615, 100 * (a0 - 3.615) / 3.615)
+@printf("experimental value for Cu at room temperature: 3.615 Å; difference %+.4f Å (%+.2f%%)\n", a0 - 3.615, 100 * (a0 - 3.615) / 3.615)
 
-# MACE-MPA-0 is trained on density functional theory data computed with the PBE functional,
-# whose lattice constants for metals are often somewhat larger than measured ones; the
-# difference above is a comparison with experiment, not a test of the code.
+# The computed value is static: the minimum of the energy at 0 K, without thermal expansion or
+# zero-point motion. The measured 3.615 Å is a room-temperature value, so part of the difference
+# is thermal expansion. MACE-MPA-0 is also trained on density functional theory data computed
+# with the PBE functional, whose lattice constants for metals are often somewhat larger than
+# measured ones; the difference above is a comparison with experiment, not a test of the code.
 
 # ## Animation
 #

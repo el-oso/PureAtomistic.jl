@@ -27,11 +27,13 @@ The buffers of an evaluation of `model` on up to `n_atoms` atoms and `n_edges` d
 Per edge it holds the edge vector, its length and the energy gradient with respect to the edge
 vector; the spherical harmonics, the radial features and the radial-MLP outputs (the
 tensor-product weights) are recomputed from them `edge_chunk` edges at a time. The summed
-messages of each interaction and the per-atom linear layer that follows them run on `block`
-receivers at a time, in buffers of `min(block, n_atoms)` atoms. The workspace also holds the
-energy derivatives of the backward pass of [`mace_energy_forces!`](@ref). The evaluation
-functions require `T` to be the element type of the model; the constructor reads only sizes from
-`model`, so `T` may also be a number type the layers accept, such as a dual number.
+messages of each interaction run on `block` receivers at a time, in buffers of
+`min(block, n_atoms)` atoms; so does the per-atom linear layer of the first interaction, while
+that of the second interaction writes a per-atom buffer that the backward pass reads. The
+workspace also holds the energy derivatives of the backward pass of
+[`mace_energy_forces!`](@ref). The evaluation functions require `T` to be the element type of
+the model; the constructor reads only sizes from `model`, so `T` may also be a number type the
+layers accept, such as a dual number.
 """
 struct MACEWorkspace{T}
     n_atoms::Int
@@ -174,9 +176,11 @@ end
     MACEEnergyWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096, block = 256)
 
 The buffers of [`mace_energy!`](@ref) on up to `n_atoms` atoms and `n_edges` directed edges,
-without forces: it holds no derivative and nothing kept for a backward pass, so it is several
-times smaller than a [`MACEWorkspace`](@ref) of the same sizes. Per edge it holds the edge vector
-and its length; the spherical harmonics, the radial features and the radial-MLP outputs are
+without forces: it holds no derivative and nothing kept for a backward pass, so it is smaller
+than a [`MACEWorkspace`](@ref) of the same sizes. For MACE-MPA-0 in Float64 at the default
+`edge_chunk` and `block` it is about six times smaller at 10,976 atoms and about two times at 256
+atoms, where buffers whose size does not depend on the atom count dominate. Per edge it holds
+the edge vector and its length; the spherical harmonics, the radial features and the radial-MLP outputs are
 recomputed from them `edge_chunk` edges at a time. Per atom it holds the sender features of both
 interactions, the skip connection of the second interaction and the linear readout; every other
 per-atom layer runs on `block` receivers at a time, in buffers of `min(block, n_atoms)` atoms.

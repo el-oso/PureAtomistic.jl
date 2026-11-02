@@ -50,6 +50,7 @@ end
 record(fig, media("tensors.mp4"), range(0, 2π; length = 61)[1:(end - 1)]; framerate = 20) do a
     azimuth[] = a
 end
+nothing #hide
 
 # ```@raw html
 # <video src="./tensors.mp4" controls loop muted playsinline width="640"></video>
@@ -60,7 +61,8 @@ end
 # Each kernel's docstring states what it computes as one or more einsums in the notation
 # `ein"inputs->output"(arrays...)`, with sums over the labels that do not appear in the output.
 # The list below is read from the docstrings of the kernels (the functions whose names end in
-# `!`) of `PureMLIP.Tensors`.
+# `!`) of `PureMLIP.Tensors`. A docstring that gives its einsums in prose instead, as that of
+# `symmetric_contraction_pullback!` does, is shown by its "As an einsum" paragraph.
 
 T = PureMLIP.Tensors
 for name in names(T)
@@ -69,7 +71,10 @@ for name in names(T)
     doc = string(Docs.doc(f))
     einsums = [m.match for m in eachmatch(r"ein\"[^\"]*\"\([^)]*\)", doc)]
     println(name, ":")
-    isempty(einsums) && println("    (no einsum in its docstring)")
+    if isempty(einsums)
+        prose = match(r"As an einsum.*?(?:\n\n|\z)"s, doc)
+        println("    ", isnothing(prose) ? "(no einsum in its docstring)" : replace(strip(prose.match), "\n" => " "))
+    end
     for e in einsums
         println("    ", e)
     end

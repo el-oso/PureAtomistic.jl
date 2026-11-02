@@ -60,10 +60,15 @@ mace_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl)  # or m
 
 When only energies are needed, a `MACEEnergyWorkspace` takes the place of the `MACEWorkspace` in
 `mace_energy!`. It holds no derivatives and nothing for a backward pass, and runs the per-atom
-layers of both interactions on blocks of receivers, so it is several times smaller: about 14 kB
-per atom in Float64 for MACE-MPA-0 with 78 edges per atom, against about 88 kB for a
-`MACEWorkspace`. The energies are those of `mace_energy_forces!` up to rounding; the forces,
-virial and stress of the result are left as they were.
+layers of both interactions on blocks of receivers, so it is smaller. Measured with
+`Base.summarysize` for MACE-MPA-0 in Float64 at the default `edge_chunk = 4096` and
+`block = 256`, with 78 edges per atom: at 10,976 atoms it takes 14,402 bytes per atom against
+88,258 for a `MACEWorkspace`. Each workspace also holds buffers whose size does not depend on the
+number of atoms or edges, about 63 MB for a `MACEEnergyWorkspace` and 118 MB for a
+`MACEWorkspace` at those settings. They dominate small cells: at 256 atoms the two workspaces take
+about 255 kB and 537 kB per atom. A smaller `edge_chunk` and `block` shrink that part. The
+energies are those of `mace_energy_forces!` up to rounding; the forces, virial and stress of the
+result are left as they were.
 
 ```julia
 ws_e = MACEEnergyWorkspace{Float64}(model, size(positions, 2), length(nl.senders))
@@ -74,7 +79,8 @@ mace_energy!(res, ws_e, model, positions, cell, atomic_numbers, nl)
 
 `neighbor_list(positions, cell, r_cut)` returns the directed edges `(sender, receiver, shift)`
 with `0 < ‖positions[:, receiver] - positions[:, sender] + cell * shift‖ < r_cut`, sorted by
-receiver. The model requires `r_cut >= model.r_max` and throws otherwise. Its capacity is the
+receiver. The model requires `r_cut >= model.r_max` and edges sorted by receiver, as
+`neighbor_list` returns them, and throws an `ArgumentError` otherwise. Its capacity is the
 number of edges found plus `extra_capacity`; `neighbor_list!` rebuilds the list for new
 positions in place and throws when the new edge count exceeds the capacity, in which case the
 list must be rebuilt with `neighbor_list`. A workspace is sized for a number of atoms and
@@ -90,7 +96,7 @@ difference is 9.4e-6 eV/Å.
 
 ## Using PureBLAS
 
-The matrix products of the model go through `LinearAlgebra.mul!`, so PureBLAS speeds them up
+The matrix products of the model go through `LinearAlgebra.mul!`, so PureBLAS can carry them
 without any change to PureMLIP:
 
 ```julia
@@ -98,12 +104,19 @@ using PureBLAS
 PureBLAS.activate()
 ```
 
-PureBLAS requires Julia 1.13 and is not registered; add it with
-`Pkg.add(url = "https://github.com/el-oso/PureBLAS.jl")`. `PureBLAS.activate()` reroutes
-the BLAS calls of the whole process, not only PureMLIP's, and `PureBLAS.deactivate()` restores
-the previous libraries. PureMLIP does not depend on PureBLAS. The reference energies, forces and
-virials, and the allocation-free guarantee of `mace_energy!` and `mace_energy_forces!`, are
-tested with PureBLAS active in `PureMLIP/test/pureblas`.
+Every PureBLAS speed measurement so far comes from one Apple M6 machine on one thread; there is
+no measurement on another machine yet. The [PureBLAS example](examples/pureblas.md) shows the
+measured speed-ups, read from the committed benchmark records.
+
+PureBLAS requires Julia 1.13 and is not registered. The tests use commit `c38f273f`; add that
+commit with
+`Pkg.add(url = "https://github.com/el-oso/PureBLAS.jl", rev = "c38f273fd75807811e647e5dc69ae85dbaceeaf6")`.
+`PureBLAS.activate()` reroutes the BLAS calls of the whole process, not only PureMLIP's, and
+`PureBLAS.deactivate()` restores the previous libraries. PureMLIP does not depend on PureBLAS.
+The tests in `PureMLIP/test/pureblas` run with PureBLAS active. They check the reference
+energies, forces and virials, computed with `mace_energy_forces`, and that `mace_energy!` and
+`mace_energy_forces!` with a `MACEWorkspace` do not allocate; `mace_energy!` with a
+`MACEEnergyWorkspace` is not covered there.
 
 ## Reference
 
