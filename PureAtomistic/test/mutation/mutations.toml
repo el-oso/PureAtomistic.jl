@@ -3,3 +3,69 @@
 # the names of the test items expected to fail.
 # A source file that holds only module, `import`, `include`, `export` and `public` declarations
 # needs no entry; every file that computes a value gets at least one.
+
+[[mutation]]
+name = "potential-capacity-fraction-ignored"
+file = "src/potentials/contracts.jl"
+find = 'extra_capacity = ceil(Int, fraction * m)'
+replace = 'extra_capacity = 0'
+expect = "MACEPotential equals mace_energy_forces exactly"
+
+[[mutation]]
+name = "potential-eltype-check-cell"
+file = "src/potentials/contracts.jl"
+find = '(eltype(positions) === T && eltype(cell) === T) ||'
+replace = '(eltype(positions) === T) ||'
+expect = "potential errors"
+
+[[mutation]]
+name = "potential-capacity-error-not-caught"
+file = "src/potentials/contracts.jl"
+find = 'err isa ArgumentError || rethrow()'
+replace = 'rethrow()'
+expect = "regrow the neighbor list"
+
+[[mutation]]
+name = "mace-potential-regrow-keeps-workspace"
+file = "src/potentials/mace.jl"
+find = '''
+    p.ws = MACEWorkspace{T}(p.model, n_atoms(p), length(p.nl.senders))
+    p.n_regrows += 1'''
+replace = '''
+    p.n_regrows += 1'''
+expect = "regrow the neighbor list"
+
+[[mutation]]
+name = "mace-potential-atomic-numbers"
+file = "src/potentials/mace.jl"
+find = 'Vector{Int}(atomic_numbers), fraction'
+replace = 'fill(29, n), fraction'
+expect = "MACEPotential equals mace_energy_forces exactly"
+
+[[mutation]]
+name = "harmonic-image-floor"
+file = "src/potentials/harmonic.jl"
+find = 'floor(s2 + T(0.5))'
+replace = 'floor(s2)'
+expect = "nearest periodic image"
+
+[[mutation]]
+name = "harmonic-force-sign"
+file = "src/potentials/harmonic.jl"
+find = 'F[2, i] = -p.k * d2'
+replace = 'F[2, i] = p.k * d2'
+expect = "finite-difference gradient"
+
+[[mutation]]
+name = "lennard-jones-no-shift"
+file = "src/potentials/lennard_jones.jl"
+find = 'E += V - p.shift'
+replace = 'E += V'
+expect = "cut and shifted potential"
+
+[[mutation]]
+name = "lennard-jones-full-pair-force"
+file = "src/potentials/lennard_jones.jl"
+find = 'g = dV / (2 * d)'
+replace = 'g = dV / d'
+expect = "finite-difference gradient"

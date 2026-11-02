@@ -11,6 +11,11 @@ include("barostats/Barostats.jl")
 include("io/IO.jl")
 include("analysis/Analysis.jl")
 
+using .Potentials: AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
+    energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
+export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
+    energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
+
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
 end
