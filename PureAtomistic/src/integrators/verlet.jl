@@ -18,11 +18,14 @@ which is the kick-drift-kick form of the Störmer-Verlet method: it uses one for
 per step, is time-reversible and symplectic, and has a global error of order `dt²`. Positions
 are advanced in the cell without wrapping, so the unwrapped trajectory stays continuous.
 
+Eliminating the half-step velocity gives the velocity form
+
+    x(t + dt) = x(t) + dt v(t) + (dt²/2) a(t),
+    v(t + dt) = v(t) + (dt/2) (a(t) + a(t + dt)),   a = F/m.
+
 The positions-only form is due to L. Verlet, Phys. Rev. 159, 98 (1967); the velocity form is
 from W. C. Swope, H. C. Andersen, P. H. Berens and K. R. Wilson, J. Chem. Phys. 76, 637
-(1982). The update was re-derived from the second-order Taylor expansion of `x(t + dt)` and
-the trapezoidal rule for `v`; the two papers themselves were not available to compare
-against, so their equation numbers are not cited.
+(1982).
 
 Forces are in eV/Å and masses in amu, so the acceleration is `F / (m · AMU_IN_EV_FS2_PER_A2)`
 in Å/fs².

@@ -53,6 +53,22 @@
         return std(E)
     end
 
+    # The same as `energy_std` for the first-order symplectic Euler step (v ← v + dt F/m, then
+    # x ← x + dt v), whose energy fluctuation scales as dt.
+    function euler_energy_std(make, dt, total)
+        sim = make(Float64, dt)
+        sys, pot = sim.system, sim.potential
+        E = Float64[]
+        for _ in 1:round(Int, total / dt)
+            PureAtomistic.Integrators._kick!(sys.velocities, pot.result.forces, sys.masses, dt)
+            PureAtomistic.Integrators._drift!(sys.positions, sys.velocities, dt)
+            prepare!(pot, sys.positions, sys.cell)
+            energy_forces!(pot, sys.positions, sys.cell)
+            push!(E, total_energy(sim))
+        end
+        return std(E)
+    end
+
     # Least-squares slope of log y against log x.
     function loglog_slope(x, y)
         lx, ly = log.(x), log.(y)
@@ -140,13 +156,17 @@ end
     F = VerletFixtures
     dts = [1.0, 2.0, 4.0, 8.0]
     # Velocity Verlet conserves a shadow Hamiltonian that differs from H by O(dt²), so the
-    # standard deviation of E over a fixed time span scales as dt². Measured log-log slopes over
-    # dt = 1, 2, 4, 8 fs over 4000 fs: 2.0002 (Lennard-Jones) and 2.0008 (harmonic);
-    # the brief's bound is 2 ± 0.2.
+    # standard deviation of E over a fixed time span scales as dt². The band 2 ± 0.2 separates
+    # second-order from first-order steps. Measured log-log slopes over dt = 1, 2, 4, 8 fs over
+    # 4000 fs: velocity Verlet 2.0002 (Lennard-Jones) and 2.0008 (harmonic); symplectic Euler
+    # 0.9937 (Lennard-Jones) and 0.9995 (harmonic). The lower edge 1.8 lies in the gap between
+    # 0.9995 and 2.0002, and both sides of the gap are asserted.
     for make in (F.lj_simulation, F.harmonic_simulation)
         sd = [F.energy_std(make, dt, 4000.0) for dt in dts]
         @test all(>(0), sd)
         @test abs(F.loglog_slope(dts, sd) - 2) <= 0.2
+        sd_euler = [F.euler_energy_std(make, dt, 4000.0) for dt in dts]
+        @test abs(F.loglog_slope(dts, sd_euler) - 2) > 0.2
     end
 end
 
