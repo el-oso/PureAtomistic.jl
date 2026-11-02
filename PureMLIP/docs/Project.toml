@@ -1,7 +1,14 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PureMLIP = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [sources]
 PureMLIP = {path = ".."}
@@ -9,3 +16,11 @@ PureMLIP = {path = ".."}
 [compat]
 Documenter = "1.19"
 DocumenterVitepress = "0.3"
+Downloads = "1"
+GLMakie = "0.13"
+JSON = "1.6"
+LinearAlgebra = "1"
+Literate = "2.20"
+Printf = "1"
+SHA = "1"
+julia = "1.12"

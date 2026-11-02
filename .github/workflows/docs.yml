@@ -23,10 +23,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      # GLMakie renders the example animations through OpenGL: Xvfb provides the display and
+      # Mesa the software OpenGL driver.
+      - name: Install OpenGL and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-utils xorg-dev
       - name: Install docs dependencies
         run: julia --project=PureMLIP/docs -e 'using Pkg; Pkg.instantiate()'
+      # The examples load MACE-MPA-0; checkpoint_path downloads it and checks its SHA-256.
+      - name: Download the MACE-MPA-0 checkpoint
+        env:
+          PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
+        run: julia --project=PureMLIP/docs -e 'using PureMLIP; include(pkgdir(PureMLIP, "test", "reference", "checkpoints.jl")); println(checkpoint_path(:mpa0))'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-        run: julia --project=PureMLIP/docs PureMLIP/docs/make.jl
+          PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
+        run: xvfb-run -s '-screen 0 1024x768x24' julia --project=PureMLIP/docs PureMLIP/docs/make.jl
