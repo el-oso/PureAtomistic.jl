@@ -223,3 +223,80 @@ file = "src/systems/init.jl"
 find = '''58.693, 63.546,'''
 replace = '''58.693, 63.5,'''
 expect = "fcc_cell"
+
+[[mutation]]
+name = "extxyz-lattice-transposed"
+file = "src/io/extxyz.jl"
+find = "        m[q] = _parse_float(p, key, lineno)"
+replace = "        m[(q - 1) % 3 * 3 + (q - 1) ÷ 3 + 1] = _parse_float(p, key, lineno)"
+expect = "fixtures parse"
+
+[[mutation]]
+name = "extxyz-default-pbc-swapped"
+file = "src/io/extxyz.jl"
+find = "isempty(cell) ? (false, false, false) : (true, true, true))"
+replace = "isempty(cell) ? (true, true, true) : (false, false, false))"
+expect = "fixtures parse"
+
+[[mutation]]
+name = "extxyz-write-float32-digits"
+file = "src/io/extxyz.jl"
+find = "        print(io, Float64(x))"
+replace = "        print(io, Float32(x))"
+expect = "bitwise round trip"
+
+[[mutation]]
+name = "extxyz-extra-value-unquoted"
+file = "src/io/extxyz.jl"
+find = "    if isempty(value) || _has_space(value)"
+replace = "    if isempty(value)"
+expect = "bitwise round trip"
+
+[[mutation]]
+name = "extxyz-truncated-frame-accepted"
+file = "src/io/extxyz.jl"
+find = "    i + 1 + n <= length(lines) ||"
+replace = "    i + 1 + n <= length(lines) + 1 ||"
+expect = "malformed input"
+
+[[mutation]]
+name = "copy-ignores-axes"
+file = "src/io/extxyz.jl"
+find = "        dst[p, q] = src[i, j]"
+replace = "        dst[p, q] = src[p, q]"
+expect = "OffsetArray"
+
+[[mutation]]
+name = "trajectory-no-padding"
+file = "src/io/trajectory.jl"
+find = "_pad8(n::Integer) = (8 - n % 8) % 8"
+replace = "_pad8(n::Integer) = 0"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-energy-slot"
+file = "src/io/trajectory.jl"
+find = "    w.head[2] = energy"
+replace = "    w.head[2] = time"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-frame-offset"
+file = "src/io/trajectory.jl"
+find = "    seek(r.io, r.header_bytes + (k - 1) * r.frame_bytes)"
+replace = "    seek(r.io, r.header_bytes + k * r.frame_bytes - r.frame_bytes ÷ 2)"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-velocities-dropped"
+file = "src/io/trajectory.jl"
+find = "    w.flags & _FLAG_VELOCITIES != 0 && write(w.io, w.velocities)"
+replace = "    w.flags & _FLAG_VELOCITIES != 0 && write(w.io, w.positions)"
+expect = "restart from a frame"
+
+[[mutation]]
+name = "trajectory-positions-rounded-to-zero"
+file = "src/io/trajectory.jl"
+find = "    _copy_dense!(w.positions, positions)\n"
+replace = "    _copy_dense!(w.positions, positions)\n    w.positions .= trunc.(w.positions, digits = 2)\n"
+expect = "restart from a frame"

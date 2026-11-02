@@ -5,6 +5,8 @@
 "src/barostats/Barostats.jl" = 1.00
 "src/integrators/Integrators.jl" = 1.00
 "src/io/IO.jl" = 1.00
+"src/io/extxyz.jl" = 1.00
+"src/io/trajectory.jl" = 1.00
 "src/potentials/Potentials.jl" = 1.00
 "src/potentials/contracts.jl" = 1.00
 "src/potentials/harmonic.jl" = 1.00
