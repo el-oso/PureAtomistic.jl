@@ -237,11 +237,11 @@ struct MACEEnergyWorkspace{T}
     r::Matrix{T}             # 3 × E, edge vectors
     d::Vector{T}             # edge lengths
     # per edge chunk, recomputed from r and d
-    Y::Matrix{T}             # 16 × chunk, e3nn spherical harmonics
-    feats::Matrix{T}         # n_basis × chunk, radial features
-    tpw::Matrix{T}           # W × chunk, radial-MLP outputs
-    tpw3::Array{T, 3}        # C × W/C × chunk, the same memory as tpw
-    act::Array{T, 3}         # hidden × chunk × 2, radial-MLP activations
+    Y::Matrix{T}             # 16 × edge_chunk, e3nn spherical harmonics
+    feats::Matrix{T}         # n_basis × edge_chunk, radial features
+    tpw::Matrix{T}           # W × edge_chunk, radial-MLP outputs
+    tpw3::Array{T, 3}        # C × W/C × edge_chunk, the same memory as tpw
+    act::Array{T, 3}         # hidden × edge_chunk × 2, radial-MLP activations
     # per node
     x::NTuple{2, Array{T, 3}}        # linear_up outputs, the sender features of each interaction
     sc::Array{T, 3}                  # skip connection of interaction 1
@@ -680,8 +680,9 @@ end
 # adds to `dx` (the derivative with respect to the sender features, indexed by atom) and to
 # `ws.dEdr` per edge, from `dM` and `ddensity` (indexed like `M` and `density` of `_messages!`).
 # The harmonics, radial features and radial MLP are recomputed in the buffers of the receiver
-# chunk `buf` over the same edge chunks as in `_messages!`. Each edge's ∂E/∂Y and ∂E/∂d enter `ws.dEdr` through ∂Y/∂r and ∂d/∂r = r / d. With
-# `need_dx = false`, `dx` is neither read nor written; only its size is checked.
+# chunk `buf` over the same edge chunks as in `_messages!`. Each edge's ∂E/∂Y and ∂E/∂d enter
+# `ws.dEdr` through ∂Y/∂r and ∂d/∂r = r / d. With `need_dx = false`, `dx` is neither read nor
+# written; only its size is checked.
 function _messages_pullback!(
         dx::AbstractArray{T, 3}, buf::ChunkBuffers{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, k::Int, x::AbstractArray{T, 3},
         dM::AbstractArray{T, 3}, ddensity::AbstractVector{T}, atomic_numbers, nl::NeighborList,

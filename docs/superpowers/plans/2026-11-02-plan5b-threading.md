@@ -44,6 +44,7 @@
 ### Task 3: Threaded forward pass
 
 - [ ] Chunks of receiver blocks run as tasks for the messages, per-atom layers, readouts and ZBL; energy and node energies reduced in fixed order. Tests: equality with serial within the bound, bit-reproducibility, Review Focus 1, 2, 5; `:concurrency_safe` and `:no_threadid_state` sweeps; A/B speed-up at 4 and 8 threads.
+  Design note: each chunk after the first carries about 102 MB of edge buffers in Float64 at `edge_chunk = 4096` (1.8 MB per atom at 500 atoms with 8 chunks), so the threaded path needs a smaller default `edge_chunk`, or edge buffers sized to each chunk's edge count, with the choice measured against the cost of the radial-MLP matrix products.
 
 ### Task 4: Threaded backward pass and force scatter
 
