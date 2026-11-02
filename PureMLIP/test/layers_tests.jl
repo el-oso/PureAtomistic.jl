@@ -32,7 +32,7 @@ end
 @testitem "every compiled signature resolves (test_calls)" tags = [:checks] setup = [Checkpoints] begin
     using StrictModeTest
     ck = load_mace_checkpoint(Checkpoints.fetch(:mp0b3))
-    torch_array(first(values(ck.state.f64)), Val(1))
+    torch_array(ck.state.f64["atomic_energies_fn.atomic_energies"], Val(1))
     a = PureMLIP.open_torch_archive(read(Checkpoints.fetch(:mp0b3)))
     PureMLIP.embedded_archives(PureMLIP.unpickle(PureMLIP.entry_data(a, "data.pkl")))
 
