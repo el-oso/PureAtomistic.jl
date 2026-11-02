@@ -69,3 +69,157 @@ file = "src/potentials/lennard_jones.jl"
 find = 'g = dV / (2 * d)'
 replace = 'g = dV / d'
 expect = "finite-difference gradient"
+
+[[mutation]]
+name = "units-amu-factor"
+file = "src/systems/units.jl"
+find = '''_AMU_KG / (_E_CHARGE * 1.0e-10)'''
+replace = '''_AMU_KG / (_E_CHARGE * 1.0e-11)'''
+expect = "unit constants"
+
+[[mutation]]
+name = "units-boltzmann"
+file = "src/systems/units.jl"
+find = '''_K_BOLTZMANN_J / _E_CHARGE'''
+replace = '''_K_BOLTZMANN_J * _E_CHARGE'''
+expect = "unit constants"
+
+[[mutation]]
+name = "units-gpa"
+file = "src/systems/units.jl"
+find = '''_E_CHARGE / 1.0e-30 / 1.0e9'''
+replace = '''_E_CHARGE / 1.0e-30 / 1.0e8'''
+expect = "unit constants"
+
+[[mutation]]
+name = "system-det-sign"
+file = "src/systems/system.jl"
+find = '''c[7] * (c[2] * c[6] - c[5] * c[3])'''
+replace = '''c[7] * (c[2] * c[6] + c[5] * c[3])'''
+expect = "volume and wrap!"
+
+[[mutation]]
+name = "system-inverse-entry"
+file = "src/systems/system.jl"
+find = '''(c[7] * c[6] - c[4] * c[9]) / d'''
+replace = '''(c[4] * c[9] - c[7] * c[6]) / d'''
+expect = "wrap"
+
+[[mutation]]
+name = "system-wrap-ceil"
+file = "src/systems/system.jl"
+find = '''n1, n2, n3 = floor(f1), floor(f2), floor(f3)'''
+replace = '''n1, n2, n3 = ceil(f1), ceil(f2), ceil(f3)'''
+expect = "volume and wrap!"
+
+[[mutation]]
+name = "system-wrap-shift-component"
+file = "src/systems/system.jl"
+find = '''P[r[3], a] = x3 - (n1 * c[3] + n2 * c[6] + n3 * c[9])'''
+replace = '''P[r[3], a] = x3 - (n1 * c[3] + n2 * c[5] + n3 * c[9])'''
+expect = "wrap"
+
+[[mutation]]
+name = "system-singular-check"
+file = "src/systems/system.jl"
+find = '''(isfinite(d) && !iszero(d)) ||'''
+replace = '''isfinite(d) ||'''
+expect = "wrap! leaves"
+
+[[mutation]]
+name = "system-mass-positive"
+file = "src/systems/system.jl"
+find = '''all(>(0), masses)'''
+replace = '''all(>=(0), masses)'''
+expect = "validates"
+
+[[mutation]]
+name = "system-kinetic-half"
+file = "src/systems/system.jl"
+find = '''return T(AMU_IN_EV_FS2_PER_A2 / 2) * s'''
+replace = '''return T(AMU_IN_EV_FS2_PER_A2) * s'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-temperature-factor"
+file = "src/systems/system.jl"
+find = '''return 2 * kinetic_energy(sys) / (T(dof) * T(KB_EV_PER_K))'''
+replace = '''return kinetic_energy(sys) / (T(dof) * T(KB_EV_PER_K))'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-default-dof"
+file = "src/systems/system.jl"
+find = '''dof::Integer = 3 * natoms(sys) - 3'''
+replace = '''dof::Integer = 3 * natoms(sys) - 2'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-pressure-virial-sign"
+file = "src/systems/system.jl"
+find = '''return T(-tr / 3) +'''
+replace = '''return T(tr / 3) +'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-pressure-kinetic"
+file = "src/systems/system.jl"
+find = '''2 * kinetic_energy(sys) / (3 * V)'''
+replace = '''2 * kinetic_energy(sys) / (2 * V)'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "init-com-sign"
+file = "src/systems/init.jl"
+find = '''V[r[d], a] -= p[d] / mtot'''
+replace = '''V[r[d], a] += p[d] / mtot'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-sigma-mass"
+file = "src/systems/init.jl"
+find = '''σ = sqrt(kT / (sys.masses[a] * T(AMU_IN_EV_FS2_PER_A2)))'''
+replace = '''σ = sqrt(kT / T(AMU_IN_EV_FS2_PER_A2))'''
+expect = "Gaussian"
+
+[[mutation]]
+name = "init-rescale"
+file = "src/systems/init.jl"
+find = '''scale = sqrt(T(temp) / current)'''
+replace = '''scale = T(temp) / current'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-dof"
+file = "src/systems/init.jl"
+find = '''dof = (remove_com ? 3 * natoms(sys) - 3 : 3 * natoms(sys))'''
+replace = '''dof = (remove_com ? 3 * natoms(sys) - 2 : 3 * natoms(sys))'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-fcc-basis"
+file = "src/systems/init.jl"
+find = '''(1, 0, 1), (0, 1, 1))'''
+replace = '''(1, 0, 1), (1, 1, 1))'''
+expect = "fcc_cell"
+
+[[mutation]]
+name = "init-fcc-cell"
+file = "src/systems/init.jl"
+find = '''cell[d, d] = a * nrep[d]'''
+replace = '''cell[d, d] = a'''
+expect = "fcc_cell"
+
+[[mutation]]
+name = "init-remove-atom"
+file = "src/systems/init.jl"
+find = '''keep = [a for a in axes(sys.positions, 2) if a != i]'''
+replace = '''keep = [a for a in axes(sys.positions, 2) if a != i + 1]'''
+expect = "fcc_cell|OffsetArray"
+
+[[mutation]]
+name = "init-cu-mass"
+file = "src/systems/init.jl"
+find = '''58.693, 63.546,'''
+replace = '''58.693, 63.5,'''
+expect = "fcc_cell"
