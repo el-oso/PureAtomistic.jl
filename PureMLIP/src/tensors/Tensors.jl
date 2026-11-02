@@ -14,7 +14,7 @@ using ..Equivariant, LinearAlgebra
 export ChannelwiseTP, tp_edge_add!, tp_edge_pullback_add!
 export E3nnLinear, linear!, linear_pullback!, SpeciesLinear, species_linear!, species_linear_pullback!
 export Contraction, SymmetricContraction, symmetric_contraction!, symmetric_contraction_pullback!
-export symmetric_contraction_scratch_size
+export symmetric_contraction_scratch_size, ContractionMatrices, contraction_matrices!, ContractionBuffers
 
 public checked_eachindex, n_outputs
 

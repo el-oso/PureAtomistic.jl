@@ -95,6 +95,15 @@
                                 (Array{S, 3}, P.Tensors.SymmetricContraction{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, Vector{S}),
                             ),
                             (P.Tensors.symmetric_contraction_scratch_size, (P.Tensors.SymmetricContraction{S},)),
+                            (P.Tensors.contraction_matrices!, (P.Tensors.ContractionMatrices{S}, P.Tensors.SymmetricContraction{S}, Int)),
+                            (
+                                P.Tensors.symmetric_contraction!,
+                                (Array{S, 3}, P.Tensors.ContractionMatrices{S}, Array{S, 3}, Vector{Int}, P.Tensors.ContractionBuffers{S}),
+                            ),
+                            (
+                                P.Tensors.symmetric_contraction_pullback!,
+                                (Array{S, 3}, P.Tensors.ContractionMatrices{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, P.Tensors.ContractionBuffers{S}),
+                            ),
                         )
                 ]...,
             ]; guarantees = (:typestable,)
@@ -123,6 +132,8 @@
         @test Base.return_types(MACEWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEWorkspace{S}]
         chunked_workspace(m, n, e, c) = MACEWorkspace{S}(m, n, e; nchunks = c)
         @test Base.return_types(chunked_workspace, (MACEModel{S}, Int, Int, Int)) == [MACEWorkspace{S}]
+        elements_workspace(m, n, e, z) = MACEWorkspace{S}(m, n, e; elements = z)
+        @test Base.return_types(elements_workspace, (MACEModel{S}, Int, Int, Vector{Int})) == [MACEWorkspace{S}]
         # The Tensors kernels return their output array, or nothing for the accumulating pullback.
         TS = PureMLIP.Tensors
         @test Base.return_types(TS.tp_edge_add!, (Matrix{S}, TS.ChannelwiseTP{S}, Matrix{S}, Vector{S}, Matrix{S})) == [Matrix{S}]
@@ -144,6 +155,14 @@
             (Array{S, 3}, TS.SymmetricContraction{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, Vector{S}),
         ) == [Array{S, 3}]
         @test Base.return_types(TS.symmetric_contraction_scratch_size, (TS.SymmetricContraction{S},)) == [Int]
+        @test Base.return_types(TS.contraction_matrices!, (TS.ContractionMatrices{S}, TS.SymmetricContraction{S}, Int)) == [TS.ContractionMatrices{S}]
+        @test Base.return_types(
+            TS.symmetric_contraction!, (Array{S, 3}, TS.ContractionMatrices{S}, Array{S, 3}, Vector{Int}, TS.ContractionBuffers{S})
+        ) == [Array{S, 3}]
+        @test Base.return_types(
+            TS.symmetric_contraction_pullback!,
+            (Array{S, 3}, TS.ContractionMatrices{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, TS.ContractionBuffers{S}),
+        ) == [Array{S, 3}]
     end
 end
 
@@ -181,12 +200,12 @@ end
     # A chunk smaller than the edge count exercises the chunked radial MLP; four receiver chunks
     # over three atoms, one chunk empty.
     for nchunks in (1, 4)
-        ws = MACEWorkspace{Float64}(m, 3, nl.n_edges; edge_chunk = 7, nchunks)
+        ws = MACEWorkspace{Float64}(m, 3, nl.n_edges; edge_chunk = 7, nchunks, elements = Z)
         res = MACEResult{Float64}(3)
         f!(res, ws, m, P, C, Z, nl)
         @test nl.n_edges > 7
         @test_noalloc f!(res, ws, m, P, C, Z, nl)
-        ws32 = MACEWorkspace{Float32}(m32, 3, nl32.n_edges; edge_chunk = 7, nchunks)
+        ws32 = MACEWorkspace{Float32}(m32, 3, nl32.n_edges; edge_chunk = 7, nchunks, elements = Z)
         res32 = MACEResult{Float32}(3)
         f!(res32, ws32, m32, P32, C32, Z, nl32)
         @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
@@ -223,11 +242,15 @@ end
         # A chunk smaller than the edge count exercises the chunked radial MLP and its pullback;
         # four receiver chunks over three atoms, one chunk empty.
         for nchunks in (1, 4)
-            ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, nchunks)
+            ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, nchunks, elements = Z)
             res = MACEResult{T}(3)
             f!(res, ws, m, PT, CT, Z, nl)
             @test nl.n_edges > 7
             @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
+            # The constructor builds the contraction matrices, so the first evaluation on a new
+            # workspace does not allocate either.
+            fresh = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, nchunks, elements = Z)
+            @test_noalloc f!(res, fresh, m, PT, CT, Z, nl)
         end
     end
 end
@@ -241,7 +264,7 @@ end
     s = first(filter(s -> s.name == "cu_vacancy", LammpsReference.structures(LammpsReference.load(:mp0b3_f64))))
     n = size(s.positions, 2)
     nl = neighbor_list(s.positions, s.cell, model.r_max)
-    ws = MACEWorkspace{Float64}(model, n, nl.n_edges)
+    ws = MACEWorkspace{Float64}(model, n, nl.n_edges; elements = s.atomic_numbers)
     res = MACEResult{Float64}(n)
     StrictMode.@assert_noescape mace_energy_forces!(res, ws, model, s.positions, s.cell, s.atomic_numbers, nl)
     @test isfinite(res.energy)
@@ -259,7 +282,7 @@ end
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; elements = Z)
         res = MACEResult{T}(3)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
         mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
@@ -295,7 +318,7 @@ end
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; elements = Z)
         res = MACEResult{T}(3)
         neighbor_list!(nl, PT, CT)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
@@ -321,7 +344,7 @@ end
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, elements = Z)
         res = MACEResult{T}(3)
         neighbor_list!(nl, PT, CT)
         mace_energy!(res, ws, m, PT, CT, Z, nl)
@@ -347,7 +370,7 @@ end
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, elements = Z)
         res = MACEResult{T}(3)
         neighbor_list!(nl, PT, CT)
         mace_energy!(res, ws, m, PT, CT, Z, nl)

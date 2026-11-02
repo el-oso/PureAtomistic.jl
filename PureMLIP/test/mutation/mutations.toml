@@ -557,3 +557,59 @@ file = "src/model/blocks.jl"
 find = "searchsortedfirst(b.receivers, first(b.atoms))"
 replace = "firstindex(b.receivers)"
 expect = "receiver blocks partition"
+
+[[mutation]]
+name = "contraction-pullback-matrix-drops-second-factor"
+file = "src/tensors/symmetric_contraction.jl"
+find = "G[_pair_row(w, i), col(o + m, x), c] += u"
+replace = "nothing"
+expect = "as matrix products matches the per-atom form"
+
+[[mutation]]
+name = "contraction-forward-u2-on-wrong-feature"
+file = "src/tensors/symmetric_contraction.jl"
+find = "cm.forward && (F[np + x, col(o + m, w), c] += u)"
+replace = "cm.forward && (F[np + w, col(o + m, w), c] += u)"
+expect = "as matrix products matches the per-atom form"
+
+[[mutation]]
+name = "contraction-pair-row-off-diagonal"
+file = "src/tensors/symmetric_contraction.jl"
+find = "_pair_row(x::Int, i::Int) = x <= i ? div(i * (i - 1), 2) + x : div(x * (x - 1), 2) + i"
+replace = "_pair_row(x::Int, i::Int) = x <= i ? div(i * (i - 1), 2) + x : div(x * (x - 1), 2) + x"
+expect = "as matrix products"
+
+[[mutation]]
+name = "contraction-features-without-constant"
+file = "src/tensors/symmetric_contraction.jl"
+find = "Z[nf, c, r] = one(S)"
+replace = "Z[nf, c, r] = zero(S)"
+expect = "as matrix products"
+
+[[mutation]]
+name = "contraction-forward-drops-partial-group"
+file = "src/tensors/symmetric_contraction.jl"
+find = "n > 0 && _forward_group!(B, cm, X, buf, s, n)"
+replace = "nothing"
+expect = "as matrix products matches the per-atom form"
+
+[[mutation]]
+name = "contraction-pullback-reduce-first-ell"
+file = "src/tensors/symmetric_contraction.jl"
+find = "dX[c, w, a] += dB[c, j, a] * buf.Y[(j - 1) * L + w, c, r]"
+replace = "dX[c, w, a] += dB[c, j, a] * buf.Y[(j - 1) * L + 1, c, r]"
+expect = "as matrix products"
+
+[[mutation]]
+name = "workspace-builds-first-element-only"
+file = "src/model/evaluate.jl"
+find = "for z in elements"
+replace = "for z in Iterators.take(elements, 1)"
+expect = "contraction matrices of the workspace elements"
+
+[[mutation]]
+name = "workspace-missing-matrices-unreported"
+file = "src/model/evaluate.jl"
+find = "isempty(ws.contraction[2].G[s]) &&"
+replace = "false &&"
+expect = "contraction matrices of the workspace elements|model errors"

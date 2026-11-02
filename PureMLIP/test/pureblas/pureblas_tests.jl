@@ -2,7 +2,7 @@
     using PureBLAS
     @test PureBLAS.is_active()
     # Float64: the 1e-6 LAMMPS targets of the main suite. Float32: the main suite's tolerances for
-    # the Float32 LAMMPS run (measured margins 1.55e-5 eV, 9.4e-6 eV/Å and 8.0e-5 eV).
+    # the Float32 LAMMPS run (measured margins 1.55e-5 eV, 1.0e-5 eV/Å and 4.7e-5 eV).
     for (T, ref, src, tole, tolf, tolv) in (
             (Float64, :mpa0_f64, :mpa0, 1.0e-6, 1.0e-6, 1.0e-6),
             (Float64, :mp0b3_f64, :mp0b3, 1.0e-6, 1.0e-6, 1.0e-6),
@@ -61,7 +61,7 @@ end
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
         # A chunk smaller than the edge count exercises the chunked radial MLP and its pullback.
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
+        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, elements = Z)
         res = MACEResult{T}(3)
         f!(res, ws, m, PT, CT, Z, nl)
         g!(res, ws, m, PT, CT, Z, nl)

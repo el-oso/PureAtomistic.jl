@@ -10,9 +10,11 @@
             new_result64(n) = PureMLIP.MACEResult{Float64}(n)
             new_workspace64(m, n, e) = PureMLIP.MACEWorkspace{Float64}(m, n, e)
             new_chunked_workspace64(m, n, e, c) = PureMLIP.MACEWorkspace{Float64}(m, n, e; nchunks = c)
+            new_elements_workspace64(m, n, e, z) = PureMLIP.MACEWorkspace{Float64}(m, n, e; elements = z)
             new_result32(n) = PureMLIP.MACEResult{Float32}(n)
             new_workspace32(m, n, e) = PureMLIP.MACEWorkspace{Float32}(m, n, e)
             new_chunked_workspace32(m, n, e, c) = PureMLIP.MACEWorkspace{Float32}(m, n, e; nchunks = c)
+            new_elements_workspace32(m, n, e, z) = PureMLIP.MACEWorkspace{Float32}(m, n, e; elements = z)
             new_energy_workspace64(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float64}(m, n, e)
             new_energy_workspace32(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float32}(m, n, e)
         end,
@@ -40,6 +42,7 @@
         new_result64(Int),
         new_workspace64(PureMLIP.MACEModel{Float64}, Int, Int),
         new_chunked_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Int),
+        new_elements_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Vector{Int}),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
@@ -59,6 +62,7 @@
         new_result32(Int),
         new_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
         new_chunked_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Int),
+        new_elements_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Vector{Int}),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},
             Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
@@ -86,6 +90,14 @@
             Array{Float64, 3}, PureMLIP.Tensors.SymmetricContraction{Float64}, Array{Float64, 3}, Array{Float64, 3}, Vector{Int}, Vector{Float64}
         ),
         PureMLIP.Tensors.symmetric_contraction_scratch_size(PureMLIP.Tensors.SymmetricContraction{Float64}),
+        PureMLIP.Tensors.contraction_matrices!(PureMLIP.Tensors.ContractionMatrices{Float64}, PureMLIP.Tensors.SymmetricContraction{Float64}, Int),
+        PureMLIP.Tensors.symmetric_contraction!(
+            Array{Float64, 3}, PureMLIP.Tensors.ContractionMatrices{Float64}, Array{Float64, 3}, Vector{Int}, PureMLIP.Tensors.ContractionBuffers{Float64}
+        ),
+        PureMLIP.Tensors.symmetric_contraction_pullback!(
+            Array{Float64, 3}, PureMLIP.Tensors.ContractionMatrices{Float64}, Array{Float64, 3}, Array{Float64, 3}, Vector{Int},
+            PureMLIP.Tensors.ContractionBuffers{Float64}
+        ),
         PureMLIP.Tensors.tp_edge_add!(Matrix{Float32}, PureMLIP.Tensors.ChannelwiseTP{Float32}, Matrix{Float32}, Vector{Float32}, Matrix{Float32}),
         PureMLIP.Tensors.tp_edge_pullback_add!(
             Matrix{Float32}, Vector{Float32}, Matrix{Float32}, PureMLIP.Tensors.ChannelwiseTP{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Float32}, Matrix{Float32}
@@ -98,6 +110,14 @@
         PureMLIP.Tensors.symmetric_contraction_pullback!(
             Array{Float32, 3}, PureMLIP.Tensors.SymmetricContraction{Float32}, Array{Float32, 3}, Array{Float32, 3}, Vector{Int}, Vector{Float32}
         ),
-        PureMLIP.Tensors.symmetric_contraction_scratch_size(PureMLIP.Tensors.SymmetricContraction{Float32})
+        PureMLIP.Tensors.symmetric_contraction_scratch_size(PureMLIP.Tensors.SymmetricContraction{Float32}),
+        PureMLIP.Tensors.contraction_matrices!(PureMLIP.Tensors.ContractionMatrices{Float32}, PureMLIP.Tensors.SymmetricContraction{Float32}, Int),
+        PureMLIP.Tensors.symmetric_contraction!(
+            Array{Float32, 3}, PureMLIP.Tensors.ContractionMatrices{Float32}, Array{Float32, 3}, Vector{Int}, PureMLIP.Tensors.ContractionBuffers{Float32}
+        ),
+        PureMLIP.Tensors.symmetric_contraction_pullback!(
+            Array{Float32, 3}, PureMLIP.Tensors.ContractionMatrices{Float32}, Array{Float32, 3}, Array{Float32, 3}, Vector{Int},
+            PureMLIP.Tensors.ContractionBuffers{Float32}
+        )
     )
 end

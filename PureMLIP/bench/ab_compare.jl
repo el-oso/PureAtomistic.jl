@@ -92,6 +92,13 @@ function energy_workspace(PM, ::Type{T}, model, n_atoms, n_edges, ws) where {T}
     return PM.MACEEnergyWorkspace{T}(model, n_atoms, n_edges)
 end
 
+# The MACEWorkspace of `mace_energy_forces!`, given the elements of the structure on a side whose
+# workspace builds per-element contraction matrices (it then requires them).
+function workspace(PM, ::Type{T}, model, n_atoms, n_edges, z) where {T}
+    isdefined(PM.Tensors, :ContractionMatrices) || return PM.MACEWorkspace{T}(model, n_atoms, n_edges)
+    return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z)
+end
+
 function measure(PM, cases)
     ck = PM.load_mace_checkpoint(joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model"))
     for (N, T) in cases
@@ -101,7 +108,7 @@ function measure(PM, cases)
         cell = Matrix{T}(cu.cell')
         z = cu.atomic_numbers
         nl = PM.neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-        ws = PM.MACEWorkspace{T}(model, length(z), nl.n_edges)
+        ws = workspace(PM, T, model, length(z), nl.n_edges, z)
         ews = energy_workspace(PM, T, model, length(z), nl.n_edges, ws)
         res = PM.MACEResult{T}(length(z))
         evals = (

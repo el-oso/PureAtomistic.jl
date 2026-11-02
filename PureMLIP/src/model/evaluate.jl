@@ -49,7 +49,8 @@ struct ChunkBuffers{T}
     # ∂E/∂x[2] from the edges of this chunk, per sender atom
     dx::Array{T, 3}
     scratch::Vector{T}               # symmetric contraction of one atom
-    function ChunkBuffers{T}(model::MACEModel, chunk::Int, nblock::Int, dx::Array{T, 3}) where {T}
+    gemm::ContractionBuffers{T}      # symmetric contraction as matrix products, one group of atoms
+    function ChunkBuffers{T}(model::MACEModel, chunk::Int, nblock::Int, dx::Array{T, 3}, cms::NTuple{2, ContractionMatrices{T}}) where {T}
         C = model.C
         nb = length(model.radial.bessel_weights)
         W = max(size(model.mlp[1].W[4], 2), size(model.mlp[2].W[4], 2))
@@ -66,13 +67,13 @@ struct ChunkBuffers{T}
             tpw, reshape(tpw, C, W ÷ C, chunk), zeros(T, H, chunk, 3), zeros(T, H, chunk, 3),
             dtpw, reshape(dtpw, C, W ÷ C, chunk), zeros(T, H, chunk, 2), zeros(T, nb, chunk),
             zeros(T, 16), zeros(T, 16, 3),
-            (M0, M1), (dM0, dM1), L0, dL0, dx, scratch,
+            (M0, M1), (dM0, dM1), L0, dL0, dx, scratch, ContractionBuffers{T}(cms...),
         )
     end
 end
 
 """
-    MACEWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096, block = 256, nchunks = 1)
+    MACEWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096, block = 256, nchunks = 1, elements = ())
 
 The buffers of an evaluation of `model` on up to `n_atoms` atoms and `n_edges` directed edges.
 Per edge it holds the edge vector, its length and the energy gradient with respect to the edge
@@ -92,6 +93,13 @@ buffers and one per-atom array of the sender-derivative size; with `nchunks = 1`
 set. The results for different `nchunks` agree up to rounding, and are the same for a given
 `nchunks`.
 
+The first product block (forward and pullback) and the pullback of the second run as matrix
+products over groups of up to 64 atoms of one species, with dense matrices per element
+([`PureMLIP.Tensors.ContractionMatrices`](@ref)): for MACE-MPA-0 22.6 MB per element in Float64
+and 11.3 MB in Float32. The constructor builds them for the elements in `elements` (atomic
+numbers, repeats allowed), and an evaluation on an atom of any other element throws. Each receiver
+chunk holds the buffers of one group (14.2 MB in Float64 for MACE-MPA-0).
+
 The workspace also holds the energy derivatives of the backward pass of
 [`mace_energy_forces!`](@ref). The evaluation functions require `T` to be the element type of
 the model; the constructor reads only sizes from `model`, so `T` may also be a number type the
@@ -109,6 +117,8 @@ struct MACEWorkspace{T}
     dEdr::Matrix{T}          # 3 × E, ∂E/∂r per edge, accumulated by the backward pass
     # the buffers of each receiver chunk
     chunks::Vector{ChunkBuffers{T}}
+    # the matrices of the two product blocks per species; the second holds no forward matrices
+    contraction::NTuple{2, ContractionMatrices{T}}
     # Per node. The fields marked with a pool share memory with the other members of that pool; the
     # constructor lists the order in which each pool's members are used.
     h0::Array{T, 3}                  # pool `small`
@@ -139,7 +149,7 @@ struct MACEWorkspace{T}
     ddensity::Matrix{T}              # n × 2
     function MACEWorkspace{T}(
             model::MACEModel, n_atoms::Integer, n_edges::Integer;
-            edge_chunk::Integer = 4096, block::Integer = 256, nchunks::Integer = 1
+            edge_chunk::Integer = 4096, block::Integer = 256, nchunks::Integer = 1, elements = ()
         ) where {T}
         n, E, chunk, nblock = _workspace_sizes(n_atoms, n_edges, edge_chunk, block, nchunks)
         C = model.C
@@ -162,13 +172,14 @@ struct MACEWorkspace{T}
             )
         )
         ((dx1,), (dx0,)) = _pool(T, ((dims(model.up[2]),), (dims(model.up[1]),)))
+        contraction = (ContractionMatrices{T}(model.product[1]), ContractionMatrices{T}(model.product[2]; forward = false))
         chunks = ChunkBuffers{T}[
-            ChunkBuffers{T}(model, chunk, nblock, c == 1 ? dx1 : zeros(T, dims(model.up[2]))) for c in 1:nchunks
+            ChunkBuffers{T}(model, chunk, nblock, c == 1 ? dx1 : zeros(T, dims(model.up[2])), contraction) for c in 1:nchunks
         ]
-        return new{T}(
+        ws = new{T}(
             n, E, chunk, Int(block), zeros(Int, n),
             zeros(T, 3, E), zeros(T, E), zeros(T, 3, E),
-            chunks,
+            chunks, contraction,
             h0, (node(model.up[1]), node(model.up[2])), zeros(T, n, 2),
             zeros(T, C, model.skip[1].K, n), node(model.linear[2]),
             (B0, B1), h1, sc, h2,
@@ -177,6 +188,10 @@ struct MACEWorkspace{T}
             dh1, dh1_part, (dB0, dB1),
             dX1, dX2, dx0, zeros(T, n, 2),
         )
+        for z in elements
+            _contraction_matrices!(ws, model, _species_index(model, z))
+        end
+        return ws
     end
 end
 
@@ -418,14 +433,35 @@ function _normalized_linear!(L::AbstractArray{T, 3}, lin::E3nnLinear, M::Abstrac
     return L
 end
 
+# The model's species index of the element with atomic number `z`.
+function _species_index(model::MACEModel, z::Integer)
+    s = 0 <= z < length(model.species) ? model.species[z + 1] : 0
+    s > 0 || throw(ArgumentError(lazy"model: element $z is not in the model's element table"))
+    return s
+end
+
 # The model's species index of each atom, into `species`.
 function _species!(species::AbstractVector{Int}, model::MACEModel, atomic_numbers)
     for (i, z) in zip(eachindex(species), atomic_numbers)
-        s = 0 <= z < length(model.species) ? model.species[z + 1] : 0
-        s > 0 || throw(ArgumentError(lazy"model: element $z is not in the model's element table"))
-        species[i] = s
+        species[i] = _species_index(model, z)
     end
     return species
+end
+
+# Builds the contraction matrices of species `s` in `ws`, unless it holds them already.
+function _contraction_matrices!(ws::MACEWorkspace{T}, model::MACEModel{T}, s::Int) where {T}
+    contraction_matrices!(ws.contraction[1], model.product[1], s)
+    contraction_matrices!(ws.contraction[2], model.product[2], s)
+    return nothing
+end
+
+# Every atom's species has its contraction matrices in `ws`.
+function _check_contraction_matrices(ws::MACEWorkspace, species::AbstractVector{Int}, atomic_numbers)
+    for (s, z) in zip(species, atomic_numbers)
+        isempty(ws.contraction[2].G[s]) &&
+            throw(ArgumentError(lazy"model: the workspace holds no contraction matrices for element $z; pass it in `elements` to the constructor"))
+    end
+    return nothing
 end
 
 # The energy of an atom of species `s` from its pair term and its two readouts.
@@ -440,7 +476,8 @@ these positions with a cutoff of at least `model.r_max`, and with its edges sort
 [`neighbor_list`](@ref) sorts them). Fills `res.energy` and `res.node_energies`: `E0` of the
 element plus `scale · (pair + readouts) + shift` per atom. `ws` is a [`MACEWorkspace`](@ref) or,
 when no forces will follow, the smaller [`MACEEnergyWorkspace`](@ref), which leaves the forces,
-virial and stress of `res` as they were.
+virial and stress of `res` as they were. A `MACEWorkspace` must have been built with every element
+of `atomic_numbers` in its `elements`.
 """
 function mace_energy!(
         res::MACEResult{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, positions::AbstractMatrix{T},
@@ -450,6 +487,7 @@ function mace_energy!(
     n = nl.n_atoms
     atoms = 1:n
     species = _species!(view(ws.species, atoms), model, atomic_numbers)
+    _check_contraction_matrices(ws, species, atomic_numbers)
     receivers = view(nl.receivers, 1:nl.n_edges)
     _edges!(ws, positions, cell, nl)
 
@@ -476,7 +514,7 @@ function mace_energy!(
 
     # Product 0.
     B0 = view(ws.B[1], :, :, atoms)
-    _chunked_symmetric_contraction!(B0, model.product[1], X1, species, ws)
+    _chunked_symmetric_contraction!(B0, ws.contraction[1], X1, species, ws)
     h1 = view(ws.h1, :, :, atoms)
     linear!(h1, model.product_linear[1], B0)
 
@@ -539,26 +577,30 @@ function mace_energy!(
     return res
 end
 
-# The symmetric contraction of every atom, over the atoms of each receiver chunk of `ws` with
-# that chunk's scratch.
+# The symmetric contraction of every atom, over the atoms of each receiver chunk of `ws` with that
+# chunk's buffers: per atom with the contraction `sc`, or as matrix products with the matrices `cm`.
 function _chunked_symmetric_contraction!(
-        B::AbstractArray{T, 3}, sc::SymmetricContraction, X::AbstractArray{T, 3}, species::AbstractVector{Int}, ws::MACEWorkspace{T}
-    ) where {T}
-    for c in eachindex(ws.chunks)
-        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
-        symmetric_contraction!(view(B, :, :, a), sc, view(X, :, :, a), view(species, a), ws.chunks[c].scratch)
-    end
-    return nothing
-end
-
-# The pullback of `_chunked_symmetric_contraction!`, over the same atoms and scratch.
-function _chunked_symmetric_contraction_pullback!(
-        dX::AbstractArray{T, 3}, sc::SymmetricContraction, dB::AbstractArray{T, 3}, X::AbstractArray{T, 3},
+        B::AbstractArray{T, 3}, p::Union{SymmetricContraction{T}, ContractionMatrices{T}}, X::AbstractArray{T, 3},
         species::AbstractVector{Int}, ws::MACEWorkspace{T}
     ) where {T}
     for c in eachindex(ws.chunks)
         a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
-        symmetric_contraction_pullback!(view(dX, :, :, a), sc, view(dB, :, :, a), view(X, :, :, a), view(species, a), ws.chunks[c].scratch)
+        _contraction!(view(B, :, :, a), p, view(X, :, :, a), view(species, a), ws.chunks[c])
+    end
+    return nothing
+end
+
+_contraction!(B, sc::SymmetricContraction, X, species, ch::ChunkBuffers) = symmetric_contraction!(B, sc, X, species, ch.scratch)
+_contraction!(B, cm::ContractionMatrices, X, species, ch::ChunkBuffers) = symmetric_contraction!(B, cm, X, species, ch.gemm)
+
+# The pullback of `_chunked_symmetric_contraction!` as matrix products, over the same atoms.
+function _chunked_symmetric_contraction_pullback!(
+        dX::AbstractArray{T, 3}, cm::ContractionMatrices{T}, dB::AbstractArray{T, 3}, X::AbstractArray{T, 3},
+        species::AbstractVector{Int}, ws::MACEWorkspace{T}
+    ) where {T}
+    for c in eachindex(ws.chunks)
+        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
+        symmetric_contraction_pullback!(view(dX, :, :, a), cm, view(dB, :, :, a), view(X, :, :, a), view(species, a), ws.chunks[c].gemm)
     end
     return nothing
 end
@@ -791,7 +833,7 @@ function mace_energy_forces!(
     dB1 = view(ws.dB[2], :, :, atoms)
     linear_pullback!(dB1, model.product_linear[2], dh2)
     dX2, X2 = view(ws.dX2, :, :, atoms), view(ws.X2, :, :, atoms)
-    _chunked_symmetric_contraction_pullback!(dX2, model.product[2], dB1, X2, species, ws)
+    _chunked_symmetric_contraction_pullback!(dX2, ws.contraction[2], dB1, X2, species, ws)
     part = view(ws.dh1_part, :, :, atoms)
     K = model.skip[2].K
     species_linear_pullback!(view(part, :, 1:K, :), model.skip[2], dh2, species)
@@ -831,7 +873,7 @@ function mace_energy_forces!(
     dB0 = view(ws.dB[1], :, :, atoms)
     linear_pullback!(dB0, model.product_linear[1], dh1)
     dX1, X1 = view(ws.dX1, :, :, atoms), view(ws.X1, :, :, atoms)
-    _chunked_symmetric_contraction_pullback!(dX1, model.product[1], dB0, X1, species, ws)
+    _chunked_symmetric_contraction_pullback!(dX1, ws.contraction[1], dB0, X1, species, ws)
     # L0 holds one block and shares memory with dL0, so it is not kept. X1 = skip[1](L0) is a
     # linear map per atom and dL0 is its pullback of dX1, so ⟨dL0, L0⟩ = ⟨dX1, X1⟩.
     x0, dx0 = view(ws.x[1], :, :, atoms), view(ws.dx0, :, :, atoms)
@@ -894,6 +936,6 @@ function mace_energy_forces(
     ) where {T}
     nl = neighbor_list(positions, cell, model.r_max)
     n = nl.n_atoms
-    ws = MACEWorkspace{T}(model, n, nl.n_edges)
+    ws = MACEWorkspace{T}(model, n, nl.n_edges; elements = atomic_numbers)
     return mace_energy_forces!(MACEResult{T}(n), ws, model, positions, cell, atomic_numbers, nl)
 end
