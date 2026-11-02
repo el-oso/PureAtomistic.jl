@@ -165,7 +165,7 @@ end
     for k in 1:2
         # Normalized linear: L = linear(M) / (density + 1).
         lin = m.linear[k]
-        M = randn(rng, size(ws.M[k])); dens = rand(rng, n)
+        M = randn(rng, size(ws.chunks[1].M[k])); dens = rand(rng, n)
         vM = randn(rng, size(M)); vd = randn(rng, n)
         L = zeros(lin.C_out, lin.K_out, n)
         Mo._normalized_linear!(L, lin, M, dens)
@@ -188,21 +188,21 @@ end
         x = copy(view(ws.x[k], :, :, 1:n))
         r = copy(view(ws.r, :, 1:E))
         vx = randn(rng, size(x)); vr = randn(rng, 3, E)
-        Mk = zeros(size(ws.M[k])); densk = zeros(n)
+        Mk = zeros(size(ws.chunks[1].M[k])); densk = zeros(n)
         dMk = randn(rng, size(Mk)); ddk = randn(rng, n)
         dx = zeros(size(x))
         fill!(ws.dEdr, 0.0)
-        Mo._messages_pullback!(dx, ws, m, k, x, dMk, ddk, Z, nl)
+        Mo._messages_pullback!(dx, ws.chunks[1], ws, m, k, x, dMk, ddk, Z, nl)
         back = sum(dx .* vx) + sum(view(ws.dEdr, :, 1:E) .* vr)
         lengths(r) = vec(sqrt.(sum(abs2, r; dims = 1)))
         wsD = MACEWorkspace{D}(m, n, E; edge_chunk = chunk)
         wsD.r .= dual(r, vr); wsD.d .= lengths(wsD.r)
         MD = zeros(D, size(Mk)); densD = zeros(D, n)
-        Mo._messages!(MD, densD, wsD, m, k, dual(x, vx), Z, nl)
+        Mo._messages!(MD, densD, wsD.chunks[1], wsD, m, k, dual(x, vx), Z, nl)
         fwd = slope(sum(dMk .* MD) + sum(ddk .* densD))
         function g(t)
             ws.r[:, 1:E] .= r .+ t .* vr; ws.d[1:E] .= lengths(view(ws.r, :, 1:E))
-            Mo._messages!(Mk, densk, ws, m, k, x .+ t .* vx, Z, nl)
+            Mo._messages!(Mk, densk, ws.chunks[1], ws, m, k, x .+ t .* vx, Z, nl)
             return sum(dMk .* Mk) + sum(ddk .* densk)
         end
         fd = (g(h) - g(-h)) / 2h
@@ -216,13 +216,26 @@ end
     m64 = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
     # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
     # edges within r_max.
+    # Measured with one receiver chunk: 88,258.5 bytes per atom in Float64 and 44,133.4 in Float32.
+    # Each bound is the next whole byte; a per-atom buffer adds at least 4 bytes per atom.
     b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096)
-    @test b64 <= 100_000
+    @test b64 <= 88_259
     GC.gc()
     # The constructor reads only sizes from the model, so a Float32 workspace needs no Float32 model.
     b32 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float32, 10_976, 856_128; edge_chunk = 4096)
-    @test b32 <= 50_000
+    @test b32 <= 44_134
     GC.gc()
+    # Every further receiver chunk adds its edge-chunk buffers (102 MB in Float64 at
+    # `edge_chunk = 4096`, independent of the atom count), its block buffers (15 MB at
+    # `block = 256`), its symmetric-contraction scratch (0.8 MB) and a sender derivative of 4,096
+    # bytes per atom. Measured in Float64: 132,713.4 bytes per atom with 4
+    # chunks and 191,986.6 with 8; each bound is the next whole byte.
+    for (nchunks, bound) in ((4, 132_714), (8, 191_987))
+        b = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096, nchunks)
+        @test b > b64
+        @test b <= bound
+        GC.gc()
+    end
 end
 
 # The per-atom layers of each interaction run per block of receivers. Blocks of every size give
@@ -255,6 +268,57 @@ end
     end
 end
 
+# Receiver chunks split the atoms into ranges, each evaluated with its own buffers; the sender
+# derivatives that the chunks collect separately, and the per-chunk energy sums, are added in
+# chunk order. Any chunk count gives the one-chunk result up to rounding: the chunks cut the
+# receiver blocks, whose matrix products are split into columns, and regroup those two sums.
+# The same chunk count gives the same bits on every evaluation. More chunks than atoms leave
+# chunks empty.
+@testitem "forces: receiver chunks give the one-chunk result" setup = [LammpsReference, Checkpoints] begin
+    include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    cu = cu_bench(5)
+    # An edge chunk of 1024 keeps eight chunks' edge buffers near 200 MB; the edge chunk does
+    # not change the arithmetic of an edge.
+    edge_chunk = 1024
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        P, C, Z = Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers
+        n = length(Z)
+        nl = neighbor_list(P, C, m.r_max)
+        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk), m, P, C, Z, nl)
+        # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity, with N = 1280
+        # the largest inner dimension of any matrix product in the model. Measured with 4 and 8
+        # chunks: at most 4.8·eps(T).
+        tol = 10 * eps(T) * 1280
+        for nchunks in (2, 3, 8)
+            ws = MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk, nchunks)
+            r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            @test abs(r.energy - ref.energy) <= tol * abs(ref.energy)
+            @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
+            @test maximum(abs, r.forces - ref.forces) <= tol * maximum(abs, ref.forces)
+            @test maximum(abs, r.virial - ref.virial) <= tol * maximum(abs, ref.virial)
+            @test maximum(abs, r.stress - ref.stress) <= tol * maximum(abs, ref.stress)
+            r2 = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            @test r2.energy == r.energy && r2.node_energies == r.node_energies
+            @test r2.forces == r.forces && r2.virial == r.virial && r2.stress == r.stress
+            re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+            @test re.energy == r.energy && re.node_energies == r.node_energies
+        end
+        GC.gc()
+    end
+    # More chunks than atoms, against the LAMMPS targets of "forces and virial match LAMMPS-MACE".
+    m = MACEModel(ck)
+    s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "triclinic_ni3al")
+    nl = neighbor_list(s.positions, s.cell, m.r_max)
+    n = nl.n_atoms
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; nchunks = n + 3)
+    r = mace_energy_forces!(MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, nl)
+    @test abs(r.energy - s.energy) <= 1.0e-6
+    @test maximum(abs, r.forces - s.forces) <= 1.0e-6
+    @test maximum(abs, r.virial - s.virial) <= 1.0e-6
+end
+
 # Oracle: the edges of a block are those whose receiver lies in it, found by a full search.
 @testitem "receiver blocks partition the atoms and their edges" begin
     RB = PureMLIP.Model.ReceiverBlocks
@@ -266,6 +330,15 @@ end
         @test length(blocks) == cld(n, block)
         @test reduce(vcat, [collect(atoms) for (atoms, _) in blocks]) == 1:n
         @test all(length(atoms) <= block for (atoms, _) in blocks)
+        for (atoms, edges) in blocks
+            @test collect(edges) == findall(in(atoms), receivers)
+        end
+    end
+    # Blocks of a range of atoms, as a receiver chunk iterates them.
+    for range in (3:3, 2:6, 4:8, 5:4), block in 1:3
+        blocks = collect(RB(receivers, range, block))
+        @test length(blocks) == cld(length(range), block)
+        @test reduce(vcat, [collect(atoms) for (atoms, _) in blocks]; init = Int[]) == collect(range)
         for (atoms, edges) in blocks
             @test collect(edges) == findall(in(atoms), receivers)
         end
@@ -300,9 +373,11 @@ end
         @test_throws "model: neighbor list receivers must lie in 1:$n" f(MACEResult{Float64}(n), ws, m, P, C, Z, bad)
     end
     @test_throws "model: the receiver block must be positive, got 0" MACEWorkspace{Float64}(m, n, E; block = 0)
+    @test_throws "model: the number of receiver chunks must be positive, got 0" MACEWorkspace{Float64}(m, n, E; nchunks = 0)
 end
 
-# One atom and no edges, through blocks of one atom and the default block.
+# One atom and no edges, through blocks of one atom and the default block, and in one of four
+# receiver chunks, three of them empty.
 @testitem "forces: one atom and no edges in receiver blocks" setup = [LammpsReference, Checkpoints] begin
     ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
     for T in (Float64, Float32)
@@ -311,8 +386,8 @@ end
         P, C = T.(s.positions), T.(s.cell)
         nl = neighbor_list(P, C, m.r_max)
         @test nl.n_atoms == 1 && nl.n_edges == 0
-        for block in (1, 256)
-            ws = MACEWorkspace{T}(m, 1, 0; block)
+        for block in (1, 256), nchunks in (1, 4)
+            ws = MACEWorkspace{T}(m, 1, 0; block, nchunks)
             r = mace_energy_forces!(MACEResult{T}(1), ws, m, P, C, s.atomic_numbers, nl)
             @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
             @test r.forces == zeros(T, 3, 1) && r.virial == zeros(T, 3, 3) && r.stress == zeros(T, 3, 3)
@@ -333,26 +408,29 @@ end
         m = MACEModel{T}(ck)
         structures = LammpsReference.structures(LammpsReference.load(ref))
         lists = [neighbor_list(T.(s.positions), T.(s.cell), m.r_max) for s in structures]
-        ws = MACEWorkspace{T}(m, maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists))
-        for (s, nl) in zip(structures, lists)
-            P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
-            n = nl.n_atoms
-            for f in fieldnames(typeof(ws))
-                v = getfield(ws, f)
-                for a in (v isa Tuple ? v : (v,))
-                    a isa AbstractArray{T} && fill!(a, T(NaN))
-                end
+        # Every array of the workspace and of each of its receiver chunks.
+        poison!(a::AbstractArray{<:AbstractFloat}) = fill!(a, NaN)
+        poison!(t::Tuple) = foreach(poison!, t)
+        poison!(chunks::Vector{<:PureMLIP.Model.ChunkBuffers}) = foreach(c -> foreach(f -> poison!(getfield(c, f)), fieldnames(typeof(c))), chunks)
+        poison!(_) = nothing
+        for nchunks in (1, 4)
+            ws = MACEWorkspace{T}(m, maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists); nchunks)
+            for (s, nl) in zip(structures, lists)
+                P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
+                n = nl.n_atoms
+                foreach(f -> poison!(getfield(ws, f)), fieldnames(typeof(ws)))
+                @test all(isnan, ws.chunks[end].dx) && all(isnan, ws.chunks[end].L0)
+                re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+                r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+                # A fresh workspace sized for this structure runs the same arithmetic.
+                rf = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; nchunks), m, P, C, Z, nl)
+                @test re.energy == rf.energy && re.node_energies == rf.node_energies
+                @test r.energy == rf.energy && r.node_energies == rf.node_energies
+                @test r.forces == rf.forces && r.virial == rf.virial && r.stress == rf.stress
+                T === Float64 && @test abs(r.energy - s.energy) <= 1.0e-6
+                @test maximum(abs, r.forces - s.forces; init = 0.0) <= tolf
+                @test maximum(abs, r.virial - s.virial) <= tolv
             end
-            re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl)
-            r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
-            # A fresh workspace sized for this structure runs the same arithmetic.
-            rf = mace_energy_forces(m, P, C, Z)
-            @test re.energy == rf.energy && re.node_energies == rf.node_energies
-            @test r.energy == rf.energy && r.node_energies == rf.node_energies
-            @test r.forces == rf.forces && r.virial == rf.virial && r.stress == rf.stress
-            T === Float64 && @test abs(r.energy - s.energy) <= 1.0e-6
-            @test maximum(abs, r.forces - s.forces; init = 0.0) <= tolf
-            @test maximum(abs, r.virial - s.virial) <= tolv
         end
     end
 end

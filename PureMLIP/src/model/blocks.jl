@@ -11,23 +11,24 @@ function _check_receivers(nl::NeighborList)
     return nothing
 end
 
-# Iterates `(atoms, edges)`: the atoms `atoms` in blocks of at most `block`, in order, with the
-# range `edges` of the edges whose receiver is in `atoms`. `receivers` holds the receivers of the
-# edges, sorted (`_check_receivers`).
+# Iterates `(atoms, edges)`: the atoms of the range `atoms` in blocks of at most `block`, in order,
+# with the range `edges` of the edges whose receiver is in `atoms`. `receivers` holds the receivers
+# of the edges, sorted (`_check_receivers`).
 struct ReceiverBlocks{V <: AbstractVector{Int}}
     receivers::V
-    n_atoms::Int
+    atoms::UnitRange{Int}
     block::Int
 end
 
+ReceiverBlocks(receivers::AbstractVector{Int}, n_atoms::Int, block::Int) = ReceiverBlocks(receivers, 1:n_atoms, block)
 ReceiverBlocks(nl::NeighborList, block::Int) = ReceiverBlocks(view(nl.receivers, 1:nl.n_edges), nl.n_atoms, block)
 
-Base.length(b::ReceiverBlocks) = cld(b.n_atoms, b.block)
+Base.length(b::ReceiverBlocks) = cld(length(b.atoms), b.block)
 Base.eltype(::Type{<:ReceiverBlocks}) = Tuple{UnitRange{Int}, UnitRange{Int}}
 
-function Base.iterate(b::ReceiverBlocks, (i, e) = (1, firstindex(b.receivers)))
-    i > b.n_atoms && return nothing
-    atoms = i:min(i + b.block - 1, b.n_atoms)
+function Base.iterate(b::ReceiverBlocks, (i, e) = (first(b.atoms), searchsortedfirst(b.receivers, first(b.atoms))))
+    i > last(b.atoms) && return nothing
+    atoms = i:min(i + b.block - 1, last(b.atoms))
     stop = searchsortedlast(b.receivers, last(atoms))
     return (atoms, e:stop), (last(atoms) + 1, stop + 1)
 end

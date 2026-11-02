@@ -9,8 +9,10 @@
             new_model32(ck) = PureMLIP.MACEModel{Float32}(ck)
             new_result64(n) = PureMLIP.MACEResult{Float64}(n)
             new_workspace64(m, n, e) = PureMLIP.MACEWorkspace{Float64}(m, n, e)
+            new_chunked_workspace64(m, n, e, c) = PureMLIP.MACEWorkspace{Float64}(m, n, e; nchunks = c)
             new_result32(n) = PureMLIP.MACEResult{Float32}(n)
             new_workspace32(m, n, e) = PureMLIP.MACEWorkspace{Float32}(m, n, e)
+            new_chunked_workspace32(m, n, e, c) = PureMLIP.MACEWorkspace{Float32}(m, n, e; nchunks = c)
             new_energy_workspace64(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float64}(m, n, e)
             new_energy_workspace32(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float32}(m, n, e)
         end,
@@ -37,6 +39,7 @@
         new_model32(PureMLIP.MACECheckpoint),
         new_result64(Int),
         new_workspace64(PureMLIP.MACEModel{Float64}, Int, Int),
+        new_chunked_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Int),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}
@@ -55,6 +58,7 @@
         PureMLIP.neighbor_list!(PureMLIP.NeighborList{Float32}, Matrix{Float32}, Matrix{Float32}),
         new_result32(Int),
         new_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
+        new_chunked_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Int),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},
             Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}

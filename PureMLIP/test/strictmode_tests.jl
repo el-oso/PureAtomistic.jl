@@ -120,6 +120,9 @@
             ) == [MACEResult{S}]
         end
         @test Base.return_types(MACEEnergyWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEEnergyWorkspace{S}]
+        @test Base.return_types(MACEWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEWorkspace{S}]
+        chunked_workspace(m, n, e, c) = MACEWorkspace{S}(m, n, e; nchunks = c)
+        @test Base.return_types(chunked_workspace, (MACEModel{S}, Int, Int, Int)) == [MACEWorkspace{S}]
         # The Tensors kernels return their output array, or nothing for the accumulating pullback.
         TS = PureMLIP.Tensors
         @test Base.return_types(TS.tp_edge_add!, (Matrix{S}, TS.ChannelwiseTP{S}, Matrix{S}, Vector{S}, Matrix{S})) == [Matrix{S}]
@@ -171,20 +174,23 @@ end
     m = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
     P = [0.0 2.5 1.2; 0.0 0.0 1.9; 0.0 0.0 0.3]; C = [7.0 0.0 0.0; 0.0 7.0 0.0; 0.0 0.0 7.0]; Z = [29, 29, 8]
     nl = neighbor_list(P, C, 6.0)
-    # A chunk smaller than the edge count exercises the chunked radial MLP.
-    ws = MACEWorkspace{Float64}(m, 3, nl.n_edges; edge_chunk = 7)
-    res = MACEResult{Float64}(3)
     @noinline f!(res, ws, m, P, C, Z, nl) = mace_energy!(res, ws, m, P, C, Z, nl)
-    f!(res, ws, m, P, C, Z, nl)
-    @test nl.n_edges > 7
-    @test_noalloc f!(res, ws, m, P, C, Z, nl)
     m32 = MACEModel{Float32}(load_mace_checkpoint(Checkpoints.fetch(:mp0b3)))
     P32, C32 = Float32.(P), Float32.(C)
     nl32 = neighbor_list(P32, C32, 6.0)
-    ws32 = MACEWorkspace{Float32}(m32, 3, nl32.n_edges; edge_chunk = 7)
-    res32 = MACEResult{Float32}(3)
-    f!(res32, ws32, m32, P32, C32, Z, nl32)
-    @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
+    # A chunk smaller than the edge count exercises the chunked radial MLP; four receiver chunks
+    # over three atoms, one chunk empty.
+    for nchunks in (1, 4)
+        ws = MACEWorkspace{Float64}(m, 3, nl.n_edges; edge_chunk = 7, nchunks)
+        res = MACEResult{Float64}(3)
+        f!(res, ws, m, P, C, Z, nl)
+        @test nl.n_edges > 7
+        @test_noalloc f!(res, ws, m, P, C, Z, nl)
+        ws32 = MACEWorkspace{Float32}(m32, 3, nl32.n_edges; edge_chunk = 7, nchunks)
+        res32 = MACEResult{Float32}(3)
+        f!(res32, ws32, m32, P32, C32, Z, nl32)
+        @test_noalloc f!(res32, ws32, m32, P32, C32, Z, nl32)
+    end
 end
 
 @testitem "StrictMode: mace_energy! with an energy workspace is allocation-free" tags = [:checks] setup = [Checkpoints] begin
@@ -214,12 +220,15 @@ end
         m = MACEModel{T}(ck)
         PT, CT = T.(P), T.(C)
         nl = neighbor_list(PT, CT, 6.0)
-        # A chunk smaller than the edge count exercises the chunked radial MLP and its pullback.
-        ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7)
-        res = MACEResult{T}(3)
-        f!(res, ws, m, PT, CT, Z, nl)
-        @test nl.n_edges > 7
-        @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
+        # A chunk smaller than the edge count exercises the chunked radial MLP and its pullback;
+        # four receiver chunks over three atoms, one chunk empty.
+        for nchunks in (1, 4)
+            ws = MACEWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, nchunks)
+            res = MACEResult{T}(3)
+            f!(res, ws, m, PT, CT, Z, nl)
+            @test nl.n_edges > 7
+            @test_noalloc f!(res, ws, m, PT, CT, Z, nl)
+        end
     end
 end
 

@@ -458,7 +458,7 @@ expect = "energies match"
 name = "density-derivative-from-overwritten-L0"
 file = "src/model/evaluate.jl"
 find = "_normalization_pullback!(ddens0, dL0, dX1b, X1b, view(ws.density, blk, 1))"
-replace = "_normalization_pullback!(ddens0, dL0, dL0, view(ws.L[1], :, :, b), view(ws.density, blk, 1))"
+replace = "_normalization_pullback!(ddens0, dL0, dL0, view(ch.L0, :, :, b), view(ws.density, blk, 1))"
 expect = "forces and virial match LAMMPS-MACE"
 
 [[mutation]]
@@ -523,3 +523,37 @@ file = "src/model/radial_mlp.jl"
 find = "_mlp_layer_forward!(a1, mlp.W[3], a2, mlp.cst)"
 replace = "_mlp_layer_forward!(a1, mlp.W[3], a2, one(mlp.cst))"
 expect = "without derivatives equal the derivative forms"
+
+[[mutation]]
+name = "receiver-chunk-sender-derivatives-not-added"
+file = "src/model/evaluate.jl"
+find = "dx1[q] += dxc[q]"
+replace = "dx1[q] += zero(T)"
+expect = "receiver chunks give the one-chunk result"
+
+[[mutation]]
+name = "receiver-chunk-energy-of-last-chunk"
+file = "src/model/evaluate.jl"
+find = "E += Ec"
+replace = "E = Ec"
+expect = "receiver chunks give the one-chunk result"
+
+[[mutation]]
+name = "receiver-chunk-symmetric-contraction-of-first-chunk"
+file = "src/model/evaluate.jl"
+find = """
+    for c in eachindex(ws.chunks)
+        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
+        symmetric_contraction!("""
+replace = """
+    for c in 1:1
+        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
+        symmetric_contraction!("""
+expect = "receiver chunks give the one-chunk result"
+
+[[mutation]]
+name = "receiver-blocks-of-a-range-start-at-first-edge"
+file = "src/model/blocks.jl"
+find = "searchsortedfirst(b.receivers, first(b.atoms))"
+replace = "firstindex(b.receivers)"
+expect = "receiver blocks partition"

@@ -75,6 +75,13 @@ ws_e = MACEEnergyWorkspace{Float64}(model, size(positions, 2), length(nl.senders
 mace_energy!(res, ws_e, model, positions, cell, atomic_numbers, nl)
 ```
 
+`MACEWorkspace{T}(model, n_atoms, n_edges; nchunks)` splits the atoms of an evaluation into
+`nchunks` receiver chunks, contiguous ranges of nearly equal size, each evaluated with its own
+buffers. Results for different `nchunks` agree up to rounding; for a given `nchunks` they are the
+same on every evaluation. Each chunk after the first adds, for MACE-MPA-0 in Float64 at the
+default `edge_chunk` and `block`, about 118 MB plus 4,096 bytes per atom: 132,713 bytes per atom
+with 4 chunks and 191,987 with 8 at 10,976 atoms, against 88,258 with one.
+
 ## The neighbor list
 
 `neighbor_list(positions, cell, r_cut)` returns the directed edges `(sender, receiver, shift)`
