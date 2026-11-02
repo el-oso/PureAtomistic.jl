@@ -68,6 +68,32 @@
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEEnergyWorkspace{Float32}, PureMLIP.MACEModel{Float32},
             Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}
-        )
+        ),
+        PureMLIP.Tensors.tp_edge_add!(Matrix{Float64}, PureMLIP.Tensors.ChannelwiseTP{Float64}, Matrix{Float64}, Vector{Float64}, Matrix{Float64}),
+        PureMLIP.Tensors.tp_edge_pullback_add!(
+            Matrix{Float64}, Vector{Float64}, Matrix{Float64}, PureMLIP.Tensors.ChannelwiseTP{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Matrix{Float64}
+        ),
+        PureMLIP.Tensors.linear!(Array{Float64, 3}, PureMLIP.Tensors.E3nnLinear{Float64}, Array{Float64, 3}),
+        PureMLIP.Tensors.linear_pullback!(Array{Float64, 3}, PureMLIP.Tensors.E3nnLinear{Float64}, Array{Float64, 3}),
+        PureMLIP.Tensors.species_linear!(Array{Float64, 3}, PureMLIP.Tensors.SpeciesLinear{Float64}, Array{Float64, 3}, Vector{Int}),
+        PureMLIP.Tensors.species_linear_pullback!(Array{Float64, 3}, PureMLIP.Tensors.SpeciesLinear{Float64}, Array{Float64, 3}, Vector{Int}),
+        PureMLIP.Tensors.symmetric_contraction!(Array{Float64, 3}, PureMLIP.Tensors.SymmetricContraction{Float64}, Array{Float64, 3}, Vector{Int}, Vector{Float64}),
+        PureMLIP.Tensors.symmetric_contraction_pullback!(
+            Array{Float64, 3}, PureMLIP.Tensors.SymmetricContraction{Float64}, Array{Float64, 3}, Array{Float64, 3}, Vector{Int}, Vector{Float64}
+        ),
+        PureMLIP.Tensors.symmetric_contraction_scratch_size(PureMLIP.Tensors.SymmetricContraction{Float64}),
+        PureMLIP.Tensors.tp_edge_add!(Matrix{Float32}, PureMLIP.Tensors.ChannelwiseTP{Float32}, Matrix{Float32}, Vector{Float32}, Matrix{Float32}),
+        PureMLIP.Tensors.tp_edge_pullback_add!(
+            Matrix{Float32}, Vector{Float32}, Matrix{Float32}, PureMLIP.Tensors.ChannelwiseTP{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Float32}, Matrix{Float32}
+        ),
+        PureMLIP.Tensors.linear!(Array{Float32, 3}, PureMLIP.Tensors.E3nnLinear{Float32}, Array{Float32, 3}),
+        PureMLIP.Tensors.linear_pullback!(Array{Float32, 3}, PureMLIP.Tensors.E3nnLinear{Float32}, Array{Float32, 3}),
+        PureMLIP.Tensors.species_linear!(Array{Float32, 3}, PureMLIP.Tensors.SpeciesLinear{Float32}, Array{Float32, 3}, Vector{Int}),
+        PureMLIP.Tensors.species_linear_pullback!(Array{Float32, 3}, PureMLIP.Tensors.SpeciesLinear{Float32}, Array{Float32, 3}, Vector{Int}),
+        PureMLIP.Tensors.symmetric_contraction!(Array{Float32, 3}, PureMLIP.Tensors.SymmetricContraction{Float32}, Array{Float32, 3}, Vector{Int}, Vector{Float32}),
+        PureMLIP.Tensors.symmetric_contraction_pullback!(
+            Array{Float32, 3}, PureMLIP.Tensors.SymmetricContraction{Float32}, Array{Float32, 3}, Array{Float32, 3}, Vector{Int}, Vector{Float32}
+        ),
+        PureMLIP.Tensors.symmetric_contraction_scratch_size(PureMLIP.Tensors.SymmetricContraction{Float32})
     )
 end

@@ -226,8 +226,8 @@ end
 end
 
 # The per-atom layers of each interaction run per block of receivers. Blocks of every size give
-# the unblocked result up to the rounding of the matrix products, whose columns are now split
-# into blocks; that covers a block of one atom, blocks that do not divide the atom count, and a
+# the unblocked result up to the rounding of the matrix products, whose columns are split into
+# blocks; that covers a block of one atom, blocks that do not divide the atom count, and a
 # block larger than it.
 @testitem "forces: receiver blocks give the unblocked result" setup = [Checkpoints] begin
     include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))

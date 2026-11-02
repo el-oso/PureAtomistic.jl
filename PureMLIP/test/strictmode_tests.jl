@@ -73,6 +73,30 @@
                 (P.mace_energy_forces, (P.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int})),
                 (P.Model.zbl_edge_energy, (Float64, Int, Int, P.Model.ZBLParams{Float64})),
                 (P.Model.zbl_edge_energy, (Float32, Int, Int, P.Model.ZBLParams{Float32})),
+                [
+                    sig for S in (Float64, Float32) for sig in (
+                            (P.Tensors.tp_edge_add!, (Matrix{S}, P.Tensors.ChannelwiseTP{S}, Matrix{S}, Vector{S}, Matrix{S})),
+                            (
+                                P.Tensors.tp_edge_pullback_add!, (
+                                    Matrix{S}, Vector{S}, Matrix{S}, P.Tensors.ChannelwiseTP{S},
+                                    Matrix{S}, Matrix{S}, Vector{S}, Matrix{S},
+                                ),
+                            ),
+                            (P.Tensors.linear!, (Array{S, 3}, P.Tensors.E3nnLinear{S}, Array{S, 3})),
+                            (P.Tensors.linear_pullback!, (Array{S, 3}, P.Tensors.E3nnLinear{S}, Array{S, 3})),
+                            (P.Tensors.species_linear!, (Array{S, 3}, P.Tensors.SpeciesLinear{S}, Array{S, 3}, Vector{Int})),
+                            (P.Tensors.species_linear_pullback!, (Array{S, 3}, P.Tensors.SpeciesLinear{S}, Array{S, 3}, Vector{Int})),
+                            (
+                                P.Tensors.symmetric_contraction!,
+                                (Array{S, 3}, P.Tensors.SymmetricContraction{S}, Array{S, 3}, Vector{Int}, Vector{S}),
+                            ),
+                            (
+                                P.Tensors.symmetric_contraction_pullback!,
+                                (Array{S, 3}, P.Tensors.SymmetricContraction{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, Vector{S}),
+                            ),
+                            (P.Tensors.symmetric_contraction_scratch_size, (P.Tensors.SymmetricContraction{S},)),
+                        )
+                ]...,
             ]; guarantees = (:typestable,)
         )
     end
@@ -96,6 +120,27 @@
             ) == [MACEResult{S}]
         end
         @test Base.return_types(MACEEnergyWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEEnergyWorkspace{S}]
+        # The Tensors kernels return their output array, or nothing for the accumulating pullback.
+        TS = PureMLIP.Tensors
+        @test Base.return_types(TS.tp_edge_add!, (Matrix{S}, TS.ChannelwiseTP{S}, Matrix{S}, Vector{S}, Matrix{S})) == [Matrix{S}]
+        @test Base.return_types(
+            TS.tp_edge_pullback_add!,
+            (Matrix{S}, Vector{S}, Matrix{S}, TS.ChannelwiseTP{S}, Matrix{S}, Matrix{S}, Vector{S}, Matrix{S}),
+        ) == [Nothing]
+        for f in (TS.linear!, TS.linear_pullback!)
+            @test Base.return_types(f, (Array{S, 3}, TS.E3nnLinear{S}, Array{S, 3})) == [Array{S, 3}]
+        end
+        for f in (TS.species_linear!, TS.species_linear_pullback!)
+            @test Base.return_types(f, (Array{S, 3}, TS.SpeciesLinear{S}, Array{S, 3}, Vector{Int})) == [Array{S, 3}]
+        end
+        @test Base.return_types(
+            TS.symmetric_contraction!, (Array{S, 3}, TS.SymmetricContraction{S}, Array{S, 3}, Vector{Int}, Vector{S})
+        ) == [Array{S, 3}]
+        @test Base.return_types(
+            TS.symmetric_contraction_pullback!,
+            (Array{S, 3}, TS.SymmetricContraction{S}, Array{S, 3}, Array{S, 3}, Vector{Int}, Vector{S}),
+        ) == [Array{S, 3}]
+        @test Base.return_types(TS.symmetric_contraction_scratch_size, (TS.SymmetricContraction{S},)) == [Int]
     end
 end
 
@@ -217,10 +262,14 @@ end
     # Float32 -> Float64 conversions that are the intent of the code:
     #   neighbor_list, _check_inputs: the Float64 `r_cut` meets Float32 coordinates and radius;
     #   polynomial_cutoff, _poly_envelope: Base's integer power on a Float32 base widens inside Base.
+    # Tensors and Equivariant have no intended widening.
     allowed = ("#neighbor_list#1", "_check_inputs", "polynomial_cutoff", "_poly_envelope")
-    widened = filter(f -> occursin("Float32 to Float64", f.reason), StrictMode.conversion_report(M))
-    @test !isempty(widened)
-    @test isempty(filter(f -> f.func ∉ allowed, widened))
+    widened(mod) = filter(f -> occursin("Float32 to Float64", f.reason), StrictMode.conversion_report(mod))
+    w_model = widened(M)
+    @test !isempty(w_model)
+    @test isempty(filter(f -> f.func ∉ allowed, w_model))
+    @test isempty(widened(PureMLIP.Tensors))
+    @test isempty(widened(PureMLIP.Equivariant))
 end
 
 # The workspace and the neighbor list are owned by the caller; no evaluation function may hand a
