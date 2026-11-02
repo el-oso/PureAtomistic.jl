@@ -16,6 +16,9 @@ using .Potentials: AbstractPotential, AbstractStressPotential, PotentialResult, 
 export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
     energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
 
+using .Integrators: FIRE, RelaxResult, relax!
+export FIRE, RelaxResult, relax!
+
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
 end

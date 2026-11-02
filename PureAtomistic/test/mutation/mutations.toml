@@ -370,3 +370,108 @@ file = "src/analysis/arrhenius.jl"
 find = "sxx += w * dx^2"
 replace = "sxx += dx^2"
 expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "optimize-mix-weight"
+file = "src/optimize/fire.jl"
+find = "V[d, a] = (1 - opt.alpha) * V[d, a] + mix * F[d, a]"
+replace = "V[d, a] = opt.alpha * V[d, a] + mix * F[d, a]"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-mix-norm"
+file = "src/optimize/fire.jl"
+find = "mix = opt.alpha * sqrt(vn2 / fn2)"
+replace = "mix = opt.alpha * vn2 / fn2"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-freeze-on-zero-power"
+file = "src/optimize/fire.jl"
+find = "if P > 0\n        # F2"
+replace = "if P >= 0\n        # F2"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-latency"
+file = "src/optimize/fire.jl"
+find = "if opt.npos > opt.nmin"
+replace = "if opt.npos >= opt.nmin"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-dt-ceiling"
+file = "src/optimize/fire.jl"
+find = "opt.dt = min(opt.dt * opt.finc, opt.dtmax)"
+replace = "opt.dt = opt.dt * opt.finc"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-alpha-decay"
+file = "src/optimize/fire.jl"
+find = "opt.alpha *= opt.falpha"
+replace = "opt.alpha *= opt.finc"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-dt-decrease"
+file = "src/optimize/fire.jl"
+find = "opt.dt *= opt.fdec"
+replace = "opt.dt *= opt.finc"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-alpha-restart"
+file = "src/optimize/fire.jl"
+find = "opt.alpha = opt.alpha_start\n        opt.npos = 0\n    end\n    dt = opt.dt"
+replace = "opt.alpha = opt.alpha\n        opt.npos = 0\n    end\n    dt = opt.dt"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-step-cap"
+file = "src/optimize/fire.jl"
+find = "scale = biggest > opt.maxstep ? opt.maxstep / biggest : one(T)"
+replace = "scale = one(T)"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-force-norm"
+file = "src/optimize/fire.jl"
+find = "s += F[d, a]^2\n        end\n        m = max"
+replace = "s += abs(F[d, a])\n        end\n        m = max"
+expect = "FIRE relaxes"
+
+[[mutation]]
+name = "optimize-tolerance"
+file = "src/optimize/fire.jl"
+find = "fm < tol && return"
+replace = "fm < 2 * tol && return"
+expect = "FIRE relaxes"
+
+[[mutation]]
+name = "optimize-step-count"
+file = "src/optimize/fire.jl"
+find = "RelaxResult{T}(true, step, E, fm)"
+replace = "RelaxResult{T}(true, step + 1, E, fm)"
+expect = "iteration count"
+
+[[mutation]]
+name = "optimize-nonfinite"
+file = "src/optimize/fire.jl"
+find = "isfinite(fm) && isfinite(E)"
+replace = "isfinite(fm)"
+expect = "reject invalid"
+
+[[mutation]]
+name = "optimize-iteration-limit"
+file = "src/optimize/fire.jl"
+find = "for step in 0:(maxsteps - 1)"
+replace = "for step in 0:maxsteps"
+expect = "iteration count"
+
+[[mutation]]
+name = "optimize-final-convergence"
+file = "src/optimize/fire.jl"
+find = "RelaxResult{T}(fm < tol, Int(maxsteps), E, fm)"
+replace = "RelaxResult{T}(false, Int(maxsteps), E, fm)"
+expect = "iteration count"
