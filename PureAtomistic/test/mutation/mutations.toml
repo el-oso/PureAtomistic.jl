@@ -1,0 +1,5 @@
+# Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureAtomistic/;
+# `find` must occur exactly once in it; `expect` is a regex matched against
+# the names of the test items expected to fail.
+# A source file that holds only module, `import`, `include`, `export` and `public` declarations
+# needs no entry; every file that computes a value gets at least one.

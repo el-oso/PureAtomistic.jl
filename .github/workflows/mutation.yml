@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
 jobs:
   mutation:
-    name: Mutation smoke check
+    name: Mutation smoke check (${{ matrix.package }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [PureMLIP, PureAtomistic]
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -15,8 +19,8 @@ jobs:
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
       - name: Apply each mutation and run the suite
         env:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
-        run: julia PureMLIP/test/mutation/run.jl
+        run: julia ${{ matrix.package }}/test/mutation/run.jl

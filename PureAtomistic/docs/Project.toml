@@ -1,0 +1,14 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
+PureAtomistic = "48bcfeca-9cba-41eb-9343-fd702b0553a7"
+PureMLIP = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
+
+[sources]
+PureAtomistic = {path = ".."}
+PureMLIP = {path = "../../PureMLIP"}
+
+[compat]
+Documenter = "1.19"
+DocumenterVitepress = "0.3"
+julia = "1.12"

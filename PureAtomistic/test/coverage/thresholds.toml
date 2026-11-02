@@ -1,0 +1,10 @@
+# Minimum line coverage per source file (covered / coverable lines), checked by check.jl.
+# A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
+"src/PureAtomistic.jl" = 1.00
+"src/analysis/Analysis.jl" = 1.00
+"src/barostats/Barostats.jl" = 1.00
+"src/integrators/Integrators.jl" = 1.00
+"src/io/IO.jl" = 1.00
+"src/potentials/Potentials.jl" = 1.00
+"src/systems/Systems.jl" = 1.00
+"src/thermostats/Thermostats.jl" = 1.00
