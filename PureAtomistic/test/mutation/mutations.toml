@@ -460,3 +460,38 @@ file = "src/driver.jl"
 find = "n_atoms(potential) == natoms(system) ||"
 replace = "true ||"
 expect = "reject invalid arguments"
+
+[[mutation]]
+name = "makie-arrhenius-line-sign"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "log(fit.prefactor) - fit.E_m * xe[1], log(fit.prefactor) - fit.E_m * xe[2]"
+replace = "log(fit.prefactor) + fit.E_m * xe[1], log(fit.prefactor) + fit.E_m * xe[2]"
+expect = "plot_arrhenius draws"
+
+[[mutation]]
+name = "makie-energy-drift-origin"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "Makie.lines!(ax1, t, total .- first(total))"
+replace = "Makie.lines!(ax1, t, total)"
+expect = "plot_energy_conservation draws"
+
+[[mutation]]
+name = "makie-vacancy-msd-origin"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "sum(abs2, R[:, k] - R[:, 1])"
+replace = "sum(abs2, R[:, k])"
+expect = "plot_vacancy_track draws"
+
+[[mutation]]
+name = "makie-vacancy-hop-times"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "tr.hop_t[1:tr.nhops]; color"
+replace = "tr.t[1:tr.nhops]; color"
+expect = "plot_vacancy_track draws"
+
+[[mutation]]
+name = "makie-species-colors"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "findfirst(==(s), names)"
+replace = "1"
+expect = "animate_trajectory draws one marker"

@@ -10,6 +10,7 @@ include("thermostats/Thermostats.jl")
 include("barostats/Barostats.jl")
 include("io/IO.jl")
 include("analysis/Analysis.jl")
+include("viz.jl")
 
 using .Systems: System, natoms, kinetic_energy
 using .Potentials: AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
@@ -20,6 +21,8 @@ export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cut
 export AbstractIntegrator, VelocityVerlet, Simulation, step!, run!, total_energy
 
 include("driver.jl")
+
+export animate_trajectory, plot_vacancy_track, plot_arrhenius, plot_energy_conservation
 
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
