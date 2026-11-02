@@ -29,8 +29,8 @@ end
             @test F[d, a] ≈ -(E(Pp, s.cell, Z) - E(Pm, s.cell, Z)) / 2h atol = tol_fd
         end
     end
-    # Measured margin: the largest |−virial_ab − ΔE/2h| over these twelve components is 5.6e-8 eV
-    # (crconi_alloy, diagonal). tol_strain is 18 times that.
+    # Measured margin: the largest |−virial_ab − ΔE/2h| over these twelve components is 5.9e-8 eV
+    # (crconi_alloy, diagonal). tol_strain is 17 times that.
     tol_strain = 1.0e-6
     for name in ("triclinic_ni3al", "crconi_alloy")
         s = LammpsReference.structure(ref, name); Z = s.atomic_numbers
@@ -51,8 +51,8 @@ end
     s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "triclinic_ni3al"); Z = s.atomic_numbers
     r0 = mace_energy_forces(m, s.positions, s.cell, Z)
     b = 64 * eps() * sum(abs, r0.node_energies)          # rounding bound on the summed energy
-    # Measured margin: the largest difference is 7.0e-15 eV/Å in the forces and 1.6e-14 eV in the
-    # virial (rotation and translation alike); tol_rot is 12 times the larger.
+    # Measured margin: the largest difference is 7.8e-15 eV/Å in the forces and 1.8e-14 eV in the
+    # virial (rotation and translation alike); tol_rot is 11 times the larger.
     tol_rot = 2.0e-13
     R = [1 0 0; 0 cos(1.1) -sin(1.1); 0 sin(1.1) cos(1.1)] * [cos(0.7) -sin(0.7) 0; sin(0.7) cos(0.7) 0; 0 0 1]
     r1 = mace_energy_forces(m, R * s.positions, R * s.cell, Z)
@@ -74,7 +74,7 @@ end
     # The allocating form builds the list, workspace and result and calls the in-place form.
     s = LammpsReference.structure(ref, "crconi_alloy"); n = size(s.positions, 2)
     nl = neighbor_list(s.positions, s.cell, m.r_max)
-    ws = MACEWorkspace{Float64}(m, n, nl.n_edges)
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; elements = s.atomic_numbers)
     r = mace_energy_forces!(MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, nl)
     ra = mace_energy_forces(m, s.positions, s.cell, s.atomic_numbers)
     @test r.energy == ra.energy && r.node_energies == ra.node_energies
@@ -96,7 +96,7 @@ end
     )
     # A chunk smaller than the edge count changes only the summation order of the radial-MLP
     # products. Rounding bound: 64·eps·Σ|F| and 64·eps·Σ|virial| (measured: identical results).
-    small = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = 37)
+    small = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = 37, elements = s.atomic_numbers)
     rs = mace_energy_forces!(MACEResult{Float64}(n), small, m, s.positions, s.cell, s.atomic_numbers, nl)
     @test rs.forces ≈ r.forces atol = 64 * eps() * sum(abs, r.forces)
     @test rs.virial ≈ r.virial atol = 64 * eps() * sum(abs, r.virial)
@@ -108,9 +108,9 @@ end
 
     # Float32 against the Float32 LAMMPS run.
     m32 = MACEModel{Float32}(ck)
-    # Measured margins over the five structures: the largest force difference is 9.4e-6 eV/Å and
-    # the largest virial difference 8.0e-5 eV (both crconi_alloy); each tolerance is 16 and 15
-    # times its measurement.
+    # Measured margins over the five structures: the largest force difference is 1.0e-5 eV/Å
+    # (multi_element) and the largest virial difference 4.7e-5 eV (crconi_alloy); each tolerance is
+    # 15 and 26 times its measurement.
     tolf32, tolv32 = 1.5e-4, 1.2e-3
     for s in LammpsReference.structures(LammpsReference.load(:mpa0_f32))
         local r = mace_energy_forces(m32, Float32.(s.positions), Float32.(s.cell), s.atomic_numbers)
@@ -154,7 +154,7 @@ end
     nl = neighbor_list(P, C, 6.0)
     # A chunk smaller than the edge count: the message pullback recomputes the MLP per chunk.
     chunk = 7
-    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = chunk)
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = chunk, elements = Z)
     mace_energy!(MACEResult{Float64}(n), ws, m, P, C, Z, nl)
     @test nl.n_edges > 2 * chunk
     # Measured margins over k = 1, 2 (largest |pullback − reference|): density normalization
@@ -216,21 +216,24 @@ end
     m64 = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
     # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
     # edges within r_max.
-    # Measured with one receiver chunk: 88,258.5 bytes per atom in Float64 and 44,133.4 in Float32.
-    # Each bound is the next whole byte; a per-atom buffer adds at least 4 bytes per atom.
+    # The workspaces are built for no element, so they hold no contraction matrices (22.6 MB per
+    # element in Float64, 11.3 MB in Float32; "forces: contraction matrices of the workspace
+    # elements"). Measured with one receiver chunk: 89,557.4 bytes per atom in Float64 and 44,784.4
+    # in Float32. Each bound is the next whole byte; a per-atom buffer adds at least 4 bytes per atom.
     b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096)
-    @test b64 <= 88_259
+    @test b64 <= 89_558
     GC.gc()
     # The constructor reads only sizes from the model, so a Float32 workspace needs no Float32 model.
     b32 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float32, 10_976, 856_128; edge_chunk = 4096)
-    @test b32 <= 44_134
+    @test b32 <= 44_785
     GC.gc()
     # Every further receiver chunk adds its edge-chunk buffers (102 MB in Float64 at
     # `edge_chunk = 4096`, independent of the atom count), its block buffers (15 MB at
-    # `block = 256`), its symmetric-contraction scratch (0.8 MB) and a sender derivative of 4,096
-    # bytes per atom. Measured in Float64: 132,713.4 bytes per atom with 4
-    # chunks and 191,986.6 with 8; each bound is the next whole byte.
-    for (nchunks, bound) in ((4, 132_714), (8, 191_987))
+    # `block = 256`), its symmetric-contraction scratch (0.8 MB for the per-atom kernel and 14.2 MB
+    # for the matrix products over 64 atoms) and a sender derivative of 4,096 bytes per atom. Measured in
+    # Float64: 137,899.5 bytes per atom with 4 chunks and 202,355.6 with 8; each bound is the next
+    # whole byte.
+    for (nchunks, bound) in ((4, 137_900), (8, 202_356))
         b = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096, nchunks)
         @test b > b64
         @test b <= bound
@@ -251,13 +254,13 @@ end
         P, C, Z = Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers
         n = length(Z)
         nl = neighbor_list(P, C, m.r_max)
-        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; block = n), m, P, C, Z, nl)
+        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; block = n, elements = Z), m, P, C, Z, nl)
         # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity, with N = 1280
         # the largest inner dimension of any matrix product in the model. Measured: blocks of 7 or
-        # more atoms give the same results; blocks of one atom differ by at most 6.8·eps(T).
+        # more atoms give the same results; blocks of one atom differ by at most 7.6·eps(T).
         tol = 10 * eps(T) * 1280
         for block in (1, 7, 64, 256, 10_000)
-            ws = MACEWorkspace{T}(m, n, nl.n_edges; block)
+            ws = MACEWorkspace{T}(m, n, nl.n_edges; block, elements = Z)
             r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
             @test abs(r.energy - ref.energy) <= tol * abs(ref.energy)
             @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
@@ -286,13 +289,13 @@ end
         P, C, Z = Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers
         n = length(Z)
         nl = neighbor_list(P, C, m.r_max)
-        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk), m, P, C, Z, nl)
+        ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk, elements = Z), m, P, C, Z, nl)
         # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity, with N = 1280
         # the largest inner dimension of any matrix product in the model. Measured with 2, 3 and 8
-        # chunks: at most 4.65·eps(T) in Float64 and in Float32.
+        # chunks: at most 5.92·eps(T) in Float64 and 4.40·eps(T) in Float32.
         tol = 10 * eps(T) * 1280
         for nchunks in (2, 3, 8)
-            ws = MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk, nchunks)
+            ws = MACEWorkspace{T}(m, n, nl.n_edges; edge_chunk, nchunks, elements = Z)
             r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
             @test abs(r.energy - ref.energy) <= tol * abs(ref.energy)
             @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
@@ -312,17 +315,18 @@ end
     s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "triclinic_ni3al")
     nl = neighbor_list(s.positions, s.cell, m.r_max)
     n = nl.n_atoms
-    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; nchunks = n + 3)
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; nchunks = n + 3, elements = s.atomic_numbers)
     r = mace_energy_forces!(MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, nl)
     @test abs(r.energy - s.energy) <= 1.0e-6
     @test maximum(abs, r.forces - s.forces) <= 1.0e-6
     @test maximum(abs, r.virial - s.virial) <= 1.0e-6
 end
 
-# Oracle: the bits that the evaluation before receiver chunks existed gave for cu_bench(2), stored
-# by `test/reference/one_chunk_bits.jl` with the platform they depend on. One chunk must reproduce
-# every bit. Rounding differs between BLAS libraries, CPUs, Julia versions and bounds-checking
-# modes, so on another platform the item records a skip that names the differences.
+# Oracle: the bits that a one-chunk evaluation gave for cu_bench(2) at the commit named in the
+# record (`pureMLIP_commit`), stored by `test/reference/one_chunk_bits.jl` with the platform they
+# depend on. One chunk must reproduce every bit, so a change to the serial arithmetic shows here
+# and needs a regenerated record. Rounding differs between BLAS libraries, CPUs, Julia versions and
+# bounds-checking modes, so on another platform the item records a skip that names the differences.
 @testitem "forces: one chunk reproduces the stored reference bits" setup = [Checkpoints] begin
     using JSON, LinearAlgebra
     include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
@@ -419,7 +423,7 @@ end
         nl = neighbor_list(P, C, m.r_max)
         @test nl.n_atoms == 1 && nl.n_edges == 0
         for block in (1, 256), nchunks in (1, 4)
-            ws = MACEWorkspace{T}(m, 1, 0; block, nchunks)
+            ws = MACEWorkspace{T}(m, 1, 0; block, nchunks, elements = s.atomic_numbers)
             r = mace_energy_forces!(MACEResult{T}(1), ws, m, P, C, s.atomic_numbers, nl)
             @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
             @test r.forces == zeros(T, 3, 1) && r.virial == zeros(T, 3, 3) && r.stress == zeros(T, 3, 3)
@@ -444,18 +448,20 @@ end
         poison!(a::AbstractArray{<:AbstractFloat}) = fill!(a, NaN)
         poison!(t::Tuple) = foreach(poison!, t)
         poison!(chunks::Vector{<:PureMLIP.Model.ChunkBuffers}) = foreach(c -> foreach(f -> poison!(getfield(c, f)), fieldnames(typeof(c))), chunks)
+        poison!(b::PureMLIP.Tensors.ContractionBuffers) = (poison!(b.Z); poison!(b.Y))
         poison!(_) = nothing
         for nchunks in (1, 4)
-            ws = MACEWorkspace{T}(m, maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists); nchunks)
+            elements = unique(reduce(vcat, [s.atomic_numbers for s in structures]))
+            ws = MACEWorkspace{T}(m, maximum(nl -> nl.n_atoms, lists), maximum(nl -> nl.n_edges, lists); nchunks, elements)
             for (s, nl) in zip(structures, lists)
                 P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
                 n = nl.n_atoms
                 foreach(f -> poison!(getfield(ws, f)), fieldnames(typeof(ws)))
-                @test all(isnan, ws.chunks[end].dx) && all(isnan, ws.chunks[end].L0)
+                @test all(isnan, ws.chunks[end].dx) && all(isnan, ws.chunks[end].L0) && all(isnan, ws.chunks[end].gemm.Z)
                 re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl)
                 r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
                 # A fresh workspace sized for this structure runs the same arithmetic.
-                rf = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; nchunks), m, P, C, Z, nl)
+                rf = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; nchunks, elements = Z), m, P, C, Z, nl)
                 @test re.energy == rf.energy && re.node_energies == rf.node_energies
                 @test r.energy == rf.energy && r.node_energies == rf.node_energies
                 @test r.forces == rf.forces && r.virial == rf.virial && r.stress == rf.stress
@@ -465,4 +471,36 @@ end
             end
         end
     end
+end
+
+# The constructor builds the contraction matrices of the elements it is given, each once however
+# often it is listed; an atom of any other element is an error.
+@testitem "forces: contraction matrices of the workspace elements" setup = [LammpsReference, Checkpoints] begin
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "crconi_alloy")
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
+        n = size(P, 2)
+        nl = neighbor_list(P, C, m.r_max)
+        @test length(unique(Z)) == 3
+        built(ws) = [q for q in eachindex(ws.contraction[2].G) if !isempty(ws.contraction[2].G[q])]
+        ws = MACEWorkspace{T}(m, n, nl.n_edges; elements = Z)
+        @test built(ws) == sort(unique(m.species[Z .+ 1]))
+        @test built(MACEWorkspace{T}(m, n, nl.n_edges)) == Int[]
+        # The allocating form builds its workspace for the elements of the structure.
+        r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
+        ra = mace_energy_forces(m, P, C, Z)
+        @test ra.energy == r.energy && ra.forces == r.forces && ra.virial == r.virial
+        # Memory per element: the forward and pullback matrices of the first product block and
+        # the pullback matrices of the second, 153 features by 64, 64 and 16 columns for each of
+        # 128 channels: 22,560,768 bytes in Float64 and 11,280,384 in Float32.
+        bytes = sum(cm -> sum(sizeof, cm.F) + sum(sizeof, cm.G), ws.contraction)
+        @test bytes == 3 * 153 * (64 + 64 + 16) * 128 * sizeof(T)
+        no_cr = MACEWorkspace{T}(m, n, nl.n_edges; elements = [27, 28])
+        @test_throws "model: the workspace holds no contraction matrices for element 24; pass it in `elements` to the constructor" mace_energy_forces!(
+            MACEResult{T}(n), no_cr, m, P, C, Z, nl
+        )
+    end
+    @test_throws "model: element 200 is not in the model's element table" MACEWorkspace{Float64}(MACEModel(ck), 1, 0; elements = [29, 200])
 end

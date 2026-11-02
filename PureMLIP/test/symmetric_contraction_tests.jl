@@ -139,3 +139,117 @@ end
     @test_throws "tensors: symmetric contraction expects dX of size (128, 16, 2), got (128, 16, 3)" Tn.symmetric_contraction_pullback!(zeros(128, 16, 3), sc, dB, X, species, zeros(n))
     @test_throws "tensors: symmetric contraction: contractions see different channel, ell or species counts" Tn.SymmetricContraction{Float64}([Tn.Contraction{Float64}(0, U1, U2, U3, W, W0, W1), Tn.Contraction{Float64}(0, U1, U2, U3, W[1:88, :, :], W0[1:88, :, :], W1[1:88, :, :])])
 end
+
+# Oracle: the per-atom kernels, an independent evaluation of the same sums. 150 atoms of three
+# species, 70 of one of them, so that a species fills a group of 64 atoms and leaves a partial one,
+# and the species interleave.
+@testitem "symmetric contraction as matrix products matches the per-atom form" setup = [Checkpoints] begin
+    Tn = PureMLIP.Tensors
+    using Random
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
+    for T in (Float64, Float32)
+        m = MACEModel{T}(ck)
+        rng = Xoshiro(23)
+        species = shuffle(rng, [fill(29, 70); fill(1, 50); fill(63, 30)])
+        n = length(species)
+        for (k, sc) in enumerate(m.product)
+            cm = Tn.ContractionMatrices{T}(sc)
+            foreach(s -> Tn.contraction_matrices!(cm, sc, s), (29, 1, 63))
+            buf = Tn.ContractionBuffers{T}(cm)
+            K = Tn.n_outputs(sc)
+            X = T.(0.3 .* randn(rng, 128, 16, n))
+            dB = T.(randn(rng, 128, K, n))
+            scratch = zeros(T, Tn.symmetric_contraction_scratch_size(sc))
+            B = Tn.symmetric_contraction!(zeros(T, 128, K, n), sc, X, species, scratch)
+            dX = Tn.symmetric_contraction_pullback!(zeros(T, size(X)), sc, dB, X, species, scratch)
+            Bm = Tn.symmetric_contraction!(fill(T(NaN), 128, K, n), cm, X, species, buf)
+            dXm = Tn.symmetric_contraction_pullback!(fill(T(NaN), size(X)), cm, dB, X, species, buf)
+            # Rounding bound 10·eps(T)·N relative to the largest magnitude, with N = 1280 the
+            # largest inner dimension of any matrix product in the model. Measured: at most
+            # 3.3e-16 (forward) and 1.4e-15 (pullback) in Float64, 2.4e-7 and 9.0e-7 in Float32.
+            tol = 10 * eps(T) * 1280
+            @test maximum(abs, Bm - B) <= tol * maximum(abs, B)
+            @test maximum(abs, dXm - dX) <= tol * maximum(abs, dX)
+            # The pullback matrices alone give the same pullback.
+            cmb = Tn.ContractionMatrices{T}(sc; forward = false)
+            foreach(s -> Tn.contraction_matrices!(cmb, sc, s), (29, 1, 63))
+            @test Tn.symmetric_contraction_pullback!(similar(X), cmb, dB, X, species, buf) == dXm
+            # A second call for a built species keeps its matrices.
+            G = cm.G[29]
+            @test Tn.contraction_matrices!(cm, sc, 29) === cm && cm.G[29] === G
+        end
+    end
+end
+
+@testitem "symmetric contraction as matrix products: pullback matches ForwardDiff and finite differences" setup = [Checkpoints] begin
+    Tn = PureMLIP.Tensors
+    using Random, ForwardDiff
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
+    sc = PureMLIP.Model.symmetric_contraction_from_state(st, "products.0", Float64)
+    rng = Xoshiro(29)
+    X = 0.3 .* randn(rng, 128, 16, 3); species = [29, 1, 29]
+    dB = randn(rng, 128, 4, 3)
+    cm = Tn.ContractionMatrices{Float64}(sc)
+    foreach(s -> Tn.contraction_matrices!(cm, sc, s), (29, 1))
+    buf = Tn.ContractionBuffers{Float64}(cm; atoms = 2)
+    dX = Tn.symmetric_contraction_pullback!(zeros(128, 16, 3), cm, dB, X, species, buf)
+    # Oracle 1: ForwardDiff through the per-atom forward kernel.
+    n = Tn.symmetric_contraction_scratch_size(sc)
+    function f(Y)
+        S = eltype(Y)
+        return sum(dB .* Tn.symmetric_contraction!(zeros(S, 128, 4, 3), sc, Y, species, zeros(S, n)))
+    end
+    g = ForwardDiff.gradient(f, X)
+    # Rounding bound: 4·eps·N relative to the largest gradient entry, N = 16·16·51 terms per entry.
+    @test maximum(abs, dX - g) <= 4 * eps() * 16 * 16 * 51 * maximum(abs, g)
+    # Oracle 2: central differences of the matrix-product forward kernel.
+    fm(Y) = sum(dB .* Tn.symmetric_contraction!(zeros(128, 4, 3), cm, Y, species, buf))
+    h = 1.0e-6
+    for (c, w, a) in ((5, 7, 1), (100, 1, 2), (64, 16, 3))
+        Xp = copy(X); Xp[c, w, a] += h
+        Xm = copy(X); Xm[c, w, a] -= h
+        # Measured margin: largest central-difference error 4.4e-10; tolerance 5e-9.
+        @test abs((fm(Xp) - fm(Xm)) / 2h - dX[c, w, a]) < 5.0e-9
+    end
+end
+
+@testitem "symmetric contraction as matrix products: views, offset arrays, errors" setup = [Checkpoints] begin
+    Tn = PureMLIP.Tensors
+    using Random, OffsetArrays
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0)); st = ck.state.f64
+    sc = PureMLIP.Model.symmetric_contraction_from_state(st, "products.0", Float64)
+    sc1 = PureMLIP.Model.symmetric_contraction_from_state(st, "products.1", Float64)
+    X = 0.3 .* randn(Xoshiro(31), 128, 16, 2); species = [29, 1]
+    cm = Tn.ContractionMatrices{Float64}(sc)
+    foreach(s -> Tn.contraction_matrices!(cm, sc, s), species)
+    buf = Tn.ContractionBuffers{Float64}(cm)
+    B = Tn.symmetric_contraction!(zeros(128, 4, 2), cm, X, species, buf)
+    dB = ones(128, 4, 2)
+    dX = Tn.symmetric_contraction_pullback!(zeros(128, 16, 2), cm, dB, X, species, buf)
+    # Views give the same arithmetic as the arrays they view.
+    Xbig = zeros(130, 16, 3); Xbig[2:129, :, 2:3] = X
+    Bbig = zeros(128, 5, 2)
+    Tn.symmetric_contraction!(view(Bbig, :, 2:5, :), cm, view(Xbig, 2:129, :, 2:3), view([0, 29, 1], 2:3), buf)
+    @test view(Bbig, :, 2:5, :) == B
+    dXv = zeros(128, 17, 2)
+    Tn.symmetric_contraction_pullback!(view(dXv, :, 2:17, :), cm, view(ones(128, 5, 2), :, 2:5, :), view(Xbig, 2:129, :, 2:3), species, buf)
+    @test view(dXv, :, 2:17, :) == dX
+    # The message comes from Base.require_one_based_indexing, so only the type is checked.
+    @test_throws ArgumentError Tn.symmetric_contraction!(OffsetArray(B, 0, 0, -1), cm, OffsetArray(X, 0, 0, -1), species, buf)
+    @test_throws ArgumentError Tn.symmetric_contraction_pullback!(OffsetArray(dX, 0, 0, -1), cm, dB, X, species, buf)
+    @test_throws "tensors: symmetric contraction expects X of size (128, 16, n), got (128, 15, 2)" Tn.symmetric_contraction!(B, cm, X[:, 1:15, :], species, buf)
+    @test_throws "tensors: symmetric contraction expects B of size (128, 4, 2), got (128, 3, 2)" Tn.symmetric_contraction!(zeros(128, 3, 2), cm, X, species, buf)
+    @test_throws "tensors: symmetric contraction expects dB of size (128, 4, 2), got (128, 3, 2)" Tn.symmetric_contraction_pullback!(dX, cm, zeros(128, 3, 2), X, species, buf)
+    @test_throws "tensors: symmetric contraction expects dX of size (128, 16, 2), got (128, 16, 3)" Tn.symmetric_contraction_pullback!(zeros(128, 16, 3), cm, dB, X, species, buf)
+    @test_throws "tensors: symmetric contraction expects 2 species, got 1" Tn.symmetric_contraction!(B, cm, X, [29], buf)
+    @test_throws "tensors: species index 90 is outside 1:89" Tn.symmetric_contraction!(B, cm, X, [29, 90], buf)
+    @test_throws "tensors: species 63 has no contraction matrices" Tn.symmetric_contraction_pullback!(dX, cm, dB, X, [29, 63], buf)
+    @test_throws "tensors: species index 0 is outside 1:89" Tn.contraction_matrices!(cm, sc, 0)
+    cm1 = Tn.ContractionMatrices{Float64}(sc1; forward = false)
+    Tn.contraction_matrices!(cm1, sc1, 29)
+    @test isempty(cm1.F[29]) && size(cm1.G[29]) == (153, 16, 128)
+    @test_throws "tensors: these contraction matrices hold no forward matrices" Tn.symmetric_contraction!(zeros(128, 1, 2), cm1, X, [29, 29], buf)
+    @test_throws "tensors: contraction matrices and symmetric contraction differ in channels, ells, outputs or species" Tn.contraction_matrices!(cm1, sc, 1)
+    @test_throws "tensors: contraction buffers are smaller than the contraction matrices" Tn.symmetric_contraction!(B, cm, X, species, Tn.ContractionBuffers{Float64}(cm1))
+    @test_throws "tensors: contraction buffers need a positive atom count, got 0" Tn.ContractionBuffers{Float64}(cm; atoms = 0)
+end

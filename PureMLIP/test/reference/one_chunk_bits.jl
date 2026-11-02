@@ -1,9 +1,9 @@
 # Exact reference bits of a one-chunk evaluation, and the platform they depend on.
 #
-#   PUREMLIP_CHECKPOINT_DIR=<dir> julia PureMLIP/test/reference/one_chunk_bits.jl [git ref]
+#   PUREMLIP_CHECKPOINT_DIR=<dir> julia PureMLIP/test/reference/one_chunk_bits.jl <git ref>
 #
-# writes `one_chunk_bits.json` next to this file from the PureMLIP of the git ref (default
-# ef63ada, the evaluation before receiver chunks existed). The ref is checked out as a detached
+# writes `one_chunk_bits.json` next to this file from the PureMLIP of the git ref, and names the
+# commit in the record. The ref is checked out as a detached
 # `git worktree` in a temporary directory outside the repository, removed at exit, and evaluated
 # in a child process whose environment points PureMLIP at that tree. The child inherits the
 # bounds-checking mode of this process (`Base.julia_cmd`): Julia's default unless given, which is
@@ -12,7 +12,8 @@
 # and `reference_bits`.
 #
 # Stored: energy, node energies, forces, virial and stress of `mace_energy_forces!` for
-# cu_bench(2) (32 atoms) under MACE-MPA-0 with a default `MACEWorkspace`, in Float64 and Float32,
+# cu_bench(2) (32 atoms) under MACE-MPA-0 with a `MACEWorkspace` of default sizes (given the
+# structure's elements where the workspace takes them), in Float64 and Float32,
 # each value as the hexadecimal bit pattern of its unsigned reinterpretation (arrays in column
 # order). Rounding depends on the BLAS library, the CPU, the Julia version, bounds checking,
 # coverage instrumentation (both change the compiled arithmetic: measured, each changes forces,
@@ -57,7 +58,8 @@ function reference_bits(PM, cu, ck)
         P, C, Z = Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers
         n = length(Z)
         nl = PM.neighbor_list(P, C, m.r_max)
-        r = PM.mace_energy_forces!(PM.MACEResult{T}(n), PM.MACEWorkspace{T}(m, n, nl.n_edges), m, P, C, Z, nl)
+        ws = isdefined(PM.Tensors, :ContractionMatrices) ? PM.MACEWorkspace{T}(m, n, nl.n_edges; elements = Z) : PM.MACEWorkspace{T}(m, n, nl.n_edges)
+        r = PM.mace_energy_forces!(PM.MACEResult{T}(n), ws, m, P, C, Z, nl)
         out[string(T)] = Dict(
             "energy" => [hexbits(r.energy)], "node_energies" => hexbits.(r.node_energies),
             "forces" => vec(hexbits.(r.forces)), "virial" => vec(hexbits.(r.virial)), "stress" => vec(hexbits.(r.stress)),
@@ -164,6 +166,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     if length(ARGS) >= 1 && ARGS[1] == "--child"
         child_main(ARGS[2], ARGS[3])
     else
-        main(isempty(ARGS) ? "ef63ada" : ARGS[1])
+        length(ARGS) == 1 || error("usage: julia one_chunk_bits.jl <git ref>")
+        main(ARGS[1])
     end
 end

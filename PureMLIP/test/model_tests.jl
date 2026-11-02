@@ -3,7 +3,7 @@
         model = MACEModel{Float64}(load_mace_checkpoint(Checkpoints.fetch(src)))
         for s in LammpsReference.structures(LammpsReference.load(ref))
             nl = neighbor_list(s.positions, s.cell, model.r_max)
-            ws = MACEWorkspace{Float64}(model, size(s.positions, 2), nl.n_edges)
+            ws = MACEWorkspace{Float64}(model, size(s.positions, 2), nl.n_edges; elements = s.atomic_numbers)
             res = mace_energy!(MACEResult{Float64}(size(s.positions, 2)), ws, model, s.positions, s.cell, s.atomic_numbers, nl)
             # Target from the design (section 9): 1e-6 eV per structure against LAMMPS-MACE.
             @test abs(res.energy - s.energy) <= 1.0e-6
@@ -18,7 +18,7 @@ end
     @test MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mp0b3))).scale == 0.8140724313304148
     s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "isolated_cu")
     nl = neighbor_list(s.positions, s.cell, 6.0)
-    r = mace_energy!(MACEResult{Float64}(1), MACEWorkspace{Float64}(m, 1, 0), m, s.positions, s.cell, s.atomic_numbers, nl)
+    r = mace_energy!(MACEResult{Float64}(1), MACEWorkspace{Float64}(m, 1, 0; elements = s.atomic_numbers), m, s.positions, s.cell, s.atomic_numbers, nl)
     @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
     m32 = MACEModel{Float32}(ck)
     # Measured margin: the largest |E - E_LAMMPS| over the five structures is 1.55e-5 eV
@@ -27,7 +27,7 @@ end
     for s in LammpsReference.structures(LammpsReference.load(:mpa0_f32))
         P, C = Float32.(s.positions), Float32.(s.cell)
         local nl = neighbor_list(P, C, 6.0)
-        local r = mace_energy!(MACEResult{Float32}(size(P, 2)), MACEWorkspace{Float32}(m32, size(P, 2), nl.n_edges), m32, P, C, s.atomic_numbers, nl)
+        local r = mace_energy!(MACEResult{Float32}(size(P, 2)), MACEWorkspace{Float32}(m32, size(P, 2), nl.n_edges; elements = s.atomic_numbers), m32, P, C, s.atomic_numbers, nl)
         @test abs(r.energy - s.energy) <= tol32
     end
 end
@@ -42,8 +42,9 @@ end
     )
     @test_throws "model: unsupported checkpoint: correlations [2, 3], expected [3, 3]" MACEModel(bad)
     P = [0.0 2.5; 0.0 0.0; 0.0 0.0]; cell = [10.0 0 0; 0 10.0 0; 0 0 10.0]
-    nl = neighbor_list(P, cell, 6.0); ws = MACEWorkspace{Float64}(m, 2, nl.n_edges)
+    nl = neighbor_list(P, cell, 6.0); ws = MACEWorkspace{Float64}(m, 2, nl.n_edges; elements = [29])
     @test_throws "model: element 84 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 84], nl)
+    @test_throws "model: the workspace holds no contraction matrices for element 13; pass it in `elements` to the constructor" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 13], nl)
     @test_throws "model: the workspace holds 1 edges" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 2, 1), m, P, cell, [29, 29], nl)
 
     # Further architecture checks, each on a copy of the checkpoint with one entry changed.
@@ -118,7 +119,7 @@ end
     s = LammpsReference.structure(LammpsReference.load(:mp0b3_f64), "triclinic_ni3al")
     n = size(s.positions, 2)
     nl = neighbor_list(s.positions, s.cell, 6.0)
-    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = 50)
+    ws = MACEWorkspace{Float64}(m, n, nl.n_edges; edge_chunk = 50, elements = s.atomic_numbers)
     r = mace_energy!(MACEResult{Float64}(n), ws, m, s.positions, s.cell, s.atomic_numbers, nl)
     Pb = zeros(5, n + 2); Pb[2:4, 2:(n + 1)] = s.positions
     Cb = zeros(4, 4); Cb[2:4, 1:3] = s.cell
@@ -131,7 +132,7 @@ end
     @test rv.energy == r.energy && rv.node_energies == r.node_energies
     # A workspace larger than the system and a different edge chunk give the same energies up
     # to the summation order of the radial-MLP products. Rounding bound: 64·eps·Σ|E_i|.
-    big = MACEWorkspace{Float64}(m, n + 3, nl.n_edges + 7)
+    big = MACEWorkspace{Float64}(m, n + 3, nl.n_edges + 7; elements = s.atomic_numbers)
     rb = mace_energy!(MACEResult{Float64}(n), big, m, s.positions, s.cell, s.atomic_numbers, nl)
     @test abs(rb.energy - r.energy) <= 64 * eps() * sum(abs, r.node_energies)
     # The message comes from Base.require_one_based_indexing, so only the type is checked.
@@ -204,7 +205,7 @@ end
             for (s, nl) in zip(structures, lists)
                 P, C, Z = T.(s.positions), T.(s.cell), s.atomic_numbers
                 n = nl.n_atoms
-                ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges), m, P, C, Z, nl)
+                ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; elements = Z), m, P, C, Z, nl)
                 for ws in (MACEEnergyWorkspace{T}(m, n, nl.n_edges), shared)
                     # Every buffer is filled with NaN first, so a read before a write within the
                     # call shows as a non-finite energy.

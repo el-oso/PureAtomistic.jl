@@ -32,7 +32,7 @@ end
     for block in (256, 64, 1)
         nl = neighbor_list(P, cell, m.r_max; extra_capacity = 64)
         n0 = nl.n_edges
-        ws = MACEWorkspace{Float64}(m, size(P, 2), length(nl.senders); block)
+        ws = MACEWorkspace{Float64}(m, size(P, 2), length(nl.senders); block, elements = Z)
         res = MACEResult{Float64}(size(P, 2))
         # Spreading the atoms apart brings periodic images inside the cutoff.
         neighbor_list!(nl, P2, cell)

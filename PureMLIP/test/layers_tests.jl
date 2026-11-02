@@ -49,7 +49,7 @@ end
     MACEModel{Float32}(ck)
     P = [0.0 1.5; 0.0 0.0; 0.0 0.0]; cell = [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0]
     nl6 = neighbor_list(P, cell, model.r_max)
-    mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(model, 2, nl6.n_edges), model, P, cell, [29, 13], nl6)
+    mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(model, 2, nl6.n_edges; elements = [29, 13]), model, P, cell, [29, 13], nl6)
     mace_energy!(MACEResult{Float64}(2), MACEEnergyWorkspace{Float64}(model, 2, nl6.n_edges; edge_chunk = 7, block = 1), model, P, cell, [29, 13], nl6)
     model32 = MACEModel{Float32}(ck)
     P32, cell32 = Float32.(P), Float32.(cell)

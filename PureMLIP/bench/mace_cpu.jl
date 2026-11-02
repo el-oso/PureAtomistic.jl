@@ -92,7 +92,7 @@ function make_case(N, T, rounds, ck, tmp)
     z = cu.atomic_numbers
     n = length(z)
     nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-    ws = MACEWorkspace{T}(model, n, nl.n_edges)
+    ws = MACEWorkspace{T}(model, n, nl.n_edges; elements = z)
     res = MACEResult{T}(n)
     data = joinpath(tmp, "cu$(N)_$(T).data")
     write_data(data, cu.cell, cu.positions)

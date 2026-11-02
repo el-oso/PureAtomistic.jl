@@ -201,7 +201,7 @@ function make_case(N, T)
     cell = Matrix{T}(cu.cell')
     z = cu.atomic_numbers
     nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-    ws = MACEWorkspace{T}(model, length(z), nl.n_edges)
+    ws = MACEWorkspace{T}(model, length(z), nl.n_edges; elements = z)
     res = MACEResult{T}(length(z))
     return (; n = length(z), n_edges = nl.n_edges, eval! = () -> mace_energy_forces!(res, ws, model, positions, cell, z, nl))
 end
