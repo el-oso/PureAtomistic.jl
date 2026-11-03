@@ -29,11 +29,20 @@
 #                            default branch); the commit it resolves to is pinned and recorded
 #   PUREMLIP_AB_ENERGY_WORKSPACE  "1": `mace_energy!` runs on a `MACEEnergyWorkspace` on each side
 #                            that defines one, and on the `MACEWorkspace` on a side that does not
+#   PUREMLIP_AB_CAL_TOLERANCE  calibration tolerances "<within>,<pair>" (default "0.03,0.01"; see below)
+#   PUREMLIP_AB_THREADS      Julia threads of the head side (default 1). Above 1 the head child runs
+#                            under `-t <n>,0 --gcthreads=1,0`, its MACEWorkspace has
+#                            PUREMLIP_AB_NCHUNKS receiver chunks (default: the thread count), and both
+#                            entry points get `ThreadedChunks()`; the base side keeps one thread
+#                            and its default workspace. BLAS keeps one thread on both sides, and
+#                            a PureBLAS side asserts that its own thread pool is off
+#                            (`PureBLAS.get_num_threads() == 1`).
 #
 # A pair is discarded, and measured again, when swap usage grew while it ran, or when a fixed
 # scalar calibration loop (independent of PureMLIP) shows the children ran at different speeds,
 # as when another process shares the core or the scheduler moves a child between core types. One thread
-# everywhere (`-t 1`, `BLAS.set_num_threads(1)`).
+# (`-t 1`) unless PUREMLIP_AB_THREADS gives the head more; one BLAS thread everywhere
+# (`BLAS.set_num_threads(1)`). The calibration loop runs on one thread in every child.
 using Chairmarks, JSON, LinearAlgebra, Pkg, Printf, Statistics
 
 const SAMPLES = 3
@@ -42,8 +51,11 @@ const MAX_DISCARDS = 20
 const CAL_REPEATS = 30
 # A pair is discarded when the calibration medians of its two children differ by more than
 # CAL_PAIR_TOLERANCE, or when one child's calibration varies by more than CAL_WITHIN_TOLERANCE.
-const CAL_WITHIN_TOLERANCE = 0.03
-const CAL_PAIR_TOLERANCE = 0.01
+# PUREMLIP_AB_CAL_TOLERANCE="<within>,<pair>" replaces both (fractions); the record states them. On a
+# host whose core types differ in speed by more than the defaults (two speed levels about 3.5 %
+# apart have been seen), the defaults discard nearly every pair, and only an effect well above
+# the chosen tolerances can be read.
+const CAL_WITHIN_TOLERANCE, CAL_PAIR_TOLERANCE = parse.(Float64, split(get(ENV, "PUREMLIP_AB_CAL_TOLERANCE", "0.03,0.01"), ','))
 const ENTRIES = ("mace_energy_forces!", "mace_energy!")
 
 swap_used_mb() = parse(Float64, match(r"used = ([0-9.]+)M", read(`sysctl -n vm.swapusage`, String))[1])
@@ -52,20 +64,21 @@ swap_used_mb() = parse(Float64, match(r"used = ([0-9.]+)M", read(`sysctl -n vm.s
 # Child: measures every case on the PureMLIP of the active environment and prints one line per
 # result: `RESULT <case> <entry> <seconds>` and `BLAS <library file names>`.
 # ---------------------------------------------------------------------------------------------
-function child_main(structures, cases, load)
+function child_main(structures, cases, load, threads, nchunks)
     PM = Base.require(Main, :PureMLIP)
     include(structures)
     BLAS.set_num_threads(1)
-    Threads.nthreads() == 1 || error("run with julia -t 1")
+    Threads.nthreads() == threads || error("expected ", threads, " threads, got ", Threads.nthreads())
     if load == "PureBLAS"
         pb = Base.require(Main, :PureBLAS)
         Base.invokelatest(pb.activate)
         Base.invokelatest(pb.is_active) || error("PureBLAS did not become active")
         BLAS.set_num_threads(1)
+        Base.invokelatest(pb.get_num_threads) == 1 || error("the PureBLAS thread pool is on")
     elseif load != ""
         error("unknown PUREMLIP_AB_LOAD: ", load)
     end
-    Base.invokelatest(measure, PM, cases)
+    Base.invokelatest(measure, PM, cases, threads, nchunks)
     println("PKG\t", join(("$(v.name)=$(v.version)" for (_, v) in Pkg.dependencies() if v.version !== nothing), ","))
     println("ENERGY_WORKSPACE\t", get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" && isdefined(PM, :MACEEnergyWorkspace) ? "MACEEnergyWorkspace" : "MACEWorkspace")
     println("BLAS\t", join((basename(l.libname) for l in BLAS.get_config().loaded_libs), ","))
@@ -95,13 +108,17 @@ function energy_workspace(PM, ::Type{T}, model, n_atoms, n_edges, ws) where {T}
 end
 
 # The MACEWorkspace of `mace_energy_forces!`, given the elements of the structure on a side whose
-# workspace builds per-element contraction matrices (it then requires them).
-function workspace(PM, ::Type{T}, model, n_atoms, n_edges, z) where {T}
+# workspace builds per-element contraction matrices (it then requires them), with `nchunks`
+# receiver chunks when that is above 1.
+function workspace(PM, ::Type{T}, model, n_atoms, n_edges, z, nchunks) where {T}
+    nchunks == 1 || return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z, nchunks)
     isdefined(PM.Tensors, :ContractionMatrices) || return PM.MACEWorkspace{T}(model, n_atoms, n_edges)
     return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z)
 end
 
-function measure(PM, cases)
+function measure(PM, cases, threads, nchunks)
+    # `ThreadedChunks()` as the last argument on a threaded side, no extra argument otherwise.
+    extra = threads > 1 ? (PM.ThreadedChunks(),) : ()
     ck = PM.load_mace_checkpoint(joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model"))
     for (N, T) in cases
         cu = Main.cu_bench(N)
@@ -110,12 +127,12 @@ function measure(PM, cases)
         cell = Matrix{T}(cu.cell')
         z = cu.atomic_numbers
         nl = PM.neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-        ws = workspace(PM, T, model, length(z), nl.n_edges, z)
+        ws = workspace(PM, T, model, length(z), nl.n_edges, z, nchunks)
         ews = energy_workspace(PM, T, model, length(z), nl.n_edges, ws)
         res = PM.MACEResult{T}(length(z))
         evals = (
-            "mace_energy_forces!" => () -> PM.mace_energy_forces!(res, ws, model, positions, cell, z, nl),
-            "mace_energy!" => () -> PM.mace_energy!(res, ews, model, positions, cell, z, nl),
+            "mace_energy_forces!" => () -> PM.mace_energy_forces!(res, ws, model, positions, cell, z, nl, extra...),
+            "mace_energy!" => () -> PM.mace_energy!(res, ews, model, positions, cell, z, nl, extra...),
         )
         for (name, f) in evals
             for _ in 1:WARMUP_EVALS
@@ -177,10 +194,11 @@ function make_env(dir, tree, extra)
     return dir
 end
 
-function run_child(env, structures, cases, load)
+function run_child(env, structures, cases, load, threads = 1, nchunks = 1)
     spec = join(("$N:$(T === Float64 ? 64 : 32)" for (N, T) in cases), ",")
+    tflags = threads == 1 ? `-t 1` : `-t $threads,0 --gcthreads=1,0`
     cmd = setenv(
-        `$(Base.julia_cmd()) -t 1 --project=$env $(@__FILE__) --child $structures $spec $load`,
+        `$(Base.julia_cmd()) $tflags --project=$env $(@__FILE__) --child $structures $spec $load $threads $nchunks`,
         merge(ENV, Dict("OPENBLAS_NUM_THREADS" => "1")),
     )
     out = read(cmd, String)
@@ -270,6 +288,11 @@ function driver_main()
     load in ("", "PureBLAS") || error("PUREMLIP_AB_LOAD must be empty or PureBLAS")
     base_load = get(ENV, "PUREMLIP_AB_LOAD_BASE", "") == "1" ? load : ""
     get(ENV, "PUREMLIP_AB_LOAD_BASE", "") == "1" && isempty(load) && error("PUREMLIP_AB_LOAD_BASE=1 needs PUREMLIP_AB_LOAD")
+    threads = parse(Int, get(ENV, "PUREMLIP_AB_THREADS", "1"))
+    nchunks = parse(Int, get(ENV, "PUREMLIP_AB_NCHUNKS", string(threads)))
+    threads >= 1 && nchunks >= 1 || error("PUREMLIP_AB_THREADS and PUREMLIP_AB_NCHUNKS must be positive")
+    threads > 1 && get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" &&
+        error("PUREMLIP_AB_THREADS above 1 needs the MACEWorkspace: a MACEEnergyWorkspace has one set of buffers")
     head_extra = Dict{String, Tuple{String, String}}()
     pureblas_commit = nothing
     if load == "PureBLAS"
@@ -291,7 +314,7 @@ function driver_main()
 
         # Untimed pair first: it pays the compilation of both sides' environments once.
         run_child(base_env, structures, cases, base_load)
-        run_child(head_env, structures, cases, load)
+        run_child(head_env, structures, cases, load, threads, nchunks)
 
         kept = Any[]
         discarded = Any[]
@@ -299,12 +322,14 @@ function driver_main()
         sw_first = swap_used_mb()
         write_doc = function (sw_last)
             doc = (;
-                schema = "puremlip-ab-compare-v2",
+                schema = "puremlip-ab-compare-v3",
                 machine = Sys.isapple() ? strip(read(`sysctl -n machdep.cpu.brand_string`, String)) : string(Sys.CPU_NAME),
                 julia_version = string(VERSION), chairmarks_version = chairmarks_version(),
                 base_ref, base_commit = base_sha, head_commit = head_sha,
                 pureblas_commit, load = isempty(load) ? "none" : load, base_load = isempty(base_load) ? "none" : base_load,
-                threads = 1, blas_threads = 1,
+                threads = (; base = 1, head = threads), head_nchunks = nchunks,
+                head_threads_flags = threads == 1 ? "-t 1" : "-t $threads,0 --gcthreads=1,0", blas_threads = 1,
+                pureblas_threads = isempty(load) ? nothing : 1,
                 blas_libraries = Dict(k => v.blas for (k, v) in last),
                 energy_workspace = Dict(k => v.energy_ws for (k, v) in last),
                 package_versions = Dict(k => v.pkgs for (k, v) in last),
@@ -330,7 +355,7 @@ function driver_main()
             sides = base_first ? (:base, :head) : (:head, :base)
             r = Dict{Symbol, Any}()
             for side in sides
-                r[side] = side === :base ? run_child(base_env, structures, cases, base_load) : run_child(head_env, structures, cases, load)
+                r[side] = side === :base ? run_child(base_env, structures, cases, base_load) : run_child(head_env, structures, cases, load, threads, nchunks)
             end
             last["base"], last["head"] = r[:base], r[:head]
             rb, rh = r[:base].results, r[:head].results
@@ -380,8 +405,9 @@ end
 
 if !isempty(ARGS) && ARGS[1] == "--child"
     structures, spec, load = ARGS[2], ARGS[3], ARGS[4]
+    threads, nchunks = parse(Int, ARGS[5]), parse(Int, ARGS[6])
     cases = [(parse(Int, a), b == "64" ? Float64 : Float32) for (a, b) in split.(split(spec, ','), ':')]
-    child_main(structures, cases, load)
+    child_main(structures, cases, load, threads, nchunks)
 else
     driver_main()
 end
