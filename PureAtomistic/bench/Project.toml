@@ -1,0 +1,22 @@
+[deps]
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PureAtomistic = "48bcfeca-9cba-41eb-9343-fd702b0553a7"
+PureDAQP = "3d6c1e44-5a86-4c7a-815f-9c4190067cf0"
+PureMLIP = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+PureAtomistic = {path = ".."}
+PureMLIP = {path = "../../PureMLIP"}
+
+[compat]
+JSON = "1.6"
+Optim = "2"
+PureDAQP = "0.1.10"
+julia = "1.12"

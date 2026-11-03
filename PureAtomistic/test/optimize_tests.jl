@@ -242,28 +242,13 @@ end
     @test 1.0 < E_vac < 1.1
 end
 
-@testitem "Optim L-BFGS agrees with FIRE" setup = [RelaxFixtures] begin
-    using PureMLIP
-    using Optim, LinearAlgebra
+@testitem "TrustRegionBFGS agrees with FIRE on the MPA-0 vacancy" setup = [RelaxFixtures] begin
+    using PureMLIP, LinearAlgebra
     using PureAtomistic.Systems
+    using PureAtomistic.Integrators: TrustRegionBFGS
     F = RelaxFixtures
-    # Lennard-Jones. Measured: E(FIRE) - E_lattice = 8.7e-5 eV and E(LBFGS) - E_lattice =
-    # 1.3e-5 eV at fmax = 1e-3; the energies differ by 7.5e-5. Bound 1e-3 (13 times).
-    sys, perfect, p = F.lj_crystal(Float64)
-    start = copy(sys.positions)
-    fire = relax!(sys, p; fmax = 1.0e-3)
-    sys2, _, p2 = F.lj_crystal(Float64)
-    @test sys2.positions == start
-    lb = relax!(sys2, p2, LBFGS(); fmax = 1.0e-3)
-    @test lb.converged && fire.converged
-    @test lb.steps < fire.steps
-    Eref, Fref = F.energy_and_forces(F.lj_crystal(Float64)[3], sys2.positions, sys2.cell)
-    @test F.max_force(Fref) < 1.0e-3
-    @test lb.energy == p2.result.energy
-    @test lb.energy ≈ Eref rtol = 4 * eps(Float64)
-    @test abs(lb.energy - fire.energy) < 1.0e-3
-    # MPA-0 vacancy. Measured at fmax = 1e-3: E_vac = 1.066946 (FIRE, 49 steps) and 1.066942
-    # eV (L-BFGS, 6 iterations); difference 4e-6, bound 1e-4 (25 times).
+    # Measured at fmax = 1e-3: E_vac = 1.066946 eV (FIRE, 49 steps) and 1.066942 eV (TrustRegionBFGS,
+    # 6 steps); the relaxed energies differ by 3.8e-6 eV, bound 5e-5 (13 times).
     model = MACEModel(load_mace_checkpoint(F.mpa0_path()))
     mace(sys) = MACEPotential(model, sys.positions, sys.cell, sys.species)
     a0 = 3.640391   # the model's lattice constant to six digits (parabola fit, 4-atom cell)
@@ -273,12 +258,11 @@ end
     a = remove_atom(perfect, v)
     b = remove_atom(perfect, v)
     ra = relax!(a, mace(a); fmax = 1.0e-3)
-    rb = relax!(b, mace(b), LBFGS(); fmax = 1.0e-3)
+    rb = relax!(b, mace(b), TrustRegionBFGS(b); fmax = 1.0e-3)
     @test ra.converged && rb.converged
-    @test abs(ra.energy - rb.energy) < 1.0e-4
+    @test rb.steps < ra.steps
+    @test abs(ra.energy - rb.energy) < 5.0e-5
     @test F.max_force(F.energy_and_forces(mace(b), b.positions, b.cell)[2]) < 1.0e-3
-    # Arguments are validated before Optim runs.
-    @test_throws "pureatomistic: fmax must be positive" relax!(b, mace(b), LBFGS(); fmax = 0.0)
 end
 
 @testitem "relax! and FIRE reject invalid input" setup = [RelaxFixtures] begin

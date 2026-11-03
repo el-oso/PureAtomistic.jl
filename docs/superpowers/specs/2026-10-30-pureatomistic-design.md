@@ -82,7 +82,7 @@ PureMLIP can later move to its own repository without changing its users.
 | Neighbor list | CellListMap.jl on CPU (pure; we add periodic shift vectors for stress). GPU: our own KernelAbstractions cell list, or NeighbourLists.jl if it passes the dependency rules. The list is shared between the driver and the model, built once per rebuild. |
 | GPU residency | Positions, velocities, forces and the neighbor list stay on the device between MD steps; no per-step host copy. |
 | Trajectory output | A simple writer that the Makie package reads. extxyz reader and writer written ourselves (no pure-Julia reader exists). |
-| Geometry optimization | Optim.jl. |
+| Geometry optimization | Our own, in the core: FIRE (Bitzek et al. 2006) and a trust-region BFGS method whose step problem (the quadratic model inside a box of maximum displacement, with fixed atoms and frozen directions as constraint rows) is solved by PureDAQP's dual active-set method. Optim.jl is not a dependency of the package; it appears only in the benchmark environment that compares against it. |
 | Molly.jl | Optional connection only (extension), because it brings Chemfiles, FFTW/MKL and Rmath binaries. |
 | Dispersion D3 | Later. Needs a license decision on the C6 parameter table (GPL-1+, LGPL-3 or Apache labels, depending on source). |
 | Visualization | Makie, in an extension or separate package: atom animation, vacancy track, Arrhenius plot, energy-conservation plot. |

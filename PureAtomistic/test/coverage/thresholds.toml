@@ -24,3 +24,4 @@
 "src/systems/units.jl" = 1.00
 "src/thermostats/Thermostats.jl" = 1.00
 "src/viz.jl" = 1.00
+"src/optimize/quasi_newton.jl" = 1.00

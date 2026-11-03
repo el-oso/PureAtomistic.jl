@@ -607,3 +607,122 @@ file = "src/optimize/fire.jl"
 find = "P += F[d, a] * V[d, a]"
 replace = "P -= F[d, a] * V[d, a]"
 expect = "FIRE rules"
+
+[[mutation]]
+name = "qn-radius-shrink"
+file = "src/optimize/quasi_newton.jl"
+find = "opt.radius /= 4"
+replace = "opt.radius /= 2"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-radius-grow"
+file = "src/optimize/quasi_newton.jl"
+find = "min(2 * opt.radius, opt.max_radius)"
+replace = "min(opt.radius, opt.max_radius)"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-bfgs-sign"
+file = "src/optimize/quasi_newton.jl"
+find = "- ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+replace = "+ ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-initial-scale"
+file = "src/optimize/quasi_newton.jl"
+find = "H[i, i] = sy / yy"
+replace = "H[i, i] = yy / sy"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-box-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = fixed[cart[i][2]] ? zero(T) : Δ"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-fixed-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = Δ / nrm"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-linear-term"
+file = "src/optimize/quasi_newton.jl"
+find = "s += L[i, j] * g[i]"
+replace = "s += L[j, j] * g[i]"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-recover-step"
+file = "src/optimize/quasi_newton.jl"
+find = "p[i] += L[i, j] * wj"
+replace = "p[i] += L[i, i] * wj"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-predicted-decrease"
+file = "src/optimize/quasi_newton.jl"
+find = "pred -= q[j] * w[j] + w[j]^2 / 2"
+replace = "pred -= q[j] * w[j] + w[j]^2"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-frozen-row"
+file = "src/optimize/quasi_newton.jl"
+find = "D[1, k] * L[i1, j]"
+replace = "D[2, k] * L[i1, j]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-fixed-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] = G[2, a] = G[3, a] = zero(T)"
+replace = "G[1, a] = G[2, a] = zero(T)"
+expect = "fixed atoms"
+
+[[mutation]]
+name = "qn-frozen-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] -= c * D[1, k]"
+replace = "G[1, a] -= 0 * c * D[1, k]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-accept"
+file = "src/optimize/quasi_newton.jl"
+find = "keep = ratio > opt.eta"
+replace = "keep = true"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-undo-step"
+file = "src/optimize/quasi_newton.jl"
+find = "copyto!(X, opt.start)"
+replace = "nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-final-evaluation"
+file = "src/optimize/quasi_newton.jl"
+find = "current || _evaluate!(potential, sys)"
+replace = "current || nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-tolerance"
+file = "src/optimize/quasi_newton.jl"
+find = "fm < tol && return _finish"
+replace = "fm < 2 * tol && return _finish"
+expect = "relaxes a Lennard-Jones"
+
+[[mutation]]
+name = "qn-orthogonal-check"
+file = "src/optimize/quasi_newton.jl"
+find = "abs(u[1] * v[1] + u[2] * v[2] + u[3] * v[3]) <= sqrt(eps(T))"
+replace = "true"
+expect = "invalid input"

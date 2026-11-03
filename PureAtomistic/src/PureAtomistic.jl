@@ -1,7 +1,7 @@
 module PureAtomistic
 
 # Dependencies the package source will use; imported here so each one is a declared, used dependency.
-import LinearAlgebra, Random, PrecompileTools, PureMLIP, StrictMode, TypeContracts
+import LinearAlgebra, Random, PrecompileTools, PureDAQP, PureMLIP, StrictMode, TypeContracts
 
 include("systems/Systems.jl")
 include("potentials/Potentials.jl")
@@ -24,8 +24,8 @@ include("driver.jl")
 
 export animate_trajectory, plot_vacancy_track, plot_arrhenius, plot_energy_conservation
 
-using .Integrators: FIRE, RelaxResult, relax!
-export FIRE, RelaxResult, relax!
+using .Integrators: FIRE, RelaxResult, relax!, TrustRegionBFGS
+export FIRE, RelaxResult, relax!, TrustRegionBFGS
 
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
