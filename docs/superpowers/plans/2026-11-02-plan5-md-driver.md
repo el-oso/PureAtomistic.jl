@@ -128,6 +128,10 @@
 - [ ] **Step 1:** Tests: FIRE reaches `fmax` on Lennard-Jones and MPA-0 Cu with a vacancy; the relaxed vacancy formation energy reproduces the gallery's value (1.068 eV, 256 atoms) within a measured margin; Optim extension agrees with FIRE; FIRE noalloc and TrimCheck.
 - [ ] **Step 2–4:** FAIL → implement → PASS. **Step 5:** Commit `Add geometry optimization`.
 
+### Task 10b: Quasi-Newton relaxation with PureDAQP; remove Optim
+
+- [ ] A trust-region BFGS relaxer: each step minimizes the quadratic model (gradient from the forces, BFGS curvature) inside a box of maximum atom displacement, solved by PureDAQP (`ActiveSet`); fixed atoms and frozen directions as constraint rows. Measure the four PureDAQP settings (`working_set` :rows/:gram × `scan` :all/:window) on the real step problems; check the conditioning before allowing `:gram`, and use `PureDAQP.faster_scan`. Check PureDAQP's dependency closure for `_jll` first. Benchmark FIRE, the PureDAQP relaxer and Optim (L-BFGS, BFGS, conjugate gradient; Optim only in a bench environment) on the Cu vacancy cell and a strained cell: force evaluations, wall time, final energy and fmax, speed-ups against a named reference. Remove the Optim extension and every Optim reference from the package. Amend spec section 6.2: geometry optimization is our FIRE plus PureDAQP.
+
 ### Task 11: Trimmed `md_run` binary
 
 **Files:** Create `PureAtomistic/juliac/{build.jl, entry.jl}`; the `:juliac` test item.
