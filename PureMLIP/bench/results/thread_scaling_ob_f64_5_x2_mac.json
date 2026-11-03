@@ -1,0 +1,236 @@
+{
+  "blas_libraries": [
+    "libopenblas64_.0.3.30.dylib"
+  ],
+  "blas_threads": 1,
+  "cores": {
+    "Efficiency": 6,
+    "Performance": 4,
+    "Super": 2
+  },
+  "julia_flags": "-t <n>,0 --gcthreads=1,0",
+  "julia_version": "1.13.3",
+  "machine": "Apple M6",
+  "pureblas_threads": null,
+  "rounds": [
+    {
+      "order": [
+        1,
+        4,
+        6,
+        8
+      ],
+      "round": 1,
+      "seconds": {
+        "1": {
+          "mace_energy!": 0.354851292,
+          "mace_energy_forces!": 0.966703833
+        },
+        "4": {
+          "mace_energy!": 0.114045792,
+          "mace_energy_forces!": 0.714041084
+        },
+        "6": {
+          "mace_energy!": 0.087551834,
+          "mace_energy_forces!": 0.693439375
+        },
+        "8": {
+          "mace_energy!": 0.08058325,
+          "mace_energy_forces!": 0.691202334
+        }
+      }
+    },
+    {
+      "order": [
+        6,
+        4,
+        1,
+        8
+      ],
+      "round": 2,
+      "seconds": {
+        "1": {
+          "mace_energy!": 0.355157042,
+          "mace_energy_forces!": 0.971374958
+        },
+        "4": {
+          "mace_energy!": 0.115133833,
+          "mace_energy_forces!": 0.716076333
+        },
+        "6": {
+          "mace_energy!": 0.087505083,
+          "mace_energy_forces!": 0.695283083
+        },
+        "8": {
+          "mace_energy!": 0.078370459,
+          "mace_energy_forces!": 0.693228875
+        }
+      }
+    },
+    {
+      "order": [
+        6,
+        8,
+        1,
+        4
+      ],
+      "round": 3,
+      "seconds": {
+        "1": {
+          "mace_energy!": 0.355957417,
+          "mace_energy_forces!": 0.969837083
+        },
+        "4": {
+          "mace_energy!": 0.11588875,
+          "mace_energy_forces!": 0.722452375
+        },
+        "6": {
+          "mace_energy!": 0.090609875,
+          "mace_energy_forces!": 0.695814917
+        },
+        "8": {
+          "mace_energy!": 0.079521167,
+          "mace_energy_forces!": 0.694674
+        }
+      }
+    },
+    {
+      "order": [
+        1,
+        8,
+        6,
+        4
+      ],
+      "round": 4,
+      "seconds": {
+        "1": {
+          "mace_energy!": 0.355493833,
+          "mace_energy_forces!": 0.970510291
+        },
+        "4": {
+          "mace_energy!": 0.116930917,
+          "mace_energy_forces!": 0.721711375
+        },
+        "6": {
+          "mace_energy!": 0.089344333,
+          "mace_energy_forces!": 0.695781458
+        },
+        "8": {
+          "mace_energy!": 0.079961125,
+          "mace_energy_forces!": 0.693999417
+        }
+      }
+    }
+  ],
+  "schema": "puremlip-thread-scaling-v1",
+  "settings": {
+    "blas": "openblas",
+    "case": "cu_bench(5)",
+    "chunks_per_thread": 2,
+    "commit": "a3d7ae706911-dirty",
+    "entries": [
+      "mace_energy_forces!",
+      "mace_energy!"
+    ],
+    "precision": "Float64",
+    "samples": 3,
+    "threads": [
+      1,
+      4,
+      6,
+      8
+    ],
+    "warmup": 3
+  },
+  "speedup": "one-thread serial seconds over n-thread seconds of the same round",
+  "summary": [
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 1.3565243162421345,
+      "median": 1.3492918412666248,
+      "min": 1.3424235514486336,
+      "nchunks": 8,
+      "speedups": [
+        1.3538490356669728,
+        1.3565243162421345,
+        1.3424235514486336,
+        1.3447346468662766
+      ],
+      "threads": 4
+    },
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 1.3970927550958405,
+      "median": 1.3944602375144066,
+      "min": 1.3938147333509956,
+      "nchunks": 12,
+      "speedups": [
+        1.3940711587079981,
+        1.3970927550958405,
+        1.3938147333509956,
+        1.394849316320815
+      ],
+      "threads": 6
+    },
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 1.4012326852368924,
+      "median": 1.39850699379606,
+      "min": 1.3961039034136875,
+      "nchunks": 16,
+      "speedups": [
+        1.3985829987084506,
+        1.4012326852368924,
+        1.3961039034136875,
+        1.3984309888836692
+      ],
+      "threads": 8
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 3.111480798870685,
+      "median": 3.0781381962375987,
+      "min": 3.0402039265628953,
+      "nchunks": 8,
+      "speedups": [
+        3.111480798870685,
+        3.08473220030814,
+        3.0715441921670568,
+        3.0402039265628953
+      ],
+      "threads": 4
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 4.058701847068701,
+      "median": 4.015980506448867,
+      "min": 3.9284616273888466,
+      "nchunks": 12,
+      "speedups": [
+        4.053042361168585,
+        4.058701847068701,
+        3.9284616273888466,
+        3.9789186517291477
+      ],
+      "threads": 6
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 4.531771875930954,
+      "median": 4.461046642265477,
+      "min": 4.403536615859996,
+      "nchunks": 16,
+      "speedups": [
+        4.403536615859996,
+        4.531771875930954,
+        4.476259974907058,
+        4.445833309623896
+      ],
+      "threads": 8
+    }
+  ],
+  "swap_mb": [
+    13834.0,
+    13834.0
+  ]
+}
