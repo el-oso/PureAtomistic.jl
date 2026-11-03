@@ -64,7 +64,7 @@ function field_breakdown(ws, n_atoms, n_edges)
         ms = groups[mem]
         arrays = last.(ms)
         scale = any(a -> n_edges in size(a), arrays) ? "per-edge" : any(a -> n_atoms in size(a), arrays) ? "per-atom" :
-            all(m -> startswith(first(m), "contraction["), ms) ? "per-element" : "fixed/chunk"
+            all(m -> occursin(r"^contraction\[\d+\]\.[FG]\[", first(m)), ms) ? "per-element" : "fixed/chunk"
         (; members = first.(ms), sizes = [collect(size(a)) for a in arrays], shared = length(ms) > 1, bytes = sizeof(mem), scale)
     end
     sort!(rows; by = r -> -r.bytes)
