@@ -21,6 +21,8 @@
 #                            whose path is printed; pass PureMLIP/bench/results/... to keep a record)
 #   PUREMLIP_AB_LOAD         "PureBLAS": the head side runs `using PureBLAS; PureBLAS.activate()`
 #                            before warm-up; the base side stays on OpenBLAS
+#   PUREMLIP_AB_LOAD_BASE    "1": the base side loads and activates the same PureBLAS too, so the
+#                            ratio compares the two PureMLIP versions on PureBLAS
 #   PUREMLIP_AB_PUREBLAS     PureBLAS checkout (a directory or a URL), required with
 #                            PUREMLIP_AB_LOAD=PureBLAS
 #   PUREMLIP_AB_PUREBLAS_REV branch, tag or full commit hash of a URL source (default HEAD, the
@@ -265,6 +267,8 @@ function driver_main()
     out = get(ENV, "PUREMLIP_AB_OUT", tempname() * "_ab_compare.json")
     load = get(ENV, "PUREMLIP_AB_LOAD", "")
     load in ("", "PureBLAS") || error("PUREMLIP_AB_LOAD must be empty or PureBLAS")
+    base_load = get(ENV, "PUREMLIP_AB_LOAD_BASE", "") == "1" ? load : ""
+    get(ENV, "PUREMLIP_AB_LOAD_BASE", "") == "1" && isempty(load) && error("PUREMLIP_AB_LOAD_BASE=1 needs PUREMLIP_AB_LOAD")
     head_extra = Dict{String, Tuple{String, String}}()
     pureblas_commit = nothing
     if load == "PureBLAS"
@@ -281,11 +285,11 @@ function driver_main()
     try
         base_sha, head_sha = commit_label(base_tree), commit_label(root)
         println("base ", base_sha, "  head ", head_sha)
-        base_env = make_env(joinpath(scratch, "env_base"), base_tree, Dict{String, Tuple{String, String}}())
+        base_env = make_env(joinpath(scratch, "env_base"), base_tree, isempty(base_load) ? Dict{String, Tuple{String, String}}() : head_extra)
         head_env = make_env(joinpath(scratch, "env_head"), root, head_extra)
 
         # Untimed pair first: it pays the compilation of both sides' environments once.
-        run_child(base_env, structures, cases, "")
+        run_child(base_env, structures, cases, base_load)
         run_child(head_env, structures, cases, load)
 
         kept = Any[]
@@ -298,7 +302,7 @@ function driver_main()
                 machine = Sys.isapple() ? strip(read(`sysctl -n machdep.cpu.brand_string`, String)) : string(Sys.CPU_NAME),
                 julia_version = string(VERSION), chairmarks_version = chairmarks_version(),
                 base_ref, base_commit = base_sha, head_commit = head_sha,
-                pureblas_commit, load = isempty(load) ? "none" : load,
+                pureblas_commit, load = isempty(load) ? "none" : load, base_load = isempty(base_load) ? "none" : base_load,
                 threads = 1, blas_threads = 1,
                 blas_libraries = Dict(k => v.blas for (k, v) in last),
                 energy_workspace = Dict(k => v.energy_ws for (k, v) in last),
@@ -325,7 +329,7 @@ function driver_main()
             sides = base_first ? (:base, :head) : (:head, :base)
             r = Dict{Symbol, Any}()
             for side in sides
-                r[side] = side === :base ? run_child(base_env, structures, cases, "") : run_child(head_env, structures, cases, load)
+                r[side] = side === :base ? run_child(base_env, structures, cases, base_load) : run_child(head_env, structures, cases, load)
             end
             last["base"], last["head"] = r[:base], r[:head]
             rb, rh = r[:base].results, r[:head].results
