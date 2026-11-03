@@ -1,0 +1,318 @@
+{
+  "schema": "puremlip-ab-compare-v3",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "chairmarks_version": "1.3.1",
+  "base_ref": "bdcc0af",
+  "base_commit": "bdcc0af8cfbb",
+  "head_commit": "fdee7ab31a0d",
+  "pureblas_commit": "c38f273fd758",
+  "load": "PureBLAS",
+  "base_load": "PureBLAS",
+  "threads": {
+    "base": 1,
+    "head": 4
+  },
+  "head_nchunks": 4,
+  "head_threads_flags": "-t 4,0 --gcthreads=1,0",
+  "blas_threads": 1,
+  "pureblas_threads": 1,
+  "blas_libraries": {
+    "base": [
+      "libopenblas64_.0.3.30.dylib"
+    ],
+    "head": [
+      "libopenblas64_.0.3.30.dylib"
+    ]
+  },
+  "energy_workspace": {
+    "base": "MACEWorkspace",
+    "head": "MACEWorkspace"
+  },
+  "package_versions": {
+    "base": {
+      "Artifacts": "1.11.0",
+      "Base64": "1.11.0",
+      "CPUSummary": "0.2.7",
+      "Chairmarks": "1.3.1",
+      "CommonWorldInvalidations": "1.2.2",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "CpuId": "0.3.3",
+      "Dates": "1.11.0",
+      "IfElse": "0.1.1",
+      "Inflate": "0.1.5",
+      "InteractiveUtils": "1.11.0",
+      "JSON": "1.13.4",
+      "JuliaSyntaxHighlighting": "1.12.0",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "Markdown": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.5",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureBLAS": "0.1.2",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "SIMD": "3.8.1",
+      "SciMLPublic": "1.3.0",
+      "Serialization": "1.11.0",
+      "Static": "1.4.6",
+      "Statistics": "1.11.5",
+      "StrictMode": "0.5.9",
+      "StructUtils": "2.12.0",
+      "StyledStrings": "1.11.0",
+      "TOML": "1.0.3",
+      "TypeContracts": "0.14.5",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    },
+    "head": {
+      "Artifacts": "1.11.0",
+      "Base64": "1.11.0",
+      "CPUSummary": "0.2.7",
+      "Chairmarks": "1.3.1",
+      "CommonWorldInvalidations": "1.2.2",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "CpuId": "0.3.3",
+      "Dates": "1.11.0",
+      "IfElse": "0.1.1",
+      "Inflate": "0.1.5",
+      "InteractiveUtils": "1.11.0",
+      "JSON": "1.13.4",
+      "JuliaSyntaxHighlighting": "1.12.0",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "Markdown": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.5",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureBLAS": "0.1.2",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "SIMD": "3.8.1",
+      "SciMLPublic": "1.3.0",
+      "Serialization": "1.11.0",
+      "Static": "1.4.6",
+      "Statistics": "1.11.5",
+      "StrictMode": "0.5.9",
+      "StructUtils": "2.12.0",
+      "StyledStrings": "1.11.0",
+      "TOML": "1.0.3",
+      "TypeContracts": "0.14.5",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    }
+  },
+  "samples_per_evaluation_point": 3,
+  "warmup_evaluations": 5,
+  "ratio": "head/base per pair; below 1 means the head is faster",
+  "order": "odd pairs run base then head, even pairs head then base",
+  "calibration": "seconds of a fixed scalar loop before and after each measurement; pairs are discarded when base and head medians differ by more than 5.0% or one child varies by more than 6.0%",
+  "swap_first_start_mb": 13834.0,
+  "swap_last_end_mb": 13834.0,
+  "pairs": [
+    {
+      "pair": 1,
+      "order": "base,head",
+      "swap_before_mb": 13834.0,
+      "swap_after_mb": 13834.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727167,
+          0.000734542
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000720417,
+          0.000718708
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000743792,
+          0.000749375
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000730041,
+          0.000728167
+        ]
+      }
+    },
+    {
+      "pair": 2,
+      "order": "head,base",
+      "swap_before_mb": 13834.0,
+      "swap_after_mb": 13834.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000723208,
+          0.000713958
+        ],
+        "5:32 mace_energy_forces!": [
+          0.0007205,
+          0.000727166
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000752583,
+          0.000756625
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000727167,
+          0.000729
+        ]
+      }
+    },
+    {
+      "pair": 3,
+      "order": "base,head",
+      "swap_before_mb": 13834.0,
+      "swap_after_mb": 13834.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000729125,
+          0.000728125
+        ],
+        "5:32 mace_energy_forces!": [
+          0.00071975,
+          0.000719625
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.0007595,
+          0.0007595
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000730875,
+          0.000726125
+        ]
+      }
+    },
+    {
+      "pair": 4,
+      "order": "head,base",
+      "swap_before_mb": 13834.0,
+      "swap_after_mb": 13834.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727917,
+          0.000731
+        ],
+        "5:32 mace_energy_forces!": [
+          0.00072625,
+          0.000729209
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000754959,
+          0.000753583
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000728875,
+          0.000719041
+        ]
+      }
+    },
+    {
+      "pair": 5,
+      "order": "base,head",
+      "swap_before_mb": 13834.0,
+      "swap_after_mb": 13834.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000723208,
+          0.000728125
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000729084,
+          0.000721333
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.0007555,
+          0.000753375
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000749375,
+          0.000727166
+        ]
+      }
+    }
+  ],
+  "discarded_pairs": [],
+  "cases": [
+    {
+      "system": "cu_bench(5)",
+      "precision": "Float32",
+      "entries": [
+        {
+          "entry_point": "mace_energy_forces!",
+          "pair_ratios": [
+            0.7522458965357972,
+            0.7464268135537983,
+            0.7423196434702899,
+            0.7390751045471159,
+            0.7378557872050464
+          ],
+          "median": 0.7423196434702899,
+          "min": 0.7378557872050464,
+          "max": 0.7522458965357972,
+          "base_s": [
+            0.282269125,
+            0.282620083,
+            0.28296345900000003,
+            0.28359916700000004,
+            0.281585625
+          ],
+          "head_s": [
+            0.21233579100000002,
+            0.210955208,
+            0.210049334,
+            0.20960108400000002,
+            0.207769583
+          ]
+        },
+        {
+          "entry_point": "mace_energy!",
+          "pair_ratios": [
+            0.35702429025674265,
+            0.3558572176406288,
+            0.3719006507788582,
+            0.35042488850131553,
+            0.35780000678707524
+          ],
+          "median": 0.35702429025674265,
+          "min": 0.35042488850131553,
+          "max": 0.3719006507788582,
+          "base_s": [
+            0.11416100000000001,
+            0.114383542,
+            0.114274917,
+            0.11449933300000001,
+            0.114187625
+          ],
+          "head_s": [
+            0.04075825,
+            0.040704209000000005,
+            0.042498916000000005,
+            0.040123416,
+            0.040856333
+          ]
+        }
+      ]
+    }
+  ]
+}
