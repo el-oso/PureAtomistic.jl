@@ -71,6 +71,16 @@
                         Matrix{Float32}, Matrix{Float32}, Vector{Int}, P.NeighborList{Float32},
                     ),
                 ),
+                [
+                    sig for S in (Float64, Float32) for f in (P.mace_energy!, P.mace_energy_forces!) for sig in (
+                            (
+                                f, (
+                                    P.MACEResult{S}, P.MACEWorkspace{S}, P.MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int},
+                                    P.NeighborList{S}, P.ThreadedChunks,
+                                ),
+                            ),
+                        )
+                ]...,
                 (P.mace_energy_forces, (P.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int})),
                 (P.mace_energy_forces, (P.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int})),
                 (P.Model.zbl_edge_energy, (Float64, Int, Int, P.Model.ZBLParams{Float64})),
@@ -125,6 +135,11 @@
             )
         ) == [MACEResult{S}]
         @test Base.return_types(mace_energy_forces, (MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int})) == [MACEResult{S}]
+        for f in (mace_energy!, mace_energy_forces!)
+            @test Base.return_types(
+                f, (MACEResult{S}, MACEWorkspace{S}, MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int}, NeighborList{S}, ThreadedChunks)
+            ) == [MACEResult{S}]
+        end
         for W in (MACEWorkspace{S}, MACEEnergyWorkspace{S})
             @test Base.return_types(
                 mace_energy!, (MACEResult{S}, W, MACEModel{S}, Matrix{S}, Matrix{S}, Vector{Int}, NeighborList{S})
@@ -289,6 +304,9 @@ end
         mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
+        wt = MACEWorkspace{T}(m, 3, nl.n_edges; nchunks = 2, elements = Z)
+        mace_energy!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
+        mace_energy_forces!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
         M.zbl_edge_energy(T(0.5), 1, 1, m.zbl)
         M.radial_embedding!(zeros(T, length(m.radial.bessel_weights)), zeros(T, length(m.radial.bessel_weights)), m.radial, T(2.0), 29, 8)
     end
@@ -326,6 +344,9 @@ end
         mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
+        wt = MACEWorkspace{T}(m, 3, nl.n_edges; nchunks = 2, elements = Z)
+        mace_energy!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
+        mace_energy_forces!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
     end
     found = StrictMode.resource_leak_report(PureMLIP.Model)
     @test !isempty(found)     # the constructors return their own value
@@ -352,6 +373,9 @@ end
         mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
+        wt = MACEWorkspace{T}(m, 3, nl.n_edges; nchunks = 2, elements = Z)
+        mace_energy!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
+        mace_energy_forces!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
     end
     for M in (PureMLIP.Model, PureMLIP.Tensors, PureMLIP.Equivariant)
         swept = test_compiled(M; guarantees = (:no_threadid_state,))
@@ -378,6 +402,9 @@ end
         mace_energy!(res, MACEEnergyWorkspace{T}(m, 3, nl.n_edges; edge_chunk = 7, block = 2), m, PT, CT, Z, nl)
         mace_energy_forces!(res, ws, m, PT, CT, Z, nl)
         mace_energy_forces(m, PT, CT, Z)
+        wt = MACEWorkspace{T}(m, 3, nl.n_edges; nchunks = 2, elements = Z)
+        mace_energy!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
+        mace_energy_forces!(res, wt, m, PT, CT, Z, nl, ThreadedChunks())
     end
     for M in (PureMLIP.Model, PureMLIP.Tensors, PureMLIP.Equivariant)
         found = audit(M; sweep = true, guarantees = (:concurrency_safe,))
