@@ -1,5 +1,6 @@
 # Memory of `MACEWorkspace` and `MACEEnergyWorkspace` on cu_bench(14) (10,976 atoms), in Float64
-# and Float32, with the per-buffer breakdown of each. Workspaces are constructed, not evaluated:
+# and Float32, with the per-buffer breakdown of each; the `MACEWorkspace` is built for the one element
+# of the cell (Cu). Workspaces are constructed, not evaluated:
 # LAMMPS does not fit in memory at this size, and the sizes follow from the constructors.
 #
 #   julia -t 1 --project=PureMLIP/bench PureMLIP/bench/large_julia_only.jl
@@ -24,21 +25,33 @@ function head_commit()
     return clean ? sha : sha * "-dirty"
 end
 
-# Bytes of the workspace's array fields, one row per distinct underlying `Memory`: several
-# arrays that share a block (a pool, or a reshape of an array) are listed under the one row that
-# counts the block once. A tuple field holds arrays of different sizes; each member is named
-# `field[i]`. `scale` is the extent the block's members scale with.
+# The numeric arrays reachable from `v`, named by their path from the workspace: fields of
+# PureMLIP structs (the per-chunk buffers, the contraction matrices), tuple members `field[i]` and
+# elements of arrays of arrays or structs `field[i]`. Empty arrays hold no memory and are left out.
+function collect_arrays!(members, name, v)
+    if v isa AbstractArray && isbitstype(eltype(v))
+        isempty(v) || push!(members, name => v)
+    elseif v isa AbstractArray || v isa Tuple
+        for (i, x) in pairs(v)
+            collect_arrays!(members, "$name[$i]", x)
+        end
+    elseif isstructtype(typeof(v)) && parentmodule(typeof(v)) in (PureMLIP.Model, PureMLIP.Tensors)
+        for f in fieldnames(typeof(v))
+            collect_arrays!(members, "$name.$f", getfield(v, f))
+        end
+    end
+    return members
+end
+
+# Bytes of the workspace's arrays, one row per distinct underlying `Memory`: several arrays that
+# share a block (a pool, or a reshape of an array) are listed under the one row that counts the
+# block once. `scale` is the extent the block's members scale with: "per-edge", "per-atom",
+# "per-element" (the contraction matrices, one set per element given to the constructor) or
+# "fixed/chunk" (independent of the atom and edge counts, once per receiver chunk).
 function field_breakdown(ws, n_atoms, n_edges)
     members = Pair{String, AbstractArray}[]
     for f in fieldnames(typeof(ws))
-        v = getfield(ws, f)
-        if v isa AbstractArray
-            push!(members, string(f) => v)
-        elseif v isa Tuple && all(x -> x isa AbstractArray, v)
-            for (i, a) in pairs(v)
-                push!(members, "$f[$i]" => a)
-            end
-        end
+        collect_arrays!(members, string(f), getfield(ws, f))
     end
     order = Memory[]
     groups = IdDict{Memory, Vector{Pair{String, AbstractArray}}}()
@@ -50,7 +63,8 @@ function field_breakdown(ws, n_atoms, n_edges)
     rows = map(order) do mem
         ms = groups[mem]
         arrays = last.(ms)
-        scale = any(a -> n_edges in size(a), arrays) ? "per-edge" : any(a -> n_atoms in size(a), arrays) ? "per-atom" : "fixed/chunk"
+        scale = any(a -> n_edges in size(a), arrays) ? "per-edge" : any(a -> n_atoms in size(a), arrays) ? "per-atom" :
+            all(m -> startswith(first(m), "contraction["), ms) ? "per-element" : "fixed/chunk"
         (; members = first.(ms), sizes = [collect(size(a)) for a in arrays], shared = length(ms) > 1, bytes = sizeof(mem), scale)
     end
     sort!(rows; by = r -> -r.bytes)
@@ -68,7 +82,7 @@ for T in (Float64, Float32), W in (MACEWorkspace, MACEEnergyWorkspace)
     positions = Matrix{T}(cu.positions'); cell = Matrix{T}(cu.cell')
     nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
     sw0 = swap_used_mb()
-    ws = W{T}(model, n, nl.n_edges)
+    ws = W === MACEWorkspace ? W{T}(model, n, nl.n_edges; elements = z) : W{T}(model, n, nl.n_edges)
     sw1 = swap_used_mb()
     rows = field_breakdown(ws, n, nl.n_edges)
     push!(

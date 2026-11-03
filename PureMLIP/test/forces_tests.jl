@@ -122,7 +122,7 @@ end
     # Capacity and result-shape errors.
     sv = LammpsReference.structure(ref, "cu_vacancy")
     nlv = neighbor_list(sv.positions, sv.cell, m.r_max)
-    wsv = MACEWorkspace{Float64}(m, size(sv.positions, 2), nlv.n_edges)
+    wsv = MACEWorkspace{Float64}(m, size(sv.positions, 2), nlv.n_edges; elements = sv.atomic_numbers)
     @test_throws "model: the workspace holds $(size(sv.positions, 2)) atoms" mace_energy_forces!(
         MACEResult{Float64}(n), wsv, m, s.positions, s.cell, s.atomic_numbers, nl
     )
@@ -195,7 +195,7 @@ end
         Mo._messages_pullback!(dx, ws.chunks[1], ws, m, k, x, dMk, ddk, Z, nl)
         back = sum(dx .* vx) + sum(view(ws.dEdr, :, 1:E) .* vr)
         lengths(r) = vec(sqrt.(sum(abs2, r; dims = 1)))
-        wsD = MACEWorkspace{D}(m, n, E; edge_chunk = chunk)
+        wsD = MACEWorkspace{D}(m, n, E; edge_chunk = chunk, elements = ())
         wsD.r .= dual(r, vr); wsD.d .= lengths(wsD.r)
         MD = zeros(D, size(Mk)); densD = zeros(D, n)
         Mo._messages!(MD, densD, wsD.chunks[1], wsD, m, k, dual(x, vx), Z, nl)
@@ -213,28 +213,33 @@ end
 end
 
 @testitem "workspace memory per atom" setup = [Checkpoints, WorkspaceMemory] begin
-    m64 = MACEModel(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    ck = load_mace_checkpoint(Checkpoints.fetch(:mpa0))
     # cu_bench(14) (test/reference/structures.jl) under mpa-0: 10,976 atoms, 856,128 directed
-    # edges within r_max.
-    # The workspaces are built for no element, so they hold no contraction matrices (22.6 MB per
-    # element in Float64, 11.3 MB in Float32; "forces: contraction matrices of the workspace
-    # elements"). Measured with one receiver chunk: 89,557.4 bytes per atom in Float64 and 44,784.4
-    # in Float32. Each bound is the next whole byte; a per-atom buffer adds at least 4 bytes per atom.
-    b64 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096)
-    @test b64 <= 89_558
+    # edges within r_max, one element (Cu). The workspaces hold the contraction matrices of Cu:
+    # 153 · (64 + 64 + 16) · 128 elements of T, 22,560,768 bytes in Float64 and 11,280,384 in
+    # Float32 ("forces: contraction matrices of the workspace elements"), 2,055.5 and 1,027.7 bytes
+    # per atom here. Measured with one receiver chunk: 91,612.8 bytes per atom in Float64 and
+    # 45,812.2 in Float32 with the matrices; 89,557.4 and 44,784.4 without them. Each bound is the
+    # next whole byte; a per-atom buffer adds at least 4 bytes per atom.
+    n = 10_976
+    matrices(T) = 153 * (64 + 64 + 16) * 128 * sizeof(T)
+    b64 = WorkspaceMemory.workspace_bytes_per_atom(MACEModel{Float64}(ck), Float64, n, 856_128; edge_chunk = 4096, elements = (29,))
+    @test b64 <= 91_613
+    @test b64 - matrices(Float64) / n <= 89_558
     GC.gc()
-    # The constructor reads only sizes from the model, so a Float32 workspace needs no Float32 model.
-    b32 = WorkspaceMemory.workspace_bytes_per_atom(m64, Float32, 10_976, 856_128; edge_chunk = 4096)
-    @test b32 <= 44_785
+    b32 = WorkspaceMemory.workspace_bytes_per_atom(MACEModel{Float32}(ck), Float32, n, 856_128; edge_chunk = 4096, elements = (29,))
+    @test b32 <= 45_813
+    @test b32 - matrices(Float32) / n <= 44_785
     GC.gc()
     # Every further receiver chunk adds its edge-chunk buffers (102 MB in Float64 at
     # `edge_chunk = 4096`, independent of the atom count), its block buffers (15 MB at
     # `block = 256`), its symmetric-contraction scratch (0.8 MB for the per-atom kernel and 14.2 MB
-    # for the matrix products over 64 atoms) and a sender derivative of 4,096 bytes per atom. Measured in
-    # Float64: 137,899.5 bytes per atom with 4 chunks and 202,355.6 with 8; each bound is the next
-    # whole byte.
-    for (nchunks, bound) in ((4, 137_900), (8, 202_356))
-        b = WorkspaceMemory.workspace_bytes_per_atom(m64, Float64, 10_976, 856_128; edge_chunk = 4096, nchunks)
+    # for the matrix products over 64 atoms) and a sender derivative of 4,096 bytes per atom; the
+    # chunks share the matrices. Measured in Float64 with the matrices: 139,954.9 bytes per atom
+    # with 4 chunks and 204,411.1 with 8 (137,899.5 and 202,355.6 without them); each bound is
+    # the next whole byte.
+    for (nchunks, bound) in ((4, 139_955), (8, 204_412))
+        b = WorkspaceMemory.workspace_bytes_per_atom(MACEModel{Float64}(ck), Float64, n, 856_128; edge_chunk = 4096, nchunks, elements = (29,))
         @test b > b64
         @test b <= bound
         GC.gc()
@@ -391,7 +396,7 @@ end
     nl = neighbor_list(P, C, m.r_max)
     E = nl.n_edges
     @test nl.receivers[1] < nl.receivers[E]
-    ws = MACEWorkspace{Float64}(m, n, E; block = 2)
+    ws = MACEWorkspace{Float64}(m, n, E; block = 2, elements = Z)
     for f in (mace_energy!, mace_energy_forces!)
         # The first and last edges swapped: the same edges, out of order.
         bad = deepcopy(nl)
@@ -408,8 +413,8 @@ end
         bad.receivers[1:E] .= 0
         @test_throws "model: neighbor list receivers must lie in 1:$n" f(MACEResult{Float64}(n), ws, m, P, C, Z, bad)
     end
-    @test_throws "model: the receiver block must be positive, got 0" MACEWorkspace{Float64}(m, n, E; block = 0)
-    @test_throws "model: the number of receiver chunks must be positive, got 0" MACEWorkspace{Float64}(m, n, E; nchunks = 0)
+    @test_throws "model: the receiver block must be positive, got 0" MACEWorkspace{Float64}(m, n, E; block = 0, elements = Z)
+    @test_throws "model: the number of receiver chunks must be positive, got 0" MACEWorkspace{Float64}(m, n, E; nchunks = 0, elements = Z)
 end
 
 # One atom and no edges, through blocks of one atom and the default block, and in one of four
@@ -487,7 +492,7 @@ end
         built(ws) = [q for q in eachindex(ws.contraction[2].G) if !isempty(ws.contraction[2].G[q])]
         ws = MACEWorkspace{T}(m, n, nl.n_edges; elements = Z)
         @test built(ws) == sort(unique(m.species[Z .+ 1]))
-        @test built(MACEWorkspace{T}(m, n, nl.n_edges)) == Int[]
+        @test built(MACEWorkspace{T}(m, n, nl.n_edges; elements = ())) == Int[]
         # The allocating form builds its workspace for the elements of the structure.
         r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl)
         ra = mace_energy_forces(m, P, C, Z)
@@ -503,4 +508,6 @@ end
         )
     end
     @test_throws "model: element 200 is not in the model's element table" MACEWorkspace{Float64}(MACEModel(ck), 1, 0; elements = [29, 200])
+    # A workspace that names no elements cannot be built.
+    @test_throws "keyword argument `elements` not assigned" MACEWorkspace{Float64}(MACEModel(ck), 1, 0)
 end

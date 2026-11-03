@@ -52,7 +52,7 @@ evaluations, allocate them once and call the in-place forms, which do not alloca
 
 ```julia
 nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-ws = MACEWorkspace{Float64}(model, size(positions, 2), length(nl.senders))
+ws = MACEWorkspace{Float64}(model, size(positions, 2), length(nl.senders); elements = atomic_numbers)
 res = MACEResult{Float64}(size(positions, 2))
 neighbor_list!(nl, positions, cell)
 mace_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl)  # or mace_energy!
@@ -62,25 +62,33 @@ When only energies are needed, a `MACEEnergyWorkspace` takes the place of the `M
 `mace_energy!`. It holds no derivatives and nothing for a backward pass, and runs the per-atom
 layers of both interactions on blocks of receivers, so it is smaller. Measured with
 `Base.summarysize` for MACE-MPA-0 in Float64 at the default `edge_chunk = 4096` and
-`block = 256`, with 78 edges per atom: at 10,976 atoms it takes 14,402 bytes per atom against
-88,258 for a `MACEWorkspace`. Each workspace also holds buffers whose size does not depend on the
-number of atoms or edges, about 63 MB for a `MACEEnergyWorkspace` and 118 MB for a
-`MACEWorkspace` at those settings. They dominate small cells: at 256 atoms the two workspaces take
-about 255 kB and 537 kB per atom. A smaller `edge_chunk` and `block` shrink that part. The
-energies are those of `mace_energy_forces!` up to rounding; the forces, virial and stress of the
-result are left as they were.
+`block = 256`, with 78 edges per atom: at 10,976 atoms of one element it takes 14,402 bytes per
+atom against 91,613 for a `MACEWorkspace` (89,557 without its contraction matrices). Each
+workspace also holds buffers whose size does not depend on the number of atoms or edges, about
+63 MB for a `MACEEnergyWorkspace` and 132 MB for a `MACEWorkspace` at those settings, plus the
+`MACEWorkspace`'s contraction matrices, 22.6 MB per element. They dominate small cells. A smaller
+`edge_chunk` and `block` shrink the fixed part. The energies are those of `mace_energy_forces!` up
+to rounding; the forces, virial and stress of the result are left as they were.
 
 ```julia
 ws_e = MACEEnergyWorkspace{Float64}(model, size(positions, 2), length(nl.senders))
 mace_energy!(res, ws_e, model, positions, cell, atomic_numbers, nl)
 ```
 
-`MACEWorkspace{T}(model, n_atoms, n_edges; nchunks)` splits the atoms of an evaluation into
-`nchunks` receiver chunks, contiguous ranges of nearly equal size, each evaluated with its own
+`elements` is a required keyword: the atomic numbers the workspace can evaluate. The workspace
+holds the symmetric-contraction matrices only for the listed elements (for MACE-MPA-0, 22.6 MB per
+element in Float64 and 11.3 MB in Float32), built by the constructor; an evaluation on an atom of
+any other element throws an `ArgumentError`. With these matrices the first product block and the
+pullbacks of both run as matrix products over groups of 64 atoms of one element, through `mul!`,
+so an activated PureBLAS runs them.
+
+`MACEWorkspace{T}(model, n_atoms, n_edges; elements, nchunks)` splits the atoms of an evaluation
+into `nchunks` receiver chunks, contiguous ranges of nearly equal size, each evaluated with its own
 buffers. Results for different `nchunks` agree up to rounding; for a given `nchunks` they are the
 same on every evaluation. Each chunk after the first adds, for MACE-MPA-0 in Float64 at the
-default `edge_chunk` and `block`, about 118 MB plus 4,096 bytes per atom: 132,713 bytes per atom
-with 4 chunks and 191,987 with 8 at 10,976 atoms, against 88,258 with one.
+default `edge_chunk` and `block`, about 132 MB (including 14.2 MB of symmetric-contraction
+scratch) plus 4,096 bytes per atom: 139,955 bytes per atom with 4 chunks and 204,411 with 8 at
+10,976 atoms of one element, against 91,613 with one; the chunks share the contraction matrices.
 
 ## The neighbor list
 

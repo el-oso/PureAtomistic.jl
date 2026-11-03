@@ -8,12 +8,10 @@
             new_model64(ck) = PureMLIP.MACEModel{Float64}(ck)
             new_model32(ck) = PureMLIP.MACEModel{Float32}(ck)
             new_result64(n) = PureMLIP.MACEResult{Float64}(n)
-            new_workspace64(m, n, e) = PureMLIP.MACEWorkspace{Float64}(m, n, e)
-            new_chunked_workspace64(m, n, e, c) = PureMLIP.MACEWorkspace{Float64}(m, n, e; nchunks = c)
+            new_chunked_workspace64(m, n, e, c, z) = PureMLIP.MACEWorkspace{Float64}(m, n, e; nchunks = c, elements = z)
             new_elements_workspace64(m, n, e, z) = PureMLIP.MACEWorkspace{Float64}(m, n, e; elements = z)
             new_result32(n) = PureMLIP.MACEResult{Float32}(n)
-            new_workspace32(m, n, e) = PureMLIP.MACEWorkspace{Float32}(m, n, e)
-            new_chunked_workspace32(m, n, e, c) = PureMLIP.MACEWorkspace{Float32}(m, n, e; nchunks = c)
+            new_chunked_workspace32(m, n, e, c, z) = PureMLIP.MACEWorkspace{Float32}(m, n, e; nchunks = c, elements = z)
             new_elements_workspace32(m, n, e, z) = PureMLIP.MACEWorkspace{Float32}(m, n, e; elements = z)
             new_energy_workspace64(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float64}(m, n, e)
             new_energy_workspace32(m, n, e) = PureMLIP.MACEEnergyWorkspace{Float32}(m, n, e)
@@ -40,8 +38,7 @@
         new_model64(PureMLIP.MACECheckpoint),
         new_model32(PureMLIP.MACECheckpoint),
         new_result64(Int),
-        new_workspace64(PureMLIP.MACEModel{Float64}, Int, Int),
-        new_chunked_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Int),
+        new_chunked_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Int, Vector{Int}),
         new_elements_workspace64(PureMLIP.MACEModel{Float64}, Int, Int, Vector{Int}),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEWorkspace{Float64}, PureMLIP.MACEModel{Float64},
@@ -60,8 +57,7 @@
         PureMLIP.neighbor_list(Matrix{Float32}, Matrix{Float32}, Float32),
         PureMLIP.neighbor_list!(PureMLIP.NeighborList{Float32}, Matrix{Float32}, Matrix{Float32}),
         new_result32(Int),
-        new_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
-        new_chunked_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Int),
+        new_chunked_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Int, Vector{Int}),
         new_elements_workspace32(PureMLIP.MACEModel{Float32}, Int, Int, Vector{Int}),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEWorkspace{Float32}, PureMLIP.MACEModel{Float32},

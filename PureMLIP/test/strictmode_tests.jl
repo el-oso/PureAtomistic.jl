@@ -5,6 +5,8 @@
         @test_skip StrictMode.checks_enabled()
     else
         P = PureMLIP
+        # The workspace constructor has a required keyword, so its positional signature goes through a wrapper.
+        elements_workspace64(m, n, e, z) = PureMLIP.MACEWorkspace{Float64}(m, n, e; elements = z)
         test_signatures(
             [
                 (P.load_mace_checkpoint, (Vector{UInt8},)),
@@ -30,7 +32,7 @@
                 (P.MACEModel{Float64}, (P.MACECheckpoint,)),
                 (P.MACEModel{Float32}, (P.MACECheckpoint,)),
                 (P.MACEResult{Float64}, (Int,)),
-                (P.MACEWorkspace{Float64}, (P.MACEModel{Float64}, Int, Int)),
+                (elements_workspace64, (P.MACEModel{Float64}, Int, Int, Vector{Int})),
                 (P.MACEEnergyWorkspace{Float64}, (P.MACEModel{Float64}, Int, Int)),
                 (P.MACEEnergyWorkspace{Float32}, (P.MACEModel{Float32}, Int, Int)),
                 (
@@ -129,11 +131,10 @@
             ) == [MACEResult{S}]
         end
         @test Base.return_types(MACEEnergyWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEEnergyWorkspace{S}]
-        @test Base.return_types(MACEWorkspace{S}, (MACEModel{S}, Int, Int)) == [MACEWorkspace{S}]
-        chunked_workspace(m, n, e, c) = MACEWorkspace{S}(m, n, e; nchunks = c)
-        @test Base.return_types(chunked_workspace, (MACEModel{S}, Int, Int, Int)) == [MACEWorkspace{S}]
         elements_workspace(m, n, e, z) = MACEWorkspace{S}(m, n, e; elements = z)
         @test Base.return_types(elements_workspace, (MACEModel{S}, Int, Int, Vector{Int})) == [MACEWorkspace{S}]
+        chunked_workspace(m, n, e, c, z) = MACEWorkspace{S}(m, n, e; nchunks = c, elements = z)
+        @test Base.return_types(chunked_workspace, (MACEModel{S}, Int, Int, Int, Vector{Int})) == [MACEWorkspace{S}]
         # The Tensors kernels return their output array, or nothing for the accumulating pullback.
         TS = PureMLIP.Tensors
         @test Base.return_types(TS.tp_edge_add!, (Matrix{S}, TS.ChannelwiseTP{S}, Matrix{S}, Vector{S}, Matrix{S})) == [Matrix{S}]

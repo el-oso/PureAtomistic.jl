@@ -222,7 +222,8 @@ function pair_discard_reason(rb, rh, sw0, sw1)
     return nothing
 end
 
-# The PureBLAS source of the head side, as a `[sources]` entry, and the commit it pins. A checkout
+# The PureBLAS source of the sides that load it (the head, and the base with
+# PUREMLIP_AB_LOAD_BASE=1), as a `[sources]` entry, and the commit it pins. A checkout
 # is used as it is and labeled like the PureMLIP trees. A URL is pinned to one commit: `rev` is a
 # full commit hash or a branch or tag that `git ls-remote` resolves to exactly one commit, so the
 # record names the PureBLAS revision that ran.

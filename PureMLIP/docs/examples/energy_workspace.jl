@@ -28,7 +28,7 @@ mace_energy!(res, ws_e, model, positions, cell, Z, nl)
 # The same energy from the full evaluation with a `MACEWorkspace`, which also gives forces and
 # stress:
 
-ws = MACEWorkspace{Float64}(model, n, length(nl.senders))
+ws = MACEWorkspace{Float64}(model, n, length(nl.senders); elements = Z)
 res_full = MACEResult{Float64}(n)
 mace_energy_forces!(res_full, ws, model, positions, cell, Z, nl)
 @printf("energy: %.6f eV, difference %.1e eV\n", res_full.energy, res_full.energy - res.energy)
@@ -52,10 +52,12 @@ end
 
 # The figures per atom are larger for the 4,000-atom cell because part of each workspace has a
 # size independent of the number of atoms and edges; the record marks those buffers
-# `fixed/chunk`. Adding that part back at 4,000 atoms reproduces the figures measured above:
+# `fixed/chunk`, and the symmetric-contraction matrices of the `MACEWorkspace` (22.6 MB in
+# Float64 for the one element, Cu) `per-element`. Adding that part back at 4,000 atoms
+# reproduces the figures measured above:
 
 for c in record14["cases"]
-    fixed = sum(b["bytes"] for b in c["blocks"] if b["scale"] == "fixed/chunk")
+    fixed = sum(b["bytes"] for b in c["blocks"] if b["scale"] in ("fixed/chunk", "per-element"); init = 0)
     growing = (c["workspace_bytes"] - fixed) / c["n_atoms"]
     @printf(
         "%-20s %-8s fixed %5.1f MB + %6.0f bytes per atom; at %d atoms: %6.0f bytes per atom\n",
