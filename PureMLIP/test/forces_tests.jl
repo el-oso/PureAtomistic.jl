@@ -244,6 +244,14 @@ end
         @test b <= bound
         GC.gc()
     end
+    # With several chunks `edge_chunk` defaults to 1024, a quarter of the edge-chunk buffers in
+    # every chunk. Measured in Float64 with the matrices: 112,029.3 bytes per atom with 4 chunks
+    # and 148,559.8 with 8.
+    for (nchunks, bound) in ((4, 112_030), (8, 148_560))
+        b = WorkspaceMemory.workspace_bytes_per_atom(MACEModel{Float64}(ck), Float64, n, 856_128; nchunks, elements = (29,))
+        @test b <= bound
+        GC.gc()
+    end
 end
 
 # The per-atom layers of each interaction run per block of receivers. Blocks of every size give

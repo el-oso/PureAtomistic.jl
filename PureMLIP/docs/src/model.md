@@ -85,10 +85,21 @@ so an activated PureBLAS runs them.
 `MACEWorkspace{T}(model, n_atoms, n_edges; elements, nchunks)` splits the atoms of an evaluation
 into `nchunks` receiver chunks, contiguous ranges of nearly equal size, each evaluated with its own
 buffers. Results for different `nchunks` agree up to rounding; for a given `nchunks` they are the
-same on every evaluation. Each chunk after the first adds, for MACE-MPA-0 in Float64 at the
-default `edge_chunk` and `block`, about 132 MB (including 14.2 MB of symmetric-contraction
-scratch) plus 4,096 bytes per atom: 139,955 bytes per atom with 4 chunks and 204,411 with 8 at
-10,976 atoms of one element, against 91,613 with one; the chunks share the contraction matrices.
+same on every evaluation. With several chunks `edge_chunk` defaults to 1024 edges instead of
+4096, since every chunk holds its own edge-chunk buffers. Each chunk after the first then adds,
+for MACE-MPA-0 in Float64 at the default `block`, about 55 MB (25.5 MB of edge-chunk buffers, 15
+MB of block buffers and 15 MB of symmetric-contraction scratch) plus 4,096 bytes per atom:
+112,029 bytes per atom with 4 chunks and 148,560 with 8 at 10,976 atoms of one element, against
+91,613 with one; the chunks share the contraction matrices.
+
+Passing `ThreadedChunks()` as the last argument of `mace_energy!` or `mace_energy_forces!` runs
+the receiver chunks of the forward pass as tasks on the threads Julia was started with
+(`julia -t 4`), one task per chunk; the backward pass of `mace_energy_forces!` runs the chunks in
+order on the calling task. The results are the same bits as without `ThreadedChunks()` for the same `nchunks`, on any
+number of threads. Each task runs its own matrix products, so a multithreaded BLAS should be
+limited to one thread (`BLAS.set_num_threads(1)` with OpenBLAS; PureBLAS runs one thread until
+`PureBLAS.set_num_threads` is called). Each evaluation with `ThreadedChunks()` allocates its
+tasks: 2,128 bytes per task and `2(nchunks - 1)` tasks.
 
 ## The neighbor list
 
@@ -143,6 +154,7 @@ MACEModel
 MACEResult
 MACEWorkspace
 MACEEnergyWorkspace
+ThreadedChunks
 mace_energy!
 mace_energy_forces!
 mace_energy_forces

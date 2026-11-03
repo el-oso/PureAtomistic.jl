@@ -541,14 +541,8 @@ expect = "receiver chunks give the one-chunk result"
 [[mutation]]
 name = "receiver-chunk-symmetric-contraction-of-first-chunk"
 file = "src/model/evaluate.jl"
-find = """
-    for c in eachindex(ws.chunks)
-        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
-        symmetric_contraction!("""
-replace = """
-    for c in 1:1
-        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
-        symmetric_contraction!("""
+find = "    symmetric_contraction!(B0, ws.contraction[1], view(ws.X1, :, :, a), sp, ch.gemm)"
+replace = "    c == 1 && symmetric_contraction!(B0, ws.contraction[1], view(ws.X1, :, :, a), sp, ch.gemm)"
 expect = "receiver chunks give the one-chunk result"
 
 [[mutation]]
@@ -613,3 +607,29 @@ file = "src/model/evaluate.jl"
 find = "isempty(ws.contraction[2].G[s]) &&"
 replace = "false &&"
 expect = "contraction matrices of the workspace elements|model errors"
+
+[[mutation]]
+name = "threaded-chunks-not-waited"
+file = "src/model/evaluate.jl"
+find = "        wait(t)"
+replace = "        nothing"
+expect = "threaded chunks"
+
+[[mutation]]
+name = "threaded-chunks-last-chunk-skipped"
+file = "src/model/evaluate.jl"
+find = """
+    if c == last
+        f(c)
+"""
+replace = """
+    if c == last
+"""
+expect = "threaded chunks"
+
+[[mutation]]
+name = "receiver-chunk-pair-term-misses-last-receiver"
+file = "src/model/evaluate.jl"
+find = "searchsortedfirst(receivers, first(a)):searchsortedlast(receivers, last(a))"
+replace = "searchsortedfirst(receivers, first(a)):searchsortedlast(receivers, last(a) - 1)"
+expect = "energy workspace: energies equal|energies match|receiver chunks give the one-chunk result"
