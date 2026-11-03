@@ -1,8 +1,8 @@
 {
   "schema": "puremlip-mace-cu14-julia-v2",
+  "head_commit": "d4a064553c31",
   "julia_version": "1.13.3",
   "machine": "Apple M6",
-  "note": "The PureMLIP commit was not recorded. The bench script that wrote this file was committed in f13d0ac after the run, so the run used an uncommitted working tree. The nearest earlier commit, 6e6918f, has the same PureMLIP/src as 735f470, which records this file; whether src had uncommitted changes during the run is not recorded.",
   "blas_libraries": [
     "libopenblas64_.0.3.30.dylib"
   ],
@@ -13,29 +13,14 @@
       "precision": "Float64",
       "n_atoms": 10976,
       "n_edges": 856128,
-      "workspace_bytes": 968724888,
-      "workspace_bytes_per_atom": 88258.46282798833,
-      "memory_blocks_bytes": 968721920,
+      "workspace_bytes": 1005542312,
+      "workspace_bytes_per_atom": 91612.81997084548,
+      "memory_blocks_bytes": 1005521600,
       "neighbor_list_bytes": 35038568,
-      "julia_peak_rss_bytes_so_far": 1633370112,
-      "swap_start_mb": 13954.06,
-      "swap_end_mb": 13954.06,
+      "julia_peak_rss_bytes_so_far": 1703804928,
+      "swap_start_mb": 13890.06,
+      "swap_end_mb": 13890.06,
       "blocks": [
-        {
-          "members": [
-            "L[2]"
-          ],
-          "sizes": [
-            [
-              128,
-              16,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 179830784,
-          "scale": "per-atom"
-        },
         {
           "members": [
             "X1"
@@ -53,8 +38,23 @@
         },
         {
           "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
             "dX1",
-            "dL[2]"
+            "dX2"
           ],
           "sizes": [
             [
@@ -149,6 +149,27 @@
         },
         {
           "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
             "x[2]"
           ],
           "sizes": [
@@ -164,29 +185,8 @@
         },
         {
           "members": [
-            "dx[1]",
-            "dx[2]"
-          ],
-          "sizes": [
-            [
-              128,
-              1,
-              10976
-            ],
-            [
-              128,
-              4,
-              10976
-            ]
-          ],
-          "shared": true,
-          "bytes": 44957696,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "tpw",
-            "tpw3"
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
           ],
           "sizes": [
             [
@@ -205,8 +205,8 @@
         },
         {
           "members": [
-            "dtpw",
-            "dtpw3"
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
           ],
           "sizes": [
             [
@@ -268,10 +268,10 @@
         },
         {
           "members": [
-            "M[1]",
-            "M[2]",
-            "dM[1]",
-            "dM[2]"
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
           ],
           "sizes": [
             [
@@ -301,6 +301,51 @@
         },
         {
           "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
             "d"
           ],
           "sizes": [
@@ -314,7 +359,7 @@
         },
         {
           "members": [
-            "pre"
+            "chunks[1].pre"
           ],
           "sizes": [
             [
@@ -329,7 +374,7 @@
         },
         {
           "members": [
-            "act"
+            "chunks[1].act"
           ],
           "sizes": [
             [
@@ -344,7 +389,7 @@
         },
         {
           "members": [
-            "mlp_scratch"
+            "chunks[1].mlp_scratch"
           ],
           "sizes": [
             [
@@ -359,8 +404,8 @@
         },
         {
           "members": [
-            "L[1]",
-            "dL[1]"
+            "chunks[1].L0",
+            "chunks[1].dL0"
           ],
           "sizes": [
             [
@@ -377,6 +422,36 @@
           "shared": true,
           "bytes": 4194304,
           "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 2506752,
+          "scale": "per-element"
         },
         {
           "members": [
@@ -425,7 +500,7 @@
         },
         {
           "members": [
-            "scratch"
+            "chunks[1].scratch"
           ],
           "sizes": [
             [
@@ -438,7 +513,7 @@
         },
         {
           "members": [
-            "Y"
+            "chunks[1].Y"
           ],
           "sizes": [
             [
@@ -452,7 +527,7 @@
         },
         {
           "members": [
-            "feats"
+            "chunks[1].feats"
           ],
           "sizes": [
             [
@@ -466,7 +541,7 @@
         },
         {
           "members": [
-            "dfeats"
+            "chunks[1].dfeats"
           ],
           "sizes": [
             [
@@ -480,7 +555,7 @@
         },
         {
           "members": [
-            "dfeats_chunk"
+            "chunks[1].dfeats_chunk"
           ],
           "sizes": [
             [
@@ -608,7 +683,46 @@
         },
         {
           "members": [
-            "dYdr"
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
           ],
           "sizes": [
             [
@@ -622,7 +736,7 @@
         },
         {
           "members": [
-            "dYe"
+            "chunks[1].dYe"
           ],
           "sizes": [
             [
@@ -644,9 +758,9 @@
       "workspace_bytes_per_atom": 14402.138483965015,
       "memory_blocks_bytes": 158076416,
       "neighbor_list_bytes": 35038568,
-      "julia_peak_rss_bytes_so_far": 2072657920,
-      "swap_start_mb": 13954.06,
-      "swap_end_mb": 13954.06,
+      "julia_peak_rss_bytes_so_far": 2028339200,
+      "swap_start_mb": 13890.06,
+      "swap_end_mb": 13890.06,
       "blocks": [
         {
           "members": [
@@ -938,29 +1052,14 @@
       "precision": "Float32",
       "n_atoms": 10976,
       "n_edges": 856128,
-      "workspace_bytes": 484407832,
-      "workspace_bytes_per_atom": 44133.3666180758,
-      "memory_blocks_bytes": 484404864,
+      "workspace_bytes": 502834216,
+      "workspace_bytes_per_atom": 45812.15524781341,
+      "memory_blocks_bytes": 502813504,
       "neighbor_list_bytes": 35038532,
-      "julia_peak_rss_bytes_so_far": 2087747584,
-      "swap_start_mb": 13954.06,
-      "swap_end_mb": 13954.06,
+      "julia_peak_rss_bytes_so_far": 2044821504,
+      "swap_start_mb": 13890.06,
+      "swap_end_mb": 13890.06,
       "blocks": [
-        {
-          "members": [
-            "L[2]"
-          ],
-          "sizes": [
-            [
-              128,
-              16,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 89915392,
-          "scale": "per-atom"
-        },
         {
           "members": [
             "X1"
@@ -978,8 +1077,23 @@
         },
         {
           "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 89915392,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
             "dX1",
-            "dL[2]"
+            "dX2"
           ],
           "sizes": [
             [
@@ -1074,6 +1188,27 @@
         },
         {
           "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 22478848,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
             "x[2]"
           ],
           "sizes": [
@@ -1089,29 +1224,8 @@
         },
         {
           "members": [
-            "dx[1]",
-            "dx[2]"
-          ],
-          "sizes": [
-            [
-              128,
-              1,
-              10976
-            ],
-            [
-              128,
-              4,
-              10976
-            ]
-          ],
-          "shared": true,
-          "bytes": 22478848,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "tpw",
-            "tpw3"
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
           ],
           "sizes": [
             [
@@ -1130,8 +1244,8 @@
         },
         {
           "members": [
-            "dtpw",
-            "dtpw3"
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
           ],
           "sizes": [
             [
@@ -1193,10 +1307,10 @@
         },
         {
           "members": [
-            "M[1]",
-            "M[2]",
-            "dM[1]",
-            "dM[2]"
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
           ],
           "sizes": [
             [
@@ -1226,6 +1340,51 @@
         },
         {
           "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 5013504,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 5013504,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 5013504,
+          "scale": "per-element"
+        },
+        {
+          "members": [
             "d"
           ],
           "sizes": [
@@ -1239,7 +1398,7 @@
         },
         {
           "members": [
-            "pre"
+            "chunks[1].pre"
           ],
           "sizes": [
             [
@@ -1254,7 +1413,7 @@
         },
         {
           "members": [
-            "act"
+            "chunks[1].act"
           ],
           "sizes": [
             [
@@ -1269,7 +1428,7 @@
         },
         {
           "members": [
-            "mlp_scratch"
+            "chunks[1].mlp_scratch"
           ],
           "sizes": [
             [
@@ -1284,8 +1443,8 @@
         },
         {
           "members": [
-            "L[1]",
-            "dL[1]"
+            "chunks[1].L0",
+            "chunks[1].dL0"
           ],
           "sizes": [
             [
@@ -1302,6 +1461,36 @@
           "shared": true,
           "bytes": 2097152,
           "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 2097152,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 1253376,
+          "scale": "per-element"
         },
         {
           "members": [
@@ -1350,7 +1539,7 @@
         },
         {
           "members": [
-            "scratch"
+            "chunks[1].scratch"
           ],
           "sizes": [
             [
@@ -1363,7 +1552,7 @@
         },
         {
           "members": [
-            "Y"
+            "chunks[1].Y"
           ],
           "sizes": [
             [
@@ -1377,7 +1566,7 @@
         },
         {
           "members": [
-            "feats"
+            "chunks[1].feats"
           ],
           "sizes": [
             [
@@ -1391,7 +1580,7 @@
         },
         {
           "members": [
-            "dfeats"
+            "chunks[1].dfeats"
           ],
           "sizes": [
             [
@@ -1405,7 +1594,7 @@
         },
         {
           "members": [
-            "dfeats_chunk"
+            "chunks[1].dfeats_chunk"
           ],
           "sizes": [
             [
@@ -1533,7 +1722,46 @@
         },
         {
           "members": [
-            "dYdr"
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
           ],
           "sizes": [
             [
@@ -1547,7 +1775,7 @@
         },
         {
           "members": [
-            "dYe"
+            "chunks[1].dYe"
           ],
           "sizes": [
             [
@@ -1569,9 +1797,9 @@
       "workspace_bytes_per_atom": 7205.135568513119,
       "memory_blocks_bytes": 79082112,
       "neighbor_list_bytes": 35038532,
-      "julia_peak_rss_bytes_so_far": 2087747584,
-      "swap_start_mb": 13954.06,
-      "swap_end_mb": 13954.06,
+      "julia_peak_rss_bytes_so_far": 2044821504,
+      "swap_start_mb": 13890.06,
+      "swap_end_mb": 13890.06,
       "blocks": [
         {
           "members": [
