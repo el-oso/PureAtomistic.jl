@@ -73,7 +73,7 @@ struct ChunkBuffers{T}
 end
 
 """
-    MACEWorkspace{T}(model, n_atoms, n_edges; edge_chunk = 4096, block = 256, nchunks = 1, elements = ())
+    MACEWorkspace{T}(model, n_atoms, n_edges; elements, edge_chunk = 4096, block = 256, nchunks = 1)
 
 The buffers of an evaluation of `model` on up to `n_atoms` atoms and `n_edges` directed edges.
 Per edge it holds the edge vector, its length and the energy gradient with respect to the edge
@@ -96,14 +96,16 @@ set. The results for different `nchunks` agree up to rounding, and are the same 
 The first product block (forward and pullback) and the pullback of the second run as matrix
 products over groups of up to 64 atoms of one species, with dense matrices per element
 ([`PureMLIP.Tensors.ContractionMatrices`](@ref)): for MACE-MPA-0 22.6 MB per element in Float64
-and 11.3 MB in Float32. The constructor builds them for the elements in `elements` (atomic
-numbers, repeats allowed), and an evaluation on an atom of any other element throws. Each receiver
-chunk holds the buffers of one group (14.2 MB in Float64 for MACE-MPA-0).
+and 11.3 MB in Float32. `elements` is required: the atomic numbers (repeats allowed) of the
+elements the workspace can evaluate. The workspace holds matrices only for these elements, built
+by the constructor, and an evaluation on an atom of any other element throws. Each receiver chunk
+holds the buffers of one group (14.2 MB in Float64 for MACE-MPA-0).
 
 The workspace also holds the energy derivatives of the backward pass of
 [`mace_energy_forces!`](@ref). The evaluation functions require `T` to be the element type of
-the model; the constructor reads only sizes from `model`, so `T` may also be a number type the
-layers accept, such as a dual number.
+the model. Apart from the contraction matrices of `elements`, which need `T` to be the element
+type of the model, the constructor reads only sizes from `model`: with `elements = ()`, `T` may
+also be a number type the layers accept, such as a dual number.
 """
 struct MACEWorkspace{T}
     n_atoms::Int
@@ -149,7 +151,7 @@ struct MACEWorkspace{T}
     ddensity::Matrix{T}              # n × 2
     function MACEWorkspace{T}(
             model::MACEModel, n_atoms::Integer, n_edges::Integer;
-            edge_chunk::Integer = 4096, block::Integer = 256, nchunks::Integer = 1, elements = ()
+            elements, edge_chunk::Integer = 4096, block::Integer = 256, nchunks::Integer = 1
         ) where {T}
         n, E, chunk, nblock = _workspace_sizes(n_atoms, n_edges, edge_chunk, block, nchunks)
         C = model.C

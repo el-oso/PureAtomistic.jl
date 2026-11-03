@@ -45,7 +45,7 @@ end
     nl = neighbor_list(P, cell, 6.0); ws = MACEWorkspace{Float64}(m, 2, nl.n_edges; elements = [29])
     @test_throws "model: element 84 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 84], nl)
     @test_throws "model: the workspace holds no contraction matrices for element 13; pass it in `elements` to the constructor" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 13], nl)
-    @test_throws "model: the workspace holds 1 edges" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 2, 1), m, P, cell, [29, 29], nl)
+    @test_throws "model: the workspace holds 1 edges" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 2, 1; elements = [29]), m, P, cell, [29, 29], nl)
 
     # Further architecture checks, each on a copy of the checkpoint with one entry changed.
     k = ck.constants
@@ -101,15 +101,15 @@ end
     # Run-time checks.
     nl5 = neighbor_list(P, cell, 5.0)
     @test_throws "model: the neighbor list cutoff 5.0 is below r_max 6.0" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 29], nl5)
-    @test_throws "model: the workspace holds 1 atoms, the neighbor list has 2" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 1, 2), m, P, cell, [29, 29], nl)
+    @test_throws "model: the workspace holds 1 atoms, the neighbor list has 2" mace_energy!(MACEResult{Float64}(2), MACEWorkspace{Float64}(m, 1, 2; elements = [29]), m, P, cell, [29, 29], nl)
     @test_throws "model: 1 atomic numbers for 2 atoms" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29], nl)
     @test_throws "model: the result holds 3 atoms, the neighbor list has 2" mace_energy!(MACEResult{Float64}(3), ws, m, P, cell, [29, 29], nl)
     @test_throws "model: the cell has size (2, 3), expected (3, 3)" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell[1:2, :], [29, 29], nl)
     @test_throws "model: positions have size (3, 3), the neighbor list has 2 atoms" mace_energy!(MACEResult{Float64}(2), ws, m, [P [1.0; 1.0; 1.0]], cell, [29, 29, 29], nl)
     @test_throws "model: element -1 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, -1], nl)
     @test_throws "model: element 1000 is not in the model's element table" mace_energy!(MACEResult{Float64}(2), ws, m, P, cell, [29, 1000], nl)
-    @test_throws "model: the edge chunk must be positive, got 0" MACEWorkspace{Float64}(m, 2, 2; edge_chunk = 0)
-    @test_throws "model: workspace sizes must not be negative" MACEWorkspace{Float64}(m, -1, 2)
+    @test_throws "model: the edge chunk must be positive, got 0" MACEWorkspace{Float64}(m, 2, 2; edge_chunk = 0, elements = [29])
+    @test_throws "model: workspace sizes must not be negative" MACEWorkspace{Float64}(m, -1, 2; elements = [29])
     @test_throws "model: the number of atoms must not be negative" MACEResult{Float64}(-1)
 end
 
