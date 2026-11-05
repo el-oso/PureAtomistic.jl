@@ -30,6 +30,9 @@
 #   PUREMLIP_AB_ENERGY_WORKSPACE  "1": `mace_energy!` runs on a `MACEEnergyWorkspace` on each side
 #                            that defines one, and on the `MACEWorkspace` on a side that does not
 #   PUREMLIP_AB_CAL_TOLERANCE  calibration tolerances "<within>,<pair>" (default "0.03,0.01"; see below)
+#   PUREMLIP_AB_EDGE_CHUNK, PUREMLIP_AB_EDGE_CHUNK_BASE  the `edge_chunk` of the head's and the base's
+#                            MACEWorkspace (default: each workspace's default); the record
+#                            states the value each side used per case
 #   PUREMLIP_AB_THREADS      Julia threads of the head side (default 1). Above 1 the head child runs
 #                            under `-t <n>,0 --gcthreads=1,0`, its MACEWorkspace has
 #                            PUREMLIP_AB_NCHUNKS receiver chunks (default: the thread count), and both
@@ -64,7 +67,7 @@ swap_used_mb() = parse(Float64, match(r"used = ([0-9.]+)M", read(`sysctl -n vm.s
 # Child: measures every case on the PureMLIP of the active environment and prints one line per
 # result: `RESULT <case> <entry> <seconds>` and `BLAS <library file names>`.
 # ---------------------------------------------------------------------------------------------
-function child_main(structures, cases, load, threads, nchunks)
+function child_main(structures, cases, load, threads, nchunks, edge_chunk)
     PM = Base.require(Main, :PureMLIP)
     include(structures)
     BLAS.set_num_threads(1)
@@ -78,7 +81,7 @@ function child_main(structures, cases, load, threads, nchunks)
     elseif load != ""
         error("unknown PUREMLIP_AB_LOAD: ", load)
     end
-    Base.invokelatest(measure, PM, cases, threads, nchunks)
+    Base.invokelatest(measure, PM, cases, threads, nchunks, edge_chunk)
     println("PKG\t", join(("$(v.name)=$(v.version)" for (_, v) in Pkg.dependencies() if v.version !== nothing), ","))
     println("ENERGY_WORKSPACE\t", get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" && isdefined(PM, :MACEEnergyWorkspace) ? "MACEEnergyWorkspace" : "MACEWorkspace")
     println("BLAS\t", join((basename(l.libname) for l in BLAS.get_config().loaded_libs), ","))
@@ -109,14 +112,16 @@ end
 
 # The MACEWorkspace of `mace_energy_forces!`, given the elements of the structure on a side whose
 # workspace builds per-element contraction matrices (it then requires them), with `nchunks`
-# receiver chunks when that is above 1.
-function workspace(PM, ::Type{T}, model, n_atoms, n_edges, z, nchunks) where {T}
-    nchunks == 1 || return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z, nchunks)
-    isdefined(PM.Tensors, :ContractionMatrices) || return PM.MACEWorkspace{T}(model, n_atoms, n_edges)
-    return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z)
+# receiver chunks when that is above 1 and `edge_chunk` edges per edge chunk when that is above 0
+# (0: the workspace default).
+function workspace(PM, ::Type{T}, model, n_atoms, n_edges, z, nchunks, edge_chunk) where {T}
+    kw = edge_chunk > 0 ? (; edge_chunk) : (;)
+    nchunks == 1 || return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z, nchunks, kw...)
+    isdefined(PM.Tensors, :ContractionMatrices) || return PM.MACEWorkspace{T}(model, n_atoms, n_edges; kw...)
+    return PM.MACEWorkspace{T}(model, n_atoms, n_edges; elements = z, kw...)
 end
 
-function measure(PM, cases, threads, nchunks)
+function measure(PM, cases, threads, nchunks, edge_chunk)
     # `ThreadedChunks()` as the last argument on a threaded side, no extra argument otherwise.
     extra = threads > 1 ? (PM.ThreadedChunks(),) : ()
     ck = PM.load_mace_checkpoint(joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model"))
@@ -127,7 +132,8 @@ function measure(PM, cases, threads, nchunks)
         cell = Matrix{T}(cu.cell')
         z = cu.atomic_numbers
         nl = PM.neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
-        ws = workspace(PM, T, model, length(z), nl.n_edges, z, nchunks)
+        ws = workspace(PM, T, model, length(z), nl.n_edges, z, nchunks, edge_chunk)
+        println("EDGE_CHUNK\t", N, ":", T === Float64 ? 64 : 32, "\t", ws.edge_chunk)
         ews = energy_workspace(PM, T, model, length(z), nl.n_edges, ws)
         res = PM.MACEResult{T}(length(z))
         evals = (
@@ -194,17 +200,18 @@ function make_env(dir, tree, extra)
     return dir
 end
 
-function run_child(env, structures, cases, load, threads = 1, nchunks = 1)
+function run_child(env, structures, cases, load, threads = 1, nchunks = 1, edge_chunk = 0)
     spec = join(("$N:$(T === Float64 ? 64 : 32)" for (N, T) in cases), ",")
     tflags = threads == 1 ? `-t 1` : `-t $threads,0 --gcthreads=1,0`
     cmd = setenv(
-        `$(Base.julia_cmd()) $tflags --project=$env $(@__FILE__) --child $structures $spec $load $threads $nchunks`,
+        `$(Base.julia_cmd()) $tflags --project=$env $(@__FILE__) --child $structures $spec $load $threads $nchunks $edge_chunk`,
         merge(ENV, Dict("OPENBLAS_NUM_THREADS" => "1")),
     )
     out = read(cmd, String)
     results = Dict{Tuple{String, String}, NTuple{3, Float64}}()
     blas = String[]
     energy_ws = ""
+    edge_chunks = Dict{String, Int}()
     pkgs = Dict{String, String}()
     for line in split(out, '\n')
         f = split(line, '\t')
@@ -214,6 +221,8 @@ function run_child(env, structures, cases, load, threads = 1, nchunks = 1)
             blas = split(f[2], ',')
         elseif f[1] == "ENERGY_WORKSPACE"
             energy_ws = String(f[2])
+        elseif f[1] == "EDGE_CHUNK"
+            edge_chunks[f[2]] = parse(Int, f[3])
         elseif f[1] == "PKG"
             for kv in split(f[2], ',')
                 name, ver = split(kv, '=')
@@ -221,7 +230,7 @@ function run_child(env, structures, cases, load, threads = 1, nchunks = 1)
             end
         end
     end
-    return (; results, blas, pkgs, energy_ws)
+    return (; results, blas, pkgs, energy_ws, edge_chunks)
 end
 
 first_times(r) = Dict(string(k[1], " ", k[2]) => v[1] for (k, v) in r)
@@ -290,6 +299,8 @@ function driver_main()
     get(ENV, "PUREMLIP_AB_LOAD_BASE", "") == "1" && isempty(load) && error("PUREMLIP_AB_LOAD_BASE=1 needs PUREMLIP_AB_LOAD")
     threads = parse(Int, get(ENV, "PUREMLIP_AB_THREADS", "1"))
     nchunks = parse(Int, get(ENV, "PUREMLIP_AB_NCHUNKS", string(threads)))
+    edge_chunk = parse(Int, get(ENV, "PUREMLIP_AB_EDGE_CHUNK", "0"))
+    base_edge_chunk = parse(Int, get(ENV, "PUREMLIP_AB_EDGE_CHUNK_BASE", "0"))
     threads >= 1 && nchunks >= 1 || error("PUREMLIP_AB_THREADS and PUREMLIP_AB_NCHUNKS must be positive")
     threads > 1 && get(ENV, "PUREMLIP_AB_ENERGY_WORKSPACE", "") == "1" &&
         error("PUREMLIP_AB_THREADS above 1 needs the MACEWorkspace: a MACEEnergyWorkspace has one set of buffers")
@@ -313,8 +324,8 @@ function driver_main()
         head_env = make_env(joinpath(scratch, "env_head"), root, head_extra)
 
         # Untimed pair first: it pays the compilation of both sides' environments once.
-        run_child(base_env, structures, cases, base_load)
-        run_child(head_env, structures, cases, load, threads, nchunks)
+        run_child(base_env, structures, cases, base_load, 1, 1, base_edge_chunk)
+        run_child(head_env, structures, cases, load, threads, nchunks, edge_chunk)
 
         kept = Any[]
         discarded = Any[]
@@ -322,7 +333,7 @@ function driver_main()
         sw_first = swap_used_mb()
         write_doc = function (sw_last)
             doc = (;
-                schema = "puremlip-ab-compare-v3",
+                schema = "puremlip-ab-compare-v4",
                 machine = Sys.isapple() ? strip(read(`sysctl -n machdep.cpu.brand_string`, String)) : string(Sys.CPU_NAME),
                 julia_version = string(VERSION), chairmarks_version = chairmarks_version(),
                 base_ref, base_commit = base_sha, head_commit = head_sha,
@@ -332,6 +343,7 @@ function driver_main()
                 pureblas_threads = isempty(load) ? nothing : 1,
                 blas_libraries = Dict(k => v.blas for (k, v) in last),
                 energy_workspace = Dict(k => v.energy_ws for (k, v) in last),
+                edge_chunk = Dict(k => v.edge_chunks for (k, v) in last),
                 package_versions = Dict(k => v.pkgs for (k, v) in last),
                 samples_per_evaluation_point = SAMPLES, warmup_evaluations = WARMUP_EVALS,
                 ratio = "head/base per pair; below 1 means the head is faster",
@@ -355,7 +367,7 @@ function driver_main()
             sides = base_first ? (:base, :head) : (:head, :base)
             r = Dict{Symbol, Any}()
             for side in sides
-                r[side] = side === :base ? run_child(base_env, structures, cases, base_load) : run_child(head_env, structures, cases, load, threads, nchunks)
+                r[side] = side === :base ? run_child(base_env, structures, cases, base_load, 1, 1, base_edge_chunk) : run_child(head_env, structures, cases, load, threads, nchunks, edge_chunk)
             end
             last["base"], last["head"] = r[:base], r[:head]
             rb, rh = r[:base].results, r[:head].results
@@ -405,9 +417,9 @@ end
 
 if !isempty(ARGS) && ARGS[1] == "--child"
     structures, spec, load = ARGS[2], ARGS[3], ARGS[4]
-    threads, nchunks = parse(Int, ARGS[5]), parse(Int, ARGS[6])
+    threads, nchunks, edge_chunk = parse(Int, ARGS[5]), parse(Int, ARGS[6]), parse(Int, ARGS[7])
     cases = [(parse(Int, a), b == "64" ? Float64 : Float32) for (a, b) in split.(split(spec, ','), ':')]
-    child_main(structures, cases, load, threads, nchunks)
+    child_main(structures, cases, load, threads, nchunks, edge_chunk)
 else
     driver_main()
 end

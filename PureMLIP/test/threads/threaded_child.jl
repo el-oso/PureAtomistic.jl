@@ -12,9 +12,9 @@ using PureMLIP, LinearAlgebra
 include(joinpath(@__DIR__, "..", "reference", "structures.jl"))
 
 # (name, T, nchunks, positions, cell, atomic_numbers). cu_bench(2) has 32 atoms in one receiver
-# block: 2 chunks are fewer than the 4 threads, 35 are more than the atoms. The mixed structure
-# has three elements and a vacancy, so its chunks differ in species and edge count. The last case
-# is one atom without edges.
+# block: 1 chunk runs no task, 2 chunks are fewer than the 4 threads, 35 are more than the atoms.
+# The mixed structure has three elements and a vacancy, so its chunks differ in species and edge
+# count. The last case is one atom without edges.
 function threaded_cases()
     cu = cu_bench(2)
     P, C = Matrix(cu.positions'), Matrix(cu.cell')
@@ -24,7 +24,7 @@ function threaded_cases()
     cases = []
     for T in (Float64, Float32)
         conv((P, C, Z)) = (Matrix{T}(P), Matrix{T}(C), Z)
-        for nchunks in (2, 3, 8, 35)
+        for nchunks in (1, 2, 3, 8, 35)
             push!(cases, ("cu_bench(2)", T, nchunks, conv((P, C, cu.atomic_numbers))...))
         end
         push!(cases, ("mixed", T, 3, conv(mixed)...))

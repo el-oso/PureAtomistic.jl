@@ -93,13 +93,22 @@ MB of block buffers and 15 MB of symmetric-contraction scratch) plus 4,096 bytes
 91,613 with one; the chunks share the contraction matrices.
 
 Passing `ThreadedChunks()` as the last argument of `mace_energy!` or `mace_energy_forces!` runs
-the receiver chunks of the forward pass as tasks on the threads Julia was started with
-(`julia -t 4`), one task per chunk; the backward pass of `mace_energy_forces!` runs the chunks in
-order on the calling task. The results are the same bits as without `ThreadedChunks()` for the same `nchunks`, on any
-number of threads. Each task runs its own matrix products, so a multithreaded BLAS should be
-limited to one thread (`BLAS.set_num_threads(1)` with OpenBLAS; PureBLAS runs one thread until
-`PureBLAS.set_num_threads` is called). Each evaluation with `ThreadedChunks()` allocates its
-tasks: 2,128 bytes per task and `2(nchunks - 1)` tasks.
+the receiver chunks of the forward pass as tasks on the threads Julia was started with, one task
+per chunk; the backward pass of `mace_energy_forces!` runs the chunks in order on the calling
+task. The results are the same bits as without `ThreadedChunks()` for the same `nchunks`, on any
+number of threads. The speed-ups in `PureMLIP/bench/results/` (`thread_scaling_*`,
+`ab_threaded_*`) were measured under `julia -t n,0 --gcthreads=1,0` (no interactive thread, one
+garbage-collection thread) with `nchunks = n` at 2, 4, 6 and 8 threads on an Apple M6 (2 + 4 fast
+cores and 6 efficiency cores); past 6 threads the extra tasks run on efficiency cores. Each task
+runs its own matrix products, so a multithreaded BLAS should be limited to one thread
+(`BLAS.set_num_threads(1)` with OpenBLAS; PureBLAS runs one thread until
+`PureBLAS.set_num_threads` is called).
+
+An evaluation with `ThreadedChunks()` allocates its tasks, `2(nchunks - 1)` of them. With
+OpenBLAS that is all it allocates: 2,128 bytes per task (Julia 1.12.7 and 1.13.3 on the Apple M6).
+With PureBLAS active (commit c38f273f, Julia 1.13.3), each new task also allocates PureBLAS's
+task-local matrix-product scratch: on `cu_bench(2)` in Float64, 2.3 MB per evaluation with 2
+chunks and 10.0 MB with 8.
 
 ## The neighbor list
 

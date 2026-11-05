@@ -485,8 +485,8 @@ for the same workspace, whatever the number of threads. The backward pass of
 
 Each task runs its matrix products through the BLAS library on its own thread, so a multithreaded
 BLAS should be limited to one thread (`BLAS.set_num_threads(1)` with OpenBLAS). An evaluation with
-`ThreadedChunks()` allocates its task objects; without it, the evaluation functions do not
-allocate.
+`ThreadedChunks()` allocates its task objects, and with a BLAS that keeps task-local scratch
+(PureBLAS) that scratch for every new task; without it, the evaluation functions do not allocate.
 """
 struct ThreadedChunks end
 
