@@ -501,7 +501,9 @@ summed; and for `mace_energy_forces!` the pullback of interaction 1, in which ea
 its own derivative with respect to the sender features, and the pullback of interaction 0, in
 which each chunk first sums those derivatives at its own atoms in chunk order. The forces and the
 virial are then summed over the edges on the calling task. The neighbor list must have the
-element type of the model.
+element type of the model. A workspace serves one evaluation at a time: a threaded phase that
+starts while another runs on the same workspace, or `close(ws)` during one, throws an
+`ArgumentError` instead of mixing up the answers of the workers.
 
 The first evaluation with `ThreadedChunks()` starts the workers and allocates them; later
 evaluations hand them their phases and allocate nothing. Idle workers wait without running and
@@ -523,7 +525,8 @@ struct ThreadedChunks end
 Stop the tasks that run the receiver chunks of `ws` in evaluations with
 [`ThreadedChunks()`](@ref ThreadedChunks), and wait until they have ended. `ws` stays usable; its
 next threaded evaluation starts them again. Without `close` they stop when `ws` is no longer
-reachable.
+reachable. A workspace serves one evaluation at a time, so `close(ws)` while a parallel phase
+of a threaded evaluation runs on `ws` throws an `ArgumentError`.
 """
 Base.close(ws::MACEWorkspace) = close(ws.workers)
 
@@ -555,7 +558,7 @@ function _chunk_phase!(phase::Int, res::MACEResult, ws::MACEWorkspace, model::MA
     return nothing
 end
 
-# A worker's chunk: the atomic numbers are the copy in the workspace, whose type the job fixes.
+# A worker's chunk: it reads the atomic numbers from the copy in the workspace.
 function _chunk!(job::_ChunkJob, phase::Int, c::Int)
     _chunk_phase!(phase, job.res, job.ws, job.model, view(job.ws.numbers, 1:job.nl.n_atoms), job.nl, c)
     return nothing
@@ -573,11 +576,24 @@ end
 function _run_phase!(
         phase::Int, res::MACEResult{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, atomic_numbers, nl::NeighborList, ::ThreadedChunks
     ) where {T}
-    nl isa NeighborList{T} || throw(ArgumentError("model: ThreadedChunks() needs a neighbor list of the element type of the model"))
-    n = nl.n_atoms
+    _run_chunks!(ws.workers, _ChunkJob{T, MACEWorkspace{T}}(res, ws, model, nl::NeighborList{T}), phase, length(ws.chunks))
+    return nothing
+end
+
+# The job of the workers fixes the neighbor-list type to the model's element type, so a threaded
+# evaluation checks it before it writes anything.
+_check_schedule(::Type, ::NeighborList, ::SerialChunks) = nothing
+function _check_schedule(::Type{T}, ::NeighborList{S}, ::ThreadedChunks) where {T, S}
+    T === S || throw(ArgumentError(lazy"model: ThreadedChunks() needs a NeighborList{$T}, got NeighborList{$S}"))
+    return nothing
+end
+
+# The workers read the atomic numbers of a threaded evaluation from a copy in the workspace, made
+# once per evaluation, whose type the job fixes.
+_copy_numbers!(::MACEWorkspace, atomic_numbers, n::Int, ::SerialChunks) = nothing
+function _copy_numbers!(ws::MACEWorkspace, atomic_numbers, n::Int, ::ThreadedChunks)
     length(ws.numbers) < n && resize!(ws.numbers, ws.n_atoms)
     copyto!(ws.numbers, 1, atomic_numbers, firstindex(atomic_numbers), n)
-    _run_chunks!(ws.workers, _ChunkJob{T, MACEWorkspace{T}}(res, ws, model, nl), phase, length(ws.chunks))
     return nothing
 end
 
@@ -599,11 +615,13 @@ function mace_energy!(
         cell::AbstractMatrix{T}, atomic_numbers::AbstractVector{<:Integer}, nl::NeighborList,
         sched::_ChunkSchedule = SerialChunks()
     ) where {T}
+    _check_schedule(T, nl, sched)
     _check_inputs(res, ws, model, positions, cell, atomic_numbers, nl)
     n = nl.n_atoms
     atoms = 1:n
     species = _species!(view(ws.species, atoms), model, atomic_numbers)
     _check_contraction_matrices(ws, species, atomic_numbers)
+    _copy_numbers!(ws, atomic_numbers, n, sched)
     _edges!(ws, positions, cell, nl)
 
     # Embedding: the sender features of interaction 0.

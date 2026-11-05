@@ -106,10 +106,14 @@ runs its own matrix products, so a multithreaded BLAS should be limited to one t
 `PureBLAS.set_num_threads` is called).
 
 The first evaluation with `ThreadedChunks()` starts the workers, and with PureBLAS each worker
-allocates PureBLAS's task-local matrix-product scratch once; later evaluations allocate nothing,
-with OpenBLAS and with PureBLAS. Idle workers wait without running. They stop when the workspace
-is no longer reachable, or at once with `close(ws)`; a later threaded evaluation starts them
-again. The neighbor list of a threaded evaluation must have the element type of the model.
+allocates PureBLAS's task-local matrix-product scratch once. The tests show that later evaluations
+allocate nothing, with OpenBLAS and with PureBLAS: the fewest bytes of five evaluations is 0 (a
+single evaluation can allocate up to 192 bytes more when a thread first runs a function in a
+task, an entry in the runtime's method cache). Idle workers wait without running. They stop
+when the workspace is no longer reachable, or at once with `close(ws)`; a later threaded
+evaluation starts them again. The neighbor list of a threaded evaluation must have the element
+type of the model. A workspace serves one evaluation at a time: a threaded phase started on `ws`
+while another runs, or `close(ws)` during one, throws.
 
 ## The neighbor list
 

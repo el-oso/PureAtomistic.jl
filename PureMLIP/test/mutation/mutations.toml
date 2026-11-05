@@ -611,7 +611,7 @@ expect = "contraction matrices of the workspace elements|model errors"
 [[mutation]]
 name = "chunk-workers-failure-not-rethrown"
 file = "src/model/workers.jl"
-find = "iszero(failed) || wait(pool.tasks[failed])"
+find = "isnothing(failure) || throw(TaskFailedException(failure))"
 replace = "nothing"
 expect = "threaded chunks"
 
@@ -619,13 +619,27 @@ expect = "threaded chunks"
 name = "chunk-workers-last-chunk-skipped"
 file = "src/model/workers.jl"
 find = """
-    try
         _chunk!(job, phase, n)
+    finally
 """
 replace = """
-    try
+    finally
 """
 expect = "threaded chunks"
+
+[[mutation]]
+name = "chunk-workers-without-in-use-guard"
+file = "src/model/workers.jl"
+find = """
+    _acquire!(w)
+    pool = w.pool
+    failure = nothing
+"""
+replace = """
+    pool = w.pool
+    failure = nothing
+"""
+expect = "one loop at a time|during a loop"
 
 [[mutation]]
 name = "chunk-workers-keep-the-first-job"
