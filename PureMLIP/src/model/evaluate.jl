@@ -80,8 +80,9 @@ Per edge it holds the edge vector, its length and the energy gradient with respe
 vector; the spherical harmonics, the radial features and the radial-MLP outputs (the
 tensor-product weights) are recomputed from them `edge_chunk` edges at a time. Each receiver chunk
 (below) holds its own buffers of `edge_chunk` edges, so `edge_chunk` defaults to 4096 with one
-chunk and to 1024 with several (for MACE-MPA-0 on 500 atoms and one thread, 1024 edges at a
-time are 1.7 to 2.8 % faster than 4096).
+chunk and to 1024 with several. For MACE-MPA-0 on 500 atoms, one chunk and one thread,
+`mace_energy_forces!` takes 1.4 to 2.6 % less time with 1024 edges at a time than with 4096
+(OpenBLAS and PureBLAS, Float64 and Float32; `bench/results/ab_edge_chunk_1024_*`).
 
 The atoms of an evaluation are split into `nchunks` receiver chunks: contiguous ranges of
 nearly equal size, chunk `c` of `n` atoms being `div((c - 1)n, nchunks) + 1 : div(cn, nchunks)`.
