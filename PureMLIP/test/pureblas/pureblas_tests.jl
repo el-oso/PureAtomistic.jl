@@ -70,3 +70,21 @@ end
         @test_noalloc g!(res, ws, m, PT, CT, Z, nl)
     end
 end
+
+# The item "forces: threaded chunks give the serial chunk result" with PureBLAS routing the matrix
+# products of the child and of this process: PureBLAS keeps its matrix-product scratch per task,
+# and the workers of a workspace keep theirs from one evaluation to the next, so a threaded
+# evaluation after the first allocates nothing here either. PureBLAS's own thread pool stays off
+# (`PureBLAS.get_num_threads() == 1`), so the only threads are Julia's four.
+@testitem "PureBLAS: threaded chunks give the serial chunk result" tags = [:pureblas] setup = [Checkpoints, LammpsReference] begin
+    using PureBLAS, LinearAlgebra
+    @test PureBLAS.is_active() && PureBLAS.get_num_threads() == 1
+    include(pkgdir(PureMLIP, "test", "threads", "threaded_child.jl"))
+    include(pkgdir(PureMLIP, "test", "threads", "threaded_parent.jl"))
+    checkpoint = Checkpoints.fetch(:mpa0)
+    child = joinpath(pkgdir(PureMLIP), "test", "threads", "threaded_child.jl")
+    cmd = `$(Base.julia_cmd()) -t 4,0 --gcthreads=1,0 --project=$(Base.active_project()) $child $checkpoint pureblas`
+    lines = split(read(cmd, String), '\n')
+    @test any(==("PUREBLAS_THREADS\t1"), lines)
+    check_threaded_child(lines, load_mace_checkpoint(checkpoint), LammpsReference.load(:mpa0_f64), LammpsReference.structure)
+end

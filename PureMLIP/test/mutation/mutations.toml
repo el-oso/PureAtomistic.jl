@@ -609,23 +609,66 @@ replace = "false &&"
 expect = "contraction matrices of the workspace elements|model errors"
 
 [[mutation]]
-name = "threaded-chunks-not-waited"
-file = "src/model/evaluate.jl"
-find = "        wait(t)"
+name = "chunk-workers-failure-not-rethrown"
+file = "src/model/workers.jl"
+find = "iszero(failed) || wait(pool.tasks[failed])"
+replace = "nothing"
+expect = "threaded chunks"
+
+[[mutation]]
+name = "chunk-workers-last-chunk-skipped"
+file = "src/model/workers.jl"
+find = """
+    try
+        _chunk!(job, phase, n)
+"""
+replace = """
+    try
+"""
+expect = "threaded chunks"
+
+[[mutation]]
+name = "chunk-workers-keep-the-first-job"
+file = "src/model/workers.jl"
+find = "        empty!(pool.job)"
 replace = "        nothing"
 expect = "threaded chunks"
 
 [[mutation]]
-name = "threaded-chunks-last-chunk-skipped"
+name = "chunk-workers-not-stopped-when-unreachable"
+file = "src/model/workers.jl"
+find = "    Threads.@spawn _stop_workers!(w.pool)"
+replace = "    nothing"
+expect = "workers are reused, closed and stopped"
+
+[[mutation]]
+name = "chunk-worker-runs-the-last-chunk"
+file = "src/model/evaluate.jl"
+find = "view(job.ws.numbers, 1:job.nl.n_atoms), job.nl, c)"
+replace = "view(job.ws.numbers, 1:job.nl.n_atoms), job.nl, length(job.ws.chunks))"
+expect = "threaded chunks give the serial chunk result"
+
+[[mutation]]
+name = "receiver-chunk-sender-derivatives-of-two-chunks"
+file = "src/model/evaluate.jl"
+find = "for c2 in 2:length(ws.chunks)"
+replace = "for c2 in 2:min(2, length(ws.chunks))"
+expect = "receiver chunks give the one-chunk result"
+
+[[mutation]]
+name = "receiver-chunk-pair-force-of-first-chunk"
 file = "src/model/evaluate.jl"
 find = """
-    if c == last
-        f(c)
+    for e in _chunk_edges(receivers, a)
+        s, r = nl.senders[e], nl.receivers[e]
+        d = ws.d[e]
 """
 replace = """
-    if c == last
+    for e in (c == 1 ? _chunk_edges(receivers, a) : (1:0))
+        s, r = nl.senders[e], nl.receivers[e]
+        d = ws.d[e]
 """
-expect = "threaded chunks"
+expect = "receiver chunks give the one-chunk result"
 
 [[mutation]]
 name = "receiver-chunk-pair-term-misses-last-receiver"

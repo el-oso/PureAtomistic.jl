@@ -1,66 +1,24 @@
 # Oracle: the serial evaluation with the same receiver chunks, which sums every quantity in the
-# same order as the tasks of `ThreadedChunks()`, so the two must agree bit for bit; and the
-# one-chunk evaluation, within a rounding bound. The test process runs one thread, so a child
-# process under `julia -t 4,0` evaluates the cases of `threads/threaded_child.jl`.
-@testitem "forces: threaded chunks give the serial chunk result" setup = [Checkpoints] begin
+# same order as the tasks of `ThreadedChunks()`, so the two must agree bit for bit; the one-chunk
+# evaluation, within a rounding bound; the LAMMPS-MACE references; and finite differences of the
+# threaded energy. The test process runs one thread, so a child process under `julia -t 4,0`
+# evaluates the cases of `threads/threaded_child.jl`, and `threads/threaded_parent.jl` checks them.
+@testitem "forces: threaded chunks give the serial chunk result" setup = [Checkpoints, LammpsReference] begin
     using LinearAlgebra
     include(pkgdir(PureMLIP, "test", "threads", "threaded_child.jl"))
+    include(pkgdir(PureMLIP, "test", "threads", "threaded_parent.jl"))
     checkpoint = Checkpoints.fetch(:mpa0)
     child = joinpath(pkgdir(PureMLIP), "test", "threads", "threaded_child.jl")
     cmd = `$(Base.julia_cmd()) -t 4,0 --gcthreads=1,0 --project=$(Base.active_project()) $child $checkpoint`
     lines = split(read(setenv(cmd, merge(ENV, Dict("OPENBLAS_NUM_THREADS" => "1"))), String), '\n')
-    @test any(==("NTHREADS\t4"), lines)
-    rows = Dict(parse(Int, f[2]) => f for f in (split(l, '\t') for l in lines) if f[1] == "CASE")
-    cases = threaded_cases()
-    @test sort(collect(keys(rows))) == eachindex(cases)
-    ck = load_mace_checkpoint(checkpoint)
-    models = Dict(T => MACEModel{T}(ck) for T in (Float64, Float32))
     # The child runs one BLAS thread, and so do the serial evaluations here.
     blas_threads = BLAS.get_num_threads()
     BLAS.set_num_threads(1)
-    # With OpenBLAS, the BLAS of this environment, each `Threads.@spawn` allocates its task (224
-    # bytes), the closure it runs (1,808 bytes: the closure holds the workspace struct inline) and the
-    # task's wait condition (96 bytes). Each evaluation runs two parallel phases, with one task fewer
-    # than chunks in each, and allocates nothing else. A BLAS with task-local scratch (PureBLAS)
-    # allocates that scratch in every new task as well.
-    task_bytes = 2128
-    for (k, (name, T, nchunks, P, C, Z)) in enumerate(cases)
-        f = rows[k]
-        m = models[T]
-        nl = neighbor_list(P, C, m.r_max)
-        n = nl.n_atoms
-        r = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; nchunks, elements = Z), m, P, C, Z, nl)
-        @testset "$name, $T, $nchunks chunks" begin
-            @test frombits(T, f[3]) == r.energy
-            @test frombits(T, f[4], n) == r.node_energies
-            @test frombits(T, f[5], (3, n)) == r.forces
-            @test frombits(T, f[6], (3, 3)) == r.virial
-            @test frombits(T, f[7], (3, 3)) == r.stress
-            @test frombits(T, f[8]) == r.energy           # mace_energy! with ThreadedChunks()
-            @test f[9] == "true"                           # a second threaded evaluation, same bits
-            @test parse(Int, f[10]) <= 2 * (nchunks - 1) * task_bytes
-            if name == "one atom"
-                @test nl.n_edges == 0
-                @test r.energy == m.e0[findfirst(==(29), m.z_table)]   # no edges: E0 exactly
-                @test r.forces == zeros(T, 3, 1) && r.virial == zeros(T, 3, 3)
-            else
-                ref = mace_energy_forces!(MACEResult{T}(n), MACEWorkspace{T}(m, n, nl.n_edges; elements = Z), m, P, C, Z, nl)
-                # Rounding bound 10·eps(T)·N relative to the largest magnitude of each quantity,
-                # with N = 1280 the largest inner dimension of any matrix product in the model.
-                # Measured over these cases: at most 12.3·eps(T) in Float64 (35 chunks) and
-                # 5.3·eps(T) in Float32.
-                tol = 10 * eps(T) * 1280
-                @test abs(r.energy - ref.energy) <= tol * abs(ref.energy)
-                @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
-                @test maximum(abs, r.forces - ref.forces) <= tol * maximum(abs, ref.forces)
-                @test maximum(abs, r.virial - ref.virial) <= tol * maximum(abs, ref.virial)
-            end
-        end
-    end
+    check_threaded_child(lines, load_mace_checkpoint(checkpoint), LammpsReference.load(:mpa0_f64), LammpsReference.structure)
     BLAS.set_num_threads(blas_threads)
 end
 
-# Oracle: the serial evaluation with the same receiver chunks. On one thread the tasks of
+# Oracle: the serial evaluation with the same receiver chunks. On one thread the workers of
 # `ThreadedChunks()` run one after another on the calling thread, in the order the scheduler picks.
 @testitem "forces: threaded chunks on one thread give the serial chunk result" setup = [Checkpoints] begin
     include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
@@ -79,26 +37,107 @@ end
             @test rt.forces == r.forces && rt.virial == r.virial && rt.stress == r.stress
             re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl, ThreadedChunks())
             @test re.energy == r.energy && re.node_energies == r.node_energies
+            @test_throws "model: no receiver-chunk phase 5" PureMLIP.Model._chunk_phase!(5, re, ws, m, Z, nl, 1)
+            close(ws)
+        end
+        # The workers take the job's neighbor-list type from the model, so a list of another
+        # element type is refused.
+        nl64 = neighbor_list(Matrix{Float64}(P), Matrix{Float64}(C), m.r_max)
+        if T == Float32
+            ws = MACEWorkspace{T}(m, n, nl.n_edges; nchunks = 2, elements = Z)
+            @test_throws "model: ThreadedChunks() needs a neighbor list of the element type of the model" mace_energy!(
+                MACEResult{T}(n), ws, m, P, C, Z, nl64, ThreadedChunks()
+            )
+            close(ws)
         end
     end
 end
 
+# A test job for the chunk workers: chunk `c` of phase `p` records `p` in `seen[c]` after `delay`
+# seconds, or throws when `c` is `failing`.
+@testmodule ChunkJobs begin
+    import PureMLIP
+    struct TestJob
+        seen::Vector{Int}
+        failing::Int
+        delay::Float64
+    end
+    function PureMLIP.Model._chunk!(job::TestJob, phase::Int, c::Int)
+        c == job.failing && error("chunk $c failed")
+        sleep(job.delay)
+        job.seen[c] = phase
+        return nothing
+    end
+    workers() = PureMLIP.Model.ChunkWorkers{TestJob}()
+    run!(w, job, phase, n) = PureMLIP.Model._run_chunks!(w, job, phase, n)
+    tasks(w) = w.pool.tasks
+end
+
 # A chunk that throws: the call rethrows its error only after every other chunk has finished, so
-# no task still writes the workspace when the caller sees the error. The chunks here are test
-# functions handed to the internal task runner; the others sleep first, so they are still
-# running when the failing chunk throws.
-@testitem "threaded chunks: a failing chunk is rethrown after every task has finished" begin
-    spawn_chunks! = PureMLIP.Model._spawn_chunks!
+# no worker still writes the job's buffers when the caller sees the error; the failed worker is
+# replaced by the next call.
+@testitem "threaded chunks: a failing chunk is rethrown after every chunk has finished" setup = [ChunkJobs] begin
     n = 4
+    w = ChunkJobs.workers()
     for failing in 1:n
-        done = falses(n)
-        work(c) = c == failing ? error("chunk $c failed") : (sleep(0.05); done[c] = true; nothing)
+        job = ChunkJobs.TestJob(zeros(Int, n), failing, 0.05)
         if failing == n
             # The last chunk runs on the calling task, so its own error propagates.
-            @test_throws "chunk $n failed" spawn_chunks!(work, 1, n)
+            @test_throws "chunk $n failed" ChunkJobs.run!(w, job, 1, n)
         else
-            @test_throws TaskFailedException spawn_chunks!(work, 1, n)
+            @test_throws TaskFailedException ChunkJobs.run!(w, job, 1, n)
+            @test istaskfailed(ChunkJobs.tasks(w)[failing])
         end
-        @test all(done[c] for c in 1:n if c != failing)
+        @test all(job.seen[c] == 1 for c in 1:n if c != failing)
+        # The next call runs every chunk, on a new worker where one failed.
+        ok = ChunkJobs.TestJob(zeros(Int, n), 0, 0.0)
+        ChunkJobs.run!(w, ok, 2, n)
+        @test ok.seen == fill(2, n)
     end
+    @test_throws "model: a chunk phase must be positive, got 0" ChunkJobs.run!(w, ChunkJobs.TestJob(zeros(Int, n), 0, 0.0), 0, n)
+    close(w)
+    @test all(istaskdone, ChunkJobs.tasks(w))
+end
+
+# The workers outlive a call and are reused; `close` stops them, a later call starts them again,
+# and the workers of a workspace that is no longer reachable stop without `close`.
+@testitem "threaded chunks: workers are reused, closed and stopped with their owner" setup = [ChunkJobs, Checkpoints] begin
+    n = 3
+    w = ChunkJobs.workers()
+    @test isempty(ChunkJobs.tasks(w))
+    ChunkJobs.run!(w, ChunkJobs.TestJob(zeros(Int, n), 0, 0.0), 1, n)
+    first_tasks = copy(ChunkJobs.tasks(w))
+    @test length(first_tasks) == n - 1 && !any(istaskdone, first_tasks)
+    job = ChunkJobs.TestJob(zeros(Int, n), 0, 0.0)
+    ChunkJobs.run!(w, job, 3, n)
+    @test job.seen == fill(3, n)
+    @test ChunkJobs.tasks(w) == first_tasks                 # the same tasks ran the second call
+    @test isempty(w.pool.job)                               # the job is not kept after the call
+    close(w)
+    @test all(istaskdone, first_tasks) && !any(istaskfailed, first_tasks)
+    ChunkJobs.run!(w, job, 4, n)
+    @test job.seen == fill(4, n) && !any(istaskdone, ChunkJobs.tasks(w))
+    close(w)
+    close(w)                                                # closing stopped workers does nothing
+    @test all(istaskdone, ChunkJobs.tasks(w))
+
+    # A workspace that is dropped after a threaded evaluation: its finalizer stops the workers.
+    include(pkgdir(PureMLIP, "test", "reference", "structures.jl"))
+    cu = cu_bench(2)
+    m = MACEModel{Float64}(load_mace_checkpoint(Checkpoints.fetch(:mpa0)))
+    P, C, Z = Matrix(cu.positions'), Matrix(cu.cell'), cu.atomic_numbers
+    nl = neighbor_list(P, C, m.r_max)
+    function evaluate_and_drop()
+        ws = MACEWorkspace{Float64}(m, length(Z), nl.n_edges; nchunks = 3, elements = Z)
+        mace_energy!(MACEResult{Float64}(length(Z)), ws, m, P, C, Z, nl, ThreadedChunks())
+        return copy(ws.workers.pool.tasks)
+    end
+    dropped = evaluate_and_drop()
+    @test length(dropped) == 2 && !any(istaskdone, dropped)
+    deadline = time() + 30
+    while !all(istaskdone, dropped) && time() < deadline
+        GC.gc(true)
+        sleep(0.05)
+    end
+    @test all(istaskdone, dropped) && !any(istaskfailed, dropped)
 end
