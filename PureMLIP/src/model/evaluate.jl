@@ -72,6 +72,14 @@ struct ChunkBuffers{T}
     end
 end
 
+# One evaluation as the receiver-chunk workers of its workspace `ws` see it (`_chunk!`).
+struct _ChunkJob{T, W}
+    res::MACEResult{T}
+    ws::W
+    model::MACEModel{T}
+    nl::NeighborList{T}
+end
+
 """
     MACEWorkspace{T}(model, n_atoms, n_edges; elements, nchunks = 1, edge_chunk, block = 256)
 
@@ -153,6 +161,10 @@ struct MACEWorkspace{T}
     dX2::Array{T, 3}                 # pool `mid`
     dx0::Array{T, 3}                 # ∂E/∂x[1], never written; pool `dx`
     ddensity::Matrix{T}              # n × 2
+    # The tasks of evaluations with `ThreadedChunks()`, and the atomic numbers they read: none
+    # until the first such evaluation.
+    workers::ChunkWorkers{_ChunkJob{T, MACEWorkspace{T}}}
+    numbers::Vector{Int}
     function MACEWorkspace{T}(
             model::MACEModel, n_atoms::Integer, n_edges::Integer;
             elements, nchunks::Integer = 1, edge_chunk::Integer = nchunks == 1 ? 4096 : 1024, block::Integer = 256
@@ -193,6 +205,7 @@ struct MACEWorkspace{T}
             node(model.readout0), node(model.readout1[2]), node(model.readout1[1]), dh2,
             dh1, dh1_part, (dB0, dB1),
             dX1, dX2, dx0, zeros(T, n, 2),
+            ChunkWorkers{_ChunkJob{T, MACEWorkspace{T}}}(), Int[],
         )
         for z in elements
             _contraction_matrices!(ws, model, _species_index(model, z))
@@ -477,48 +490,94 @@ _node_energy(model::MACEModel, s::Int, pair, e1, e2) = model.e0[s] + (model.scal
     ThreadedChunks()
 
 Passed as the last argument of [`mace_energy!`](@ref) or [`mace_energy_forces!`](@ref) with a
-[`MACEWorkspace`](@ref), it runs the receiver chunks of the workspace's forward pass as tasks
-(`Threads.@spawn`), one task per chunk, on the threads Julia was started with. The chunks write
-disjoint parts of the workspace and of the result, and the energy is summed over the chunks in
-chunk order on the calling task, so the results are the same bits as without `ThreadedChunks()`
-for the same workspace, whatever the number of threads. The backward pass of
-`mace_energy_forces!` runs the chunks in order on the calling task.
+[`MACEWorkspace`](@ref), it runs the receiver chunks of the workspace in parallel on the threads
+Julia was started with: chunks 1 to `nchunks - 1` on tasks that the workspace keeps (its
+workers), the last chunk on the calling task. The chunks write disjoint parts of the workspace and
+of the result, and every sum over chunks is taken in chunk order on one task, so the results are
+the same bits as without `ThreadedChunks()` for the same workspace, whatever the number of
+threads. An evaluation runs in phases, each started after every chunk has finished the one
+before: interaction 0 and product 0; interaction 1 and the readouts, after which the energy is
+summed; and for `mace_energy_forces!` the pullback of interaction 1, in which each chunk adds to
+its own derivative with respect to the sender features, and the pullback of interaction 0, in
+which each chunk first sums those derivatives at its own atoms in chunk order. The forces and the
+virial are then summed over the edges on the calling task. The neighbor list must have the
+element type of the model.
+
+The first evaluation with `ThreadedChunks()` starts the workers and allocates them; later
+evaluations hand them their phases and allocate nothing. Idle workers wait without running and
+hold no thread. They stop when the workspace is no longer reachable, or at once with
+[`close(ws)`](@ref close(::MACEWorkspace)); a later evaluation starts them again. A worker whose
+chunk throws ends, the evaluation rethrows its error (as a `TaskFailedException`) once every chunk
+has finished, and the next evaluation replaces the worker.
 
 Each task runs its matrix products through the BLAS library on its own thread, so a multithreaded
-BLAS should be limited to one thread (`BLAS.set_num_threads(1)` with OpenBLAS). An evaluation with
-`ThreadedChunks()` allocates its task objects, and with a BLAS that keeps task-local scratch
-(PureBLAS) that scratch for every new task; without it, the evaluation functions do not allocate.
+BLAS should be limited to one thread (`BLAS.set_num_threads(1)` with OpenBLAS). A BLAS that keeps
+scratch per task (PureBLAS) allocates it in each worker once; the workers keep it from one
+evaluation to the next.
 """
 struct ThreadedChunks end
+
+"""
+    close(ws::MACEWorkspace)
+
+Stop the tasks that run the receiver chunks of `ws` in evaluations with
+[`ThreadedChunks()`](@ref ThreadedChunks), and wait until they have ended. `ws` stays usable; its
+next threaded evaluation starts them again. Without `close` they stop when `ws` is no longer
+reachable.
+"""
+Base.close(ws::MACEWorkspace) = close(ws.workers)
 
 # The default: the receiver chunks run in order on the calling task.
 struct SerialChunks end
 
 const _ChunkSchedule = Union{SerialChunks, ThreadedChunks}
 
-# Calls `f(c)` for every receiver chunk `c` of `ws`.
-function _foreach_chunk!(f::F, ws::MACEWorkspace, ::SerialChunks) where {F}
-    for c in eachindex(ws.chunks)
-        f(c)
+# The phases of an evaluation that run per receiver chunk. Each phase starts after every chunk
+# has finished the one before.
+const _FIRST_INTERACTION = 1
+const _SECOND_INTERACTION = 2
+const _SECOND_INTERACTION_PULLBACK = 3
+const _FIRST_INTERACTION_PULLBACK = 4
+
+# Phase `phase` of receiver chunk `c`.
+function _chunk_phase!(phase::Int, res::MACEResult, ws::MACEWorkspace, model::MACEModel, atomic_numbers, nl::NeighborList, c::Int)
+    if phase == _FIRST_INTERACTION
+        _first_interaction!(ws, model, atomic_numbers, nl, c)
+    elseif phase == _SECOND_INTERACTION
+        _second_interaction!(res, ws, model, atomic_numbers, nl, c)
+    elseif phase == _SECOND_INTERACTION_PULLBACK
+        _second_interaction_pullback!(ws, model, atomic_numbers, nl, c)
+    elseif phase == _FIRST_INTERACTION_PULLBACK
+        _first_interaction_pullback!(ws, model, atomic_numbers, nl, c)
+    else
+        throw(ArgumentError(lazy"model: no receiver-chunk phase $phase"))
     end
     return nothing
 end
-_foreach_chunk!(f::F, ws::MACEWorkspace, ::ThreadedChunks) where {F} = _spawn_chunks!(f, firstindex(ws.chunks), lastindex(ws.chunks))
 
-# Chunks `c` to `last - 1` each run as a task and chunk `last` on the calling task. Every task is
-# waited for before this returns, also when another chunk throws, so no task outlives the call;
-# `wait` rethrows the failure of a task.
-function _spawn_chunks!(f::F, c::Int, last::Int) where {F}
-    if c == last
-        f(c)
-        return nothing
+# A worker's chunk: the atomic numbers are the copy in the workspace, whose type the job fixes.
+function _chunk!(job::_ChunkJob, phase::Int, c::Int)
+    _chunk_phase!(phase, job.res, job.ws, job.model, view(job.ws.numbers, 1:job.nl.n_atoms), job.nl, c)
+    return nothing
+end
+
+# Phase `phase` of every receiver chunk of `ws`.
+function _run_phase!(
+        phase::Int, res::MACEResult, ws::MACEWorkspace, model::MACEModel, atomic_numbers, nl::NeighborList, ::SerialChunks
+    )
+    for c in eachindex(ws.chunks)
+        _chunk_phase!(phase, res, ws, model, atomic_numbers, nl, c)
     end
-    t = Threads.@spawn f(c)
-    try
-        _spawn_chunks!(f, c + 1, last)
-    finally
-        wait(t)
-    end
+    return nothing
+end
+function _run_phase!(
+        phase::Int, res::MACEResult{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, atomic_numbers, nl::NeighborList, ::ThreadedChunks
+    ) where {T}
+    nl isa NeighborList{T} || throw(ArgumentError("model: ThreadedChunks() needs a neighbor list of the element type of the model"))
+    n = nl.n_atoms
+    length(ws.numbers) < n && resize!(ws.numbers, ws.n_atoms)
+    copyto!(ws.numbers, 1, atomic_numbers, firstindex(atomic_numbers), n)
+    _run_chunks!(ws.workers, _ChunkJob{T, MACEWorkspace{T}}(res, ws, model, nl), phase, length(ws.chunks))
     return nothing
 end
 
@@ -555,8 +614,8 @@ function mace_energy!(
     linear!(view(ws.x[1], :, :, atoms), model.up[1], h0)
     # Interaction 1 reads the sender features x[2] of every atom, so it starts after every receiver
     # chunk has finished interaction 0.
-    _foreach_chunk!(c -> _first_interaction!(ws, model, atomic_numbers, nl, c), ws, sched)
-    _foreach_chunk!(c -> _second_interaction!(res, ws, model, atomic_numbers, nl, c), ws, sched)
+    _run_phase!(_FIRST_INTERACTION, res, ws, model, atomic_numbers, nl, sched)
+    _run_phase!(_SECOND_INTERACTION, res, ws, model, atomic_numbers, nl, sched)
 
     # The energy is the sum of the partial sums of the receiver chunks, in chunk order.
     E = zero(T)
@@ -636,27 +695,13 @@ function _second_interaction!(
     for i in a
         pair[i] = zero(T)
     end
-    # The edges whose receiver is in `a`: a contiguous range, as the edges are sorted by receiver.
-    for e in searchsortedfirst(receivers, first(a)):searchsortedlast(receivers, last(a))
+    for e in _chunk_edges(receivers, a)
         s, r = nl.senders[e], nl.receivers[e]
         pair[r] += zbl_edge_energy(ws.d[e], Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[1]
     end
     readout0, readout1 = view(ws.e1, 1, 1, :), view(ws.e2, 1, 1, :)
     for i in a
         res.node_energies[i] = _node_energy(model, ws.species[i], pair[i], readout0[i], readout1[i])
-    end
-    return nothing
-end
-
-# The pullback of the symmetric contraction as matrix products, over the atoms of each receiver
-# chunk of `ws` with that chunk's buffers.
-function _chunked_symmetric_contraction_pullback!(
-        dX::AbstractArray{T, 3}, cm::ContractionMatrices{T}, dB::AbstractArray{T, 3}, X::AbstractArray{T, 3},
-        species::AbstractVector{Int}, ws::MACEWorkspace{T}
-    ) where {T}
-    for c in eachindex(ws.chunks)
-        a = _chunk_atoms(size(X, 3), length(ws.chunks), c)
-        symmetric_contraction_pullback!(view(dX, :, :, a), cm, view(dB, :, :, a), view(X, :, :, a), view(species, a), ws.chunks[c].gemm)
     end
     return nothing
 end
@@ -838,6 +883,118 @@ function _messages_pullback!(
     return nothing
 end
 
+# The edges whose receiver is in `a`: a contiguous range, as the edges are sorted by receiver.
+_chunk_edges(receivers::AbstractVector{<:Integer}, a::UnitRange{Int}) = searchsortedfirst(receivers, first(a)):searchsortedlast(receivers, last(a))
+
+# The backward pass from the energy to the sender features of interaction 1, for the atoms of
+# receiver chunk `c`: the readouts, product 1 with the skip connection of interaction 1, and the
+# messages of interaction 1, one block of receivers at a time. It writes the per-atom derivatives
+# of the chunk's atoms, ∂E/∂r of the edges whose receiver is in the chunk (starting from the ZBL
+# pair term), and the chunk's own sender derivative `dx`, to which those edges add at arbitrary
+# senders.
+function _second_interaction_pullback!(ws::MACEWorkspace{T}, model::MACEModel{T}, atomic_numbers, nl::NeighborList, c::Int) where {T}
+    n = nl.n_atoms
+    ch = ws.chunks[c]
+    a = _chunk_atoms(n, length(ws.chunks), c)
+    receivers = view(nl.receivers, 1:nl.n_edges)
+    for e in _chunk_edges(receivers, a)
+        s, r = nl.senders[e], nl.receivers[e]
+        d = ws.d[e]
+        dd = model.scale * zbl_edge_energy(d, Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[2] / d
+        for k in 1:3
+            ws.dEdr[k, e] = dd * ws.r[k, e]
+        end
+    end
+
+    # Readouts: ∂E/∂e1 = ∂E/∂e2 = scale per atom.
+    de1, de2 = view(ws.de1, :, :, a), view(ws.de2, :, :, a)
+    fill!(de1, model.scale)
+    fill!(de2, model.scale)
+    dg, gpre = view(ws.dg, :, :, a), view(ws.gpre, :, :, a)
+    linear_pullback!(dg, model.readout1[2], de2)
+    for q in eachindex(dg, gpre)
+        dg[q] *= normalized_silu(gpre[q], model.readout_cst)[2]
+    end
+    dh2 = view(ws.dh2, :, :, a)
+    linear_pullback!(dh2, model.readout1[1], dg)
+    dh1 = view(ws.dh1, :, :, a)
+    linear_pullback!(dh1, model.readout0, de1)
+
+    # Product 1 and the skip connection of interaction 1 (h2 = product_linear(B1) + sc).
+    sp = view(ws.species, a)
+    dB1 = view(ws.dB[2], :, :, a)
+    linear_pullback!(dB1, model.product_linear[2], dh2)
+    dX2 = view(ws.dX2, :, :, 1:n)
+    X2 = view(ws.X2, :, :, 1:n)
+    symmetric_contraction_pullback!(view(dX2, :, :, a), ws.contraction[2], dB1, view(X2, :, :, a), sp, ch.gemm)
+    part = view(ws.dh1_part, :, :, a)
+    K = model.skip[2].K
+    species_linear_pullback!(view(part, :, 1:K, :), model.skip[2], dh2, sp)
+    for i in axes(dh1, 3), k in 1:K, u in axes(dh1, 1)
+        dh1[u, k, i] += part[u, k, i]
+    end
+
+    # Interaction 1.
+    x1 = view(ws.x[2], :, :, 1:n)
+    dxc = view(ch.dx, :, :, 1:n)
+    fill!(dxc, zero(T))
+    for (blk, edges) in ReceiverBlocks(receivers, a, ws.block)
+        b = 1:length(blk)
+        dM1, ddens1 = view(ch.dM[2], :, :, b), view(ws.ddensity, blk, 2)
+        _normalized_linear_pullback!(dM1, ddens1, model.linear[2], view(dX2, :, :, blk), view(X2, :, :, blk), view(ws.density, blk, 2))
+        _messages_pullback!(dxc, ch, ws, model, 2, x1, dM1, ddens1, atomic_numbers, nl, blk, edges)
+    end
+    return nothing
+end
+
+# The backward pass from the sender features of interaction 1 to the edge vectors, for the atoms
+# of receiver chunk `c`: the sender derivatives of every receiver chunk are added, at the chunk's
+# atoms, to the first chunk's in chunk order; then come the sender linear of interaction 1,
+# product 0 and the messages of interaction 0, one block of receivers at a time. It writes the
+# per-atom derivatives of the chunk's atoms and adds to ∂E/∂r of the edges whose receiver is in the
+# chunk.
+function _first_interaction_pullback!(ws::MACEWorkspace{T}, model::MACEModel{T}, atomic_numbers, nl::NeighborList, c::Int) where {T}
+    n = nl.n_atoms
+    ch = ws.chunks[c]
+    a = _chunk_atoms(n, length(ws.chunks), c)
+    receivers = view(nl.receivers, 1:nl.n_edges)
+    dx1 = view(ws.chunks[1].dx, :, :, a)
+    for c2 in 2:length(ws.chunks)
+        dxc = view(ws.chunks[c2].dx, :, :, a)
+        for q in eachindex(dx1, dxc)
+            dx1[q] += dxc[q]
+        end
+    end
+    dh1, part = view(ws.dh1, :, :, a), view(ws.dh1_part, :, :, a)
+    linear_pullback!(part, model.up[2], dx1)
+    for q in eachindex(dh1, part)
+        dh1[q] += part[q]
+    end
+
+    # Product 0 and interaction 0. The embedding h0 does not depend on positions, so the derivative
+    # with respect to the interaction-0 sender features is not needed.
+    species = view(ws.species, 1:n)
+    dB0 = view(ws.dB[1], :, :, a)
+    linear_pullback!(dB0, model.product_linear[1], dh1)
+    dX1, X1 = view(ws.dX1, :, :, 1:n), view(ws.X1, :, :, 1:n)
+    symmetric_contraction_pullback!(view(dX1, :, :, a), ws.contraction[1], dB0, view(X1, :, :, a), view(species, a), ch.gemm)
+    # L0 holds one block and shares memory with dL0, so it is not kept. X1 = skip[1](L0) is a
+    # linear map per atom and dL0 is its pullback of dX1, so ⟨dL0, L0⟩ = ⟨dX1, X1⟩.
+    x0, dx0 = view(ws.x[1], :, :, 1:n), view(ws.dx0, :, :, 1:n)
+    for (blk, edges) in ReceiverBlocks(receivers, a, ws.block)
+        b = 1:length(blk)
+        dX1b, X1b = view(dX1, :, :, blk), view(X1, :, :, blk)
+        dL0 = view(ch.dL0, :, :, b)
+        species_linear_pullback!(dL0, model.skip[1], dX1b, view(species, blk))
+        dM0, ddens0 = view(ch.dM[1], :, :, b), view(ws.ddensity, blk, 1)
+        _normalization_pullback!(ddens0, dL0, dX1b, X1b, view(ws.density, blk, 1))
+        linear_pullback!(dM0, model.linear[1], dL0)
+        # With `need_dx = false` the sender derivative dx0 is neither read nor written.
+        _messages_pullback!(dx0, ch, ws, model, 1, x0, dM0, ddens0, atomic_numbers, nl, blk, edges; need_dx = false)
+    end
+    return nothing
+end
+
 """
     mace_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl[, ThreadedChunks()]) -> res
 
@@ -846,7 +1003,8 @@ As [`mace_energy!`](@ref), and also fill `res.forces` (`3 × n`, eV/Å, `-∂E/�
 (`∂E/∂ε / |det cell|`, eV/Å³, positive when tensile). The derivatives come from a backward
 pass through the layers: with `g_e = ∂E/∂r_e` for edge vector `r_e`, the sender of `e` gets
 `+g_e` and the receiver `-g_e` in the forces, and `∂E/∂ε = sym(Σ_e r_e g_eᵀ)`. With
-[`ThreadedChunks()`](@ref ThreadedChunks), the forward pass runs the receiver chunks as tasks.
+[`ThreadedChunks()`](@ref ThreadedChunks), the forward and the backward pass run the receiver
+chunks as tasks, and these sums over the edges run on the calling task.
 """
 function mace_energy_forces!(
         res::MACEResult{T}, ws::MACEWorkspace{T}, model::MACEModel{T}, positions::AbstractMatrix{T},
@@ -859,98 +1017,13 @@ function mace_energy_forces!(
     (size(res.virial) == (3, 3) && size(res.stress) == (3, 3)) ||
         throw(DimensionMismatch(lazy"model: the result virial and stress must be 3 × 3, got $(size(res.virial)) and $(size(res.stress))"))
     mace_energy!(res, ws, model, positions, cell, atomic_numbers, nl, sched)
-    atoms = 1:n
+    # The pullback of interaction 0 reads the sender derivative of interaction 1 summed over every
+    # receiver chunk, so it starts after every chunk has finished the pullback of interaction 1.
+    _run_phase!(_SECOND_INTERACTION_PULLBACK, res, ws, model, atomic_numbers, nl, sched)
+    _run_phase!(_FIRST_INTERACTION_PULLBACK, res, ws, model, atomic_numbers, nl, sched)
+
+    # Edge vectors: g_e = ∂E/∂r_e, in edge order.
     E = nl.n_edges
-    receivers = view(nl.receivers, 1:E)
-    species = view(ws.species, atoms)
-    # ∂E/∂r per edge starts from the ZBL pair term; both message pullbacks add to it.
-    for e in 1:E
-        s, r = nl.senders[e], nl.receivers[e]
-        d = ws.d[e]
-        dd = model.scale * zbl_edge_energy(d, Int(atomic_numbers[s]), Int(atomic_numbers[r]), model.zbl)[2] / d
-        for a in 1:3
-            ws.dEdr[a, e] = dd * ws.r[a, e]
-        end
-    end
-
-    # Readouts: ∂E/∂e1 = ∂E/∂e2 = scale per atom.
-    de1, de2 = view(ws.de1, :, :, atoms), view(ws.de2, :, :, atoms)
-    fill!(de1, model.scale)
-    fill!(de2, model.scale)
-    dg, gpre = view(ws.dg, :, :, atoms), view(ws.gpre, :, :, atoms)
-    linear_pullback!(dg, model.readout1[2], de2)
-    for q in eachindex(dg, gpre)
-        dg[q] *= normalized_silu(gpre[q], model.readout_cst)[2]
-    end
-    dh2 = view(ws.dh2, :, :, atoms)
-    linear_pullback!(dh2, model.readout1[1], dg)
-    dh1 = view(ws.dh1, :, :, atoms)
-    linear_pullback!(dh1, model.readout0, de1)
-
-    # Product 1 and the skip connection of interaction 1 (h2 = product_linear(B1) + sc).
-    dB1 = view(ws.dB[2], :, :, atoms)
-    linear_pullback!(dB1, model.product_linear[2], dh2)
-    dX2, X2 = view(ws.dX2, :, :, atoms), view(ws.X2, :, :, atoms)
-    _chunked_symmetric_contraction_pullback!(dX2, ws.contraction[2], dB1, X2, species, ws)
-    part = view(ws.dh1_part, :, :, atoms)
-    K = model.skip[2].K
-    species_linear_pullback!(view(part, :, 1:K, :), model.skip[2], dh2, species)
-    for i in atoms, c in 1:K, u in axes(dh1, 1)
-        dh1[u, c, i] += part[u, c, i]
-    end
-
-    # Interaction 1, one block of receivers at a time. The edges of a receiver chunk add to the
-    # sender derivative at arbitrary senders, so each chunk collects into its own; those of the
-    # later chunks are then added to the first chunk's in chunk order.
-    x1 = view(ws.x[2], :, :, atoms)
-    for c in eachindex(ws.chunks)
-        ch = ws.chunks[c]
-        dxc = view(ch.dx, :, :, atoms)
-        fill!(dxc, zero(T))
-        for (blk, edges) in ReceiverBlocks(receivers, _chunk_atoms(n, length(ws.chunks), c), ws.block)
-            b = 1:length(blk)
-            dM1, ddens1 = view(ch.dM[2], :, :, b), view(ws.ddensity, blk, 2)
-            _normalized_linear_pullback!(dM1, ddens1, model.linear[2], view(dX2, :, :, blk), view(X2, :, :, blk), view(ws.density, blk, 2))
-            _messages_pullback!(dxc, ch, ws, model, 2, x1, dM1, ddens1, atomic_numbers, nl, blk, edges)
-        end
-    end
-    dx1 = view(ws.chunks[1].dx, :, :, atoms)
-    for c in 2:length(ws.chunks)
-        dxc = view(ws.chunks[c].dx, :, :, atoms)
-        for q in eachindex(dx1, dxc)
-            dx1[q] += dxc[q]
-        end
-    end
-    linear_pullback!(part, model.up[2], dx1)
-    for q in eachindex(dh1, part)
-        dh1[q] += part[q]
-    end
-
-    # Product 0 and interaction 0. The embedding h0 does not depend on positions, so the derivative
-    # with respect to the interaction-0 sender features is not needed.
-    dB0 = view(ws.dB[1], :, :, atoms)
-    linear_pullback!(dB0, model.product_linear[1], dh1)
-    dX1, X1 = view(ws.dX1, :, :, atoms), view(ws.X1, :, :, atoms)
-    _chunked_symmetric_contraction_pullback!(dX1, ws.contraction[1], dB0, X1, species, ws)
-    # L0 holds one block and shares memory with dL0, so it is not kept. X1 = skip[1](L0) is a
-    # linear map per atom and dL0 is its pullback of dX1, so ⟨dL0, L0⟩ = ⟨dX1, X1⟩.
-    x0, dx0 = view(ws.x[1], :, :, atoms), view(ws.dx0, :, :, atoms)
-    for c in eachindex(ws.chunks)
-        ch = ws.chunks[c]
-        for (blk, edges) in ReceiverBlocks(receivers, _chunk_atoms(n, length(ws.chunks), c), ws.block)
-            b = 1:length(blk)
-            dX1b, X1b = view(dX1, :, :, blk), view(X1, :, :, blk)
-            dL0 = view(ch.dL0, :, :, b)
-            species_linear_pullback!(dL0, model.skip[1], dX1b, view(species, blk))
-            dM0, ddens0 = view(ch.dM[1], :, :, b), view(ws.ddensity, blk, 1)
-            _normalization_pullback!(ddens0, dL0, dX1b, X1b, view(ws.density, blk, 1))
-            linear_pullback!(dM0, model.linear[1], dL0)
-            # With `need_dx = false` the sender derivative dx0 is neither read nor written.
-            _messages_pullback!(dx0, ch, ws, model, 1, x0, dM0, ddens0, atomic_numbers, nl, blk, edges; need_dx = false)
-        end
-    end
-
-    # Edge vectors: g_e = ∂E/∂r_e.
     F = res.forces
     fill!(F, zero(T))
     A = res.virial

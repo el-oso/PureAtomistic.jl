@@ -23,6 +23,7 @@
 "src/model/neighbors.jl" = 1.00
 "src/model/radial.jl" = 1.00
 "src/model/radial_mlp.jl" = 1.00
+"src/model/workers.jl" = 1.00
 "src/precompile.jl" = 1.00
 "src/tensors/Tensors.jl" = 1.00
 "src/tensors/eachindex.jl" = 1.00

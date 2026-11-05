@@ -93,9 +93,10 @@ MB of block buffers and 15 MB of symmetric-contraction scratch) plus 4,096 bytes
 91,613 with one; the chunks share the contraction matrices.
 
 Passing `ThreadedChunks()` as the last argument of `mace_energy!` or `mace_energy_forces!` runs
-the receiver chunks of the forward pass as tasks on the threads Julia was started with, one task
-per chunk; the backward pass of `mace_energy_forces!` runs the chunks in order on the calling
-task. The results are the same bits as without `ThreadedChunks()` for the same `nchunks`, on any
+the receiver chunks of the forward and the backward pass in parallel on the threads Julia was
+started with: chunks 1 to `nchunks - 1` on worker tasks that the workspace keeps from one
+evaluation to the next, the last on the calling task. The sums over the edges that give the
+forces and the virial run on the calling task. The results are the same bits as without `ThreadedChunks()` for the same `nchunks`, on any
 number of threads. The speed-ups in `PureMLIP/bench/results/` (`thread_scaling_*`,
 `ab_threaded_*`) were measured under `julia -t n,0 --gcthreads=1,0` (no interactive thread, one
 garbage-collection thread) with `nchunks = n` at 2, 4, 6 and 8 threads on an Apple M6 (2 + 4 fast
@@ -104,11 +105,11 @@ runs its own matrix products, so a multithreaded BLAS should be limited to one t
 (`BLAS.set_num_threads(1)` with OpenBLAS; PureBLAS runs one thread until
 `PureBLAS.set_num_threads` is called).
 
-An evaluation with `ThreadedChunks()` allocates its tasks, `2(nchunks - 1)` of them. With
-OpenBLAS that is all it allocates: 2,128 bytes per task (Julia 1.12.7 and 1.13.3 on the Apple M6).
-With PureBLAS active (commit c38f273f, Julia 1.13.3), each new task also allocates PureBLAS's
-task-local matrix-product scratch: on `cu_bench(2)` in Float64, 2.3 MB per evaluation with 2
-chunks and 10.0 MB with 8.
+The first evaluation with `ThreadedChunks()` starts the workers, and with PureBLAS each worker
+allocates PureBLAS's task-local matrix-product scratch once; later evaluations allocate nothing,
+with OpenBLAS and with PureBLAS. Idle workers wait without running. They stop when the workspace
+is no longer reachable, or at once with `close(ws)`; a later threaded evaluation starts them
+again. The neighbor list of a threaded evaluation must have the element type of the model.
 
 ## The neighbor list
 
@@ -150,8 +151,9 @@ commit with
 `PureBLAS.deactivate()` restores the previous libraries. PureMLIP does not depend on PureBLAS.
 The tests in `PureMLIP/test/pureblas` run with PureBLAS active. They check the reference
 energies, forces and virials, computed with `mace_energy_forces`, and that `mace_energy!` and
-`mace_energy_forces!` with a `MACEWorkspace` do not allocate; `mace_energy!` with a
-`MACEEnergyWorkspace` is not covered there.
+`mace_energy_forces!` with a `MACEWorkspace` do not allocate, also with `ThreadedChunks()` on four
+threads once the workers have started, where they give the bits of the serial evaluation;
+`mace_energy!` with a `MACEEnergyWorkspace` is not covered there.
 
 ## Reference
 
@@ -164,6 +166,7 @@ MACEResult
 MACEWorkspace
 MACEEnergyWorkspace
 ThreadedChunks
+close(::MACEWorkspace)
 mace_energy!
 mace_energy_forces!
 mace_energy_forces

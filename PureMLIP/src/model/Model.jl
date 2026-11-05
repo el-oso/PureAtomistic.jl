@@ -8,6 +8,7 @@ include("blocks.jl")
 include("radial.jl")
 include("radial_mlp.jl")
 include("mace_model.jl")
+include("workers.jl")
 include("evaluate.jl")
 
 export NeighborList, neighbor_list, neighbor_list!
