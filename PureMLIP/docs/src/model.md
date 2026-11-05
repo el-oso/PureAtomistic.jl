@@ -105,8 +105,30 @@ runs its own matrix products, so a multithreaded BLAS should be limited to one t
 (`BLAS.set_num_threads(1)` with OpenBLAS; PureBLAS runs one thread until
 `PureBLAS.set_num_threads` is called).
 
-The first evaluation with `ThreadedChunks()` starts the workers, and with PureBLAS each worker
-allocates PureBLAS's task-local matrix-product scratch once. The tests show that later evaluations
+The first evaluation with `ThreadedChunks()` on a workspace starts the workers, and with PureBLAS each worker
+allocates PureBLAS's task-local matrix-product scratch once. The bytes that first evaluation
+allocates, measured with `@allocated` inside a function on cu_bench(2) (32 atoms) with four
+threads on Apple arm64 (macOS), Julia 1.12.7 and 1.13.3, are, for both precisions and both
+`mace_energy!` and `mace_energy_forces!`:
+
+| `nchunks` | OpenBLAS (every process) |
+|---|---|
+| 2 | 5,664 |
+| 4 | 7,808 |
+| 8 | 12,432 |
+
+They are the tasks, channels, locks and vectors of the workers, and the same in three fresh
+processes on each Julia version. After
+`close(ws)`, restarting the workers allocates 384, 1,152 and 2,688 bytes. With PureBLAS the first
+evaluation allocates megabytes, because each worker's scratch of matrix-product buffers is
+retained: 11.1 MB (1 worker), 21.1 MB (3 workers) and 27.5 MB (7 workers) in Float64, and 5.6,
+10.8 and 13.8 MB in Float32, the same in every process. The total allocated is larger than the
+retained scratch and varies between processes for `mace_energy_forces!` (Float64, 4 chunks: 23.4
+to 37.6 MB over ten processes; Float32, 4 chunks: 11.9 to 17.9 MB), so the tests gate a range
+there; I have not traced what the extra, unretained bytes are. With `mace_energy!` the totals were
+the same in all three processes: 1.65, 4.21 and 8.45 MB in Float64 and 0.83, 2.14 and 4.20 MB in
+Float32 for 2, 4 and 8 chunks. The allocation profiler lists the small objects of the workers
+(tasks, channels, locks) but not the scratch vectors, whose data buffers it does not record. The tests show that later evaluations
 allocate nothing, with OpenBLAS and with PureBLAS: the fewest bytes of five evaluations is 0 (a
 single evaluation can allocate up to 192 bytes more when a thread first runs a function in a
 task, an entry in the runtime's method cache). Idle workers wait without running. They stop

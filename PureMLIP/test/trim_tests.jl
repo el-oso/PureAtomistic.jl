@@ -57,6 +57,7 @@
             Matrix{Float64}, Matrix{Float64}, Vector{Int}, PureMLIP.NeighborList{Float64}, PureMLIP.ThreadedChunks
         ),
         PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float64}, Matrix{Float64}, Matrix{Float64}, Vector{Int}),
+        close(PureMLIP.MACEWorkspace{Float64}),
         new_energy_workspace64(PureMLIP.MACEModel{Float64}, Int, Int),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float64}, PureMLIP.MACEEnergyWorkspace{Float64}, PureMLIP.MACEModel{Float64},
@@ -84,6 +85,7 @@
             Matrix{Float32}, Matrix{Float32}, Vector{Int}, PureMLIP.NeighborList{Float32}, PureMLIP.ThreadedChunks
         ),
         PureMLIP.mace_energy_forces(PureMLIP.MACEModel{Float32}, Matrix{Float32}, Matrix{Float32}, Vector{Int}),
+        close(PureMLIP.MACEWorkspace{Float32}),
         new_energy_workspace32(PureMLIP.MACEModel{Float32}, Int, Int),
         PureMLIP.mace_energy!(
             PureMLIP.MACEResult{Float32}, PureMLIP.MACEEnergyWorkspace{Float32}, PureMLIP.MACEModel{Float32},

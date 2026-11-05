@@ -8,7 +8,9 @@
 # With `pureblas`, the child activates PureBLAS first. For each case the child prints the bits of
 # `mace_energy_forces!(…, ThreadedChunks())` and of the energy of `mace_energy!(…, ThreadedChunks())`,
 # whether a second threaded evaluation gave the same bits, and for each entry point the fewest
-# bytes one of five further evaluations allocated. Then, in Float64, it prints the threaded
+# bytes one of five further evaluations allocated. Then it prints, for each precision and 2, 4 and 8
+# chunks, the bytes the first threaded evaluation of a new workspace allocated, which starts the
+# workers. Then, in Float64, it prints the threaded
 # results on the LAMMPS reference structures and the threaded forces and energies of the
 # finite-difference checks.
 using PureMLIP, LinearAlgebra
@@ -46,6 +48,9 @@ const REFERENCE_CHUNKS = 3
 const FD_ATOMS = (("cu_vacancy", (1, 7)), ("multi_element", (2,)))
 const FD_STEP = 1.0e-4
 
+# The chunk counts of the first-evaluation allocation rows.
+const FIRST_CALL_CHUNKS = (2, 4, 8)
+
 hexbits(x::AbstractFloat) = string(reinterpret(Unsigned, x); base = 16)
 hexbits(A::AbstractArray) = join(map(hexbits, vec(A)), ",")
 frombits(::Type{T}, s::AbstractString) where {T} = reinterpret(T, parse(Base.uinttype(T), s; base = 16))
@@ -60,6 +65,23 @@ function threaded_forces(m::MACEModel{T}, P, C, Z, nchunks) where {T}
     r = mace_energy_forces!(MACEResult{T}(n), ws, m, P, C, Z, nl, ThreadedChunks())
     close(ws)
     return r
+end
+
+# The bytes the first threaded evaluation of a new workspace allocates: the workers, their channels,
+# the job vector and, with PureBLAS, each worker's task-local matrix-product scratch. The
+# `@allocated` is inside this function, so the caller's dispatch is not charged to the callee.
+function first_call_bytes(m::MACEModel{T}, P, C, Z, nchunks, energy_only::Bool) where {T}
+    nl = neighbor_list(P, C, m.r_max)
+    n = nl.n_atoms
+    ws = MACEWorkspace{T}(m, n, nl.n_edges; nchunks, elements = Z)
+    res = MACEResult{T}(n)
+    bytes = if energy_only
+        @allocated mace_energy!(res, ws, m, P, C, Z, nl, ThreadedChunks())
+    else
+        @allocated mace_energy_forces!(res, ws, m, P, C, Z, nl, ThreadedChunks())
+    end
+    close(ws)
+    return bytes
 end
 
 function child_main(checkpoint, blas)
@@ -92,6 +114,13 @@ function child_main(checkpoint, blas)
             "CASE\t", k, "\t", hexbits(r.energy), "\t", hexbits(r.node_energies), "\t", hexbits(r.forces), "\t",
             hexbits(r.virial), "\t", hexbits(r.stress), "\t", hexbits(re.energy), "\t", same, "\t", bytes, "\t", bytes_energy
         )
+    end
+    cu = cu_bench(2)
+    for T in (Float64, Float32), nchunks in FIRST_CALL_CHUNKS
+        P, C = Matrix{T}(cu.positions'), Matrix{T}(cu.cell')
+        bytes = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, false)
+        bytes_energy = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, true)
+        println("FIRST\t", T, "\t", nchunks, "\t", bytes, "\t", bytes_energy)
     end
     m = models[Float64]
     structures = reference_structures()

@@ -86,5 +86,5 @@ end
     cmd = `$(Base.julia_cmd()) -t 4,0 --gcthreads=1,0 --project=$(Base.active_project()) $child $checkpoint pureblas`
     lines = split(read(cmd, String), '\n')
     @test any(==("PUREBLAS_THREADS\t1"), lines)
-    check_threaded_child(lines, load_mace_checkpoint(checkpoint), LammpsReference.load(:mpa0_f64), LammpsReference.structure)
+    check_threaded_child(lines, load_mace_checkpoint(checkpoint), LammpsReference.load(:mpa0_f64), LammpsReference.structure; pureblas = true)
 end

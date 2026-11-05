@@ -4,7 +4,22 @@
 # and `structure` is `LammpsReference.structure`.
 using Test, LinearAlgebra, PureMLIP
 
-function check_threaded_child(lines, ck, lammps, structure)
+# The bytes the first threaded evaluation of a new workspace allocates, for `mace_energy_forces!` and
+# `mace_energy!`, measured on cu_bench(2) with 4 threads (see docs/src/model.md). With OpenBLAS
+# they are the same in both precisions and both entry points, and the same in 3 fresh processes on
+# Julia 1.12.7 and 1.13.3 on Apple arm64 (macOS); the exact figures are the gate. With PureBLAS the
+# retained scratch of each worker is the same every time, but the total of an evaluation with
+# `mace_energy_forces!` varies between processes (Float64, 4 chunks: 23.4 to 37.6 MB), so a
+# range gates: the lower bound shows the scratch was allocated, the upper bound is about 1.4 times
+# the largest figure seen (a 1.5-fold margin for `mace_energy!`, whose figures did not vary).
+const FIRST_CALL_OPENBLAS = Dict(2 => 5664, 4 => 7808, 8 => 12432)
+const FIRST_CALL_PUREBLAS_MIN = 512 * 1024
+const FIRST_CALL_PUREBLAS_MAX = Dict(
+    (Float64, :forces) => 48 * 1024^2, (Float32, :forces) => 24 * 1024^2,
+    (Float64, :energy) => 12 * 1024^2, (Float32, :energy) => 6 * 1024^2,
+)
+
+function check_threaded_child(lines, ck, lammps, structure; pureblas::Bool = false)
     @test any(==("NTHREADS\t4"), lines)
     rows(tag) = [f for f in (split(l, '\t') for l in lines) if f[1] == tag]
     cases = threaded_cases()
@@ -44,6 +59,20 @@ function check_threaded_child(lines, ck, lammps, structure)
                 @test maximum(abs, r.node_energies - ref.node_energies) <= tol * maximum(abs, ref.node_energies)
                 @test maximum(abs, r.forces - ref.forces) <= tol * maximum(abs, ref.forces)
                 @test maximum(abs, r.virial - ref.virial) <= tol * maximum(abs, ref.virial)
+            end
+        end
+    end
+    first_rows = rows("FIRST")
+    @test length(first_rows) == 2 * length(FIRST_CALL_CHUNKS)
+    for f in first_rows
+        T, nchunks = f[2] == "Float64" ? Float64 : Float32, parse(Int, f[3])
+        @testset "first evaluation, $T, $nchunks chunks" begin
+            for (entry, bytes) in ((:forces, parse(Int, f[4])), (:energy, parse(Int, f[5])))
+                if pureblas
+                    @test FIRST_CALL_PUREBLAS_MIN <= bytes <= FIRST_CALL_PUREBLAS_MAX[(T, entry)]
+                else
+                    @test bytes == FIRST_CALL_OPENBLAS[nchunks]
+                end
             end
         end
     end
