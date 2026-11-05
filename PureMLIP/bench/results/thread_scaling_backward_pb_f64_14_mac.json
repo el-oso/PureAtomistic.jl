@@ -1,0 +1,203 @@
+{
+  "blas_libraries": [
+    "libopenblas64_.0.3.30.dylib"
+  ],
+  "blas_threads": 1,
+  "cores": {
+    "Efficiency": 6,
+    "Performance": 4,
+    "Super": 2
+  },
+  "julia_flags": "-t <n>,0 --gcthreads=1,0",
+  "julia_version": "1.13.3",
+  "machine": "Apple M6",
+  "pureblas_threads": 1,
+  "rounds": [
+    {
+      "order": [
+        1,
+        4,
+        6,
+        8
+      ],
+      "round": 1,
+      "seconds": {
+        "1": {
+          "mace_energy!": 4.054319833,
+          "mace_energy_forces!": 10.702234083
+        },
+        "4": {
+          "mace_energy!": 1.559514292,
+          "mace_energy_forces!": 4.456775833
+        },
+        "6": {
+          "mace_energy!": 1.365083708,
+          "mace_energy_forces!": 3.843313042
+        },
+        "8": {
+          "mace_energy!": 1.157738792,
+          "mace_energy_forces!": 3.484371875
+        }
+      }
+    },
+    {
+      "order": [
+        6,
+        4,
+        1,
+        8
+      ],
+      "round": 2,
+      "seconds": {
+        "1": {
+          "mace_energy!": 4.391492416,
+          "mace_energy_forces!": 11.701537875
+        },
+        "4": {
+          "mace_energy!": 1.739123667,
+          "mace_energy_forces!": 4.784761792
+        },
+        "6": {
+          "mace_energy!": 1.593411125,
+          "mace_energy_forces!": 4.138633459
+        },
+        "8": {
+          "mace_energy!": 1.203039542,
+          "mace_energy_forces!": 3.525938958
+        }
+      }
+    },
+    {
+      "order": [
+        6,
+        8,
+        1,
+        4
+      ],
+      "round": 3,
+      "seconds": {
+        "1": {
+          "mace_energy!": 4.499330834,
+          "mace_energy_forces!": 11.591648125
+        },
+        "4": {
+          "mace_energy!": 1.60673025,
+          "mace_energy_forces!": 4.653185
+        },
+        "6": {
+          "mace_energy!": 1.37244775,
+          "mace_energy_forces!": 4.135669459
+        },
+        "8": {
+          "mace_energy!": 1.1863765,
+          "mace_energy_forces!": 3.479285625
+        }
+      }
+    }
+  ],
+  "schema": "puremlip-thread-scaling-v1",
+  "settings": {
+    "blas": "pureblas",
+    "case": "cu_bench(14)",
+    "chunks_per_thread": 1,
+    "commit": "971d734d643e",
+    "entries": [
+      "mace_energy_forces!",
+      "mace_energy!"
+    ],
+    "precision": "Float64",
+    "samples": 1,
+    "threads": [
+      1,
+      4,
+      6,
+      8
+    ],
+    "warmup": 1
+  },
+  "speedup": "one-thread serial seconds over n-thread seconds of the same round",
+  "summary": [
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 2.491121269624999,
+      "median": 2.445584207465599,
+      "min": 2.4013400009387458,
+      "nchunks": 4,
+      "speedups": [
+        2.4013400009387458,
+        2.445584207465599,
+        2.491121269624999
+      ],
+      "threads": 4
+    },
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 2.8273916960569374,
+      "median": 2.8028468522247056,
+      "min": 2.7846376202107974,
+      "nchunks": 6,
+      "speedups": [
+        2.7846376202107974,
+        2.8273916960569374,
+        2.8028468522247056
+      ],
+      "threads": 6
+    },
+    {
+      "entry_point": "mace_energy_forces!",
+      "max": 3.331617284223396,
+      "median": 3.3187012067949704,
+      "min": 3.0714959444447936,
+      "nchunks": 8,
+      "speedups": [
+        3.0714959444447936,
+        3.3187012067949704,
+        3.331617284223396
+      ],
+      "threads": 8
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 2.800302561055286,
+      "median": 2.59973239988749,
+      "min": 2.5251179656334353,
+      "nchunks": 4,
+      "speedups": [
+        2.59973239988749,
+        2.5251179656334353,
+        2.800302561055286
+      ],
+      "threads": 4
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 3.2783257752435384,
+      "median": 2.9700155450100794,
+      "min": 2.7560322299117876,
+      "nchunks": 6,
+      "speedups": [
+        2.9700155450100794,
+        2.7560322299117876,
+        3.2783257752435384
+      ],
+      "threads": 6
+    },
+    {
+      "entry_point": "mace_energy!",
+      "max": 3.792498278581884,
+      "median": 3.6503309015922607,
+      "min": 3.501929676206272,
+      "nchunks": 8,
+      "speedups": [
+        3.501929676206272,
+        3.6503309015922607,
+        3.792498278581884
+      ],
+      "threads": 8
+    }
+  ],
+  "swap_mb": [
+    13818.0,
+    13818.0
+  ]
+}

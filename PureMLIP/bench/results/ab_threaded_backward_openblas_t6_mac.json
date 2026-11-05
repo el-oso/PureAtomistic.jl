@@ -1,0 +1,436 @@
+{
+  "schema": "puremlip-ab-compare-v4",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "chairmarks_version": "1.3.1",
+  "base_ref": "bdcc0af",
+  "base_commit": "bdcc0af8cfbb",
+  "head_commit": "971d734d643e",
+  "pureblas_commit": null,
+  "load": "none",
+  "base_load": "none",
+  "threads": {
+    "base": 1,
+    "head": 6
+  },
+  "head_nchunks": 6,
+  "head_threads_flags": "-t 6,0 --gcthreads=1,0",
+  "blas_threads": 1,
+  "pureblas_threads": null,
+  "blas_libraries": {
+    "base": [
+      "libopenblas64_.0.3.30.dylib"
+    ],
+    "head": [
+      "libopenblas64_.0.3.30.dylib"
+    ]
+  },
+  "energy_workspace": {
+    "base": "MACEWorkspace",
+    "head": "MACEWorkspace"
+  },
+  "edge_chunk": {
+    "base": {
+      "5:32": 4096,
+      "5:64": 4096
+    },
+    "head": {
+      "5:32": 1024,
+      "5:64": 1024
+    }
+  },
+  "package_versions": {
+    "base": {
+      "Artifacts": "1.11.0",
+      "Chairmarks": "1.3.1",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "Dates": "1.11.0",
+      "Inflate": "0.1.5",
+      "JSON": "1.13.4",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.6",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "Statistics": "1.11.5",
+      "StructUtils": "2.12.0",
+      "TOML": "1.0.3",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    },
+    "head": {
+      "Artifacts": "1.11.0",
+      "Chairmarks": "1.3.1",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "Dates": "1.11.0",
+      "Inflate": "0.1.5",
+      "JSON": "1.13.4",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.6",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "Statistics": "1.11.5",
+      "StructUtils": "2.12.0",
+      "TOML": "1.0.3",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    }
+  },
+  "samples_per_evaluation_point": 3,
+  "warmup_evaluations": 5,
+  "ratio": "head/base per pair; below 1 means the head is faster",
+  "order": "odd pairs run base then head, even pairs head then base",
+  "calibration": "seconds of a fixed scalar loop before and after each measurement; pairs are discarded when base and head medians differ by more than 5.0% or one child varies by more than 6.0%",
+  "swap_first_start_mb": 13818.0,
+  "swap_last_end_mb": 13818.0,
+  "pairs": [
+    {
+      "pair": 1,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000755666,
+          0.000759458
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000757542,
+          0.0007595
+        ],
+        "5:64 mace_energy!": [
+          0.000757541,
+          0.000750625
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000750625,
+          0.000750708
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.00075875,
+          0.000764458
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000749625,
+          0.000750625
+        ],
+        "5:64 mace_energy!": [
+          0.0007595,
+          0.000749666
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000755625,
+          0.000759542
+        ]
+      }
+    },
+    {
+      "pair": 2,
+      "order": "head,base",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000750666,
+          0.000754542
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000754625,
+          0.000750708
+        ],
+        "5:64 mace_energy!": [
+          0.000750667,
+          0.000761417
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000754583,
+          0.000753292
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000754584,
+          0.000751708
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000759458,
+          0.000750667
+        ],
+        "5:64 mace_energy!": [
+          0.000753292,
+          0.0007595
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000751333,
+          0.0007595
+        ]
+      }
+    },
+    {
+      "pair": 3,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000756333,
+          0.000757542
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000759542,
+          0.000753583
+        ],
+        "5:64 mace_energy!": [
+          0.000750667,
+          0.000750667
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000750583,
+          0.000750625
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000756583,
+          0.000759584
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000757542,
+          0.000759541
+        ],
+        "5:64 mace_energy!": [
+          0.000757584,
+          0.000754542
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000750625,
+          0.000754625
+        ]
+      }
+    },
+    {
+      "pair": 4,
+      "order": "head,base",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000759459,
+          0.00075725
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000750584,
+          0.000749
+        ],
+        "5:64 mace_energy!": [
+          0.000750625,
+          0.000750667
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000753334,
+          0.000753625
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.0007545,
+          0.000754583
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000753291,
+          0.000760833
+        ],
+        "5:64 mace_energy!": [
+          0.000750583,
+          0.000754542
+        ],
+        "5:64 mace_energy_forces!": [
+          0.0007575,
+          0.0007595
+        ]
+      }
+    },
+    {
+      "pair": 5,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000757666,
+          0.000759541
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000761209,
+          0.000753583
+        ],
+        "5:64 mace_energy!": [
+          0.000756625,
+          0.000753667
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000757542,
+          0.000748625
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000759541,
+          0.000754708
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000757292,
+          0.000754625
+        ],
+        "5:64 mace_energy!": [
+          0.000750583,
+          0.000757708
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000757083,
+          0.000759541
+        ]
+      }
+    }
+  ],
+  "discarded_pairs": [],
+  "cases": [
+    {
+      "system": "cu_bench(5)",
+      "precision": "Float64",
+      "entries": [
+        {
+          "entry_point": "mace_energy_forces!",
+          "pair_ratios": [
+            0.2489691419948485,
+            0.24800577042169544,
+            0.24819207385465958,
+            0.24799882274187388,
+            0.2480708816084399
+          ],
+          "median": 0.2480708816084399,
+          "min": 0.24799882274187388,
+          "max": 0.2489691419948485,
+          "base_s": [
+            0.9868900420000001,
+            0.996490084,
+            0.9847440420000001,
+            0.992842584,
+            0.9831887500000001
+          ],
+          "head_s": [
+            0.245705167,
+            0.247135291,
+            0.24440566600000002,
+            0.24622379200000002,
+            0.24390050000000002
+          ]
+        },
+        {
+          "entry_point": "mace_energy!",
+          "pair_ratios": [
+            0.24832700240436856,
+            0.25248691767926273,
+            0.24933843953101198,
+            0.24947773579137744,
+            0.253109701413675
+          ],
+          "median": 0.24947773579137744,
+          "min": 0.24832700240436856,
+          "max": 0.253109701413675,
+          "base_s": [
+            0.36236125,
+            0.36714625,
+            0.36054225,
+            0.365535292,
+            0.36090691700000005
+          ],
+          "head_s": [
+            0.089984083,
+            0.09269962500000001,
+            0.08989704200000001,
+            0.09119291700000001,
+            0.091349042
+          ]
+        }
+      ]
+    },
+    {
+      "system": "cu_bench(5)",
+      "precision": "Float32",
+      "entries": [
+        {
+          "entry_point": "mace_energy_forces!",
+          "pair_ratios": [
+            0.2555442918301356,
+            0.25263878597781114,
+            0.2584098794951216,
+            0.252227111877698,
+            0.25029140480428047
+          ],
+          "median": 0.25263878597781114,
+          "min": 0.25029140480428047,
+          "max": 0.2584098794951216,
+          "base_s": [
+            0.545040709,
+            0.5504347500000001,
+            0.544992708,
+            0.5474482500000001,
+            0.5442386250000001
+          ],
+          "head_s": [
+            0.13928204200000002,
+            0.139061167,
+            0.1408315,
+            0.138081291,
+            0.13621825
+          ]
+        },
+        {
+          "entry_point": "mace_energy!",
+          "pair_ratios": [
+            0.24764417215776388,
+            0.2583389897575601,
+            0.2457015589933625,
+            0.2516064756113518,
+            0.24797073336912814
+          ],
+          "median": 0.24797073336912814,
+          "min": 0.2457015589933625,
+          "max": 0.2583389897575601,
+          "base_s": [
+            0.20451908300000002,
+            0.205334375,
+            0.20366866700000003,
+            0.205983208,
+            0.203357333
+          ],
+          "head_s": [
+            0.050647959000000006,
+            0.053045875000000006,
+            0.050041709000000004,
+            0.051826709000000006,
+            0.050426667
+          ]
+        }
+      ]
+    }
+  ]
+}

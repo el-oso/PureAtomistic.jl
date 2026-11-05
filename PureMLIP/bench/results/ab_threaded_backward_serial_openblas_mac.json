@@ -1,0 +1,710 @@
+{
+  "schema": "puremlip-ab-compare-v4",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "chairmarks_version": "1.3.1",
+  "base_ref": "bdcc0af",
+  "base_commit": "bdcc0af8cfbb",
+  "head_commit": "971d734d643e",
+  "pureblas_commit": null,
+  "load": "none",
+  "base_load": "none",
+  "threads": {
+    "base": 1,
+    "head": 1
+  },
+  "head_nchunks": 1,
+  "head_threads_flags": "-t 1",
+  "blas_threads": 1,
+  "pureblas_threads": null,
+  "blas_libraries": {
+    "base": [
+      "libopenblas64_.0.3.30.dylib"
+    ],
+    "head": [
+      "libopenblas64_.0.3.30.dylib"
+    ]
+  },
+  "energy_workspace": {
+    "base": "MACEWorkspace",
+    "head": "MACEWorkspace"
+  },
+  "edge_chunk": {
+    "base": {
+      "5:32": 4096,
+      "5:64": 4096
+    },
+    "head": {
+      "5:32": 4096,
+      "5:64": 4096
+    }
+  },
+  "package_versions": {
+    "base": {
+      "Artifacts": "1.11.0",
+      "Chairmarks": "1.3.1",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "Dates": "1.11.0",
+      "Inflate": "0.1.5",
+      "JSON": "1.13.4",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.6",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "Statistics": "1.11.5",
+      "StructUtils": "2.12.0",
+      "TOML": "1.0.3",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    },
+    "head": {
+      "Artifacts": "1.11.0",
+      "Chairmarks": "1.3.1",
+      "CompilerSupportLibraries_jll": "1.5.5+2",
+      "Dates": "1.11.0",
+      "Inflate": "0.1.5",
+      "JSON": "1.13.4",
+      "Libdl": "1.11.0",
+      "LinearAlgebra": "1.13.0",
+      "Logging": "1.11.0",
+      "OpenBLAS_jll": "0.3.30+0",
+      "Parsers": "3.0.6",
+      "PrecompileTools": "1.3.4",
+      "Preferences": "1.6.1",
+      "Printf": "1.11.0",
+      "PureMLIP": "0.1.0",
+      "Random": "1.11.0",
+      "SHA": "1.0.0",
+      "Statistics": "1.11.5",
+      "StructUtils": "2.12.0",
+      "TOML": "1.0.3",
+      "UUIDs": "1.11.0",
+      "Unicode": "1.11.0",
+      "libblastrampoline_jll": "5.15.0+0"
+    }
+  },
+  "samples_per_evaluation_point": 3,
+  "warmup_evaluations": 5,
+  "ratio": "head/base per pair; below 1 means the head is faster",
+  "order": "odd pairs run base then head, even pairs head then base",
+  "calibration": "seconds of a fixed scalar loop before and after each measurement; pairs are discarded when base and head medians differ by more than 1.0% or one child varies by more than 3.0%",
+  "swap_first_start_mb": 13818.0,
+  "swap_last_end_mb": 13818.0,
+  "pairs": [
+    {
+      "pair": 1,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000728125,
+          0.000725417
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000727166,
+          0.000725041
+        ],
+        "5:64 mace_energy!": [
+          0.00071875,
+          0.000730791
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000731834,
+          0.000718666
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000723417,
+          0.000725292
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000726959,
+          0.000717708
+        ],
+        "5:64 mace_energy!": [
+          0.000729917,
+          0.000732875
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000720209,
+          0.000728125
+        ]
+      }
+    },
+    {
+      "pair": 2,
+      "order": "head,base",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000725375,
+          0.000729083
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000728125,
+          0.000722375
+        ],
+        "5:64 mace_energy!": [
+          0.000729084,
+          0.000719583
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000725125,
+          0.000726458
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727125,
+          0.000731875
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000731125,
+          0.000730125
+        ],
+        "5:64 mace_energy!": [
+          0.000717709,
+          0.000728084
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000721083,
+          0.000727125
+        ]
+      }
+    },
+    {
+      "pair": 3,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000725208,
+          0.000727166
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000725916,
+          0.000727083
+        ],
+        "5:64 mace_energy!": [
+          0.000727208,
+          0.000727125
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000731875,
+          0.000730875
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000731708,
+          0.000727208
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000727209,
+          0.000727166
+        ],
+        "5:64 mace_energy!": [
+          0.000723375,
+          0.000723167
+        ],
+        "5:64 mace_energy_forces!": [
+          0.00072725,
+          0.000727083
+        ]
+      }
+    },
+    {
+      "pair": 5,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727125,
+          0.000718583
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000730833,
+          0.000727958
+        ],
+        "5:64 mace_energy!": [
+          0.000718708,
+          0.00071575
+        ],
+        "5:64 mace_energy_forces!": [
+          0.0007225,
+          0.000729834
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.00073075,
+          0.000727167
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000720375,
+          0.000732958
+        ],
+        "5:64 mace_energy!": [
+          0.000718625,
+          0.000725375
+        ],
+        "5:64 mace_energy_forces!": [
+          0.00072625,
+          0.000722708
+        ]
+      }
+    },
+    {
+      "pair": 8,
+      "order": "head,base",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000725583,
+          0.000724417
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000718584,
+          0.0007185
+        ],
+        "5:64 mace_energy!": [
+          0.000727125,
+          0.000732375
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000728083,
+          0.000724167
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.00072975,
+          0.00072425
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000722208,
+          0.000731792
+        ],
+        "5:64 mace_energy!": [
+          0.000720542,
+          0.000730958
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000722375,
+          0.000727125
+        ]
+      }
+    },
+    {
+      "pair": 9,
+      "order": "base,head",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727084,
+          0.000721334
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000718667,
+          0.000725209
+        ],
+        "5:64 mace_energy!": [
+          0.000721375,
+          0.00073725
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000719584,
+          0.000718666
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727209,
+          0.000724334
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000719916,
+          0.000726208
+        ],
+        "5:64 mace_energy!": [
+          0.000725334,
+          0.000725083
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000731958,
+          0.000730916
+        ]
+      }
+    },
+    {
+      "pair": 10,
+      "order": "head,base",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000729125,
+          0.000728
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000729917,
+          0.00072625
+        ],
+        "5:64 mace_energy!": [
+          0.000729792,
+          0.000729083
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000728625,
+          0.000728916
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000732042,
+          0.000727125
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000722375,
+          0.000724333
+        ],
+        "5:64 mace_energy!": [
+          0.000727125,
+          0.0007225
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000727291,
+          0.000718666
+        ]
+      }
+    }
+  ],
+  "discarded_pairs": [
+    {
+      "pair": 4,
+      "order": "head,base",
+      "reason": "calibration varied by 4.7% within the base child",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_s": {
+        "5:32 mace_energy!": 0.20259850000000001,
+        "5:32 mace_energy_forces!": 0.542390292,
+        "5:64 mace_energy!": 0.35579791600000005,
+        "5:64 mace_energy_forces!": 0.969924458
+      },
+      "head_s": {
+        "5:32 mace_energy!": 0.20318808300000002,
+        "5:32 mace_energy_forces!": 0.543091,
+        "5:64 mace_energy!": 0.35572545800000005,
+        "5:64 mace_energy_forces!": 0.9710649170000001
+      },
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000730916,
+          0.000725333
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000722459,
+          0.000755583
+        ],
+        "5:64 mace_energy!": [
+          0.000729166,
+          0.000730875
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000727209,
+          0.000721375
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727166,
+          0.000720542
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000727083,
+          0.000725291
+        ],
+        "5:64 mace_energy!": [
+          0.000720625,
+          0.000718666
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000730208,
+          0.000718625
+        ]
+      }
+    },
+    {
+      "pair": 6,
+      "order": "head,base",
+      "reason": "calibration varied by 5.0% within the base child",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_s": {
+        "5:32 mace_energy!": 0.202323,
+        "5:32 mace_energy_forces!": 0.543476042,
+        "5:64 mace_energy!": 0.35543575,
+        "5:64 mace_energy_forces!": 0.970229
+      },
+      "head_s": {
+        "5:32 mace_energy!": 0.20229375000000002,
+        "5:32 mace_energy_forces!": 0.5432606670000001,
+        "5:64 mace_energy!": 0.35579770800000005,
+        "5:64 mace_energy_forces!": 0.969974375
+      },
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727125,
+          0.0007595
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000731875,
+          0.000726292
+        ],
+        "5:64 mace_energy!": [
+          0.000731875,
+          0.000723167
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000724375,
+          0.000727084
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000726,
+          0.000721333
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000729083,
+          0.000727292
+        ],
+        "5:64 mace_energy!": [
+          0.000729209,
+          0.000726208
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000718709,
+          0.000730833
+        ]
+      }
+    },
+    {
+      "pair": 7,
+      "order": "base,head",
+      "reason": "calibration varied by 4.9% within the base child",
+      "swap_before_mb": 13818.0,
+      "swap_after_mb": 13818.0,
+      "base_s": {
+        "5:32 mace_energy!": 0.202224917,
+        "5:32 mace_energy_forces!": 0.541048834,
+        "5:64 mace_energy!": 0.35542850000000004,
+        "5:64 mace_energy_forces!": 0.968651334
+      },
+      "head_s": {
+        "5:32 mace_energy!": 0.20220837500000002,
+        "5:32 mace_energy_forces!": 0.542281625,
+        "5:64 mace_energy!": 0.356002708,
+        "5:64 mace_energy_forces!": 0.9703847090000001
+      },
+      "base_calibration_s": {
+        "5:32 mace_energy!": [
+          0.000727083,
+          0.00071675
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000751625,
+          0.000731792
+        ],
+        "5:64 mace_energy!": [
+          0.000731917,
+          0.000726125
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000728167,
+          0.000721459
+        ]
+      },
+      "head_calibration_s": {
+        "5:32 mace_energy!": [
+          0.00072525,
+          0.000726958
+        ],
+        "5:32 mace_energy_forces!": [
+          0.000728084,
+          0.000727125
+        ],
+        "5:64 mace_energy!": [
+          0.000726583,
+          0.0007365
+        ],
+        "5:64 mace_energy_forces!": [
+          0.000723417,
+          0.000760583
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "system": "cu_bench(5)",
+      "precision": "Float64",
+      "entries": [
+        {
+          "entry_point": "mace_energy_forces!",
+          "pair_ratios": [
+            0.9999302304913089,
+            0.9994103657410278,
+            1.0026075713446738,
+            1.0000829714613746,
+            1.000378539432715,
+            1.0011233915933455,
+            0.9983013262154935
+          ],
+          "median": 1.0000829714613746,
+          "min": 0.9983013262154935,
+          "max": 1.0026075713446738,
+          "base_s": [
+            0.9704669170000001,
+            0.9697401250000001,
+            0.968653458,
+            0.9712134590000001,
+            0.9697351670000001,
+            0.9695345830000001,
+            0.969629375
+          ],
+          "head_s": [
+            0.970399208,
+            0.969168333,
+            0.9711792910000001,
+            0.971294042,
+            0.97010225,
+            0.97062375,
+            0.9679822910000001
+          ]
+        },
+        {
+          "entry_point": "mace_energy!",
+          "pair_ratios": [
+            0.9994251660303383,
+            0.9995213398189801,
+            1.0014070505888666,
+            1.0005961158342778,
+            0.9987939893018019,
+            1.0001402495910927,
+            0.998627225779583
+          ],
+          "median": 0.9995213398189801,
+          "min": 0.998627225779583,
+          "max": 1.0014070505888666,
+          "base_s": [
+            0.355681833,
+            0.354809125,
+            0.35487920900000003,
+            0.35549466700000004,
+            0.3552,
+            0.355024208,
+            0.355727834
+          ],
+          "head_s": [
+            0.35547737500000004,
+            0.354639292,
+            0.355378542,
+            0.355706583,
+            0.35477162500000003,
+            0.355074,
+            0.35523950000000004
+          ]
+        }
+      ]
+    },
+    {
+      "system": "cu_bench(5)",
+      "precision": "Float32",
+      "entries": [
+        {
+          "entry_point": "mace_energy_forces!",
+          "pair_ratios": [
+            1.0010342274826436,
+            1.0015937098498213,
+            1.0012210839415967,
+            0.9974143158207093,
+            1.0059987371157497,
+            1.0012550750525342,
+            0.9927855653758666
+          ],
+          "median": 1.0012210839415967,
+          "min": 0.9927855653758666,
+          "max": 1.0059987371157497,
+          "base_s": [
+            0.541909792,
+            0.5412164580000001,
+            0.541151167,
+            0.543618208,
+            0.541614166,
+            0.5416345410000001,
+            0.5461794590000001
+          ],
+          "head_s": [
+            0.54247025,
+            0.5420790000000001,
+            0.541811958,
+            0.5422125830000001,
+            0.544863167,
+            0.542314333,
+            0.542239083
+          ]
+        },
+        {
+          "entry_point": "mace_energy!",
+          "pair_ratios": [
+            0.9958657516527649,
+            1.0042329822505263,
+            1.006228236033413,
+            0.9971440381389417,
+            1.0056417783237834,
+            1.0010994705898295,
+            0.9939322725410644
+          ],
+          "median": 1.0010994705898295,
+          "min": 0.9939322725410644,
+          "max": 1.006228236033413,
+          "base_s": [
+            0.202747375,
+            0.201365125,
+            0.20170237500000002,
+            0.20283604200000002,
+            0.20195316700000002,
+            0.20210454200000003,
+            0.20313766700000002
+          ],
+          "head_s": [
+            0.201909167,
+            0.20221750000000002,
+            0.202958625,
+            0.20225675,
+            0.20309254200000001,
+            0.20232675,
+            0.201905083
+          ]
+        }
+      ]
+    }
+  ]
+}
