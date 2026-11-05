@@ -715,3 +715,84 @@ file = "src/thermostats/gamma_sampler.jl"
 find = "    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
 replace = "    return d\n    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
 expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "berendsen-sign"
+file = "src/barostats/berendsen.jl"
+find = "(T(b.P0) - P)"
+replace = "(P - T(b.P0))"
+expect = "relaxes"
+
+[[mutation]]
+name = "berendsen-cube-root"
+file = "src/barostats/berendsen.jl"
+find = "μ = cbrt(μ3)"
+replace = "μ = μ3"
+expect = "relaxes exponentially"
+
+[[mutation]]
+name = "berendsen-unit-factor"
+file = "src/barostats/berendsen.jl"
+find = "pressure(sys, stress(potential)) * T(EV_PER_A3_IN_GPA)"
+replace = "pressure(sys, stress(potential))"
+expect = "relaxes exponentially|ideal gas"
+
+[[mutation]]
+name = "berendsen-kinetic-term"
+file = "src/systems/system.jl"
+find = "return T(-tr / 3) + 2 * kinetic_energy(sys) / (3 * V)"
+replace = "return T(-tr / 3)"
+expect = "ideal gas"
+
+[[mutation]]
+name = "berendsen-stale-result"
+file = "src/barostats/berendsen.jl"
+find = '''
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+    return nothing'''
+replace = '''
+    return nothing'''
+expect = "result of the rescaled configuration"
+
+[[mutation]]
+name = "berendsen-degenerate-unchecked"
+file = "src/barostats/berendsen.jl"
+find = "(isfinite(μ3) && μ3 > 0) ||"
+replace = "isfinite(μ3) ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "berendsen-coupling-time-unchecked"
+file = "src/barostats/berendsen.jl"
+find = "(isfinite(τ_P) && τ_P > 0) ||"
+replace = "isfinite(τ_P) ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "driver-barostat-ignored"
+file = "src/driver.jl"
+find = "    _barostat_step!(sim.barostat, sim)"
+replace = ""
+expect = "relaxes"
+
+[[mutation]]
+name = "driver-barostat-stress-unchecked"
+file = "src/driver.jl"
+find = "isnothing(barostat) || potential isa AbstractStressPotential ||"
+replace = "true ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "lj-stress-off-diagonal"
+file = "src/potentials/lennard_jones.jl"
+find = "S[1, 2] = S[2, 1] = s12 / vol"
+replace = "S[1, 2] = S[2, 1] = zero(T)"
+expect = "strain derivative of the energy"
+
+[[mutation]]
+name = "lj-stress-volume"
+file = "src/potentials/lennard_jones.jl"
+find = "vol = abs(_det3(cell))"
+replace = "vol = abs(cell[1, 1] * cell[2, 2] * cell[3, 3])"
+expect = "strain derivative of the energy"

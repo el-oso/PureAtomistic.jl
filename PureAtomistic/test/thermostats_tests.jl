@@ -374,10 +374,10 @@ end
             using PureAtomistic, PureAtomistic.Systems, PureAtomistic.Thermostats, Random
             const SYS64 = System{Float64, Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Vector{Int}, Matrix{Float64}}
             const SYS32 = System{Float32, Matrix{Float32}, Matrix{Float32}, Vector{Float32}, Vector{Int}, Matrix{Float32}}
-            const SIMB64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, LangevinBAOAB, Xoshiro}
-            const SIMB32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, LangevinBAOAB, Xoshiro}
-            const SIMS64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, BussiThermostat, Xoshiro}
-            const SIMS32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, BussiThermostat, Xoshiro}
+            const SIMB64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, LangevinBAOAB, Xoshiro, Nothing}
+            const SIMB32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, LangevinBAOAB, Xoshiro, Nothing}
+            const SIMS64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, BussiThermostat, Xoshiro, Nothing}
+            const SIMS32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, BussiThermostat, Xoshiro, Nothing}
             new_baoab(t, g) = LangevinBAOAB(t, g)
             new_bussi(t, τ) = BussiThermostat(t, τ)
             new_sim(s, p, dt, th, rng) = Simulation(s, p, VelocityVerlet(dt); thermostat = th, rng)

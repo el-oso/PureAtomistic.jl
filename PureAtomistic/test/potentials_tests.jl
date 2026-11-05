@@ -73,6 +73,7 @@ end
             @test check_trim_compat(P).passed
             @test implements(P, AbstractPotential)
         end
+        @test implements(types[2], AbstractStressPotential)
         @test implements(types[3], AbstractStressPotential)
     end
 end

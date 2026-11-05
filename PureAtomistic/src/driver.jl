@@ -8,18 +8,21 @@ that stochastic couplings draw from; it is required so that a run never depends 
 seed. `sim.step_count` counts the completed steps.
 
 `thermostat` is `nothing` (constant energy) or an [`AbstractThermostat`](@ref), which needs the
-[`VelocityVerlet`](@ref) integrator and takes its time step. Only `barostat = nothing` is
-accepted: no barostat is available, and any other value throws.
+[`VelocityVerlet`](@ref) integrator and takes its time step. `barostat` is `nothing` (constant
+volume) or an [`AbstractBarostat`](@ref), which needs the [`VelocityVerlet`](@ref) integrator
+and an [`AbstractStressPotential`](@ref); it acts after the step of the integrator or the
+thermostat.
 """
 mutable struct Simulation{
         T <: AbstractFloat, S <: System{T}, P <: AbstractPotential, I <: AbstractIntegrator,
-        H <: Union{Nothing, AbstractThermostat}, R <: Random.AbstractRNG,
+        H <: Union{Nothing, AbstractThermostat}, R <: Random.AbstractRNG, B <: Union{Nothing, AbstractBarostat},
     }
     const system::S
     const potential::P
     const integrator::I
     const thermostat::H
     const rng::R
+    const barostat::B
     step_count::Int
 end
 
@@ -27,7 +30,12 @@ function Simulation(
         system::System{T}, potential::AbstractPotential, integrator::AbstractIntegrator;
         thermostat = nothing, barostat = nothing, rng::Random.AbstractRNG
     ) where {T}
-    isnothing(barostat) || throw(ArgumentError("pureatomistic: the driver supports only barostat = nothing"))
+    isnothing(barostat) || barostat isa AbstractBarostat ||
+        throw(ArgumentError(lazy"pureatomistic: barostat must be an AbstractBarostat or nothing, got $(typeof(barostat))"))
+    isnothing(barostat) || integrator isa VelocityVerlet ||
+        throw(ArgumentError(lazy"pureatomistic: a barostat needs the VelocityVerlet integrator, got $(typeof(integrator))"))
+    isnothing(barostat) || potential isa AbstractStressPotential ||
+        throw(ArgumentError(lazy"pureatomistic: a barostat needs an AbstractStressPotential, got $(typeof(potential))"))
     isnothing(thermostat) || thermostat isa AbstractThermostat ||
         throw(ArgumentError(lazy"pureatomistic: thermostat must be an AbstractThermostat or nothing, got $(typeof(thermostat))"))
     isnothing(thermostat) || integrator isa VelocityVerlet ||
@@ -36,9 +44,9 @@ function Simulation(
         throw(DimensionMismatch(lazy"pureatomistic: the potential has $(n_atoms(potential)) atoms, the system has $(natoms(system))"))
     prepare!(potential, system.positions, system.cell)
     energy_forces!(potential, system.positions, system.cell)
-    return Simulation{T, typeof(system), typeof(potential), typeof(integrator), typeof(thermostat), typeof(rng)}(
-        system, potential, integrator, thermostat, rng, 0
-    )
+    return Simulation{
+        T, typeof(system), typeof(potential), typeof(integrator), typeof(thermostat), typeof(rng), typeof(barostat),
+    }(system, potential, integrator, thermostat, rng, barostat, 0)
 end
 
 """
@@ -52,10 +60,12 @@ total_energy(sim::Simulation{T}) where {T} = kinetic_energy(sim.system) + T(sim.
 """
     step!(sim) -> nothing
 
-Advance `sim` by one time step: a step of its integrator, or of its thermostat when it has one.
+Advance `sim` by one time step: a step of its integrator, or of its thermostat when it has one,
+followed by the step of its barostat when it has one.
 """
 function step!(sim::Simulation)::Nothing
     _step!(sim.thermostat, sim)
+    _barostat_step!(sim.barostat, sim)
     sim.step_count += 1
     return nothing
 end
@@ -65,6 +75,14 @@ _step!(::Nothing, sim::Simulation) = advance!(sim.integrator, sim.system, sim.po
 function _step!(th::AbstractThermostat, sim::Simulation)
     integrator = sim.integrator::VelocityVerlet
     return thermostat_step!(th, sim.system, sim.potential, integrator.dt, sim.rng, _IntegratorStep(integrator))
+end
+
+_barostat_step!(::Nothing, ::Simulation) = nothing
+
+function _barostat_step!(b::AbstractBarostat, sim::Simulation)
+    integrator = sim.integrator::VelocityVerlet
+    potential = sim.potential::AbstractStressPotential
+    return barostat_step!(b, sim.system, potential, integrator.dt)
 end
 
 # One step of `integrator`, the plain step a thermostat calls inside its own.

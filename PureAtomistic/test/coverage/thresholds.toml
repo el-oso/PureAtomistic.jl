@@ -6,6 +6,7 @@
 "src/analysis/diffusion.jl" = 1.00
 "src/analysis/vacancy.jl" = 1.00
 "src/barostats/Barostats.jl" = 1.00
+"src/barostats/berendsen.jl" = 1.00
 "src/driver.jl" = 1.00
 "src/integrators/Integrators.jl" = 1.00
 "src/integrators/verlet.jl" = 1.00

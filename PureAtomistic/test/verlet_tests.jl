@@ -89,9 +89,6 @@ end
     @test_throws "pureatomistic: thermostat must be an AbstractThermostat or nothing, got Int64" Simulation(
         sys, pot, vv; thermostat = 1, rng = Xoshiro(0)
     )
-    @test_throws "pureatomistic: the driver supports only barostat = nothing" Simulation(
-        sys, pot, vv; barostat = 1, rng = Xoshiro(0)
-    )
     small = HarmonicPotential(sys.positions[:, 1:5], 0.5)
     @test_throws "pureatomistic: the potential has 5 atoms, the system has 32" Simulation(sys, small, vv; rng = Xoshiro(0))
     @test_throws UndefKeywordError Simulation(sys, pot, vv)
@@ -326,10 +323,10 @@ end
             using PureAtomistic, PureAtomistic.Systems, Random
             const SYS64 = System{Float64, Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Vector{Int}, Matrix{Float64}}
             const SYS32 = System{Float32, Matrix{Float32}, Matrix{Float32}, Vector{Float32}, Vector{Int}, Matrix{Float32}}
-            const SIM64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, Nothing, Xoshiro}
-            const SIM32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, Nothing, Xoshiro}
-            const SIML64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, Nothing, Xoshiro}
-            const SIML32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, Nothing, Xoshiro}
+            const SIM64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, Nothing, Xoshiro, Nothing}
+            const SIM32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, Nothing, Xoshiro, Nothing}
+            const SIML64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, Nothing, Xoshiro, Nothing}
+            const SIML32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, Nothing, Xoshiro, Nothing}
             new_vv(dt) = VelocityVerlet(dt)
             new_sim(s, p, dt, rng) = Simulation(s, p, VelocityVerlet(dt); rng)
             step_it(s) = step!(s)
