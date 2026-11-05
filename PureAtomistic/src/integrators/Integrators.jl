@@ -1,6 +1,6 @@
 module Integrators
 
-using ..Systems: System, AMU_IN_EV_FS2_PER_A2, natoms
+using ..Systems: System, natoms, kick!, drift!
 using ..Potentials: AbstractPotential, n_atoms, prepare!, energy_forces!
 using TypeContracts: @contract, @verify, Self
 

@@ -22,19 +22,23 @@ function randgamma(rng::Random.AbstractRNG, shape::Real)
     return _marsaglia_tsang(rng, a + one(a)) * u^(one(a) / a)
 end
 
+# Each pass accepts with probability at least 0.95 (measured 0.951 at shape 1, the smallest
+# shape reaching this function, and higher for larger shapes), so 10,000 rejections in a row
+# have probability below 1e-13000 for a working generator: reaching the cap means the random
+# numbers are not normal and uniform.
+const _MARSAGLIA_TSANG_MAX_PASSES = 10_000
+
 function _marsaglia_tsang(rng::Random.AbstractRNG, a::T) where {T <: AbstractFloat}
     d = a - one(T) / 3
     c = one(T) / sqrt(9 * d)
-    v = zero(T)
-    accepted = false
-    while !accepted
+    for _ in 1:_MARSAGLIA_TSANG_MAX_PASSES
         x = randn(rng, T)
         w = one(T) + c * x
         w > 0 || continue
         v = w^3
         u = rand(rng, T)
         # The squeeze comes first, so `log` is evaluated only when it fails.
-        accepted = u < one(T) - T(0.0331) * x^4 || log(u) < x^2 / 2 + d * (one(T) - v + log(v))
+        (u < one(T) - T(0.0331) * x^4 || log(u) < x^2 / 2 + d * (one(T) - v + log(v))) && return d * v
     end
-    return d * v
+    throw(ArgumentError("pureatomistic: the gamma sampler rejected 10000 proposals in a row; the random number generator does not produce normal and uniform numbers"))
 end

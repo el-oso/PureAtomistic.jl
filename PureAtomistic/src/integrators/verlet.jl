@@ -50,32 +50,11 @@ leaves). On return `potential.result` holds the energy and forces of the new pos
 function advance!(vv::VelocityVerlet, sys::System{T}, potential::AbstractPotential)::Nothing where {T}
     Base.require_one_based_indexing(sys.positions, sys.velocities, sys.masses)
     h = T(vv.dt)
-    _kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
-    _drift!(sys.positions, sys.velocities, h)
+    kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
+    drift!(sys.positions, sys.velocities, h)
     prepare!(potential, sys.positions, sys.cell)
     energy_forces!(potential, sys.positions, sys.cell)
-    _kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
-    return nothing
-end
-
-# v ← v + τ F / m for every atom, with the mass in amu and the force in eV/Å.
-function _kick!(V::AbstractMatrix{T}, F::AbstractMatrix, m::AbstractVector{T}, τ::T) where {T}
-    axes(F) == axes(V) || throw(DimensionMismatch(lazy"pureatomistic: forces axes $(axes(F)) differ from velocities axes $(axes(V))"))
-    c = T(AMU_IN_EV_FS2_PER_A2)
-    for a in axes(V, 2)
-        f = τ / (m[a] * c)
-        for k in axes(V, 1)
-            V[k, a] += f * F[k, a]
-        end
-    end
-    return nothing
-end
-
-# x ← x + h v.
-function _drift!(X::AbstractMatrix{T}, V::AbstractMatrix{T}, h::T) where {T}
-    for a in axes(X, 2), k in axes(X, 1)
-        X[k, a] += h * V[k, a]
-    end
+    kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
     return nothing
 end
 

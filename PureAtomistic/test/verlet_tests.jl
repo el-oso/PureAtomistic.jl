@@ -60,8 +60,8 @@
         sys, pot = sim.system, sim.potential
         E = Float64[]
         for _ in 1:round(Int, total / dt)
-            PureAtomistic.Integrators._kick!(sys.velocities, pot.result.forces, sys.masses, dt)
-            PureAtomistic.Integrators._drift!(sys.positions, sys.velocities, dt)
+            PureAtomistic.Systems.kick!(sys.velocities, pot.result.forces, sys.masses, dt)
+            PureAtomistic.Systems.drift!(sys.positions, sys.velocities, dt)
             prepare!(pot, sys.positions, sys.cell)
             energy_forces!(pot, sys.positions, sys.cell)
             push!(E, total_energy(sim))
@@ -97,9 +97,15 @@ end
     @test_throws UndefKeywordError Simulation(sys, pot, vv)
     @test_throws "pureatomistic: nsteps must not be negative, got -1" run!(sim, -1)
     @test_throws "pureatomistic: every must be at least 1, got 0" run!(sim, 1; every = 0)
-    # A force matrix that does not match the velocities is refused.
-    @test_throws "pureatomistic: forces axes" PureAtomistic.Integrators._kick!(
+    # Force, mass and position arrays that do not match the velocities are refused.
+    @test_throws "pureatomistic: forces axes" PureAtomistic.Systems.kick!(
         sys.velocities, zeros(3, 4), sys.masses, 1.0
+    )
+    @test_throws "pureatomistic: masses axes" PureAtomistic.Systems.kick!(
+        sys.velocities, zeros(size(sys.velocities)), sys.masses[1:4], 1.0
+    )
+    @test_throws "pureatomistic: positions axes" PureAtomistic.Systems.drift!(
+        zeros(3, 4), sys.velocities, 1.0
     )
 end
 

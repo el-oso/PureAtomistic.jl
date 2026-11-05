@@ -1,7 +1,7 @@
 module Thermostats
 
 import Random
-using ..Systems: System, AMU_IN_EV_FS2_PER_A2, KB_EV_PER_K, natoms, kinetic_energy
+using ..Systems: System, AMU_IN_EV_FS2_PER_A2, KB_EV_PER_K, natoms, kinetic_energy, kick!, drift!
 using ..Potentials: AbstractPotential, prepare!, energy_forces!
 using TypeContracts: @contract, @verify, Self
 

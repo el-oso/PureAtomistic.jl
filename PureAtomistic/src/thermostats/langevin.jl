@@ -42,38 +42,17 @@ function thermostat_step!(
     # √((1 - c₁²) k_B T) in eV^½; expm1 keeps 1 - c₁² accurate when γ h is small.
     c3 = T(sqrt(-expm1(-2 * th.gamma * dt) * KB_EV_PER_K * th.temp))
     amu = T(AMU_IN_EV_FS2_PER_A2)
-    _kick!(V, potential.result.forces, m, h / 2)
-    _drift!(X, V, h / 2)
+    kick!(V, potential.result.forces, m, h / 2)
+    drift!(X, V, h / 2)
     for a in axes(V, 2)
         s = c3 / sqrt(m[a] * amu)
         for k in axes(V, 1)
             V[k, a] = c1 * V[k, a] + s * randn(rng, T)
         end
     end
-    _drift!(X, V, h / 2)
+    drift!(X, V, h / 2)
     prepare!(potential, X, sys.cell)
     energy_forces!(potential, X, sys.cell)
-    _kick!(V, potential.result.forces, m, h / 2)
-    return nothing
-end
-
-# v ← v + τ F / m for every atom, with the mass in amu and the force in eV/Å.
-function _kick!(V::AbstractMatrix{T}, F::AbstractMatrix, m::AbstractVector{T}, τ::T) where {T}
-    axes(F) == axes(V) || throw(DimensionMismatch(lazy"pureatomistic: forces axes $(axes(F)) differ from velocities axes $(axes(V))"))
-    c = T(AMU_IN_EV_FS2_PER_A2)
-    for a in axes(V, 2)
-        f = τ / (m[a] * c)
-        for k in axes(V, 1)
-            V[k, a] += f * F[k, a]
-        end
-    end
-    return nothing
-end
-
-# x ← x + h v.
-function _drift!(X::AbstractMatrix{T}, V::AbstractMatrix{T}, h::T) where {T}
-    for a in axes(X, 2), k in axes(X, 1)
-        X[k, a] += h * V[k, a]
-    end
+    kick!(V, potential.result.forces, m, h / 2)
     return nothing
 end

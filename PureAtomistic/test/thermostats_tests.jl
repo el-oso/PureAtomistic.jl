@@ -33,6 +33,11 @@
         return Simulation(sys, FreeParticles{T}(n), VelocityVerlet(dt); thermostat, rng)
     end
 
+    # A generator whose normal draws are always -100, so every Marsaglia-Tsang proposal has
+    # 1 + c x <= 0 and is rejected.
+    struct StuckRNG <: Random.AbstractRNG end
+    Random.randn(::StuckRNG, ::Type{Float64}) = -100.0
+
     # Mean of `x` and its standard error from the means of `nb` consecutive blocks.
     function block_mean(x, nb)
         L = length(x) ÷ nb
@@ -97,9 +102,6 @@ end
     @test_throws "pureatomistic: a thermostat needs the VelocityVerlet integrator, got" Simulation(
         sim.system, sim.potential, NoStepIntegrator(); thermostat = LangevinBAOAB(300, 0.01), rng = Xoshiro(0)
     )
-    @test_throws "pureatomistic: forces axes" PureAtomistic.Thermostats._kick!(
-        sim.system.velocities, zeros(3, 4), sim.system.masses, 1.0
-    )
     # The BAOAB step indexes the masses by the velocity columns, so it declares 1-based arrays.
     s = sim.system
     n = natoms(s)
@@ -139,6 +141,10 @@ end
     end
     # An integer shape is accepted and promoted.
     @test randgamma(Xoshiro(1), 2) isa Float64
+    # A generator that never yields an acceptable proposal ends in an error, not an endless loop.
+    @test_throws "pureatomistic: the gamma sampler rejected 10000 proposals in a row" randgamma(
+        ThermostatFixtures.StuckRNG(), 2.0
+    )
 end
 
 @testitem "Bussi ideal-gas kinetic energy follows Gamma(N_f/2, kT)" setup = [ThermostatFixtures] begin
@@ -409,4 +415,66 @@ end
     # A thermostat without the contract's method fails the check.
     struct NoStep <: AbstractThermostat end
     @test_throws Exception @verify NoStep
+end
+
+@testitem "BAOAB splitting order on one oscillator at ω h = 1" setup = [ThermostatFixtures] begin
+    using PureAtomistic.Systems
+    using Random, Statistics
+    F = ThermostatFixtures
+    # One atom on a spring in reduced units, m·amu = k = kT = 1 and γ = h = 1 (ω h = 1), so the
+    # splitting error is large. The stationary moments of each splitting are the fixed point of
+    # its linear map: BAOAB samples x exactly, ⟨x²⟩ = 1, with ⟨v²⟩ = 1 - (ω h/2)² = 0.75;
+    # ABOBA gives 1 and 4/3, OBABO 4/3 and 1, AOBOA 1.128 and 1.285. 200000 steps after 100 of
+    # burn-in, the 3 components averaged per step; standard errors from 20 blocks; bound 5 of
+    # them. Measured (Xoshiro(1)): ⟨x²⟩ 0.9971 ± 0.0020 (z -1.4), ⟨v²⟩ 0.7501 ± 0.0019 (z 0.1).
+    # The same run with the OBABO step gave ⟨x²⟩ 1.3319 (z 97) and with ABOBA ⟨v²⟩ 1.3336
+    # (z 170), so a reordered step fails by at least 19 times the bound. The 100 Å cell keeps
+    # the displacement far below half the cell, where the spring's minimum image would switch.
+    sys = System{Float64}(zeros(3, 1), zeros(3, 1), [1 / F.AMU_LITERAL], [1], [100.0 0 0; 0 100 0; 0 0 100])
+    sim = Simulation(
+        sys, HarmonicPotential(zeros(3, 1), 1.0), VelocityVerlet(1.0);
+        thermostat = LangevinBAOAB(1 / F.KB_LITERAL, 1.0), rng = Xoshiro(1)
+    )
+    run!(sim, 100)
+    X2, V2 = Float64[], Float64[]
+    run!(
+        sim, 200_000;
+        observer = s -> (push!(X2, sum(abs2, s.system.positions) / 3); push!(V2, sum(abs2, s.system.velocities) / 3))
+    )
+    x2, sx = F.block_mean(X2, 20)
+    v2, sv = F.block_mean(V2, 20)
+    @test abs(x2 - 1) <= 5 * sx
+    @test abs(v2 - 0.75) <= 5 * sv
+end
+
+@testitem "seeded thermostatted runs match a golden bit pattern" setup = [ThermostatFixtures] begin
+    using PureAtomistic.Systems
+    using Random
+    F = ThermostatFixtures
+    # Pins the documented noise draw order (BAOAB: atom by atom, x, y, z; Bussi: R₁, then the
+    # gamma variate). Random does not promise the same Xoshiro stream across Julia releases;
+    # these bits were checked identical on Julia 1.12.7 and 1.13.3. A failure on a new release
+    # calls for checking the Xoshiro stream before the thermostat.
+    golden = Dict(
+        LangevinBAOAB => UInt64[
+            0x3fc956dc076b1f17, 0xbfc4a804008bdfe6, 0xbfa477c4bf4426fb,
+            0x3ffbda6ca1f5636d, 0x3fcf761b1253c877, 0xbf66e988cfb091a7,
+        ],
+        BussiThermostat => UInt64[
+            0x3fc9280fbf54b9fb, 0xbfc34dd2ac3d868b, 0xbfa81bcc13f32c3a,
+            0x3ffbe3d4d34e3599, 0x3fcdd4c351937795, 0x3fad08ef1cfd8d23,
+        ],
+    )
+    for th in (LangevinBAOAB(300.0, 0.01), BussiThermostat(300.0, 50.0; removed_dof = 0))
+        sys = System{Float64}(
+            [0.1 1.9; -0.2 0.3; 0.05 -0.1], [0.01 -0.02; 0.005 0.0; -0.01 0.015], [63.546, 1.008], [29, 1],
+            [10.0 0 0; 0 10 0; 0 0 10]
+        )
+        sim = Simulation(
+            sys, HarmonicPotential([0.0 2.0; 0.0 0.0; 0.0 0.0], 0.5), VelocityVerlet(1.0);
+            thermostat = th, rng = Xoshiro(2024)
+        )
+        run!(sim, 10)
+        @test reinterpret(UInt64, vec(sim.system.positions)) == golden[typeof(th)]
+    end
 end

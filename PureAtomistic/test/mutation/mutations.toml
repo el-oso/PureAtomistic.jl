@@ -372,15 +372,15 @@ replace = "sxx += dx^2"
 expect = "arrhenius_fit recovers"
 
 [[mutation]]
-name = "verlet-kick-unit-factor"
-file = "src/integrators/verlet.jl"
+name = "systems-kick-unit-factor"
+file = "src/systems/motion.jl"
 find = "f = τ / (m[a] * c)"
 replace = "f = τ / m[a]"
 expect = "one velocity Verlet step"
 
 [[mutation]]
-name = "verlet-drift-half-step"
-file = "src/integrators/verlet.jl"
+name = "systems-drift-half-step"
+file = "src/systems/motion.jl"
 find = "X[k, a] += h * V[k, a]"
 replace = "X[k, a] += h * V[k, a] / 2"
 expect = "one velocity Verlet step"
@@ -390,7 +390,7 @@ name = "verlet-second-kick-missing"
 file = "src/integrators/verlet.jl"
 find = '''
     energy_forces!(potential, sys.positions, sys.cell)
-    _kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
+    kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
 '''
 replace = '''
     energy_forces!(potential, sys.positions, sys.cell)
@@ -403,10 +403,10 @@ file = "src/integrators/verlet.jl"
 find = '''
     prepare!(potential, sys.positions, sys.cell)
     energy_forces!(potential, sys.positions, sys.cell)
-    _kick!'''
+    kick!'''
 replace = '''
     energy_forces!(potential, sys.positions, sys.cell)
-    _kick!'''
+    kick!'''
 expect = "step moves atoms across the cell boundary"
 
 [[mutation]]
@@ -646,8 +646,8 @@ expect = "BAOAB harmonic oscillators"
 [[mutation]]
 name = "langevin-second-evaluation"
 file = "src/thermostats/langevin.jl"
-find = "    _drift!(X, V, h / 2)\n    prepare!(potential, X, sys.cell)"
-replace = "    _drift!(X, V, h / 2)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
+find = "    drift!(X, V, h / 2)\n    prepare!(potential, X, sys.cell)"
+replace = "    drift!(X, V, h / 2)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
 expect = "BAOAB friction and force evaluations"
 
 [[mutation]]
@@ -684,3 +684,34 @@ file = "src/driver.jl"
 find = "    _step!(sim.thermostat, sim)"
 replace = "    _step!(nothing, sim)"
 expect = "BAOAB|Bussi"
+
+[[mutation]]
+name = "langevin-splitting-order"
+file = "src/thermostats/langevin.jl"
+find = '''
+    drift!(X, V, h / 2)
+    for a in axes(V, 2)
+        s = c3 / sqrt(m[a] * amu)
+        for k in axes(V, 1)
+            V[k, a] = c1 * V[k, a] + s * randn(rng, T)
+        end
+    end
+    drift!(X, V, h / 2)
+'''
+replace = '''
+    for a in axes(V, 2)
+        s = c3 / sqrt(m[a] * amu)
+        for k in axes(V, 1)
+            V[k, a] = c1 * V[k, a] + s * randn(rng, T)
+        end
+    end
+    drift!(X, V, h)
+'''
+expect = "BAOAB splitting order"
+
+[[mutation]]
+name = "gamma-cap-returns-value"
+file = "src/thermostats/gamma_sampler.jl"
+find = "    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
+replace = "    return d\n    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
+expect = "Marsaglia-Tsang gamma sampler"
