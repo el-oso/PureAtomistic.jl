@@ -18,10 +18,11 @@
     # The child runs one BLAS thread, and so do the serial evaluations here.
     blas_threads = BLAS.get_num_threads()
     BLAS.set_num_threads(1)
-    # Each `Threads.@spawn` allocates its task (224 bytes), the closure it runs (1,808 bytes: the
-    # closure holds the workspace struct inline) and the task's wait condition (96 bytes). Each
-    # evaluation runs two parallel phases, with one task fewer than chunks in each, and allocates
-    # nothing else.
+    # With OpenBLAS, the BLAS of this environment, each `Threads.@spawn` allocates its task (224
+    # bytes), the closure it runs (1,808 bytes: the closure holds the workspace struct inline) and the
+    # task's wait condition (96 bytes). Each evaluation runs two parallel phases, with one task fewer
+    # than chunks in each, and allocates nothing else. A BLAS with task-local scratch (PureBLAS)
+    # allocates that scratch in every new task as well.
     task_bytes = 2128
     for (k, (name, T, nchunks, P, C, Z)) in enumerate(cases)
         f = rows[k]
@@ -79,5 +80,25 @@ end
             re = mace_energy!(MACEResult{T}(n), ws, m, P, C, Z, nl, ThreadedChunks())
             @test re.energy == r.energy && re.node_energies == r.node_energies
         end
+    end
+end
+
+# A chunk that throws: the call rethrows its error only after every other chunk has finished, so
+# no task still writes the workspace when the caller sees the error. The chunks here are test
+# functions handed to the internal task runner; the others sleep first, so they are still
+# running when the failing chunk throws.
+@testitem "threaded chunks: a failing chunk is rethrown after every task has finished" begin
+    spawn_chunks! = PureMLIP.Model._spawn_chunks!
+    n = 4
+    for failing in 1:n
+        done = falses(n)
+        work(c) = c == failing ? error("chunk $c failed") : (sleep(0.05); done[c] = true; nothing)
+        if failing == n
+            # The last chunk runs on the calling task, so its own error propagates.
+            @test_throws "chunk $n failed" spawn_chunks!(work, 1, n)
+        else
+            @test_throws TaskFailedException spawn_chunks!(work, 1, n)
+        end
+        @test all(done[c] for c in 1:n if c != failing)
     end
 end
