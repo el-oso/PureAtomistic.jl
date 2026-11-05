@@ -1,5 +1,6 @@
 #!/usr/bin/env julia
-# Build the `mace_inspect` executable with juliac --trim. Run: `julia juliac/build.jl`.
+# Build an executable with juliac --trim. `julia juliac/build.jl` builds `mace_inspect` from
+# `entry.jl`; `julia juliac/build.jl <name> <entry file in juliac/>` builds the executable `name`.
 # The executable lands in `juliac/build/bin` with its libraries alongside.
 # The tool environment (`juliac/toolenv`) requires Julia 1.13, while the package itself
 # supports Julia 1.12.
@@ -13,9 +14,9 @@ const OUTDIR = joinpath(@__DIR__, "build")
 mkpath(OUTDIR)
 
 const TOOLENV = joinpath(@__DIR__, "toolenv")
-const ENTRY = joinpath(@__DIR__, "entry.jl")
+const EXE, ENTRY = length(ARGS) == 2 ? (ARGS[1], joinpath(@__DIR__, ARGS[2])) : ("mace_inspect", joinpath(@__DIR__, "entry.jl"))
 
-const JCFLAGS = `--output-exe mace_inspect --bundle $OUTDIR --experimental --trim=safe --verbose`
+const JCFLAGS = `--output-exe $EXE --bundle $OUTDIR --experimental --trim=safe --verbose`
 @info "juliac: JuliaC.jl from $TOOLENV"
 run(`$(Base.julia_cmd()) --startup-file=no --project=$TOOLENV -e "using Pkg; Pkg.instantiate()"`)
 run(`$(Base.julia_cmd()) --startup-file=no --project=$TOOLENV -e "using JuliaC; JuliaC.main(ARGS)" -- --project=$ROOT $JCFLAGS $ENTRY`)
