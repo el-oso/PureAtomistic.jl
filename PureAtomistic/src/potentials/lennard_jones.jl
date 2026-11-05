@@ -45,7 +45,9 @@ end
 
 n_atoms(p::LennardJones)::Int = p.nl.n_atoms
 cutoff(p::LennardJones)::Float64 = p.nl.r_cut
-stress(p::LennardJones)::Matrix = p.stress
+function stress(p::LennardJones{T})::Matrix{T} where {T}
+    return p.stress
+end
 
 function prepare!(p::LennardJones{T}, positions::AbstractMatrix, cell::AbstractMatrix)::Nothing where {T}
     _check_configuration(T, n_atoms(p), positions, cell)
@@ -102,7 +104,7 @@ function energy_forces!(p::LennardJones{T}, positions::AbstractMatrix, cell::Abs
         s23 += g * r2 * r3
     end
     p.result.energy = E / 2
-    vol = abs(_det3(cell))
+    vol = cell_volume(cell)
     S = p.stress
     S[1, 1], S[2, 2], S[3, 3] = s11 / vol, s22 / vol, s33 / vol
     S[1, 2] = S[2, 1] = s12 / vol

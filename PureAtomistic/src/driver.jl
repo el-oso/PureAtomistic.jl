@@ -10,8 +10,8 @@ seed. `sim.step_count` counts the completed steps.
 `thermostat` is `nothing` (constant energy) or an [`AbstractThermostat`](@ref), which needs the
 [`VelocityVerlet`](@ref) integrator and takes its time step. `barostat` is `nothing` (constant
 volume) or an [`AbstractBarostat`](@ref), which needs the [`VelocityVerlet`](@ref) integrator
-and an [`AbstractStressPotential`](@ref); it acts after the step of the integrator or the
-thermostat.
+and an [`AbstractStressPotential`](@ref); it rescales the cell within each step (see
+[`step!`](@ref)).
 """
 mutable struct Simulation{
         T <: AbstractFloat, S <: System{T}, P <: AbstractPotential, I <: AbstractIntegrator,
@@ -60,36 +60,52 @@ total_energy(sim::Simulation{T}) where {T} = kinetic_energy(sim.system) + T(sim.
 """
     step!(sim) -> nothing
 
-Advance `sim` by one time step: a step of its integrator, or of its thermostat when it has one,
-followed by the step of its barostat when it has one.
+Advance `sim` by one time step: a step of its integrator, or of its thermostat when it has one.
+With a barostat, its scale factor is computed from the state at the start of the step and the
+cell and positions are rescaled after the drift, before the step's single force evaluation.
 """
 function step!(sim::Simulation)::Nothing
-    _step!(sim.thermostat, sim)
-    _barostat_step!(sim.barostat, sim)
+    _step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))
     sim.step_count += 1
     return nothing
 end
 
-_step!(::Nothing, sim::Simulation) = advance!(sim.integrator, sim.system, sim.potential)
+# The `after_drift!` hook of the step: `nothing` without a barostat, otherwise the rescaling by
+# the barostat's factor for this step.
+_rescaling(::Nothing, ::Simulation) = nothing
 
-function _step!(th::AbstractThermostat, sim::Simulation)
-    integrator = sim.integrator::VelocityVerlet
-    return thermostat_step!(th, sim.system, sim.potential, integrator.dt, sim.rng, _IntegratorStep(integrator))
-end
-
-_barostat_step!(::Nothing, ::Simulation) = nothing
-
-function _barostat_step!(b::AbstractBarostat, sim::Simulation)
+function _rescaling(b::AbstractBarostat, sim::Simulation)
     integrator = sim.integrator::VelocityVerlet
     potential = sim.potential::AbstractStressPotential
-    return barostat_step!(b, sim.system, potential, integrator.dt)
+    return _Rescale(scale_factor(b, sim.system, potential, integrator.dt))
 end
 
-# One step of `integrator`, the plain step a thermostat calls inside its own.
-struct _IntegratorStep{I <: AbstractIntegrator}
-    integrator::I
+struct _Rescale{T <: AbstractFloat}
+    μ::T
 end
-(s::_IntegratorStep)(sys, potential) = advance!(s.integrator, sys, potential)
+(r::_Rescale)(sys) = rescale!(sys, r.μ)
+
+_step!(::Nothing, sim::Simulation, ::Nothing) = advance!(sim.integrator, sim.system, sim.potential)
+_step!(::Nothing, sim::Simulation, hook) = advance!(sim.integrator::VelocityVerlet, sim.system, sim.potential, hook)
+
+function _step!(th::AbstractThermostat, sim::Simulation, hook)
+    integrator = sim.integrator::VelocityVerlet
+    return _thermostat_step!(th, sim, integrator.dt, _IntegratorStep(integrator, hook), hook)
+end
+
+_thermostat_step!(th, sim, dt, integrate!, ::Nothing) =
+    thermostat_step!(th, sim.system, sim.potential, dt, sim.rng, integrate!)
+_thermostat_step!(th, sim, dt, integrate!, hook) =
+    thermostat_step!(th, sim.system, sim.potential, dt, sim.rng, integrate!, hook)
+
+# One step of `integrator` with the step's `after_drift!` hook (`nothing` for none), the plain
+# step a thermostat calls inside its own.
+struct _IntegratorStep{I <: AbstractIntegrator, H}
+    integrator::I
+    hook::H
+end
+(s::_IntegratorStep{<:AbstractIntegrator, Nothing})(sys, potential) = advance!(s.integrator, sys, potential)
+(s::_IntegratorStep)(sys, potential) = advance!(s.integrator::VelocityVerlet, sys, potential, s.hook)
 
 """
     run!(sim, nsteps; every = 1, observer = nothing) -> nothing

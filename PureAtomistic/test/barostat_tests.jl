@@ -38,6 +38,43 @@
         return (lo + hi) / 2
     end
 
+    # A Lennard-Jones potential that counts its `prepare!` and `energy_forces!` calls; `result`
+    # is the wrapped potential's result object.
+    struct CountingLJ{T} <: AbstractStressPotential
+        lj::LennardJones{T}
+        result::PotentialResult{T}
+        prepares::Base.RefValue{Int}
+        evaluations::Base.RefValue{Int}
+    end
+    CountingLJ(lj::LennardJones) = CountingLJ(lj, lj.result, Ref(0), Ref(0))
+    PureAtomistic.n_atoms(p::CountingLJ) = n_atoms(p.lj)
+    PureAtomistic.cutoff(p::CountingLJ) = cutoff(p.lj)
+    PureAtomistic.stress(p::CountingLJ) = stress(p.lj)
+    function PureAtomistic.prepare!(p::CountingLJ, x, c)
+        p.prepares[] += 1
+        return prepare!(p.lj, x, c)
+    end
+    function PureAtomistic.energy_forces!(p::CountingLJ, x, c)
+        p.evaluations[] += 1
+        return energy_forces!(p.lj, x, c)
+    end
+
+    # The pressure in GPa from the stress and the velocities, with the kinetic term
+    # 2K/(3V) written out here so that it is not checked against `Systems.pressure`.
+    function pressure_gpa(sys, S)
+        V = abs(det(sys.cell))
+        K = AMU_LITERAL / 2 * sum(sys.masses[a] * sum(abs2, sys.velocities[:, a]) for a in axes(sys.velocities, 2))
+        return (-tr(S) / 3 + 2K / (3V)) * GPA_LITERAL
+    end
+
+    # Mean of `x` and its standard error from the means of `nb` consecutive blocks.
+    function block_mean(x, nb)
+        L = length(x) ÷ nb
+        b = [sum(@view x[((i - 1) * L + 1):(i * L)]) / L for i in 1:nb]
+        m = sum(b) / nb
+        return m, sqrt(sum(abs2, b .- m) / (nb - 1) / nb)
+    end
+
     # Least-squares line through `(t, log|y|)`: the decay rate (minus the slope) and the largest
     # residual.
     function log_linear_fit(t, y)
@@ -190,6 +227,15 @@ end
     h = 1.0e-4
     dEdV(a) = (energy(a + h) - energy(a - h)) / ((a + h)^3 - (a - h)^3)
     a_E = BarostatFixtures.bisect(a -> -dEdV(a), 3.6, 3.7)
+    # The PureMLIP gallery's estimate: a parabola through the nine lowest of 33 energies per
+    # atom from 3.45 to 3.85 Å. The asymmetry of E(a) over its ±0.05 Å window biases it by a
+    # measured 8.09e-4 Å above the barostat's value.
+    as = range(3.45, 3.85; length = 33)
+    Es = [energy(a) / 4 for a in as]
+    i = argmin(Es)
+    w = (i - 4):(i + 4)
+    c = [ones(9) as[w] as[w] .^ 2] \ Es[w]
+    a_gallery = -c[2] / (2c[3])
     # The static crystal (zero velocities, zero forces by symmetry) under the barostat at
     # P0 = 0, started on either side of the minimum.
     for a_start in (3.6, 3.7)
@@ -201,43 +247,93 @@ end
         # Measured |a - a_E| = 4.4e-9 Å (the h² truncation of the oracle; with h = 3e-5 it is
         # 5e-10 Å). Bound 1e-7 Å (23 times).
         @test abs(a - a_E) < 1.0e-7
+        # Measured a_gallery - a = 8.09e-4 Å; bound 1e-3 Å (the bias plus 24 %), far below
+        # the 0.03 Å by which a wrong stress convention or unit factor moves a.
+        @test abs(a_gallery - a) < 1.0e-3
         @test sys.cell == a * [1 0 0; 0 1 0; 0 0 1]
         # Measured final pressure 2.8e-13 GPa; bound 5e-12 GPa (18 times).
         @test abs(pressure(sys, stress(p)) * BarostatFixtures.GPA_LITERAL) < 5.0e-12
     end
 end
 
-@testitem "a barostat step leaves the result of the rescaled configuration" setup = [BarostatFixtures] begin
+@testitem "thermal NPT: the mean pressure equals P0" setup = [BarostatFixtures] begin
     using PureAtomistic.Systems
     using Random
     B = BarostatFixtures
+    # 32-atom Lennard-Jones crystal at 30 K under the Bussi thermostat (τ_T = 100 fs) and the
+    # Berendsen barostat (P0 = 0.05 GPa, τ_P = 200 fs, β_T = 0.4/GPa), dt = 2 fs. After 10 ps
+    # of equilibration the pressure, computed here from the stress and the velocities, is
+    # sampled every 10 steps for 60 ps (3000 samples) and split into 20 blocks of 3 ps, 15
+    # times τ_P. In the steady state the volume does not drift, so ⟨μ³ - 1⟩ = 0 and ⟨P⟩ = P0
+    # up to the second-order term (β_T dt/τ_P) σ_P²/2 = 4e-7 GPa (σ_P = 9e-3 GPa measured).
+    # Measured: ⟨P⟩ - P0 = -8e-5 GPa, standard error 1.7e-4 GPa (z = -0.5). The bound is 5
+    # standard errors. The kinetic term is 0.011 GPa here (measured), so a pressure without it
+    # misses P0 by about 65 standard errors.
+    sys, p = B.lj_crystal(Float64, 5.3)
+    maxwell_boltzmann!(sys, 30.0, Xoshiro(1))
+    sim = Simulation(
+        sys, p, VelocityVerlet(2.0); thermostat = BussiThermostat(30.0, 100.0),
+        barostat = BerendsenBarostat(0.05, 200.0, 0.4), rng = Xoshiro(1)
+    )
+    run!(sim, 5000)
+    P = Float64[]
+    run!(sim, 30_000; every = 10, observer = s -> push!(P, B.pressure_gpa(s.system, stress(s.potential))))
+    m, se = B.block_mean(P, 20)
+    @test abs(m - 0.05) < 5 * se
+    # The standard error is small enough to resolve the kinetic term: measured 1.7e-4 GPa,
+    # bound 1e-3 GPa.
+    @test se < 1.0e-3
+end
+
+@testitem "a barostatted step evaluates the potential once, at the rescaled configuration" setup = [BarostatFixtures] begin
+    using PureAtomistic.Systems
+    using PureAtomistic.Barostats
+    using Random
+    B = BarostatFixtures
+    for th in (nothing, BussiThermostat(30.0, 50.0), LangevinBAOAB(30.0, 0.01))
+        sys, lj = B.lj_crystal(Float64, 5.26)
+        maxwell_boltzmann!(sys, 30.0, Xoshiro(2))
+        p = B.CountingLJ(lj)
+        sim = Simulation(sys, p, VelocityVerlet(2.0); thermostat = th, barostat = BerendsenBarostat(1.0, 100.0, 0.3), rng = Xoshiro(0))
+        @test p.evaluations[] == 1
+        V0 = volume(sys)
+        run!(sim, 5)
+        @test volume(sys) != V0
+        # Exactly one force evaluation and one neighbor-list refresh per step.
+        @test p.evaluations[] == 6
+        @test p.prepares[] == 6
+        fresh = LennardJones(copy(sys.positions), copy(sys.cell); epsilon = 0.0104, sigma = 3.4, r_cut = 6.85)
+        prepare!(fresh, sys.positions, sys.cell)
+        energy_forces!(fresh, sys.positions, sys.cell)
+        # The same edges in the same order give the same sums.
+        @test p.result.energy == fresh.result.energy
+        @test p.result.forces == fresh.result.forces
+        @test stress(p) == stress(fresh)
+    end
+
+    # scale_factor changes nothing; rescale! scales positions and cell by one factor, so the
+    # fractional coordinates are unchanged, and leaves the velocities alone. Rounding bound:
+    # one multiplication each, so 2 eps relative.
     sys, p = B.lj_crystal(Float64, 5.26)
     maxwell_boltzmann!(sys, 30.0, Xoshiro(2))
-    sim = Simulation(sys, p, VelocityVerlet(2.0); barostat = BerendsenBarostat(1.0, 100.0, 0.3), rng = Xoshiro(0))
-    V0 = volume(sys)
-    run!(sim, 5)
-    @test volume(sys) != V0
-    fresh = LennardJones(copy(sys.positions), copy(sys.cell); epsilon = 0.0104, sigma = 3.4, r_cut = 6.85)
-    prepare!(fresh, sys.positions, sys.cell)
-    energy_forces!(fresh, sys.positions, sys.cell)
-    # The same edges in the same order give the same sums.
-    @test p.result.energy == fresh.result.energy
-    @test p.result.forces == fresh.result.forces
-    @test stress(p) == stress(fresh)
-    # The velocities are not rescaled: a barostat step moves only the positions and the cell.
+    prepare!(p, sys.positions, sys.cell)
+    energy_forces!(p, sys.positions, sys.cell)
     v, x, c = copy(sys.velocities), copy(sys.positions), copy(sys.cell)
-    PureAtomistic.Barostats.barostat_step!(BerendsenBarostat(1.0, 100.0, 0.3), sys, p, 2.0)
+    μ = scale_factor(BerendsenBarostat(1.0, 100.0, 0.3), sys, p, 2.0)
+    @test μ isa Float64 && μ != 1
+    @test sys.positions == x && sys.cell == c && sys.velocities == v
+    # Oracle for μ: the formula with the pressure computed here; rounding bound 8 eps.
+    P = B.pressure_gpa(sys, stress(p))
+    @test μ ≈ cbrt(1 - 0.3 * 2.0 / 100.0 * (1.0 - P)) rtol = 8 * eps()
+    rescale!(sys, μ)
     @test sys.velocities == v
-    # Positions and cell scale by one factor: fractional coordinates are unchanged. Rounding
-    # bound: one multiplication each, so 2 eps relative.
-    μ = sys.cell[1, 1] / c[1, 1]
-    @test μ != 1
     @test sys.cell ≈ μ .* c rtol = 2 * eps()
     @test sys.positions ≈ μ .* x rtol = 2 * eps()
 end
 
 @testitem "barostat rejects invalid arguments" setup = [BarostatFixtures, VerletFixtures] begin
     using PureAtomistic.Systems
+    using PureAtomistic.Barostats
     using Random
     B = BarostatFixtures
     @test_throws "pureatomistic: the barostat coupling time must be positive and finite, got 0.0" BerendsenBarostat(0.0, 0.0, 1.0)
@@ -264,74 +360,85 @@ end
         sys, p, NoStepIntegrator(); barostat = b, rng = Xoshiro(0)
     )
 
-    # A step whose volume factor would not be positive throws and leaves the system unchanged.
-    sim = Simulation(sys, p, VelocityVerlet(1.0); barostat = BerendsenBarostat(1.0e4, 1.0, 1.0), rng = Xoshiro(0))
-    @test_throws "pureatomistic: the Berendsen step would make the cell degenerate (volume factor" step!(sim)
-    x, c = copy(sys.positions), copy(sys.cell)
-    @test_throws "pureatomistic: the Berendsen step would make the cell degenerate" PureAtomistic.Barostats.barostat_step!(
-        BerendsenBarostat(1.0e4, 1.0, 1.0), sys, p, 1.0
-    )
-    @test sys.positions == x && sys.cell == c
+    # A step whose volume factor would not be positive throws before anything moves.
+    maxwell_boltzmann!(sys, 30.0, Xoshiro(2))
+    for th in (nothing, BussiThermostat(30.0, 50.0), LangevinBAOAB(30.0, 0.01))
+        sim = Simulation(sys, p, VelocityVerlet(1.0); thermostat = th, barostat = BerendsenBarostat(1.0e4, 1.0, 1.0), rng = Xoshiro(0))
+        x, v, c = copy(sys.positions), copy(sys.velocities), copy(sys.cell)
+        @test_throws "pureatomistic: the Berendsen step would make the cell degenerate (volume factor" step!(sim)
+        @test sys.positions == x && sys.velocities == v && sys.cell == c
+    end
     # A non-finite stress gives a non-finite volume factor, which is refused too.
     p.stress[1, 1] = NaN
-    @test_throws "pureatomistic: the Berendsen step would make the cell degenerate (volume factor NaN" PureAtomistic.Barostats.barostat_step!(
+    @test_throws "pureatomistic: the Berendsen step would make the cell degenerate (volume factor NaN" scale_factor(
         BerendsenBarostat(0.0, 1.0, 1.0), sys, p, 1.0
     )
     # A singular cell has no pressure.
     flat = System{Float64}(copy(sys.positions), copy(sys.velocities), sys.masses, sys.species, zeros(3, 3))
-    @test_throws "pureatomistic: the cell is singular" PureAtomistic.Barostats.barostat_step!(b, flat, p, 1.0)
+    @test_throws "pureatomistic: the cell is singular" scale_factor(b, flat, p, 1.0)
 end
 
-@testitem "barostatted runs on views equal runs on arrays; offset arrays are refused" setup = [BarostatFixtures] begin
+@testitem "barostatted runs on views equal runs on arrays; offset arrays" setup = [BarostatFixtures] begin
     using PureAtomistic.Systems
+    using PureAtomistic.Barostats
     using OffsetArrays, Random
     B = BarostatFixtures
-    run_with(sys) = begin
+    run_with(sys, th) = begin
         p = LennardJones(Matrix(sys.positions), Matrix(sys.cell); epsilon = 0.0104, sigma = 3.4, r_cut = 6.85)
-        sim = Simulation(sys, p, VelocityVerlet(2.0); barostat = BerendsenBarostat(0.5, 50.0, 0.3), rng = Xoshiro(0))
+        sim = Simulation(sys, p, VelocityVerlet(2.0); thermostat = th, barostat = BerendsenBarostat(0.5, 50.0, 0.3), rng = Xoshiro(0))
         run!(sim, 20)
         return sim
     end
-    ref, _ = B.lj_crystal(Float64, 5.26)
-    maxwell_boltzmann!(ref, 30.0, Xoshiro(4))
-    n = natoms(ref)
-    bigx, bigv, bigc = zeros(3, n + 2), zeros(3, n + 2), zeros(4, 4)
-    bigx[:, 1:n] .= ref.positions
-    bigv[:, 1:n] .= ref.velocities
-    bigc[1:3, 1:3] .= ref.cell
-    vsys = System{Float64}(view(bigx, :, 1:n), view(bigv, :, 1:n), ref.masses, ref.species, view(bigc, 1:3, 1:3))
-    run_with(ref)
-    run_with(vsys)
-    @test vsys.positions == ref.positions
-    @test vsys.velocities == ref.velocities
-    @test vsys.cell == ref.cell
-    @test iszero(bigx[:, (n + 1):end]) && iszero(bigc[4, :]) && iszero(bigc[:, 4])
+    for th in (nothing, LangevinBAOAB(30.0, 0.01))
+        ref, _ = B.lj_crystal(Float64, 5.26)
+        maxwell_boltzmann!(ref, 30.0, Xoshiro(4))
+        n = natoms(ref)
+        bigx, bigv, bigc = zeros(3, n + 2), zeros(3, n + 2), zeros(4, 4)
+        bigx[:, 1:n] .= ref.positions
+        bigv[:, 1:n] .= ref.velocities
+        bigc[1:3, 1:3] .= ref.cell
+        vsys = System{Float64}(view(bigx, :, 1:n), view(bigv, :, 1:n), ref.masses, ref.species, view(bigc, 1:3, 1:3))
+        run_with(ref, th)
+        run_with(vsys, th)
+        @test vsys.positions == ref.positions
+        @test vsys.velocities == ref.velocities
+        @test vsys.cell == ref.cell
+        @test iszero(bigx[:, (n + 1):end]) && iszero(bigc[4, :]) && iszero(bigc[:, 4])
+    end
 
+    # rescale! is generic over axes: offset arrays scale like plain ones. scale_factor refuses
+    # an offset cell, which the force evaluation after the rescaling could not use.
     sys, p = B.lj_crystal(Float64, 5.26)
-    osys = System{Float64}(
-        OffsetArray(copy(sys.positions), 0:2, 0:(n - 1)), OffsetArray(copy(sys.velocities), 0:2, 0:(n - 1)),
-        OffsetArray(copy(sys.masses), 0:(n - 1)), OffsetArray(copy(sys.species), 0:(n - 1)), sys.cell
-    )
+    n = natoms(sys)
     prepare!(p, sys.positions, sys.cell)
     energy_forces!(p, sys.positions, sys.cell)
-    @test_throws "offset arrays are not supported" PureAtomistic.Barostats.barostat_step!(BerendsenBarostat(0.5, 50.0, 0.3), osys, p, 1.0)
+    osys = System{Float64}(
+        OffsetArray(copy(sys.positions), 0:2, 0:(n - 1)), OffsetArray(copy(sys.velocities), 0:2, 0:(n - 1)),
+        OffsetArray(copy(sys.masses), 0:(n - 1)), OffsetArray(copy(sys.species), 0:(n - 1)), OffsetArray(copy(sys.cell), 0:2, 0:2)
+    )
+    @test_throws "offset arrays are not supported" scale_factor(BerendsenBarostat(0.5, 50.0, 0.3), osys, p, 1.0)
+    rescale!(osys, 1.01)
+    rescale!(sys, 1.01)
     @test parent(osys.positions) == sys.positions
+    @test parent(osys.cell) == sys.cell
 end
 
 @testitem "barostat steps do not allocate" tags = [:checks] setup = [VerletFixtures, BarostatFixtures] begin
     using StrictModeTest, StrictMode
     using PureAtomistic.Systems
+    using PureAtomistic.Barostats
     using Random
     register_alloc_barrier!(PureAtomistic.Potentials._regrow!)
     @noinline stepper!(s) = step!(s)
     @noinline runner!(s) = run!(s, 3)
-    @noinline baro!(b, s, p, dt) = PureAtomistic.Barostats.barostat_step!(b, s, p, dt)
+    @noinline factor(b, s, p, dt) = scale_factor(b, s, p, dt)
+    @noinline scale!(s, μ) = rescale!(s, μ)
     b = BerendsenBarostat(0.5, 50.0, 0.3)
     for T in (Float64, Float32)
         sys, p = BarostatFixtures.lj_crystal(T, 5.26)
         maxwell_boltzmann!(sys, 30.0, Xoshiro(2))
         m = VerletFixtures.mace_simulation(T, 0.5)
-        for th in (nothing, BussiThermostat(30.0, 50.0))
+        for th in (nothing, BussiThermostat(30.0, 50.0), LangevinBAOAB(30.0, 0.01))
             for sim in (
                     Simulation(sys, p, VelocityVerlet(2.0); thermostat = th, barostat = b, rng = Xoshiro(0)),
                     Simulation(m.system, m.potential, VelocityVerlet(0.5); thermostat = th, barostat = b, rng = Xoshiro(0)),
@@ -340,8 +447,10 @@ end
                 @test_noalloc stepper!(sim)
                 @test_steady_state stepper!(sim)
                 @test_steady_state runner!(sim)
-                baro!(b, sim.system, sim.potential, 1.0)
-                @test_noalloc baro!(b, sim.system, sim.potential, 1.0)
+                factor(b, sim.system, sim.potential, 1.0)
+                @test_noalloc factor(b, sim.system, sim.potential, 1.0)
+                scale!(sim.system, one(T))
+                @test_noalloc scale!(sim.system, one(T))
                 @test sim.potential.n_regrows == 0
             end
         end
@@ -358,6 +467,8 @@ end
             const SIM64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, Nothing, Xoshiro, BerendsenBarostat}
             const SIM32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, Nothing, Xoshiro, BerendsenBarostat}
             const SIMM32 = Simulation{Float32, SYS32, MACEPotential{Float32}, VelocityVerlet, BussiThermostat, Xoshiro, BerendsenBarostat}
+            const SIMB64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, LangevinBAOAB, Xoshiro, BerendsenBarostat}
+            const SIMBM32 = Simulation{Float32, SYS32, MACEPotential{Float32}, VelocityVerlet, LangevinBAOAB, Xoshiro, BerendsenBarostat}
             new_berendsen(P0, τ, β) = BerendsenBarostat(P0, τ, β)
             new_sim(s, p, dt, b, rng) = Simulation(s, p, VelocityVerlet(dt); barostat = b, rng)
             step_it(s) = step!(s)
@@ -369,11 +480,16 @@ end
         step_it(SIM64),
         step_it(SIM32),
         step_it(SIMM32),
+        step_it(SIMB64),
+        step_it(SIMBM32),
         run_it(SIM64, Int),
-        barostat_step!(BerendsenBarostat, SYS64, LennardJones{Float64}, Float64),
-        barostat_step!(BerendsenBarostat, SYS32, LennardJones{Float32}, Float64),
-        barostat_step!(BerendsenBarostat, SYS64, MACEPotential{Float64}, Float64),
-        barostat_step!(BerendsenBarostat, SYS32, MACEPotential{Float32}, Float64),
+        run_it(SIMB64, Int),
+        scale_factor(BerendsenBarostat, SYS64, LennardJones{Float64}, Float64),
+        scale_factor(BerendsenBarostat, SYS32, LennardJones{Float32}, Float64),
+        scale_factor(BerendsenBarostat, SYS64, MACEPotential{Float64}, Float64),
+        scale_factor(BerendsenBarostat, SYS32, MACEPotential{Float32}, Float64),
+        rescale!(SYS64, Float64),
+        rescale!(SYS32, Float32),
     )
 end
 
@@ -381,16 +497,17 @@ end
     using PureAtomistic.Systems, PureAtomistic.Barostats
     using TypeContracts, Random
     b = BerendsenBarostat(0.0, 100.0, 0.5)
-    for T in (Float64, Float32)
+    for T in (Float64, Float32), th in (nothing, BussiThermostat(30.0, 50.0), LangevinBAOAB(30.0, 0.01))
         sys, p = BarostatFixtures.lj_crystal(T, 5.26)
-        sim = Simulation(sys, p, VelocityVerlet(1.0); barostat = b, rng = Xoshiro(0))
+        sim = Simulation(sys, p, VelocityVerlet(1.0); thermostat = th, barostat = b, rng = Xoshiro(0))
         @test Base.return_types(step!, (typeof(sim),)) == [Nothing]
-        @test Base.return_types(barostat_step!, (BerendsenBarostat, typeof(sys), typeof(p), Float64)) == [Nothing]
+        @test Base.return_types(scale_factor, (BerendsenBarostat, typeof(sys), typeof(p), Float64)) == [T]
+        @test Base.return_types(rescale!, (typeof(sys), T)) == [Nothing]
         @test isconcretetype(typeof(sim))
     end
     @test BerendsenBarostat <: AbstractBarostat
     @verify BerendsenBarostat trim_compat = true
     # A barostat without the contract's method fails the check.
-    struct NoBaroStep <: AbstractBarostat end
-    @test_throws Exception @verify NoBaroStep
+    struct NoScaleFactor <: AbstractBarostat end
+    @test_throws Exception @verify NoScaleFactor
 end

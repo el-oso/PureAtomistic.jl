@@ -82,11 +82,22 @@ end
 end
 
 """
+    cell_volume(cell)
+
+Volume `|det(cell)|` in Å³ of the `3 × 3` `cell` whose columns are the lattice vectors (Å).
+Any axes are accepted.
+"""
+function cell_volume(cell::AbstractMatrix)
+    size(cell) == (3, 3) || throw(ArgumentError(lazy"pureatomistic: the cell must be 3 × 3, got $(size(cell))"))
+    return abs(_det3(_entries(cell)))
+end
+
+"""
     volume(sys)
 
 Cell volume `|det(cell)|` in Å³.
 """
-volume(sys::System) = abs(_det3(_entries(sys.cell)))
+volume(sys::System) = cell_volume(sys.cell)
 
 """
     wrap!(sys)

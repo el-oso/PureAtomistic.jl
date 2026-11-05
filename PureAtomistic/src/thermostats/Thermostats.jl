@@ -1,7 +1,7 @@
 module Thermostats
 
 import Random
-using ..Systems: System, AMU_IN_EV_FS2_PER_A2, KB_EV_PER_K, natoms, kinetic_energy, kick!, drift!
+using ..Systems: System, AMU_IN_EV_FS2_PER_A2, KB_EV_PER_K, natoms, kinetic_energy, kick!, drift!, no_hook
 using ..Potentials: AbstractPotential, prepare!, energy_forces!
 using TypeContracts: @contract, @verify, Self
 
@@ -21,11 +21,19 @@ abstract type AbstractThermostat end
 
 """
     thermostat_step!(thermostat, sys, potential, dt, rng, integrate!) -> nothing
+    thermostat_step!(thermostat, sys, potential, dt, rng, integrate!, after_drift!) -> nothing
 
 Advance `sys` by one time step of `dt` fs under `potential` coupled to `thermostat`, drawing
-random numbers from `rng`; see [`AbstractThermostat`](@ref).
+random numbers from `rng`; see [`AbstractThermostat`](@ref). `after_drift!(sys)` runs after
+the last position update and before the force evaluation of the step. A thermostat that moves
+the positions only through `integrate!` leaves the hook to `integrate!`, which then carries it:
+the seven-argument fallback drops the hook and calls the six-argument method. A thermostat with
+its own splitting implements the seven-argument method.
 """
 function thermostat_step! end
+
+thermostat_step!(th::AbstractThermostat, sys, potential, dt, rng, integrate!, after_drift!) =
+    thermostat_step!(th, sys, potential, dt, rng, integrate!)
 
 include("gamma_sampler.jl")
 include("langevin.jl")

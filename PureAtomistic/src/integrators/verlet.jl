@@ -42,16 +42,22 @@ end
 
 """
     advance!(integrator, sys, potential) -> nothing
+    advance!(vv::VelocityVerlet, sys, potential, after_drift!) -> nothing
 
 Advance `sys` by one step of `integrator` under the forces of `potential`, which must hold the
 forces of the current positions in `potential.result` (the state [`energy_forces!`](@ref)
 leaves). On return `potential.result` holds the energy and forces of the new positions.
+
+The velocity Verlet step calls `after_drift!(sys)` after the drift and before the force
+evaluation, so a change it makes to the positions or the cell (a barostat's rescaling) is what
+the forces are evaluated at. The default does nothing.
 """
-function advance!(vv::VelocityVerlet, sys::System{T}, potential::AbstractPotential)::Nothing where {T}
+function advance!(vv::VelocityVerlet, sys::System{T}, potential::AbstractPotential, after_drift! = no_hook)::Nothing where {T}
     Base.require_one_based_indexing(sys.positions, sys.velocities, sys.masses)
     h = T(vv.dt)
     kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
     drift!(sys.positions, sys.velocities, h)
+    after_drift!(sys)
     prepare!(potential, sys.positions, sys.cell)
     energy_forces!(potential, sys.positions, sys.cell)
     kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)

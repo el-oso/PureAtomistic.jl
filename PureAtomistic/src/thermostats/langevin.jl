@@ -18,6 +18,8 @@ the simulation's random number generator atom by atom and, within an atom, in th
 z, so a seeded run reproduces bit for bit. The O step is the exact solution of the
 Ornstein-Uhlenbeck part `dv = -γ v dt + √(2γ k_B T/m) dW` over `h`. The thermostat replaces the
 integrator's own step. `γ = 0` gives deterministic dynamics; the friction must be finite.
+The `after_drift!` hook of [`thermostat_step!`](@ref) runs after the second A and before the
+force evaluation.
 """
 struct LangevinBAOAB <: AbstractThermostat
     temp::Float64
@@ -33,7 +35,7 @@ end
 
 function thermostat_step!(
         th::LangevinBAOAB, sys::System{T}, potential::AbstractPotential, dt::Real,
-        rng::Random.AbstractRNG, integrate!
+        rng::Random.AbstractRNG, integrate!, after_drift! = no_hook
     )::Nothing where {T}
     Base.require_one_based_indexing(sys.positions, sys.velocities, sys.masses)
     V, X, m = sys.velocities, sys.positions, sys.masses
@@ -51,6 +53,7 @@ function thermostat_step!(
         end
     end
     drift!(X, V, h / 2)
+    after_drift!(sys)
     prepare!(potential, X, sys.cell)
     energy_forces!(potential, X, sys.cell)
     kick!(V, potential.result.forces, m, h / 2)

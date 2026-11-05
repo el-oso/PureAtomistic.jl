@@ -57,6 +57,7 @@ end
         sys = SystemFixtures.small_system(T, C)
         # Rounding bound: det is 14 flops on entries of size <= 7; c = 8, N = 7^3 relative to |det|.
         @test volume(sys) ≈ abs(det(C)) rtol = 8 * eps(T) * 343 / abs(det(C))
+        @test cell_volume(T.(C)) == volume(sys)
         orig = copy(sys.positions)
         # Shift every atom by a random integer combination of the lattice vectors.
         shifts = rand(rng, -3:3, 3, 4)
@@ -111,6 +112,7 @@ end
     end
     sys = SystemFixtures.small_system(Float64)
     @test_throws "pureatomistic: the stress must be 3 × 3, got (2, 2)" pressure(sys, zeros(2, 2))
+    @test_throws "pureatomistic: the cell must be 3 × 3, got (2, 2)" cell_volume(zeros(2, 2))
 end
 
 @testitem "temperature with no degree of freedom throws" begin

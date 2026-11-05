@@ -32,3 +32,10 @@ function drift!(X::AbstractMatrix{T}, V::AbstractMatrix{T}, h::T) where {T}
     end
     return nothing
 end
+
+"""
+    no_hook(sys) -> nothing
+
+The hook that does nothing: the default `after_drift!` of a step that accepts one.
+"""
+no_hook(::System) = nothing

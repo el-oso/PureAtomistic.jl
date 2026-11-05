@@ -646,8 +646,8 @@ expect = "BAOAB harmonic oscillators"
 [[mutation]]
 name = "langevin-second-evaluation"
 file = "src/thermostats/langevin.jl"
-find = "    drift!(X, V, h / 2)\n    prepare!(potential, X, sys.cell)"
-replace = "    drift!(X, V, h / 2)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
+find = "    after_drift!(sys)\n    prepare!(potential, X, sys.cell)"
+replace = "    after_drift!(sys)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
 expect = "BAOAB friction and force evaluations"
 
 [[mutation]]
@@ -681,8 +681,8 @@ expect = "Bussi ideal-gas kinetic energy"
 [[mutation]]
 name = "driver-thermostat-ignored"
 file = "src/driver.jl"
-find = "    _step!(sim.thermostat, sim)"
-replace = "    _step!(nothing, sim)"
+find = "_step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))"
+replace = "_step!(nothing, sim, _rescaling(sim.barostat, sim))"
 expect = "BAOAB|Bussi"
 
 [[mutation]]
@@ -726,8 +726,8 @@ expect = "relaxes"
 [[mutation]]
 name = "berendsen-cube-root"
 file = "src/barostats/berendsen.jl"
-find = "μ = cbrt(μ3)"
-replace = "μ = μ3"
+find = "return cbrt(μ3)"
+replace = "return μ3"
 expect = "relaxes exponentially"
 
 [[mutation]]
@@ -742,18 +742,58 @@ name = "berendsen-kinetic-term"
 file = "src/systems/system.jl"
 find = "return T(-tr / 3) + 2 * kinetic_energy(sys) / (3 * V)"
 replace = "return T(-tr / 3)"
-expect = "ideal gas"
+expect = "ideal gas|thermal NPT"
 
 [[mutation]]
-name = "berendsen-stale-result"
-file = "src/barostats/berendsen.jl"
+name = "verlet-hook-skipped"
+file = "src/integrators/verlet.jl"
+find = "    after_drift!(sys)\n"
+replace = ""
+expect = "relaxes|evaluates the potential once"
+
+[[mutation]]
+name = "verlet-hook-after-forces"
+file = "src/integrators/verlet.jl"
 find = '''
+    after_drift!(sys)
     prepare!(potential, sys.positions, sys.cell)
     energy_forces!(potential, sys.positions, sys.cell)
-    return nothing'''
+'''
 replace = '''
-    return nothing'''
-expect = "result of the rescaled configuration"
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+    after_drift!(sys)
+'''
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "langevin-hook-skipped"
+file = "src/thermostats/langevin.jl"
+find = "    after_drift!(sys)\n"
+replace = ""
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "driver-integrator-step-drops-hook"
+file = "src/driver.jl"
+find = "advance!(s.integrator::VelocityVerlet, sys, potential, s.hook)"
+replace = "advance!(s.integrator, sys, potential)"
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "driver-old-ordering"
+file = "src/driver.jl"
+find = "    _step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))\n"
+replace = '''
+    _step!(sim.thermostat, sim, nothing)
+    r = _rescaling(sim.barostat, sim)
+    if !isnothing(r)
+        r(sim.system)
+        prepare!(sim.potential, sim.system.positions, sim.system.cell)
+        energy_forces!(sim.potential, sim.system.positions, sim.system.cell)
+    end
+'''
+expect = "evaluates the potential once"
 
 [[mutation]]
 name = "berendsen-degenerate-unchecked"
@@ -772,8 +812,8 @@ expect = "barostat rejects invalid arguments"
 [[mutation]]
 name = "driver-barostat-ignored"
 file = "src/driver.jl"
-find = "    _barostat_step!(sim.barostat, sim)"
-replace = ""
+find = "_step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))"
+replace = "_step!(sim.thermostat, sim, nothing)"
 expect = "relaxes"
 
 [[mutation]]
@@ -793,6 +833,6 @@ expect = "strain derivative of the energy"
 [[mutation]]
 name = "lj-stress-volume"
 file = "src/potentials/lennard_jones.jl"
-find = "vol = abs(_det3(cell))"
+find = "vol = cell_volume(cell)"
 replace = "vol = abs(cell[1, 1] * cell[2, 2] * cell[3, 3])"
 expect = "strain derivative of the energy"

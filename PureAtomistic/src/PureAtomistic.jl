@@ -21,7 +21,7 @@ export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cut
 export AbstractIntegrator, VelocityVerlet, Simulation, step!, run!, total_energy
 using .Thermostats: AbstractThermostat, LangevinBAOAB, BussiThermostat, thermostat_step!
 export AbstractThermostat, LangevinBAOAB, BussiThermostat
-using .Barostats: AbstractBarostat, BerendsenBarostat, barostat_step!
+using .Barostats: AbstractBarostat, BerendsenBarostat, scale_factor, rescale!
 export AbstractBarostat, BerendsenBarostat
 
 include("driver.jl")

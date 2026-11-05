@@ -1,6 +1,7 @@
 module Potentials
 
 using PureMLIP: MACEModel, MACEResult, MACEWorkspace, NeighborList, mace_energy_forces!, neighbor_list, neighbor_list!
+using ..Systems: cell_volume
 using TypeContracts: @contract, @verify, Self
 
 export AbstractPotential, AbstractStressPotential, PotentialResult

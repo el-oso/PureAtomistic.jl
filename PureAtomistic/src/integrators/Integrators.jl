@@ -1,6 +1,6 @@
 module Integrators
 
-using ..Systems: System, natoms, kick!, drift!
+using ..Systems: System, natoms, kick!, drift!, no_hook
 using ..Potentials: AbstractPotential, n_atoms, prepare!, energy_forces!
 using TypeContracts: @contract, @verify, Self
 

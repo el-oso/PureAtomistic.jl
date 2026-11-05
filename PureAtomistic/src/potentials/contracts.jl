@@ -105,11 +105,6 @@ function _check_configuration(::Type{T}, n::Int, positions::AbstractMatrix, cell
     return nothing
 end
 
-# Determinant of a 1-based 3 × 3 matrix by cofactors.
-_det3(C) = C[1, 1] * (C[2, 2] * C[3, 3] - C[2, 3] * C[3, 2]) -
-    C[1, 2] * (C[2, 1] * C[3, 3] - C[2, 3] * C[3, 1]) +
-    C[1, 3] * (C[2, 1] * C[3, 2] - C[2, 2] * C[3, 1])
-
 function _check_capacity_fraction(f::Real)
     (isfinite(f) && f >= 0) ||
         throw(ArgumentError(lazy"pureatomistic: extra_capacity_fraction must be finite and non-negative, got $f"))
