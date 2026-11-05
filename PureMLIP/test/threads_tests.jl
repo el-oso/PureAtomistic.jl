@@ -41,11 +41,11 @@ end
             close(ws)
         end
         # The workers take the job's neighbor-list type from the model, so a list of another
-        # element type is refused.
+        # element type is refused before the evaluation writes the workspace.
         nl64 = neighbor_list(Matrix{Float64}(P), Matrix{Float64}(C), m.r_max)
         if T == Float32
             ws = MACEWorkspace{T}(m, n, nl.n_edges; nchunks = 2, elements = Z)
-            @test_throws "model: ThreadedChunks() needs a neighbor list of the element type of the model" mace_energy!(
+            @test_throws "model: ThreadedChunks() needs a NeighborList{Float32}, got NeighborList{Float64}" mace_energy!(
                 MACEResult{T}(n), ws, m, P, C, Z, nl64, ThreadedChunks()
             )
             close(ws)
@@ -57,13 +57,17 @@ end
 # seconds, or throws when `c` is `failing`.
 @testmodule ChunkJobs begin
     import PureMLIP
+    # `inside` is called by the last chunk, which runs on the calling task, before it records.
     struct TestJob
         seen::Vector{Int}
         failing::Int
         delay::Float64
+        inside::Function
     end
+    TestJob(seen, failing, delay) = TestJob(seen, failing, delay, () -> nothing)
     function PureMLIP.Model._chunk!(job::TestJob, phase::Int, c::Int)
         c == job.failing && error("chunk $c failed")
+        c == length(job.seen) && job.inside()
         sleep(job.delay)
         job.seen[c] = phase
         return nothing
@@ -75,7 +79,7 @@ end
 
 # A chunk that throws: the call rethrows its error only after every other chunk has finished, so
 # no worker still writes the job's buffers when the caller sees the error; the failed worker is
-# replaced by the next call.
+# replaced before the call returns, so the pool holds no failed task.
 @testitem "threaded chunks: a failing chunk is rethrown after every chunk has finished" setup = [ChunkJobs] begin
     n = 4
     w = ChunkJobs.workers()
@@ -85,8 +89,15 @@ end
             # The last chunk runs on the calling task, so its own error propagates.
             @test_throws "chunk $n failed" ChunkJobs.run!(w, job, 1, n)
         else
-            @test_throws TaskFailedException ChunkJobs.run!(w, job, 1, n)
-            @test istaskfailed(ChunkJobs.tasks(w)[failing])
+            e = try
+                ChunkJobs.run!(w, job, 1, n)
+                nothing
+            catch err
+                err
+            end
+            @test e isa TaskFailedException && istaskfailed(e.task)
+            @test occursin("chunk $failing failed", sprint(showerror, e))
+            @test !any(istaskdone, ChunkJobs.tasks(w)) && !any(w.pool.failed)
         end
         @test all(job.seen[c] == 1 for c in 1:n if c != failing)
         # The next call runs every chunk, on a new worker where one failed.
@@ -95,6 +106,30 @@ end
         @test ok.seen == fill(2, n)
     end
     @test_throws "model: a chunk phase must be positive, got 0" ChunkJobs.run!(w, ChunkJobs.TestJob(zeros(Int, n), 0, 0.0), 0, n)
+    close(w)
+    @test all(istaskdone, ChunkJobs.tasks(w))
+end
+
+# The workers serve one loop at a time: a loop or a `close` started while a loop runs throws, and
+# the running loop still finishes every chunk; the workers are usable afterwards.
+@testitem "threaded chunks: one loop at a time" setup = [ChunkJobs] begin
+    n = 3
+    w = ChunkJobs.workers()
+    busy = "model: the workspace is in use by another evaluation or close; a workspace serves one evaluation at a time"
+    inner = ChunkJobs.TestJob(zeros(Int, n), 0, 0.0)
+    for (what, inside) in (("a second loop", () -> ChunkJobs.run!(w, inner, 1, n)), ("close", () -> close(w)))
+        job = ChunkJobs.TestJob(zeros(Int, n), 0, 0.05, inside)
+        @testset "$what during a loop" begin
+            @test_throws busy ChunkJobs.run!(w, job, 1, n)
+            @test all(job.seen[c] == 1 for c in 1:(n - 1))    # the workers' chunks finished
+            @test !(@atomic w.busy) && isempty(w.pool.job)
+            @test !any(istaskdone, ChunkJobs.tasks(w))
+        end
+    end
+    @test inner.seen == zeros(Int, n)
+    ok = ChunkJobs.TestJob(zeros(Int, n), 0, 0.0)
+    ChunkJobs.run!(w, ok, 2, n)
+    @test ok.seen == fill(2, n)
     close(w)
     @test all(istaskdone, ChunkJobs.tasks(w))
 end
