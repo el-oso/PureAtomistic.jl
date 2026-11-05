@@ -24,8 +24,8 @@ include("driver.jl")
 
 export animate_trajectory, plot_vacancy_track, plot_arrhenius, plot_energy_conservation
 
-using .Integrators: FIRE, RelaxResult, relax!, TrustRegionBFGS
-export FIRE, RelaxResult, relax!, TrustRegionBFGS
+using .Integrators: FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
+export FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
 
 public Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 

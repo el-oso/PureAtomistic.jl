@@ -3,12 +3,11 @@
 # Every step minimizes the quadratic model m(p) = gᵀp + ½ pᵀBp of the energy, with g the
 # gradient (minus the forces) and B = H⁻¹ the BFGS approximation of the Hessian, over the box
 # |pᵢ| ≤ Δ of largest coordinate displacement, with p = 0 on the coordinates of fixed atoms and
-# dᵀp_a = 0 for every frozen direction d of atom a. The box is the ∞-norm trust region of
-# Nocedal and Wright, Numerical Optimization, 2nd ed. (Springer, 2006), Algorithm 4.1, whose
-# radius and acceptance rules are used unchanged; H is updated by the inverse BFGS formula,
-# their eq. (6.17), and the initial H₀ = I/α is rescaled by their eq. (6.20) before the first
-# update. The equation and algorithm numbers are cited from memory and were not checked against
-# the text of the book.
+# dᵀp_a = 0 for every frozen direction d of atom a. The box is an ∞-norm trust region; its radius
+# and acceptance rules are the standard trust-region rules, H is updated by the inverse BFGS
+# formula, and the initial H₀ = I/α is rescaled to (sᵀy / yᵀy) I before the first update
+# (Nocedal and Wright, Numerical Optimization, 2nd ed., Springer, 2006). The rules and the update
+# are re-derived here and verified by the tests.
 #
 # The step problem is solved by PureDAQP's dual active-set method. With H = LLᵀ (Cholesky) and
 # p = Lw the model becomes (Lᵀg)ᵀw + ½‖w‖², so the problem handed to the solver has the identity
@@ -38,34 +37,28 @@ dual active-set method (`solver`, an `ActiveSet`).
 
 - `radius` is the starting trust radius and `max_radius` its ceiling (Å). The radius is
   quartered after a step whose energy decrease is less than a quarter of the model's, and
-  doubled after one that reaches the box with a decrease above three quarters of the model's
-  (Nocedal and Wright, Numerical Optimization, 2006, Algorithm 4.1).
+  doubled after one that reaches the box with a decrease above three quarters of the model's.
 - A step is kept when its energy decrease is more than `eta` times the model's, and undone
   otherwise. When the model's decrease is below the rounding of the energies
   (`4 eps(T) max(|E|, |E_new|)`) the ratio carries no information: the step is kept if the
-  energy did not rise by more than that, and the radius is left alone.
+  energy did not rise by more than that, and undone with the radius quartered if it did.
 - `alpha` (eV/Å²) sets the starting inverse Hessian `I/alpha`; it is rescaled to
-  `(sᵀy / yᵀy) I` before the first update (Nocedal and Wright, eq. 6.20), and every step with
-  `sᵀy > √eps(T) |s| |y|` updates it by the inverse BFGS formula (eq. 6.17), whether or not
-  the step is kept.
+  `(sᵀy / yᵀy) I` before the first update, and every step with `sᵀy > √eps(T) |s| |y|`
+  updates it by the inverse BFGS formula, whether or not the step is kept.
 - `fixed` lists atoms that do not move; `frozen` lists `atom => direction` pairs along which
   an atom does not move (the directions of one atom must be orthogonal). Both are equality rows
   of the step problem. Their force components are left out of the gradient and out of the
   convergence test.
 - `solver` is the PureDAQP `ActiveSet` that solves each step problem; the default factors the
-  working-set rows (`working_set = :rows`) and scans every row (`scan = :all`). On the step
-  problems of relaxing two 256-atom Cu cells with MACE-MPA-0, at the radius the relaxation used
-  and at a half and a tenth of the unconstrained step (`bench/step_problems.jl`), the working-set
-  rows had condition numbers below 3.1, so `working_set = :gram` (which squares it) solved them
-  1.1 to 1.5 times faster wherever the box bound; it is not the default because its solve path
-  in PureDAQP 0.1.10 does not pass TrimCheck. `scan = :window` was slower in total on each of
-  these sets, since the solver prices every row with one product here, and it failed on one
-  problem that `:all` solves. The solve is a small part of a step: on the vacancy cell 0.33 ms
-  against 3.3 ms for the factorization of H and about 0.56 s for the force evaluation. A step
+  working-set rows (`working_set = :rows`) and scans every row (`scan = :all`). `working_set =
+  :gram` is not the default because its solve path in PureDAQP 0.1.10 does not pass TrimCheck,
+  and `scan = :window` because it was slower on the step problems measured and failed on one
+  that `:all` solves (`bench/step_problems.jl`, `bench/results/step_problems_mac.json`). A step
   problem the solver does not solve throws.
 
 The state holds dense `3n × 3n` matrices and every step factors one, so the method suits cells
-of up to about a thousand atoms. A relaxation with a given state is allocation-free.
+of up to about a thousand atoms; [`TrustRegionLBFGS`](@ref) stores O(memory · n) numbers. A relaxation with
+a given state is allocation-free.
 """
 mutable struct TrustRegionBFGS{T <: AbstractFloat, W}
     const H::Matrix{T}
@@ -120,24 +113,36 @@ function _frozen_rows(::Type{T}, natoms::Int, fixed::AbstractVector{Bool}, froze
     return atoms, D
 end
 
-function TrustRegionBFGS{T}(
-        natoms::Integer; radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0, eta::Real = 1.0e-4,
-        fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[], solver::ActiveSet = ActiveSet()
-    ) where {T <: AbstractFloat}
-    natoms >= 1 || throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS needs at least one atom, got $natoms"))
+# The trust-region parameters shared by TrustRegionBFGS and TrustRegionLBFGS; `name` names the
+# state in the messages.
+function _check_trust_parameters(name::String, radius::Real, max_radius::Real, alpha::Real, eta::Real)
     (isfinite(radius) && radius > 0) ||
-        throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS radius must be positive and finite, got $radius"))
+        throw(ArgumentError(lazy"pureatomistic: $name radius must be positive and finite, got $radius"))
     (isfinite(max_radius) && max_radius >= radius) ||
-        throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS max_radius must be finite and at least radius = $radius, got $max_radius"))
+        throw(ArgumentError(lazy"pureatomistic: $name max_radius must be finite and at least radius = $radius, got $max_radius"))
     (isfinite(alpha) && alpha > 0) ||
-        throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS alpha must be positive and finite, got $alpha"))
-    (0 <= eta < 1 / 4) || throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS eta must lie in [0, 1/4), got $eta"))
-    N = Int(natoms)
+        throw(ArgumentError(lazy"pureatomistic: $name alpha must be positive and finite, got $alpha"))
+    (0 <= eta < 1 / 4) || throw(ArgumentError(lazy"pureatomistic: $name eta must lie in [0, 1/4), got $eta"))
+    return nothing
+end
+
+function _fixed_mask(N::Int, fixed)
     isfixed = zeros(Bool, N)
     for a in fixed
         (1 <= a <= N) || throw(ArgumentError(lazy"pureatomistic: fixed atom $a is outside 1:$N"))
         isfixed[a] = true
     end
+    return isfixed
+end
+
+function TrustRegionBFGS{T}(
+        natoms::Integer; radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0, eta::Real = 1.0e-4,
+        fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[], solver::ActiveSet = ActiveSet()
+    ) where {T <: AbstractFloat}
+    natoms >= 1 || throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS needs at least one atom, got $natoms"))
+    _check_trust_parameters("TrustRegionBFGS", radius, max_radius, alpha, eta)
+    N = Int(natoms)
+    isfixed = _fixed_mask(N, fixed)
     frozen_atoms, frozen_dirs = _frozen_rows(T, N, isfixed, frozen)
     n = 3N
     m = n + length(frozen_atoms)
@@ -178,7 +183,7 @@ end
 
 # Remove from the 3 × n matrix G the components the constraints hold: whole columns of fixed
 # atoms and the component along each frozen direction (orthonormal per atom, so one pass each).
-function _project!(G::AbstractMatrix{T}, opt::TrustRegionBFGS{T}) where {T}
+function _project!(G::AbstractMatrix{T}, opt::Union{TrustRegionBFGS{T}, TrustRegionLBFGS{T}}) where {T}
     for a in axes(G, 2)
         if opt.fixed[a]
             G[1, a] = G[2, a] = G[3, a] = zero(T)
@@ -196,7 +201,7 @@ function _project!(G::AbstractMatrix{T}, opt::TrustRegionBFGS{T}) where {T}
 end
 
 # The projected gradient -F into G.
-function _gradient!(G::AbstractMatrix{T}, F::AbstractMatrix, opt::TrustRegionBFGS{T}) where {T}
+function _gradient!(G::AbstractMatrix{T}, F::AbstractMatrix, opt::Union{TrustRegionBFGS{T}, TrustRegionLBFGS{T}}) where {T}
     for a in axes(G, 2), d in axes(G, 1)
         G[d, a] = -F[d, a]
     end
@@ -336,6 +341,9 @@ function _bfgs_update!(opt::TrustRegionBFGS{T}, s::AbstractVector{T}, y::Abstrac
     return true
 end
 
+_curvature_update!(opt::TrustRegionBFGS, s::AbstractVector, y::AbstractVector) = _bfgs_update!(opt, s, y)
+
+
 function _evaluate!(potential::AbstractPotential, sys::System)
     prepare!(potential, sys.positions, sys.cell)
     energy_forces!(potential, sys.positions, sys.cell)
@@ -344,9 +352,11 @@ end
 
 """
     relax!(sys, potential, opt::TrustRegionBFGS; fmax = 1e-3, maxsteps = 10_000) -> RelaxResult
+    relax!(sys, potential, opt::TrustRegionLBFGS; fmax = 1e-3, maxsteps = 10_000) -> RelaxResult
 
 Minimize the energy of `potential` over the positions of `sys` at fixed cell with the
-trust-region BFGS method of [`TrustRegionBFGS`](@ref), updating `sys.positions` in place, until
+trust-region BFGS method of [`TrustRegionBFGS`](@ref) or the limited-memory one of
+[`TrustRegionLBFGS`](@ref), updating `sys.positions` in place, until
 the largest atomic force the constraints leave free is below `fmax` (eV/Å) or `maxsteps` steps
 are taken. Every step costs one force evaluation, whether it is kept or undone; `steps` counts
 them. `max_force` in the result is that of the free force components. The state is reset at the
@@ -354,12 +364,12 @@ start, and the call is allocation-free after the potential's first evaluation. O
 potential holds the evaluation of the returned positions.
 """
 function relax!(
-        sys::System{T}, potential::AbstractPotential, opt::TrustRegionBFGS{T}; fmax::Real = 1.0e-3,
+        sys::System{T}, potential::AbstractPotential, opt::Union{TrustRegionBFGS{T}, TrustRegionLBFGS{T}}; fmax::Real = 1.0e-3,
         maxsteps::Integer = 10_000
     ) where {T}
     _check_relax_arguments(sys, potential, fmax, maxsteps)
     size(opt.grad, 2) == natoms(sys) ||
-        throw(DimensionMismatch(lazy"pureatomistic: the TrustRegionBFGS state has $(size(opt.grad, 2)) atoms, the system $(natoms(sys))"))
+        throw(DimensionMismatch(lazy"pureatomistic: the $(nameof(typeof(opt))) state has $(size(opt.grad, 2)) atoms, the system $(natoms(sys))"))
     _reset!(opt)
     tol = T(fmax)
     X = sys.positions
@@ -383,11 +393,12 @@ function relax!(
         for i in eachindex(opt.y, opt.trialv, opt.gradv)
             opt.y[i] = opt.trialv[i] - opt.gradv[i]
         end
-        _bfgs_update!(opt, opt.stepv, opt.y)
+        _curvature_update!(opt, opt.stepv, opt.y)
         actual = E - Enew
         noise = 4 * eps(T) * max(abs(E), abs(Enew))
         if pred <= noise
             keep = actual >= -noise
+            keep || (opt.radius /= 4)
         else
             ratio = actual / pred
             if ratio < T(1 // 4)
@@ -414,4 +425,26 @@ end
 function _finish(sys::System{T}, potential, opt, current::Bool, converged::Bool, steps::Int, E::T, fm::T) where {T}
     current || _evaluate!(potential, sys)
     return RelaxResult{T}(converged, steps, E, fm)
+end
+
+"""
+    relax!(sys, potential; fmax = 1e-3, maxsteps = 10_000, memory = 10, radius = 0.1,
+           max_radius = 0.5, alpha = 70.0, eta = 1e-4, fixed = Int[],
+           frozen = Pair{Int, NTuple{3, Float64}}[]) -> RelaxResult
+
+Minimize the energy of `potential` over the positions of `sys` at fixed cell with the default
+relaxer, [`TrustRegionLBFGS`](@ref), built from the keywords other than `fmax` and `maxsteps`;
+see `relax!(sys, potential, opt::TrustRegionLBFGS)`. It is the default because, of the relaxers
+measured on 256- and 3,999-atom Cu cells with MACE-MPA-0, it needed no more force evaluations than
+any other and the least time, and its storage grows linearly with the number of atoms
+(`bench/results/relax_compare_mac.json`, `bench/results/relax_single_mac.json`). Pass a
+[`FIRE`](@ref), [`FIRE2`](@ref) or [`TrustRegionBFGS`](@ref) state to use another method.
+"""
+function relax!(
+        sys::System{T}, potential::AbstractPotential; fmax::Real = 1.0e-3, maxsteps::Integer = 10_000,
+        memory::Integer = 10, radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0,
+        eta::Real = 1.0e-4, fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[]
+    ) where {T}
+    opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)
+    return relax!(sys, potential, opt; fmax, maxsteps)
 end

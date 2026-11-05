@@ -95,8 +95,16 @@ end
         # The draw exercises both bounds and the interior.
         @test at_upper > 0 && at_lower > 0 && interior > 0
         @test all(iszero, p[fixedrows])
-        # The predicted decrease is the model's: -(gᵀp + ½ pᵀBp). Bound as for the residual.
-        @test pred ≈ -(dot(gv, p) + dot(p, B * p) / 2) rtol = tol
+        # The predicted decrease is the model's: -(gᵀp + ½ pᵀBp). It is evaluated as
+        # -(qᵀw + ½ wᵀw) in the variables p = Lw, which rounds by about n eps(T) times
+        # Σ|qⱼwⱼ| + ½ wᵀw; the Cholesky factor L of H carries a relative backward error of order
+        # n eps(T) κ(B), which moves both terms of the model by that much relative to their size.
+        # Relative bound: c = 10, N = n κ(B) (Σ|qⱼwⱼ| + wᵀw) / |pred| with κ(B) = 10.
+        # Measured relative error: 5.0e-16 (Float64) and 1.5e-7 (Float32) against bounds of
+        # 1.4e-12 and 7.4e-4.
+        q, w = Float64.(opt.q), Float64.(opt.qp.x)
+        amp = (sum(abs.(q .* w)) + sum(abs2, w)) / abs(pred)
+        @test pred ≈ -(dot(gv, p) + dot(p, B * p) / 2) rtol = 10 * eps(T) * n * 10 * amp
     end
 end
 
@@ -141,7 +149,7 @@ end
     F = RelaxFixtures
     # Oracle as for FIRE: the undisplaced lattice is an equilibrium of the fixed cell, and a fresh
     # potential gives the energy and forces at the returned positions. Measured at fmax = 1e-3:
-    # 13 steps against FIRE's 70 in both precisions; E - E_lattice = 5.6e-5 eV (Float64) and
+    # 13 steps against FIRE's 41 in both precisions; E - E_lattice = 5.6e-5 eV (Float64) and
     # -8.8e-5 eV (Float32, below the lattice by the rounding of the Float32 energy). The bound
     # 1e-3 on either side is 11 to 18 times those.
     for T in (Float64, Float32)
@@ -157,7 +165,7 @@ end
         @test info.energy ≈ Eref rtol = 4 * eps(T)
         @test -1.0e-3 < info.energy - E0 < 1.0e-3
         fire_sys, _, fire_p = F.lj_crystal(T)
-        @test info.steps < relax!(fire_sys, fire_p; fmax = 1.0e-3).steps
+        @test info.steps < relax!(fire_sys, fire_p, FIRE(fire_sys); fmax = 1.0e-3).steps
     end
 end
 

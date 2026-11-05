@@ -1,5 +1,5 @@
-# Shared setup of the relaxation benchmarks: the MACE-MPA-0 model, the two 256-site Cu cells and a
-# potential wrapper that counts force evaluations.
+# Shared setup of the relaxation benchmarks: the MACE-MPA-0 model, the two 256-site Cu cells, a
+# 3,999-atom vacancy cell and a potential wrapper that counts force evaluations.
 using PureAtomistic, PureMLIP, LinearAlgebra, Random, SHA, Downloads
 using PureAtomistic.Systems: System, fcc_cell, remove_atom, natoms
 import PureAtomistic.Potentials as PP
@@ -38,6 +38,13 @@ function strained_cell()
 end
 
 const CELLS = (vacancy = vacancy_cell, strained = strained_cell)
+
+# 10 × 10 × 10 fcc cell (4,000 sites) with the atom nearest (5a0, 5a0, 5a0) removed: 3,999 atoms.
+function large_vacancy_cell()
+    perfect = fcc_cell(A0, 10, :Cu)
+    v = argmin(j -> norm(perfect.positions[:, j] - fill(5A0, 3)), 1:natoms(perfect))
+    return remove_atom(perfect, v)
+end
 
 # A potential that forwards to `inner`, counts evaluations and calls `hook()` after each one.
 mutable struct Counting{P <: PP.AbstractPotential, R, H} <: PP.AbstractPotential

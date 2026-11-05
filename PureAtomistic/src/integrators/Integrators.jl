@@ -3,16 +3,19 @@ module Integrators
 using ..Systems: System, AMU_IN_EV_FS2_PER_A2, natoms
 using ..Potentials: AbstractPotential, n_atoms, prepare!, energy_forces!
 using TypeContracts: @contract, @verify, Self
-using LinearAlgebra: I, Diagonal, Symmetric, cholesky!, issuccess, dot, mul!
+using LinearAlgebra: I, Diagonal, Symmetric, cholesky!, issuccess, dot, mul!, norm
 import PureDAQP
 using PureDAQP: ActiveSet
 
 export AbstractIntegrator, VelocityVerlet, advance!
 export FIRE, RelaxResult, relax!
-export TrustRegionBFGS
+export FIRE2, TrustRegionBFGS, TrustRegionLBFGS
 
 include("verlet.jl")
 include("../optimize/fire.jl")
+include("../optimize/fire2.jl")
+# lbfgs.jl first: the `relax!` of quasi_newton.jl takes either trust-region state.
+include("../optimize/lbfgs.jl")
 include("../optimize/quasi_newton.jl")
 
 # Checked at precompile time: every integrator has the contract's method and it infers `Nothing`.
