@@ -427,12 +427,12 @@ function _features!(Z::AbstractArray{S, 3}, cm::ContractionMatrices, X::Abstract
     return nothing
 end
 
-# Y[:, c, r] = M[:, :, c]ᵀ Z[:, c, r] for each channel c over the first n atoms: one matrix product
-# per channel on the strided channel slices of the buffers.
-function _channel_products!(Y::AbstractArray{S, 3}, M::AbstractArray{S, 3}, Z::AbstractArray{S, 3}, cm::ContractionMatrices, n::Int) where {S}
+# buf.Y[:, c, r] = M[:, :, c]ᵀ buf.Z[:, c, r] for each channel c over the first n atoms: one matrix
+# product per channel on the strided channel slices of the buffers.
+function _channel_products!(buf::ContractionBuffers{S}, M::AbstractArray{S, 3}, cm::ContractionMatrices, n::Int) where {S}
     nf, nc = _n_features(cm), _n_columns(cm)
     for c in 1:cm.C
-        mul!(view(Y, 1:nc, c, 1:n), transpose(view(M, :, :, c)), view(Z, 1:nf, c, 1:n))
+        mul!(view(buf.Y, 1:nc, c, 1:n), transpose(view(M, :, :, c)), view(buf.Z, 1:nf, c, 1:n))
     end
     return nothing
 end
@@ -442,7 +442,7 @@ function _forward_group!(B::AbstractArray{S, 3}, cm::ContractionMatrices{S}, X::
     C, L = cm.C, cm.L
     atoms = view(buf.atoms, 1:n)
     _features!(buf.Z, cm, X, atoms)
-    _channel_products!(buf.Y, cm.F[s], buf.Z, cm, n)
+    _channel_products!(buf, cm.F[s], cm, n)
     for (r, a) in enumerate(atoms), j in 1:cm.K_out
         for c in 1:C
             B[c, j, a] = zero(S)
@@ -462,7 +462,7 @@ function _pullback_group!(
     C, L = cm.C, cm.L
     atoms = view(buf.atoms, 1:n)
     _features!(buf.Z, cm, X, atoms)
-    _channel_products!(buf.Y, cm.G[s], buf.Z, cm, n)
+    _channel_products!(buf, cm.G[s], cm, n)
     for (r, a) in enumerate(atoms), w in 1:L
         for c in 1:C
             dX[c, w, a] = zero(S)
