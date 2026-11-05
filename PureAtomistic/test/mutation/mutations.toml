@@ -607,3 +607,80 @@ file = "src/optimize/fire.jl"
 find = "P += F[d, a] * V[d, a]"
 replace = "P -= F[d, a] * V[d, a]"
 expect = "FIRE rules"
+
+[[mutation]]
+name = "gamma-no-boost"
+file = "src/thermostats/gamma_sampler.jl"
+find = "return _marsaglia_tsang(rng, a + one(a)) * u^(one(a) / a)"
+replace = "return _marsaglia_tsang(rng, a + one(a))"
+expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "gamma-d-offset"
+file = "src/thermostats/gamma_sampler.jl"
+find = "d = a - one(T) / 3"
+replace = "d = a - one(T) / 2"
+expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "langevin-noise-variance"
+file = "src/thermostats/langevin.jl"
+find = "-expm1(-2 * th.gamma * dt)"
+replace = "-expm1(-th.gamma * dt)"
+expect = "BAOAB harmonic oscillators"
+
+[[mutation]]
+name = "langevin-friction"
+file = "src/thermostats/langevin.jl"
+find = "c1 = T(exp(-th.gamma * dt))"
+replace = "c1 = T(exp(-th.gamma * dt / 2))"
+expect = "BAOAB friction"
+
+[[mutation]]
+name = "langevin-noise-mass"
+file = "src/thermostats/langevin.jl"
+find = "s = c3 / sqrt(m[a] * amu)"
+replace = "s = c3 / sqrt(m[a])"
+expect = "BAOAB harmonic oscillators"
+
+[[mutation]]
+name = "langevin-second-evaluation"
+file = "src/thermostats/langevin.jl"
+find = "    _drift!(X, V, h / 2)\n    prepare!(potential, X, sys.cell)"
+replace = "    _drift!(X, V, h / 2)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
+expect = "BAOAB friction and force evaluations"
+
+[[mutation]]
+name = "bussi-gamma-shape"
+file = "src/thermostats/bussi.jl"
+find = "randgamma(rng, T(nf - 1) / 2)"
+replace = "randgamma(rng, T(nf) / 2)"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "bussi-removed-dof"
+file = "src/thermostats/bussi.jl"
+find = "nf = 3 * natoms(sys) - th.removed_dof"
+replace = "nf = 3 * natoms(sys)"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "bussi-full-step-rescale"
+file = "src/thermostats/bussi.jl"
+find = "    _rescale!(th, sys, dt / 2, rng)\n    integrate!(sys, potential)"
+replace = "    _rescale!(th, sys, dt, rng)\n    integrate!(sys, potential)"
+expect = "Bussi kinetic energy relaxes"
+
+[[mutation]]
+name = "bussi-noise-cross-term"
+file = "src/thermostats/bussi.jl"
+find = "α = sqrt((sqrt(c) + sqrt(q) * r1)^2 + q * s)"
+replace = "α = sqrt(c + q * (r1^2 + s))"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "driver-thermostat-ignored"
+file = "src/driver.jl"
+find = "    _step!(sim.thermostat, sim)"
+replace = "    _step!(nothing, sim)"
+expect = "BAOAB|Bussi"

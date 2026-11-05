@@ -12,7 +12,7 @@
     # (nearest-neighbor distance 1.09σ for σ = 3.4 Å), displaced by 0.03 Å per component, with
     # velocities at 10 K. The cutoff 6.85 Å lies in the gap between the third (6.44 Å) and fourth
     # (7.44 Å) neighbor shells, so no pair crosses it and the edge count stays 1344.
-    function lj_simulation(::Type{T}, dt; temp = 10.0, seed = 1, kick = nothing) where {T}
+    function lj_simulation(::Type{T}, dt; temp = 10.0, seed = 1, kick = nothing, thermostat = nothing, rng = Xoshiro(0)) where {T}
         sys = fcc_cell(T(5.26), 2, :Cu; mass = 39.948)
         sys.positions .+= T(0.03) .* randn(Xoshiro(3), T, 3, size(sys.positions, 2))
         maxwell_boltzmann!(sys, temp, Xoshiro(seed))
@@ -21,28 +21,28 @@
             sys.velocities[1, kick[1]] = T(kick[2])
         end
         p = LennardJones(copy(sys.positions), copy(sys.cell); epsilon = 0.0104, sigma = 3.4, r_cut = 6.85)
-        return Simulation(sys, p, VelocityVerlet(dt); rng = Xoshiro(0))
+        return Simulation(sys, p, VelocityVerlet(dt); thermostat, rng)
     end
 
     # Copper atoms at 300 K tied to the sites of a 3.6 Å fcc lattice by springs of 0.5 eV/Å²
     # (angular frequency 8.7e-3 / fs, so ω dt <= 0.07 for dt <= 8 fs).
-    function harmonic_simulation(::Type{T}, dt; temp = 300.0) where {T}
+    function harmonic_simulation(::Type{T}, dt; temp = 300.0, thermostat = nothing, rng = Xoshiro(0)) where {T}
         sys = fcc_cell(T(3.6), 2, :Cu)
         sites = copy(sys.positions)
         sys.positions .+= T(0.05) .* randn(Xoshiro(3), T, 3, size(sys.positions, 2))
         maxwell_boltzmann!(sys, temp, Xoshiro(1))
-        return Simulation(sys, HarmonicPotential(sites, 0.5), VelocityVerlet(dt); rng = Xoshiro(0))
+        return Simulation(sys, HarmonicPotential(sites, 0.5), VelocityVerlet(dt); thermostat, rng)
     end
 
     # The tiny checkpoint's model on three atoms (two Cu, one H) in a triclinic cell, at 300 K.
-    function mace_simulation(::Type{T}, dt) where {T}
+    function mace_simulation(::Type{T}, dt; thermostat = nothing, rng = Xoshiro(0)) where {T}
         m = MACEModel{T}(load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint()))
         cell = T[6.5 0.0 0.0; 0.4 6.2 0.0; 0.3 0.2 6.8]
         x = T[0.0 1.4 0.2; 0.0 0.1 1.3; 0.0 0.3 0.1]
         z = [29, 1, 29]
         sys = System{T}(copy(x), zeros(T, 3, 3), T[63.546, 1.008, 63.546], z, cell)
         maxwell_boltzmann!(sys, 300.0, Xoshiro(1))
-        return Simulation(sys, MACEPotential(m, copy(x), cell, z), VelocityVerlet(dt); rng = Xoshiro(0))
+        return Simulation(sys, MACEPotential(m, copy(x), cell, z), VelocityVerlet(dt); thermostat, rng)
     end
 
     # Standard deviation of the total energy over a run of `total` fs, sampled every step.
@@ -86,10 +86,10 @@ end
 
     sim = F.harmonic_simulation(Float64, 1.0)
     sys, pot, vv = sim.system, sim.potential, sim.integrator
-    @test_throws "pureatomistic: the driver supports only thermostat = nothing and barostat = nothing" Simulation(
+    @test_throws "pureatomistic: thermostat must be an AbstractThermostat or nothing, got Int64" Simulation(
         sys, pot, vv; thermostat = 1, rng = Xoshiro(0)
     )
-    @test_throws "pureatomistic: the driver supports only thermostat = nothing and barostat = nothing" Simulation(
+    @test_throws "pureatomistic: the driver supports only barostat = nothing" Simulation(
         sys, pot, vv; barostat = 1, rng = Xoshiro(0)
     )
     small = HarmonicPotential(sys.positions[:, 1:5], 0.5)
@@ -320,10 +320,10 @@ end
             using PureAtomistic, PureAtomistic.Systems, Random
             const SYS64 = System{Float64, Matrix{Float64}, Matrix{Float64}, Vector{Float64}, Vector{Int}, Matrix{Float64}}
             const SYS32 = System{Float32, Matrix{Float32}, Matrix{Float32}, Vector{Float32}, Vector{Int}, Matrix{Float32}}
-            const SIM64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, Xoshiro}
-            const SIM32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, Xoshiro}
-            const SIML64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, Xoshiro}
-            const SIML32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, Xoshiro}
+            const SIM64 = Simulation{Float64, SYS64, HarmonicPotential{Float64}, VelocityVerlet, Nothing, Xoshiro}
+            const SIM32 = Simulation{Float32, SYS32, HarmonicPotential{Float32}, VelocityVerlet, Nothing, Xoshiro}
+            const SIML64 = Simulation{Float64, SYS64, LennardJones{Float64}, VelocityVerlet, Nothing, Xoshiro}
+            const SIML32 = Simulation{Float32, SYS32, LennardJones{Float32}, VelocityVerlet, Nothing, Xoshiro}
             new_vv(dt) = VelocityVerlet(dt)
             new_sim(s, p, dt, rng) = Simulation(s, p, VelocityVerlet(dt); rng)
             step_it(s) = step!(s)

@@ -19,6 +19,8 @@ using .Integrators: AbstractIntegrator, VelocityVerlet, advance!
 export AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
     energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
 export AbstractIntegrator, VelocityVerlet, Simulation, step!, run!, total_energy
+using .Thermostats: AbstractThermostat, LangevinBAOAB, BussiThermostat, thermostat_step!
+export AbstractThermostat, LangevinBAOAB, BussiThermostat
 
 include("driver.jl")
 

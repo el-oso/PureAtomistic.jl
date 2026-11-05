@@ -23,4 +23,7 @@
 "src/systems/system.jl" = 1.00
 "src/systems/units.jl" = 1.00
 "src/thermostats/Thermostats.jl" = 1.00
+"src/thermostats/bussi.jl" = 1.00
+"src/thermostats/gamma_sampler.jl" = 1.00
+"src/thermostats/langevin.jl" = 1.00
 "src/viz.jl" = 1.00
