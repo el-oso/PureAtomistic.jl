@@ -27,7 +27,7 @@
 """
     TrustRegionBFGS{T}(natoms; radius = 0.1, max_radius = 0.5, alpha = 70.0, eta = 1e-4,
                        fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[],
-                       solver = ActiveSet())
+                       solver = ActiveSet(; working_set = :gram))
     TrustRegionBFGS(sys::System; kwargs...)
 
 The state of a trust-region BFGS minimizer for [`relax!`](@ref). Each step minimizes the
@@ -50,10 +50,11 @@ dual active-set method (`solver`, an `ActiveSet`).
   of the step problem. Their force components are left out of the gradient and out of the
   convergence test.
 - `solver` is the PureDAQP `ActiveSet` that solves each step problem; the default factors the
-  working-set rows (`working_set = :rows`) and scans every row (`scan = :all`). `working_set =
-  :gram` is not the default because its solve path in PureDAQP 0.1.10 does not pass TrimCheck,
-  and `scan = :window` because it was slower on the step problems measured and failed on one
-  that `:all` solves (`bench/step_problems.jl`, `bench/results/step_problems_mac.json`). A step
+  Gram matrix of the working-set rows (`working_set = :gram`) and scans every row
+  (`scan = :all`). On the step problems measured (`bench/step_problems.jl`,
+  `bench/results/step_problems_mac.json`) `:gram` was as fast as `:rows` where the box did not
+  bind and faster where it bound, and `scan = :window` was slower. `:gram` squares the
+  condition number of the working-set rows, which stayed below 3 on those problems. A step
   problem the solver does not solve throws.
 
 The state holds dense `3n × 3n` matrices and every step factors one, so the method suits cells
@@ -137,7 +138,7 @@ end
 
 function TrustRegionBFGS{T}(
         natoms::Integer; radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0, eta::Real = 1.0e-4,
-        fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[], solver::ActiveSet = ActiveSet()
+        fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[], solver::ActiveSet = ActiveSet(; working_set = :gram)
     ) where {T <: AbstractFloat}
     natoms >= 1 || throw(ArgumentError(lazy"pureatomistic: TrustRegionBFGS needs at least one atom, got $natoms"))
     _check_trust_parameters("TrustRegionBFGS", radius, max_radius, alpha, eta)
