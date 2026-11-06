@@ -1,10 +1,7 @@
 # The backend that the :gpu items run on, named by PUREMLIP_GPU_BACKEND: CPU (KernelAbstractions'
 # own CPU backend, no vendor package), Metal, CUDA or AMDGPU. Run the items with
 #   PUREMLIP_GPU_BACKEND=<name> julia --check-bounds=yes --project=<pkg>/test/gpu/<name> <pkg>/test/gpu/runtests.jl
-# On macOS, KernelAbstractions 0.10's CPU backend (PoCL, through hwloc) hangs at topology detection
-# on Apple M-series chips with performance levels. HWLOC_COMPONENTS=-darwin makes hwloc skip its
-# Darwin component; export it before instantiating or precompiling any environment that holds
-# KernelAbstractions 0.10, and before launching the CPU backend.
+# On macOS, export HWLOC_COMPONENTS=-darwin first; see the KernelAbstractions rule in AGENTS.md.
 @testmodule GPUBackend begin
     using KernelAbstractions
 

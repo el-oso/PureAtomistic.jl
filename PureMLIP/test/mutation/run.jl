@@ -32,8 +32,7 @@
 using TOML
 
 const GPU_SUITE = get(ENV, "MUTATION_SUITE", "") == "gpu"
-# KernelAbstractions 0.10's CPU backend hangs at hwloc's topology detection on Apple M-series chips
-# with performance levels; hwloc's Darwin component is skipped. Child processes inherit this.
+# hwloc's Darwin component is skipped on macOS; see the KernelAbstractions rule in AGENTS.md.
 Sys.isapple() && get!(ENV, "HWLOC_COMPONENTS", "-darwin")
 
 const PKG_DIR = dirname(dirname(@__DIR__))
@@ -150,7 +149,7 @@ function main(args)
     allunique(names) || error("mutation names are not unique")
     filters = Regex.(args)
     selected = isempty(filters) ? muts : filter(m -> any(f -> occursin(f, m["name"]), filters), muts)
-    isempty(selected) && error("no mutation matches $(args)")
+    isempty(selected) && !isempty(args) && error("no mutation matches $(args)")
     # Validate every selected `find` before starting the slow runs.
     for m in selected
         n = count(m["find"], read(joinpath(PKG_DIR, m["file"]), String))

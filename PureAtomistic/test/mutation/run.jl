@@ -33,8 +33,7 @@
 using TOML
 
 const GPU_SUITE = get(ENV, "MUTATION_SUITE", "") == "gpu"
-# KernelAbstractions 0.10's CPU backend hangs at hwloc's topology detection on Apple M-series chips
-# with performance levels; hwloc's Darwin component is skipped. Child processes inherit this.
+# hwloc's Darwin component is skipped on macOS; see the KernelAbstractions rule in AGENTS.md.
 Sys.isapple() && get!(ENV, "HWLOC_COMPONENTS", "-darwin")
 
 const PKG_DIR = dirname(dirname(@__DIR__))
