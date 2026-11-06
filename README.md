@@ -4,7 +4,8 @@ A monorepo for pure-Julia atomistic simulation packages.
 
 - `PureMLIP/` holds machine-learned interatomic potentials, starting with a
   reader for mace-torch `.model` checkpoints.
-- `PureAtomistic` (the simulation layer built on PureMLIP) will be added later.
+- `PureAtomistic/` is the simulation layer built on PureMLIP: molecular dynamics with thermostats and
+  barostats, structure relaxation, trajectory and structure I/O, and analysis.
 
 Goals for every package here:
 
