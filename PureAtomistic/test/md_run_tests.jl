@@ -160,11 +160,16 @@ end
         `$(Base.julia_cmd()) --startup-file=no --project=$root $(joinpath(root, "juliac", "build.jl"))`,
         "JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing
     )
-    @test success(pipeline(cmd; stdout = stderr, stderr = stderr))
+    dir = mktempdir()
+    # The trim verifier reports its findings as "Error #N: unresolved call ..." lines but still
+    # writes the executable, so the build log is the only place a finding shows. It must have none.
+    build_log = joinpath(dir, "build.log")
+    @test success(pipeline(cmd; stdout = build_log, stderr = build_log))
+    print(stderr, read(build_log, String))
+    @test isempty(filter(l -> occursin("unresolved call", l) || occursin("Error #", l), readlines(build_log)))
     @test isfile(exe)
     @test !isfile(joinpath(root, "LocalPreferences.toml"))
 
-    dir = mktempdir()
     testenv = joinpath(root, "test")
 
     # Runs the binary under a timeout; returns (exit code, stdout text, stderr text). With
@@ -227,4 +232,19 @@ end
     gold = deepcopy(base)
     gold["lattice"]["element"] = "Au"
     fails(model, MDRunFixtures.write_config(dir, gold; name = "gold.toml"), out; message = "79")
+    # The remaining throw sites of the config reader, in the trimmed binary.
+    function config_fails(mutate!; message)
+        cfg = deepcopy(base)
+        mutate!(cfg)
+        return fails(model, MDRunFixtures.write_config(dir, cfg; name = "cfg.toml"), out; message)
+    end
+    config_fails(c -> delete!(c, "steps"); message = "pureatomistic: missing config key \"steps\"")
+    config_fails(c -> c["stpes"] = 3; message = "pureatomistic: unknown config key \"stpes\"")
+    config_fails(c -> c["steps"] = "ten"; message = "pureatomistic: config key \"steps\" must be an integer, got \"ten\"")
+    config_fails(c -> c["lattice"] = 3; message = "pureatomistic: config key \"lattice\" must be a table, got 3")
+    config_fails(c -> c["lattice"]["size"] = [2, 2]; message = "pureatomistic: config key \"lattice.size\" must be an array of three positive integers, got an array of 2 elements")
+    config_fails(c -> c["vacancy"] = 1; message = "pureatomistic: config key \"vacancy\" must be true or false, got 1")
+    config_fails(c -> c["temperature"] = -1.0; message = "pureatomistic: config key \"temperature\" must be non-negative, got -1.0")
+    config_fails(c -> c["thermostat"] = Dict{String, Any}("type" => "nose"); message = "pureatomistic: config key \"thermostat.type\" must be \"none\", \"langevin\" or \"bussi\", got \"nose\"")
+    config_fails(c -> c["lattice"]["type"] = "bcc"; message = "pureatomistic: config key \"lattice.type\" must be \"fcc\", got \"bcc\"")
 end

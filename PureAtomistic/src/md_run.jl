@@ -31,57 +31,57 @@ function _require(tbl::Dict{String, Any}, where_::String, k::String)
 end
 
 # The offending value as written in the file, for the scalars and arrays a config holds.
-_show(v) = v isa String ? string('"', v, '"') : v isa Union{Int, Float64, Bool} ? string(v) : "a value of another type"
-_show_value(v) = v isa Vector ? string("an array of ", length(v), " elements") : _show(v)
+_show(v)::String = v isa String ? string('"', v, '"') : v isa Union{Int, Float64, Bool} ? string(v) : "a value of another type"
+_show_value(v)::String = v isa Vector ? string("an array of ", length(v), " elements") : _show(v)
 
-function _wrong(where_::String, k::String, what, v)
-    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be $what, got $(_show_value(v))"))
+function _wrong(where_::String, k::String, what::String, shown::String)
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be $what, got $shown"))
 end
 
 # A `LazyString` message is flat: the pieces of a nested one are not printable in a trimmed program.
-function _wrong_min(where_::String, k::String, min::Int, v)
-    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be an integer of at least $min, got $(_show_value(v))"))
+function _wrong_min(where_::String, k::String, min::Int, shown::String)
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be an integer of at least $min, got $shown"))
 end
 
 function _table(tbl::Dict{String, Any}, where_::String, k::String)::Dict{String, Any}
     v = _require(tbl, where_, k)
-    v isa Dict{String, Any} || _wrong(where_, k, "a table", v)
+    v isa Dict{String, Any} || _wrong(where_, k, "a table", _show_value(v))
     return v
 end
 
 function _string(tbl::Dict{String, Any}, where_::String, k::String)::String
     v = _require(tbl, where_, k)
-    v isa String || _wrong(where_, k, "a string", v)
+    v isa String || _wrong(where_, k, "a string", _show_value(v))
     return v
 end
 
 function _bool(tbl::Dict{String, Any}, where_::String, k::String)::Bool
     v = _require(tbl, where_, k)
-    v isa Bool || _wrong(where_, k, "true or false", v)
+    v isa Bool || _wrong(where_, k, "true or false", _show_value(v))
     return v
 end
 
 function _int(tbl::Dict{String, Any}, where_::String, k::String; min::Union{Int, Nothing} = nothing)::Int
     v = _require(tbl, where_, k)
-    v isa Int || _wrong(where_, k, "an integer", v)
-    min === nothing || v >= min || _wrong_min(where_, k, min, v)
+    v isa Int || _wrong(where_, k, "an integer", _show_value(v))
+    min === nothing || v >= min || _wrong_min(where_, k, min, _show_value(v))
     return v
 end
 
 # A finite number; an integer is accepted for a float key.
 function _float(tbl::Dict{String, Any}, where_::String, k::String; positive::Bool = false, nonnegative::Bool = false)::Float64
     v = _require(tbl, where_, k)
-    ((v isa Float64 || v isa Int) && isfinite(v)) || _wrong(where_, k, "a finite number", v)
+    ((v isa Float64 || v isa Int) && isfinite(v)) || _wrong(where_, k, "a finite number", _show_value(v))
     x = Float64(v)
-    positive && !(x > 0) && _wrong(where_, k, "positive", v)
-    nonnegative && !(x >= 0) && _wrong(where_, k, "non-negative", v)
+    positive && !(x > 0) && _wrong(where_, k, "positive", _show_value(v))
+    nonnegative && !(x >= 0) && _wrong(where_, k, "non-negative", _show_value(v))
     return x
 end
 
 function _size(tbl::Dict{String, Any}, where_::String, k::String)::NTuple{3, Int}
     v = _require(tbl, where_, k)
-    v isa Vector{Int} || _wrong(where_, k, "an array of three positive integers", v)
-    (length(v) == 3 && all(>=(1), v)) || _wrong(where_, k, "an array of three positive integers", v)
+    v isa Vector{Int} || _wrong(where_, k, "an array of three positive integers", _show_value(v))
+    (length(v) == 3 && all(>=(1), v)) || _wrong(where_, k, "an array of three positive integers", _show_value(v))
     return (v[1], v[2], v[3])
 end
 
@@ -95,18 +95,18 @@ function _read_thermostat(tbl::Dict{String, Any}, temperature::Float64)
         _check_keys(th, "thermostat", ("type", "gamma"))
         return LangevinBAOAB(temperature, _float(th, "thermostat", "gamma"; nonnegative = true))
     elseif kind == "bussi"
-        temperature > 0 || _wrong("", "temperature", "positive with the bussi thermostat", temperature)
+        temperature > 0 || _wrong("", "temperature", "positive with the bussi thermostat", _show_value(temperature))
         _check_keys(th, "thermostat", ("type", "tau"))
         return BussiThermostat(temperature, _float(th, "thermostat", "tau"; positive = true))
     end
-    return _wrong("thermostat", "type", "\"none\", \"langevin\" or \"bussi\"", kind)
+    return _wrong("thermostat", "type", "\"none\", \"langevin\" or \"bussi\"", _show_value(kind))
 end
 
 function _read_barostat(tbl::Dict{String, Any})
     haskey(tbl, "barostat") || return nothing
     b = _table(tbl, "", "barostat")
     kind = _string(b, "barostat", "type")
-    kind == "berendsen" || _wrong("barostat", "type", "\"berendsen\"", kind)
+    kind == "berendsen" || _wrong("barostat", "type", "\"berendsen\"", _show_value(kind))
     _check_keys(b, "barostat", ("type", "pressure", "tau", "compressibility"))
     return BerendsenBarostat(
         _float(b, "barostat", "pressure"), _float(b, "barostat", "tau"; positive = true),
@@ -121,13 +121,13 @@ function _read_config(tbl::Dict{String, Any})
     lat = _table(tbl, "", "lattice")
     _check_keys(lat, "lattice", ("type", "element", "a", "size"))
     kind = _string(lat, "lattice", "type")
-    kind == "fcc" || _wrong("lattice", "type", "\"fcc\"", kind)
+    kind == "fcc" || _wrong("lattice", "type", "\"fcc\"", _show_value(kind))
     element = _string(lat, "lattice", "element")
     try
         Systems.atomic_number(Symbol(element))
     catch err
         err isa ArgumentError || rethrow()
-        _wrong("lattice", "element", "a built-in element symbol", element)
+        _wrong("lattice", "element", "a built-in element symbol", _show_value(element))
     end
     temperature = _float(tbl, "", "temperature"; nonnegative = true)
     steps = _int(tbl, "", "steps"; min = 0)
