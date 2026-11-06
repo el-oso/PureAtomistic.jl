@@ -438,14 +438,18 @@ relaxer, [`TrustRegionLBFGS`](@ref), built from the keywords other than `fmax` a
 see `relax!(sys, potential, opt::TrustRegionLBFGS)`. It is the default because, of the relaxers
 measured on 256- and 3,999-atom Cu cells with MACE-MPA-0, it needed no more force evaluations than
 any other and the least time, and its storage grows linearly with the number of atoms
-(`bench/results/relax_compare_mac.json`, `bench/results/relax_single_mac.json`). Pass a
-[`FIRE`](@ref), [`FIRE2`](@ref) or [`TrustRegionBFGS`](@ref) state to use another method.
+(`bench/results/relax_compare_mac.json`, `bench/results/relax_single_mac.json`). The 3,999-atom
+wall times come from sequential single-process runs, not interleaved ones, so the ranking there
+rests on the evaluation counts. Pass a [`FIRE`](@ref), [`FIRE2`](@ref) or
+[`TrustRegionBFGS`](@ref) state to use another method.
 """
 function relax!(
         sys::System{T}, potential::AbstractPotential; fmax::Real = 1.0e-3, maxsteps::Integer = 10_000,
         memory::Integer = 10, radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0,
         eta::Real = 1.0e-4, fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[]
     ) where {T}
+    # A system without atoms is already at a minimum; TrustRegionLBFGS itself needs one atom.
+    natoms(sys) == 0 && return relax!(sys, potential, FIRE(sys); fmax, maxsteps)
     opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)
     return relax!(sys, potential, opt; fmax, maxsteps)
 end

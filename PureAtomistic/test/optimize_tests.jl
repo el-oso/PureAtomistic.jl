@@ -407,3 +407,18 @@ end
         @test Base.return_types(fire_step!, (typeof(opt), typeof(sys.positions), typeof(sys.positions)))[1] === Nothing
     end
 end
+
+@testitem "relax! of a system without atoms converges at once" setup = [RelaxFixtures] begin
+    using LinearAlgebra
+    using PureAtomistic.Systems
+    using PureAtomistic.Integrators: TrustRegionLBFGS
+    using PureAtomistic.Potentials: LennardJones
+    for T in (Float64, Float32)
+        cell = Matrix{T}(20I, 3, 3)
+        sys = System{T}(zeros(T, 3, 0), zeros(T, 3, 0), T[], Int[], cell)
+        p = LennardJones(sys.positions, sys.cell; epsilon = T(0.0104), sigma = T(3.4), r_cut = 8.5)
+        res = relax!(sys, p)
+        @test res.converged && res.steps == 0
+        @test_throws "pureatomistic: TrustRegionLBFGS needs at least one atom, got 0" TrustRegionLBFGS(sys)
+    end
+end

@@ -2,15 +2,16 @@
 # Comput. Mater. Sci. 175, 109584 (2020), their Algorithm 2 with the semi-implicit Euler integrator
 # of their Algorithm 4. Against FIRE it changes four things:
 #   - the mixing v ← (1 - α) v + α |v| F/|F| follows the velocity update v += dt F instead of
-#     preceding it, so the position update x += dt v uses the mixed velocity;
+#     preceding it, so the position update x += dt v uses the mixed velocity; |v| is the norm of
+#     the updated velocity, where the printed Algorithm 4 writes v(t);
 #   - on P ≤ 0 the positions move back by ½ dt v (dt already reduced) before the velocity is
 #     zeroed, which undoes part of the uphill motion that P ≤ 0 detects too late;
 #   - dt is not reduced below dtmin, and during the first ndelay iterations (`initialdelay`) a
 #     step with P ≤ 0 changes neither dt nor α;
 #   - more than nneg_max consecutive iterations with P ≤ 0 stop the minimization.
 # Masses are one and dt is a unitless scale, as for FIRE. Every displacement, the uphill correction
-# included, is capped at `maxstep` for the atom that moves most, which the paper's algorithm does
-# not have and which keeps the first steps of a far-from-equilibrium configuration short.
+# included, is capped at `maxstep` for the atom that moves most. The cap is not part of the paper's
+# algorithm; it keeps the first steps of a far-from-equilibrium configuration short.
 
 """
     FIRE2{T}(natoms; dt = 0.2, dtmax = 2.0, dtmin = 0.004, maxstep = 0.1, ndelay = 20,
@@ -32,7 +33,9 @@ leaves `dt` and `alpha` unchanged. All atoms have unit mass and the forces are i
 is a unitless scale; `dt = 0.2` took the fewest force evaluations of the starting steps measured
 on two 256-atom Cu cells with MACE-MPA-0 (`bench/relax_tune.jl`,
 `bench/results/relax_tune_mac.json`). `maxstep` (Å) caps the largest displacement of any atom in
-one move.
+one move; the cap also applies to the uphill correction and is not part of the paper's algorithm.
+In the mixing, `|v|` is the norm of the updated velocity, a choice of this package: the printed
+Algorithm 4 writes `v(t)`.
 """
 mutable struct FIRE2{T <: AbstractFloat}
     const velocity::Matrix{T}

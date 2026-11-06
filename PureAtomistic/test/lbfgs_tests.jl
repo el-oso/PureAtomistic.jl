@@ -94,17 +94,23 @@ end
     using PureDAQP: ActiveSet
     using PureAtomistic.Integrators: TrustRegionLBFGS, _trust_step!, _curvature_update!
     F = LBFGSFixtures
-    for T in (Float64, Float32), solver in (ActiveSet(; working_set = :gram), ActiveSet(; working_set = :rows))
+    # Two draws: radius 0.05 with gradient scale 2 puts the step on a vertex of the box within V
+    # (7 active coordinates, dim V = 7), where the stationarity system is square and cannot fail;
+    # radius 0.2 with scale 1 puts it on a face (1 active coordinate), where it is overdetermined.
+    draws = ((radius = 0.05, scale = 2.0, face = false), (radius = 0.2, scale = 1.0, face = true))
+    for (radius, scale, face) in draws, T in (Float64, Float32),
+            solver in (ActiveSet(; working_set = :gram), ActiveSet(; working_set = :rows))
+
         n_at = 8
         n = 3n_at
-        Δ = T(0.05)
+        Δ = T(radius)
         opt = TrustRegionLBFGS{T}(n_at; memory = 3, radius = Δ, fixed = [3], solver)
         fixedrows = 7:9
         S, Y = F.pairs_of(T, n, 3, 1.0, 10.0; seed = 5, zero_rows = fixedrows)
         for k in 1:3
             _curvature_update!(opt, S[:, k], Y[:, k])
         end
-        g = T.(sin.(1.0:n) .* 2)
+        g = T.(sin.(1.0:n) .* scale)
         g[fixedrows] .= 0
         opt.grad .= reshape(g, 3, n_at)
         pred = _trust_step!(opt)
@@ -115,7 +121,8 @@ end
         # The subspace V = span{g, s, y}, orthonormalized in Float64 independently of the relaxer.
         Q = Matrix(qr(Float64.([g S Y])).Q)
         # Rounding bound for residuals: c = 10, N = n · κ(B), on gradients of size 2. Measured
-        # worst: 1.2e-8 off V and 2.4e-15 in the stationarity residual (Float32).
+        # worst: 1.2e-8 off V and 2.4e-15 (vertex) or 7.0e-7 (face, Float32) in the stationarity
+        # residual.
         tol = 10 * eps(T) * n * cond(Matrix(B)) * 2
         @test all(abs.(p) .<= Δ * (1 + 100eps(T)))
         @test all(iszero, p[fixedrows])
@@ -125,6 +132,10 @@ end
         # box, μᵢ ≥ 0 at the upper bound and ≤ 0 at the lower one.
         active = findall(i -> abs(p[i]) >= Δ * (1 - 100eps(T)), 1:n)
         @test !isempty(active) && length(active) < n - 3
+        # On the face draw fewer coordinates are at the box than there are directions in V, so the
+        # check below fails for a p moved within V (by 1e-3: residual 4.8e-3 against tol 3.1e-13
+        # in Float64 and 1.7e-4 in Float32).
+        face ? (@test length(active) < opt.rank) : (@test length(active) == opt.rank)
         r = Q' * (g64 + B * p)
         μ = (Q[active, :]') \ (-r)
         @test norm(Q[active, :]' * μ + r) <= tol
@@ -136,8 +147,7 @@ end
         q, w = Float64.(opt.q), Float64.(opt.qp.x)
         amp = (sum(abs.(q .* w)) + sum(abs2, w)) / abs(pred)
         @test pred ≈ -model(p) rtol = 10 * eps(T) * n * cond(Matrix(B)) * amp
-        # At least the decrease of the steepest-descent point inside the box (measured 1.09 against
-        # 1.02 for this draw).
+        # At least the decrease of the steepest-descent point inside the box.
         t = min(dot(g64, g64) / dot(g64, B * g64), Float64(Δ) / maximum(abs, g64))
         @test -model(p) >= -model(-t * g64) * (1 - tol)
     end

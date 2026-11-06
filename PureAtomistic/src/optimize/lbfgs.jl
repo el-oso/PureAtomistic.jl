@@ -24,7 +24,7 @@
 # restricted to V, not over the whole box: an exact box solve needs a working set of up to 3n rows,
 # which is O(n²) memory. It agrees with the full-box step whenever the box does not bind, and it
 # never decreases the model less than the steepest-descent point inside the box, which also lies
-# in V.
+# in V (up to rounding when a nearly dependent vector is dropped from the basis).
 #
 # Storage is O(memory · n): the pairs, and the n × (2·memory + 1) basis that is also the solver's
 # row matrix.
@@ -43,6 +43,10 @@ two-loop recursion; a pair is stored after every step with `sᵀy > √eps(T) |s
 `memory = 10` is the smallest of the values from 1 to 40 measured on two 256-atom Cu cells with
 MACE-MPA-0 that took the fewest force evaluations (`bench/relax_tune.jl`,
 `bench/results/relax_tune_mac.json`).
+
+The default `solver` is `ActiveSet()` (the `:rows` working set), whereas `TrustRegionBFGS` uses
+`working_set = :gram`: the subspace problems of this method, with at most `2·memory + 1`
+variables, were not measured with `:gram`.
 
 Each step is `-Hg` when that lies inside the box. Otherwise PureDAQP's dual active-set method
 (`solver`) minimizes the model over the box within the span of the gradient and the stored

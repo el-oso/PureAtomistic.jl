@@ -11,6 +11,10 @@
 # the first round minus that of `baseline` on the same cell after one round, which holds the
 # model, the cell and one potential with its workspace. One thread, BLAS on one thread.
 #
+# The runs are sequential, one process each, not interleaved: wall times from them on the 3,999-atom
+# cell are subject to the drift of the host, so a ranking of methods there rests on the evaluation
+# counts.
+#
 # Appends to PureAtomistic/bench/results/relax_single_mac.json (or PUREATOMISTIC_SINGLE_OUT).
 using JSON, Statistics
 include(joinpath(@__DIR__, "cells.jl"))
