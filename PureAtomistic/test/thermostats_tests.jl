@@ -478,3 +478,25 @@ end
         @test reinterpret(UInt64, vec(sim.system.positions)) == golden[typeof(th)]
     end
 end
+
+@testitem "thermostat fallback rejects a hook it would drop" setup = [ThermostatFixtures] begin
+    using PureAtomistic.Thermostats
+    using PureAtomistic.Systems: no_hook
+    using Random
+
+    struct IntegrateOnly <: AbstractThermostat end
+    calls = Ref(0)
+    function Thermostats.thermostat_step!(::IntegrateOnly, sys, potential, dt, rng, integrate!)
+        calls[] += 1
+        return nothing
+    end
+    sys = ThermostatFixtures.ideal_gas(Float64, 4, IntegrateOnly())
+    # The hook-free seven-argument call reaches the six-argument method ...
+    thermostat_step!(IntegrateOnly(), sys.system, sys.potential, 1.0, Xoshiro(0), nothing, no_hook)
+    @test calls[] == 1
+    # ... and any other hook would be dropped, so it throws.
+    @test_throws "pureatomistic: IntegrateOnly has no thermostat_step! method that takes an after_drift! hook" thermostat_step!(
+        IntegrateOnly(), sys.system, sys.potential, 1.0, Xoshiro(0), nothing, s -> nothing
+    )
+    @test calls[] == 1
+end

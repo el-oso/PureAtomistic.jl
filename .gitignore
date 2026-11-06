@@ -6,3 +6,4 @@ PureAtomistic/docs/build
 PureMLIP/juliac/build/
 node_modules
 *.cov
+PureAtomistic/juliac/build/

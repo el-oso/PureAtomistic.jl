@@ -836,3 +836,14 @@ file = "src/potentials/lennard_jones.jl"
 find = "vol = cell_volume(cell)"
 replace = "vol = abs(cell[1, 1] * cell[2, 2] * cell[3, 3])"
 expect = "strain derivative of the energy"
+
+[[mutation]]
+name = "thermostat-fallback-drops-hook"
+file = "src/thermostats/Thermostats.jl"
+find = '''
+    after_drift! === no_hook ||
+        throw('''
+replace = '''
+    true ||
+        throw('''
+expect = "thermostat fallback rejects a hook"
