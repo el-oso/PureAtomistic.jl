@@ -117,12 +117,14 @@ end
         @test_throws "pureatomistic: unknown config key \"thermostat.gamma\"" failing(c -> c["thermostat"] = Dict{String, Any}("type" => "none", "gamma" => 1))()
         @test_throws "pureatomistic: unknown config key \"thermostat.gamma\"" failing(c -> c["thermostat"] = Dict{String, Any}("type" => "bussi", "tau" => 1, "gamma" => 1))()
         @test_throws "pureatomistic: config key \"steps\" must be an integer of at least 0, got -1" failing(c -> c["steps"] = -1)()
-        @test_throws "pureatomistic: config key \"steps\" must be an integer of at least 0, got 2.5" failing(c -> c["steps"] = 2.5)()
+        @test_throws "pureatomistic: config key \"steps\" must be an integer, got 2.5" failing(c -> c["steps"] = 2.5)()
         @test_throws "pureatomistic: config key \"output_every\" must be an integer of at least 1, got 0" failing(c -> c["output_every"] = 0)()
         @test_throws "pureatomistic: config key \"dt\" must be positive, got 0.0" failing(c -> c["dt"] = 0.0)()
         @test_throws "pureatomistic: config key \"dt\" must be a finite number, got \"fast\"" failing(c -> c["dt"] = "fast")()
         @test_throws "pureatomistic: config key \"dt\" must be a finite number, got Inf" failing(c -> c["dt"] = Inf)()
         @test_throws "pureatomistic: config key \"temperature\" must be non-negative, got -1.0" failing(c -> c["temperature"] = -1.0)()
+        @test_throws "pureatomistic: config key \"temperature\" must be positive with the bussi thermostat, got 0.0" failing(c -> (c["temperature"] = 0.0; c["thermostat"] = Dict{String, Any}("type" => "bussi", "tau" => 100.0)))()
+        @test_throws "pureatomistic: config key \"seed\" must be an integer, got 1.5" failing(c -> c["seed"] = 1.5)()
         @test_throws "pureatomistic: config key \"vacancy\" must be true or false, got 1" failing(c -> c["vacancy"] = 1)()
         @test_throws "pureatomistic: config key \"lattice\" must be a table, got 3" failing(c -> c["lattice"] = 3)()
         @test_throws "pureatomistic: config key \"lattice.type\" must be \"fcc\", got \"bcc\"" failing(c -> c["lattice"]["type"] = "bcc")()
@@ -160,41 +162,69 @@ end
     )
     @test success(pipeline(cmd; stdout = stderr, stderr = stderr))
     @test isfile(exe)
+    @test !isfile(joinpath(root, "LocalPreferences.toml"))
 
-    # Runs the binary under a timeout; returns (exit code, stderr text).
-    function run_exe(args...; seconds = 600)
-        err = joinpath(dir, "stderr.txt")
-        # The binary runs as a user would run it, without the test worker's load path.
-        clean = addenv(`$exe $args`, "JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing)
-        p = run(pipeline(ignorestatus(clean); stdout = devnull, stderr = err); wait = false)
+    dir = mktempdir()
+    testenv = joinpath(root, "test")
+
+    # Runs the binary under a timeout; returns (exit code, stdout text, stderr text). With
+    # `strictmode_env` the process load path and active project name StrictMode, which makes a
+    # StrictMode that was built with its banner on print it.
+    function run_exe(args...; seconds = 600, strictmode_env = false)
+        errf, outf = joinpath(dir, "stderr.txt"), joinpath(dir, "stdout.txt")
+        env = strictmode_env ?
+            ("JULIA_LOAD_PATH" => string("@:", testenv, ":@stdlib"), "JULIA_PROJECT" => testenv) :
+            ("JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing)
+        p = run(pipeline(ignorestatus(addenv(`$exe $args`, env...)); stdout = outf, stderr = errf); wait = false)
         if timedwait(() -> !process_running(p), seconds) !== :ok
             kill(p)
             error("md_run did not exit within $seconds s")
         end
-        return p.exitcode, read(err, String)
+        return p.exitcode, read(outf, String), read(errf, String)
     end
 
-    dir = mktempdir()
     model = MDRunFixtures.write_model(dir)
-    cfg = MDRunFixtures.base_config()
-    cfg["steps"] = 100
-    cfg["output_every"] = 10
-    config = MDRunFixtures.write_config(dir, cfg)
+    base = MDRunFixtures.base_config()
+    base["steps"] = 100
+    base["output_every"] = 10
 
-    ref = joinpath(dir, "ref.traj")
-    PureAtomistic.run_md(model, config, ref)
-    out = joinpath(dir, "bin.traj")
-    code, err = run_exe(model, config, out)
-    @test code == 0
-    @test isempty(err)
-    @test read(out) == read(ref)
-    @test read(out * ".extxyz") == read(ref * ".extxyz")
-    @test filesize(out) > 0
+    # The binary equals the untrimmed run bit for bit, with nothing on stdout or stderr, for a
+    # Langevin run under a StrictMode-naming environment and for Bussi with the barostat.
+    bussi = deepcopy(base)
+    bussi["thermostat"] = Dict{String, Any}("type" => "bussi", "tau" => 100.0)
+    bussi["barostat"] = Dict{String, Any}("type" => "berendsen", "pressure" => 0.0, "tau" => 1000.0, "compressibility" => 0.01)
+    for (name, cfg) in (("langevin", base), ("bussi", bussi))
+        config = MDRunFixtures.write_config(dir, cfg; name = "$name.toml")
+        ref = joinpath(dir, "$name-ref.traj")
+        PureAtomistic.run_md(model, config, ref)
+        out = joinpath(dir, "$name-bin.traj")
+        code, stdout_text, stderr_text = run_exe(model, config, out; strictmode_env = name == "langevin")
+        @test code == 0
+        @test isempty(stdout_text)
+        @test isempty(stderr_text)
+        @test read(out) == read(ref)
+        @test read(out * ".extxyz") == read(ref * ".extxyz")
+        @test filesize(out) > 0
+    end
 
-    # Usage and a bad config end with exit code 1 and a message naming the key.
-    code, err = run_exe()
-    @test code == 1 && occursin("usage: md_run", err)
-    cfg["steps"] = -1
-    code, err = run_exe(model, MDRunFixtures.write_config(dir, cfg; name = "bad.toml"), out)
-    @test code == 1 && occursin("pureatomistic: config key \"steps\" must be an integer of at least 0, got -1", err)
+    # Every failure exits 1 with a readable message on stderr and nothing on stdout.
+    function fails(args...; message)
+        code, stdout_text, stderr_text = run_exe(args...)
+        @test code == 1
+        @test isempty(stdout_text)
+        @test occursin(message, stderr_text)
+        @test !occursin("fatal:", stderr_text)
+        return stderr_text
+    end
+    out = joinpath(dir, "fail.traj")
+    good = MDRunFixtures.write_config(dir, base; name = "good.toml")
+    fails(; message = "usage: md_run")
+    bad = deepcopy(base)
+    bad["steps"] = -1
+    fails(model, MDRunFixtures.write_config(dir, bad; name = "bad.toml"), out; message = "pureatomistic: config key \"steps\" must be an integer of at least 0, got -1")
+    fails(model, joinpath(dir, "absent.toml"), out; message = "absent.toml")
+    fails(joinpath(dir, "absent.model"), good, out; message = "absent.model")
+    gold = deepcopy(base)
+    gold["lattice"]["element"] = "Au"
+    fails(model, MDRunFixtures.write_config(dir, gold; name = "gold.toml"), out; message = "79")
 end
