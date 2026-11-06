@@ -11,7 +11,12 @@
         `$(Base.julia_cmd()) --startup-file=no --project=$root $buildjl`,
         "JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing
     )
-    @test success(pipeline(cmd; stdout = stderr, stderr = stderr))
+    # The trim verifier reports its findings as "Error #N: unresolved call ..." lines but still
+    # writes the executable, so the build log is the only place a finding shows. It must have none.
+    build_log = joinpath(mktempdir(), "build.log")
+    @test success(pipeline(cmd; stdout = build_log, stderr = build_log))
+    print(stderr, read(build_log, String))
+    @test isempty(filter(l -> occursin("unresolved call", l) || occursin("Error #", l), readlines(build_log)))
     @test isfile(exe)
 
     out = read(`$exe $(Checkpoints.fetch(:mp0b3))`, String)
@@ -36,7 +41,11 @@ end
         `$(Base.julia_cmd()) --startup-file=no --project=$root $buildjl mace_threads entry_threads.jl`,
         "JULIA_LOAD_PATH" => nothing, "JULIA_PROJECT" => nothing
     )
-    @test success(pipeline(cmd; stdout = stderr, stderr = stderr))
+    # As in the mace_inspect item, the build log must hold no trim finding.
+    build_log = joinpath(mktempdir(), "build.log")
+    @test success(pipeline(cmd; stdout = build_log, stderr = build_log))
+    print(stderr, read(build_log, String))
+    @test isempty(filter(l -> occursin("unresolved call", l) || occursin("Error #", l), readlines(build_log)))
     @test isfile(exe)
 
     mktempdir() do dir
