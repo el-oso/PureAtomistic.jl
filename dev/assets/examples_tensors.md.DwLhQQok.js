@@ -40,7 +40,9 @@ import{_ as n,o as h,c as k,ao as i,j as a}from"./chunks/framework.fkV8eMqE.js";
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">    for</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;"> e </span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">in</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;"> einsums</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">        println</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">(</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;    &quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">, e)</span></span>
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">    end</span></span>
-<span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">end</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>linear!:</span></span>
+<span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">end</span></span></code></pre></div><div class="language- vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang"></span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>contraction_matrices!:</span></span>
+<span class="line"><span>    (no einsum in its docstring)</span></span>
+<span class="line"><span>linear!:</span></span>
 <span class="line"><span>    ein&quot;puw,uki,pkq-&gt;wqi&quot;(W, x, P)</span></span>
 <span class="line"><span>linear_pullback!:</span></span>
 <span class="line"><span>    ein&quot;puw,wqi,pkq-&gt;uki&quot;(W, dy, P)</span></span>
