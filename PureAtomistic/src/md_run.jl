@@ -18,7 +18,7 @@ end
 function _check_keys(tbl::Dict{String, Any}, where_::String, allowed)
     for k in keys(tbl)
         k in allowed ||
-            throw(ArgumentError(string("pureatomistic: unknown config key \"", _key(where_, k), "\"")))
+            throw(ArgumentError(lazy"pureatomistic: unknown config key \"$(_key(where_, k))\""))
     end
     return nothing
 end
@@ -26,7 +26,7 @@ end
 _key(where_::String, k::String) = isempty(where_) ? k : string(where_, ".", k)
 
 function _require(tbl::Dict{String, Any}, where_::String, k::String)
-    haskey(tbl, k) || throw(ArgumentError(string("pureatomistic: missing config key \"", _key(where_, k), "\"")))
+    haskey(tbl, k) || throw(ArgumentError(lazy"pureatomistic: missing config key \"$(_key(where_, k))\""))
     return tbl[k]
 end
 
@@ -35,7 +35,12 @@ _show(v) = v isa String ? string('"', v, '"') : v isa Union{Int, Float64, Bool} 
 _show_value(v) = v isa Vector ? string("an array of ", length(v), " elements") : _show(v)
 
 function _wrong(where_::String, k::String, what, v)
-    throw(ArgumentError(string("pureatomistic: config key \"", _key(where_, k), "\" must be ", what, ", got ", _show_value(v))))
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be $what, got $(_show_value(v))"))
+end
+
+# A `LazyString` message is flat: the pieces of a nested one are not printable in a trimmed program.
+function _wrong_min(where_::String, k::String, min::Int, v)
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be an integer of at least $min, got $(_show_value(v))"))
 end
 
 function _table(tbl::Dict{String, Any}, where_::String, k::String)::Dict{String, Any}
@@ -56,10 +61,10 @@ function _bool(tbl::Dict{String, Any}, where_::String, k::String)::Bool
     return v
 end
 
-function _int(tbl::Dict{String, Any}, where_::String, k::String; min::Int)::Int
+function _int(tbl::Dict{String, Any}, where_::String, k::String; min::Union{Int, Nothing} = nothing)::Int
     v = _require(tbl, where_, k)
-    v isa Int || _wrong(where_, k, string("an integer of at least ", min), v)
-    v >= min || _wrong(where_, k, string("an integer of at least ", min), v)
+    v isa Int || _wrong(where_, k, "an integer", v)
+    min === nothing || v >= min || _wrong_min(where_, k, min, v)
     return v
 end
 
@@ -90,6 +95,7 @@ function _read_thermostat(tbl::Dict{String, Any}, temperature::Float64)
         _check_keys(th, "thermostat", ("type", "gamma"))
         return LangevinBAOAB(temperature, _float(th, "thermostat", "gamma"; nonnegative = true))
     elseif kind == "bussi"
+        temperature > 0 || _wrong("", "temperature", "positive with the bussi thermostat", temperature)
         _check_keys(th, "thermostat", ("type", "tau"))
         return BussiThermostat(temperature, _float(th, "thermostat", "tau"; positive = true))
     end
@@ -129,14 +135,14 @@ function _read_config(tbl::Dict{String, Any})
     return MDConfig(
         element, _float(lat, "lattice", "a"; positive = true), _size(lat, "lattice", "size"),
         _bool(tbl, "", "vacancy"), temperature, _read_thermostat(tbl, temperature), _read_barostat(tbl),
-        steps, _float(tbl, "", "dt"; positive = true), _int(tbl, "", "seed"; min = typemin(Int)), every,
+        steps, _float(tbl, "", "dt"; positive = true), _int(tbl, "", "seed"), every,
     )
 end
 
 function _read_config_file(path::AbstractString)
     parsed = TOML.tryparsefile(path)
     parsed isa TOML.ParserError &&
-        throw(ArgumentError(string("pureatomistic: cannot parse the config file ", path, " at line ", parsed.line, ", column ", parsed.column)))
+        throw(ArgumentError(lazy"pureatomistic: cannot parse the config file $path at line $(parsed.line), column $(parsed.column)"))
     return _read_config(parsed)
 end
 
