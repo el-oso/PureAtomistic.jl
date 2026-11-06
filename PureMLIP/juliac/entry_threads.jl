@@ -33,6 +33,8 @@ function evaluate!(ws::MACEWorkspace{Float64}, model::MACEModel{Float64}, nl::Ne
     return nothing
 end
 
+# This reads `ws.workers.pool.tasks`, internal fields of the workspace, on purpose: the tasks are
+# the only way to observe from outside that the finalizer stopped the workers.
 # Evaluates on a workspace that goes out of scope, and returns the worker tasks.
 @noinline function evaluate_and_drop(model::MACEModel{Float64}, nl::NeighborList{Float64})
     ws = new_workspace(model, nl)
