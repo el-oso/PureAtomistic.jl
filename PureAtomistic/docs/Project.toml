@@ -1,0 +1,24 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PureAtomistic = "48bcfeca-9cba-41eb-9343-fd702b0553a7"
+PureMLIP = "e31974d8-f9c1-4d27-8220-1506e2a12d0a"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+PureAtomistic = {path = ".."}
+PureMLIP = {path = "../../PureMLIP"}
+
+[compat]
+CairoMakie = "0.15"
+Documenter = "1.19"
+DocumenterVitepress = "0.3"
+JSON = "1.6"
+Literate = "2.20"
+Printf = "1"
+Statistics = "1"
+julia = "1.12"

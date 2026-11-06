@@ -1,0 +1,721 @@
+{
+  "description": "One relaxer per process on MPA-0 Cu cells, fmax = 1e-3 eV/Å, with the process's peak resident set",
+  "fmax": 0.001,
+  "runs": [
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6359743489154
+      ],
+      "evals": [
+        1
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.1400338229265685
+      ],
+      "iterations": [
+        0
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 901349376,
+      "median_seconds": 0.563437959,
+      "method": "baseline",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        0.563437959
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6667226323025
+      ],
+      "evals": [
+        25
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007416692539106887
+      ],
+      "iterations": [
+        24
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 917094400,
+      "median_seconds": 14.078764958,
+      "method": "FIRE",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        14.078764958
+      ],
+      "state_bytes": 6264,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6667303802699
+      ],
+      "evals": [
+        15
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0004931122992403122
+      ],
+      "iterations": [
+        14
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 937246720,
+      "median_seconds": 8.492239458,
+      "method": "FIRE2",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        8.492239458
+      ],
+      "state_bytes": 6304,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6667327048156
+      ],
+      "evals": [
+        7
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0003267453064689888
+      ],
+      "iterations": [
+        6
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 908820480,
+      "median_seconds": 3.995142042,
+      "method": "TrustRegionBFGS",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        3.995142042
+      ],
+      "state_bytes": 28365289,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6667327048249
+      ],
+      "evals": [
+        7
+      ],
+      "extra": [
+        {
+          "boxed": 0,
+          "memory": 10
+        }
+      ],
+      "fmax": [
+        0.00024152622684015632
+      ],
+      "iterations": [
+        6
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 894058496,
+      "median_seconds": 3.943821583,
+      "method": "TrustRegionLBFGS",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        3.943821583
+      ],
+      "state_bytes": 409361,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "vacancy",
+      "cpu": "Apple M6",
+      "energy": [
+        -1044.6667327788343
+      ],
+      "evals": [
+        8
+      ],
+      "extra": [
+        {
+          "f_calls": 0,
+          "fg_calls": 8,
+          "g_calls": 0
+        }
+      ],
+      "fmax": [
+        0.00021655927796045273
+      ],
+      "iterations": [
+        6
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 970342400,
+      "median_seconds": 4.494304208,
+      "method": "Optim.LBFGS",
+      "natoms": 255,
+      "rounds": 1,
+      "seconds": [
+        4.494304208
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1043.014988208549
+      ],
+      "evals": [
+        1
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        1.5468724614287217
+      ],
+      "iterations": [
+        0
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 900890624,
+      "median_seconds": 0.562179459,
+      "method": "baseline",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        0.562179459
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1049.169858733004
+      ],
+      "evals": [
+        49
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0009393761185471603
+      ],
+      "iterations": [
+        48
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 880345088,
+      "median_seconds": 27.82294575,
+      "method": "FIRE",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        27.82294575
+      ],
+      "state_bytes": 6288,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1049.1698628934357
+      ],
+      "evals": [
+        29
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0009759819225604915
+      ],
+      "iterations": [
+        28
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 901087232,
+      "median_seconds": 16.443145041,
+      "method": "FIRE2",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        16.443145041
+      ],
+      "state_bytes": 6328,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1049.1698532814721
+      ],
+      "evals": [
+        19
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0009479282461848322
+      ],
+      "iterations": [
+        18
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 882671616,
+      "median_seconds": 10.865862792,
+      "method": "TrustRegionBFGS",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        10.865862792
+      ],
+      "state_bytes": 28587104,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1049.1698553417393
+      ],
+      "evals": [
+        15
+      ],
+      "extra": [
+        {
+          "boxed": 0,
+          "memory": 10
+        }
+      ],
+      "fmax": [
+        0.0009326199379179934
+      ],
+      "iterations": [
+        14
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 880754688,
+      "median_seconds": 8.534369375,
+      "method": "TrustRegionLBFGS",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        8.534369375
+      ],
+      "state_bytes": 410880,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "strained",
+      "cpu": "Apple M6",
+      "energy": [
+        -1049.169874475993
+      ],
+      "evals": [
+        20
+      ],
+      "extra": [
+        {
+          "f_calls": 0,
+          "fg_calls": 20,
+          "g_calls": 0
+        }
+      ],
+      "fmax": [
+        0.00048132906399726106
+      ],
+      "iterations": [
+        17
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 937656320,
+      "median_seconds": 12.152510583,
+      "method": "Optim.LBFGS",
+      "natoms": 256,
+      "rounds": 1,
+      "seconds": [
+        12.152510583
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.46688269051,
+        -16398.46688269051
+      ],
+      "evals": [
+        1,
+        1
+      ],
+      "extra": [
+        {},
+        {}
+      ],
+      "fmax": [
+        0.14009821134507017,
+        0.14009821134507017
+      ],
+      "iterations": [
+        0,
+        0
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1763557376,
+      "median_seconds": 8.849578167,
+      "method": "baseline",
+      "natoms": 3999,
+      "rounds": 2,
+      "seconds": [
+        8.8544295,
+        8.844726834
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.498696118997,
+        -16398.498696118997
+      ],
+      "evals": [
+        9,
+        9
+      ],
+      "extra": [
+        {
+          "boxed": 0,
+          "memory": 10
+        },
+        {
+          "boxed": 0,
+          "memory": 10
+        }
+      ],
+      "fmax": [
+        0.00063387968104582,
+        0.00063387968104582
+      ],
+      "iterations": [
+        8,
+        8
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1522728960,
+      "median_seconds": 79.55351385399999,
+      "method": "TrustRegionLBFGS",
+      "natoms": 3999,
+      "rounds": 2,
+      "seconds": [
+        79.623535166,
+        79.483492542
+      ],
+      "state_bytes": 6096497,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.49876437377,
+        -16398.49876437377
+      ],
+      "evals": [
+        11,
+        11
+      ],
+      "extra": [
+        {
+          "f_calls": 0,
+          "fg_calls": 11,
+          "g_calls": 0
+        },
+        {
+          "f_calls": 0,
+          "fg_calls": 11,
+          "g_calls": 0
+        }
+      ],
+      "fmax": [
+        0.0005521574590989342,
+        0.0005521574590989342
+      ],
+      "iterations": [
+        9,
+        9
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1604075520,
+      "median_seconds": 97.241053729,
+      "method": "Optim.LBFGS",
+      "natoms": 3999,
+      "rounds": 2,
+      "seconds": [
+        97.3045705,
+        97.177536958
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.49877347377
+      ],
+      "evals": [
+        18
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007796333933434851
+      ],
+      "iterations": [
+        17
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1629863936,
+      "maxrss_bytes_after_round": [
+        1494286336
+      ],
+      "median_seconds": 159.090712042,
+      "method": "FIRE2",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        159.090712042
+      ],
+      "state_bytes": 96160,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.498752821637
+      ],
+      "evals": [
+        30
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007125436777708397
+      ],
+      "iterations": [
+        29
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1614888960,
+      "maxrss_bytes_after_round": [
+        1492664320
+      ],
+      "median_seconds": 265.370221584,
+      "method": "FIRE",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        265.370221584
+      ],
+      "state_bytes": 96120,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.46688269051
+      ],
+      "evals": [
+        1
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.14009821134507017
+      ],
+      "iterations": [
+        0
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1625587712,
+      "maxrss_bytes_after_round": [
+        1490010112
+      ],
+      "median_seconds": 8.781691958,
+      "method": "baseline",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        8.781691958
+      ],
+      "state_bytes": 0,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.498681355388
+      ],
+      "evals": [
+        9
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007570624993844707
+      ],
+      "iterations": [
+        8
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 8525234176,
+      "maxrss_bytes_after_round": [
+        8423391232
+      ],
+      "median_seconds": 158.273782792,
+      "method": "TrustRegionBFGS",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        158.273782792
+      ],
+      "state_bytes": 6912798793,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.49877347377
+      ],
+      "evals": [
+        18
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007796333933434851
+      ],
+      "iterations": [
+        17
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1615085568,
+      "maxrss_bytes_after_round": [
+        1492451328
+      ],
+      "median_seconds": 159.032702875,
+      "method": "FIRE2",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        159.032702875
+      ],
+      "state_bytes": 96160,
+      "threads": 1
+    },
+    {
+      "blas_threads": 1,
+      "cell": "large",
+      "cpu": "Apple M6",
+      "energy": [
+        -16398.498752821637
+      ],
+      "evals": [
+        30
+      ],
+      "extra": [
+        {}
+      ],
+      "fmax": [
+        0.0007125436777708397
+      ],
+      "iterations": [
+        29
+      ],
+      "julia": "1.13.3",
+      "maxrss_bytes": 1611661312,
+      "maxrss_bytes_after_round": [
+        1491025920
+      ],
+      "median_seconds": 265.411649125,
+      "method": "FIRE",
+      "natoms": 3999,
+      "rounds": 1,
+      "seconds": [
+        265.411649125
+      ],
+      "state_bytes": 96120,
+      "threads": 1
+    }
+  ]
+}

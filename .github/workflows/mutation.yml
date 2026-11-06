@@ -1,12 +1,23 @@
 name: Mutation
-# Run by hand: each mutation runs the full test suite, which takes about a minute apiece.
+# Run by hand: each mutation runs the full test suite. For PureAtomistic that is 282 s per run, control
+# included, so its 163 entries are split into four shards of about 41 entries (about 200 minutes
+# each, under the 360-minute job limit).
 on:
   workflow_dispatch:
 jobs:
   mutation:
-    name: Mutation smoke check
+    name: Mutation smoke check (${{ matrix.package }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {package: PureMLIP, shard: ''}
+          - {package: PureAtomistic, shard: 1/4}
+          - {package: PureAtomistic, shard: 2/4}
+          - {package: PureAtomistic, shard: 3/4}
+          - {package: PureAtomistic, shard: 4/4}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -15,8 +26,9 @@ jobs:
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
       - name: Apply each mutation and run the suite
         env:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
-        run: julia PureMLIP/test/mutation/run.jl
+          MUTATION_SHARD: ${{ matrix.shard }}
+        run: julia ${{ matrix.package }}/test/mutation/run.jl

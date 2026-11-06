@@ -12,8 +12,16 @@ permissions:
   statuses: write
   pull-requests: write
 jobs:
+  # PureMLIP's site is built at the root of gh-pages, PureAtomistic's under PureAtomistic/.
   docs:
+    name: Documentation (${{ matrix.package }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Both sites push to the same gh-pages branch.
+      max-parallel: 1
+      matrix:
+        package: [PureMLIP, PureAtomistic]
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -30,9 +38,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-utils xorg-dev
       - name: Install docs dependencies
-        run: julia --project=PureMLIP/docs -e 'using Pkg; Pkg.instantiate()'
-      # The examples load MACE-MPA-0; checkpoint_path downloads it and checks its SHA-256.
+        run: julia --project=${{ matrix.package }}/docs -e 'using Pkg; Pkg.instantiate()'
+      # The PureMLIP examples load MACE-MPA-0; checkpoint_path downloads it and checks its SHA-256.
       - name: Download the MACE-MPA-0 checkpoint
+        if: matrix.package == 'PureMLIP'
         env:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
         run: julia --project=PureMLIP/docs -e 'using PureMLIP; include(pkgdir(PureMLIP, "test", "reference", "checkpoints.jl")); println(checkpoint_path(:mpa0))'
@@ -41,4 +50,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
-        run: xvfb-run -s '-screen 0 1024x768x24' julia --project=PureMLIP/docs PureMLIP/docs/make.jl
+        run: xvfb-run -s '-screen 0 1024x768x24' julia --project=${{ matrix.package }}/docs ${{ matrix.package }}/docs/make.jl

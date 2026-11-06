@@ -1,0 +1,1436 @@
+{
+  "cpu": "Apple M6",
+  "description": "Relaxer settings on the MPA-0 Cu cells: force evaluations to fmax = 1e-3 eV/Å",
+  "fmax": 0.001,
+  "julia": "1.13.3",
+  "maxsteps": 2000,
+  "runs": [
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.054251583,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.44606075,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289893871,
+      "evals": 57,
+      "fmax": 0.0007097055023598056,
+      "method": "FIRE",
+      "seconds": 32.016635042,
+      "settings": {
+        "dt": 0.05,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 56
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698543824555,
+      "evals": 84,
+      "fmax": 0.0009588382756684642,
+      "method": "FIRE",
+      "seconds": 47.509044541,
+      "settings": {
+        "dt": 0.05,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667293560347,
+      "evals": 44,
+      "fmax": 0.0005330871943421348,
+      "method": "FIRE",
+      "seconds": 25.039211541,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 43
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698676973988,
+      "evals": 76,
+      "fmax": 0.0008046553470297076,
+      "method": "FIRE",
+      "seconds": 42.990820209,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 75
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667243628838,
+      "evals": 37,
+      "fmax": 0.0009453800937282792,
+      "method": "FIRE",
+      "seconds": 20.80483825,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 36
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698647575538,
+      "evals": 71,
+      "fmax": 0.0007949901997594243,
+      "method": "FIRE",
+      "seconds": 40.196270375,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 70
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.102673125,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 0.5,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.526610459,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 0.5,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.126467708,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.536348209,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.106355042,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 3.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.53545525,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 3.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.131938916,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.05,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.552022166,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.05,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.16116775,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.529874666,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667289107224,
+      "evals": 50,
+      "fmax": 0.000669587625209664,
+      "method": "FIRE",
+      "seconds": 28.113844666,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.3,
+        "nmin": 5
+      },
+      "steps": 49
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698323799542,
+      "evals": 84,
+      "fmax": 0.0009420308687362883,
+      "method": "FIRE",
+      "seconds": 47.558429125,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.3,
+        "nmin": 5
+      },
+      "steps": 83
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667282568997,
+      "evals": 40,
+      "fmax": 0.0009525499731324779,
+      "method": "FIRE",
+      "seconds": 22.488002792,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 39
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698303209917,
+      "evals": 78,
+      "fmax": 0.000880852268714481,
+      "method": "FIRE",
+      "seconds": 44.127561208,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 77
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667308774377,
+      "evals": 64,
+      "fmax": 0.0009502482129789833,
+      "method": "FIRE",
+      "seconds": 36.009100833,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 10
+      },
+      "steps": 63
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698519838847,
+      "evals": 91,
+      "fmax": 0.0008870251294835536,
+      "method": "FIRE",
+      "seconds": 51.482907792,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 10
+      },
+      "steps": 90
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667318631696,
+      "evals": 7,
+      "fmax": 0.000393364945537736,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.939990875,
+      "settings": {
+        "memory": 1
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698657579998,
+      "evals": 17,
+      "fmax": 0.0008347446491442157,
+      "method": "TrustRegionLBFGS",
+      "seconds": 9.628797458,
+      "settings": {
+        "memory": 1
+      },
+      "steps": 16
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.666732628494,
+      "evals": 7,
+      "fmax": 0.0002481259660308091,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.939306791,
+      "settings": {
+        "memory": 3
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698602907736,
+      "evals": 16,
+      "fmax": 0.0007743255797854762,
+      "method": "TrustRegionLBFGS",
+      "seconds": 9.05298725,
+      "settings": {
+        "memory": 3
+      },
+      "steps": 15
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667327048249,
+      "evals": 7,
+      "fmax": 0.00024152622684015632,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.939783,
+      "settings": {
+        "memory": 5
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698606427847,
+      "evals": 16,
+      "fmax": 0.0006946359893166337,
+      "method": "TrustRegionLBFGS",
+      "seconds": 9.0456905,
+      "settings": {
+        "memory": 5
+      },
+      "steps": 15
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667327048249,
+      "evals": 7,
+      "fmax": 0.00024152622684015632,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.9318305,
+      "settings": {
+        "memory": 10
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698553417393,
+      "evals": 15,
+      "fmax": 0.0009326199379179934,
+      "method": "TrustRegionLBFGS",
+      "seconds": 8.494994375,
+      "settings": {
+        "memory": 10
+      },
+      "steps": 14
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667327048249,
+      "evals": 7,
+      "fmax": 0.00024152622684015632,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.93769325,
+      "settings": {
+        "memory": 20
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698554568275,
+      "evals": 15,
+      "fmax": 0.0009259170127582303,
+      "method": "TrustRegionLBFGS",
+      "seconds": 8.487286375,
+      "settings": {
+        "memory": 20
+      },
+      "steps": 14
+    },
+    {
+      "boxed": 0,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667327048249,
+      "evals": 7,
+      "fmax": 0.00024152622684015632,
+      "method": "TrustRegionLBFGS",
+      "seconds": 3.934463792,
+      "settings": {
+        "memory": 40
+      },
+      "steps": 6
+    },
+    {
+      "boxed": 0,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698554568275,
+      "evals": 15,
+      "fmax": 0.0009259170127582303,
+      "method": "TrustRegionLBFGS",
+      "seconds": 8.478334666,
+      "settings": {
+        "memory": 40
+      },
+      "steps": 14
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.699794959,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.790355625,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667236881083,
+      "evals": 41,
+      "fmax": 0.0009728976250169612,
+      "method": "FIRE2",
+      "seconds": 23.055800709,
+      "settings": {
+        "dt": 0.05,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 40
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698375554017,
+      "evals": 57,
+      "fmax": 0.0009155872300141334,
+      "method": "FIRE2",
+      "seconds": 32.261055,
+      "settings": {
+        "dt": 0.05,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 56
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667303802699,
+      "evals": 15,
+      "fmax": 0.0004931122992403122,
+      "method": "FIRE2",
+      "seconds": 8.438387417,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 14
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698628934357,
+      "evals": 29,
+      "fmax": 0.0009759819225604915,
+      "method": "FIRE2",
+      "seconds": 16.400800834,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 28
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667305433564,
+      "evals": 15,
+      "fmax": 0.0009459039869901881,
+      "method": "FIRE2",
+      "seconds": 8.435461125,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 14
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.169843882624,
+      "evals": 32,
+      "fmax": 0.0009962249573535116,
+      "method": "FIRE2",
+      "seconds": 18.1226625,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 31
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.686136167,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 0.5,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.77665525,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 0.5,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.687004,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.788166292,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.702932583,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 3.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.782001834,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 3.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.679869,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.05,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.794686542,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.05,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.677893125,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.781942292,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667247410417,
+      "evals": 19,
+      "fmax": 0.0009823091013884341,
+      "method": "FIRE2",
+      "seconds": 10.68836,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.3,
+        "ndelay": 20
+      },
+      "steps": 18
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698576165159,
+      "evals": 42,
+      "fmax": 0.0009958136332767762,
+      "method": "FIRE2",
+      "seconds": 23.771099625,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.3,
+        "ndelay": 20
+      },
+      "steps": 41
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667317619551,
+      "evals": 31,
+      "fmax": 0.0005299293882290217,
+      "method": "FIRE2",
+      "seconds": 17.426167333,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 5
+      },
+      "steps": 30
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698299181935,
+      "evals": 49,
+      "fmax": 0.0008558994922287571,
+      "method": "FIRE2",
+      "seconds": 27.737664875,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 5
+      },
+      "steps": 48
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667253129808,
+      "evals": 26,
+      "fmax": 0.0007982467741047539,
+      "method": "FIRE2",
+      "seconds": 14.63020575,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 10
+      },
+      "steps": 25
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698398169356,
+      "evals": 49,
+      "fmax": 0.0008649559573869172,
+      "method": "FIRE2",
+      "seconds": 27.737307,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 10
+      },
+      "steps": 48
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667287075363,
+      "evals": 39,
+      "fmax": 0.0006055651014573532,
+      "method": "FIRE",
+      "seconds": 22.115458042,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 1
+      },
+      "steps": 38
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698590355834,
+      "evals": 63,
+      "fmax": 0.0007813638313852186,
+      "method": "FIRE",
+      "seconds": 35.837566833,
+      "settings": {
+        "dt": 0.1,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 1
+      },
+      "steps": 62
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667293508692,
+      "evals": 29,
+      "fmax": 0.0008239574312486544,
+      "method": "FIRE",
+      "seconds": 16.371844917,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 28
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.169861557103,
+      "evals": 60,
+      "fmax": 0.0009757660015510741,
+      "method": "FIRE",
+      "seconds": 34.07940525,
+      "settings": {
+        "dt": 0.3,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 59
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667310473963,
+      "evals": 35,
+      "fmax": 0.0009994809397362609,
+      "method": "FIRE",
+      "seconds": 19.743105042,
+      "settings": {
+        "dt": 0.5,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 34
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698699586107,
+      "evals": 64,
+      "fmax": 0.0009092218645740897,
+      "method": "FIRE",
+      "seconds": 36.335175209,
+      "settings": {
+        "dt": 0.5,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 63
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.666719036943,
+      "evals": 31,
+      "fmax": 0.0008832602020934355,
+      "method": "FIRE",
+      "seconds": 17.459850958,
+      "settings": {
+        "dt": 0.5,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 30
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.169868980967,
+      "evals": 55,
+      "fmax": 0.0009410397689594975,
+      "method": "FIRE",
+      "seconds": 31.191180584,
+      "settings": {
+        "dt": 0.5,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 54
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.666728092208,
+      "evals": 25,
+      "fmax": 0.0008486478716324865,
+      "method": "FIRE",
+      "seconds": 14.075248666,
+      "settings": {
+        "dt": 0.7,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 24
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.16981780729,
+      "evals": 55,
+      "fmax": 0.0009630591459267786,
+      "method": "FIRE",
+      "seconds": 31.198465916,
+      "settings": {
+        "dt": 0.7,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 54
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667226323025,
+      "evals": 25,
+      "fmax": 0.0007416692539106887,
+      "method": "FIRE",
+      "seconds": 14.0780655,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 24
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.169858733004,
+      "evals": 49,
+      "fmax": 0.0009393761185471603,
+      "method": "FIRE",
+      "seconds": 27.76247925,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 48
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667226323025,
+      "evals": 25,
+      "fmax": 0.0007416692539106887,
+      "method": "FIRE",
+      "seconds": 14.044176291,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 24
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.169858733004,
+      "evals": 49,
+      "fmax": 0.0009393761185471603,
+      "method": "FIRE",
+      "seconds": 27.661261542,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "nmin": 2
+      },
+      "steps": 48
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667263506936,
+      "evals": 29,
+      "fmax": 0.0008120757445596995,
+      "method": "FIRE",
+      "seconds": 16.313144667,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 1
+      },
+      "steps": 28
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698659717272,
+      "evals": 52,
+      "fmax": 0.0007629431276904395,
+      "method": "FIRE",
+      "seconds": 29.385454333,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 1
+      },
+      "steps": 51
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667303033794,
+      "evals": 21,
+      "fmax": 0.0007751880185875303,
+      "method": "FIRE",
+      "seconds": 11.784630417,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 20
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698567028495,
+      "evals": 57,
+      "fmax": 0.000977030420899395,
+      "method": "FIRE",
+      "seconds": 32.198858833,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "nmin": 5
+      },
+      "steps": 56
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667226323025,
+      "evals": 25,
+      "fmax": 0.0007416692539106887,
+      "method": "FIRE",
+      "seconds": 14.020585792,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "nmin": 2
+      },
+      "steps": 24
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698656748715,
+      "evals": 54,
+      "fmax": 0.0008450741515791898,
+      "method": "FIRE",
+      "seconds": 30.520336708,
+      "settings": {
+        "dt": 1.0,
+        "dtmax": 1.0,
+        "maxstep": 0.2,
+        "nmin": 2
+      },
+      "steps": 53
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667303802699,
+      "evals": 15,
+      "fmax": 0.0004931122992403122,
+      "method": "FIRE2",
+      "seconds": 8.419524917,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 14
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698628934357,
+      "evals": 29,
+      "fmax": 0.0009759819225604915,
+      "method": "FIRE2",
+      "seconds": 16.371969042,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 2.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 28
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667261369682,
+      "evals": 16,
+      "fmax": 0.0009036100293351219,
+      "method": "FIRE2",
+      "seconds": 8.981067791,
+      "settings": {
+        "dt": 0.15,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 15
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.1698498760293,
+      "evals": 30,
+      "fmax": 0.0009143196269037014,
+      "method": "FIRE2",
+      "seconds": 16.956978042,
+      "settings": {
+        "dt": 0.15,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 20
+      },
+      "steps": 29
+    },
+    {
+      "boxed": -1,
+      "cell": "vacancy",
+      "converged": true,
+      "energy": -1044.6667303802699,
+      "evals": 15,
+      "fmax": 0.0004931122992403122,
+      "method": "FIRE2",
+      "seconds": 8.429899584,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 10
+      },
+      "steps": 14
+    },
+    {
+      "boxed": -1,
+      "cell": "strained",
+      "converged": true,
+      "energy": -1049.16983423165,
+      "evals": 36,
+      "fmax": 0.0009018311757466978,
+      "method": "FIRE2",
+      "seconds": 20.343597084,
+      "settings": {
+        "dt": 0.2,
+        "dtmax": 1.0,
+        "maxstep": 0.1,
+        "ndelay": 10
+      },
+      "steps": 35
+    }
+  ],
+  "threads": 1
+}

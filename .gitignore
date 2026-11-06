@@ -2,6 +2,9 @@ Manifest*.toml
 .superpowers/
 docs/build
 PureMLIP/docs/build
+PureAtomistic/docs/build
 PureMLIP/juliac/build/
 node_modules
 *.cov
+PureAtomistic/juliac/build/
+LocalPreferences.toml

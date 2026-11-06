@@ -1,0 +1,1215 @@
+# Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureAtomistic/;
+# `find` must occur exactly once in it; `expect` is a regex matched against
+# the names of the test items expected to fail.
+# A source file that holds only module, `import`, `include`, `export` and `public` declarations
+# needs no entry; every file that computes a value gets at least one.
+
+[[mutation]]
+name = "potential-capacity-fraction-ignored"
+file = "src/potentials/contracts.jl"
+find = 'extra_capacity = ceil(Int, fraction * m)'
+replace = 'extra_capacity = 0'
+expect = "MACEPotential equals mace_energy_forces exactly"
+
+[[mutation]]
+name = "potential-eltype-check-cell"
+file = "src/potentials/contracts.jl"
+find = '(eltype(positions) === T && eltype(cell) === T) ||'
+replace = '(eltype(positions) === T) ||'
+expect = "potential errors"
+
+[[mutation]]
+name = "potential-capacity-error-not-caught"
+file = "src/potentials/contracts.jl"
+find = 'err isa ArgumentError || rethrow()'
+replace = 'rethrow()'
+expect = "regrow the neighbor list"
+
+[[mutation]]
+name = "mace-potential-regrow-keeps-workspace"
+file = "src/potentials/mace.jl"
+find = '''
+    p.ws = MACEWorkspace{T}(p.model, n_atoms(p), length(p.nl.senders); elements = p.atomic_numbers)
+    p.n_regrows += 1'''
+replace = '''
+    p.n_regrows += 1'''
+expect = "regrow the neighbor list"
+
+[[mutation]]
+name = "mace-potential-atomic-numbers"
+file = "src/potentials/mace.jl"
+find = 'Vector{Int}(atomic_numbers), fraction'
+replace = 'fill(29, n), fraction'
+expect = "MACEPotential equals mace_energy_forces exactly"
+
+[[mutation]]
+name = "harmonic-image-floor"
+file = "src/potentials/harmonic.jl"
+find = 'floor(s2 + T(0.5))'
+replace = 'floor(s2)'
+expect = "nearest periodic image"
+
+[[mutation]]
+name = "harmonic-force-sign"
+file = "src/potentials/harmonic.jl"
+find = 'F[2, i] = -p.k * d2'
+replace = 'F[2, i] = p.k * d2'
+expect = "finite-difference gradient"
+
+[[mutation]]
+name = "lennard-jones-no-shift"
+file = "src/potentials/lennard_jones.jl"
+find = 'E += V - p.shift'
+replace = 'E += V'
+expect = "cut and shifted potential"
+
+[[mutation]]
+name = "lennard-jones-full-pair-force"
+file = "src/potentials/lennard_jones.jl"
+find = 'g = dV / (2 * d)'
+replace = 'g = dV / d'
+expect = "finite-difference gradient"
+
+[[mutation]]
+name = "units-amu-factor"
+file = "src/systems/units.jl"
+find = '''_AMU_KG / (_E_CHARGE * 1.0e-10)'''
+replace = '''_AMU_KG / (_E_CHARGE * 1.0e-11)'''
+expect = "unit constants"
+
+[[mutation]]
+name = "units-boltzmann"
+file = "src/systems/units.jl"
+find = '''_K_BOLTZMANN_J / _E_CHARGE'''
+replace = '''_K_BOLTZMANN_J * _E_CHARGE'''
+expect = "unit constants"
+
+[[mutation]]
+name = "units-gpa"
+file = "src/systems/units.jl"
+find = '''_E_CHARGE / 1.0e-30 / 1.0e9'''
+replace = '''_E_CHARGE / 1.0e-30 / 1.0e8'''
+expect = "unit constants"
+
+[[mutation]]
+name = "system-det-sign"
+file = "src/systems/system.jl"
+find = '''c[7] * (c[2] * c[6] - c[5] * c[3])'''
+replace = '''c[7] * (c[2] * c[6] + c[5] * c[3])'''
+expect = "volume and wrap!"
+
+[[mutation]]
+name = "system-inverse-entry"
+file = "src/systems/system.jl"
+find = '''(c[7] * c[6] - c[4] * c[9]) / d'''
+replace = '''(c[4] * c[9] - c[7] * c[6]) / d'''
+expect = "wrap"
+
+[[mutation]]
+name = "system-wrap-ceil"
+file = "src/systems/system.jl"
+find = '''n1, n2, n3 = floor(f1), floor(f2), floor(f3)'''
+replace = '''n1, n2, n3 = ceil(f1), ceil(f2), ceil(f3)'''
+expect = "volume and wrap!"
+
+[[mutation]]
+name = "system-wrap-shift-component"
+file = "src/systems/system.jl"
+find = '''P[r[3], a] = x3 - (n1 * c[3] + n2 * c[6] + n3 * c[9])'''
+replace = '''P[r[3], a] = x3 - (n1 * c[3] + n2 * c[5] + n3 * c[9])'''
+expect = "wrap"
+
+[[mutation]]
+name = "system-singular-check"
+file = "src/systems/system.jl"
+find = '''(isfinite(d) && !iszero(d)) ||'''
+replace = '''isfinite(d) ||'''
+expect = "wrap! leaves"
+
+[[mutation]]
+name = "system-mass-positive"
+file = "src/systems/system.jl"
+find = '''all(>(0), masses)'''
+replace = '''all(>=(0), masses)'''
+expect = "validates"
+
+[[mutation]]
+name = "system-kinetic-half"
+file = "src/systems/system.jl"
+find = '''return T(AMU_IN_EV_FS2_PER_A2 / 2) * s'''
+replace = '''return T(AMU_IN_EV_FS2_PER_A2) * s'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-temperature-factor"
+file = "src/systems/system.jl"
+find = '''return 2 * kinetic_energy(sys) / (T(dof) * T(KB_EV_PER_K))'''
+replace = '''return kinetic_energy(sys) / (T(dof) * T(KB_EV_PER_K))'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-default-dof"
+file = "src/systems/system.jl"
+find = '''dof::Integer = 3 * natoms(sys) - 3'''
+replace = '''dof::Integer = 3 * natoms(sys) - 2'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-pressure-virial-sign"
+file = "src/systems/system.jl"
+find = '''return T(-tr / 3) +'''
+replace = '''return T(tr / 3) +'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "system-pressure-kinetic"
+file = "src/systems/system.jl"
+find = '''2 * kinetic_energy(sys) / (3 * V)'''
+replace = '''2 * kinetic_energy(sys) / (2 * V)'''
+expect = "kinetic energy"
+
+[[mutation]]
+name = "init-com-sign"
+file = "src/systems/init.jl"
+find = '''V[r[d], a] -= p[d] / mtot'''
+replace = '''V[r[d], a] += p[d] / mtot'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-sigma-mass"
+file = "src/systems/init.jl"
+find = '''σ = sqrt(kT / (sys.masses[a] * T(AMU_IN_EV_FS2_PER_A2)))'''
+replace = '''σ = sqrt(kT / T(AMU_IN_EV_FS2_PER_A2))'''
+expect = "Gaussian"
+
+[[mutation]]
+name = "init-rescale"
+file = "src/systems/init.jl"
+find = '''scale = sqrt(T(temp) / current)'''
+replace = '''scale = T(temp) / current'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-dof"
+file = "src/systems/init.jl"
+find = '''dof = (remove_com ? 3 * natoms(sys) - 3 : 3 * natoms(sys))'''
+replace = '''dof = (remove_com ? 3 * natoms(sys) - 2 : 3 * natoms(sys))'''
+expect = "hits the target"
+
+[[mutation]]
+name = "init-fcc-basis"
+file = "src/systems/init.jl"
+find = '''(1, 0, 1), (0, 1, 1))'''
+replace = '''(1, 0, 1), (1, 1, 1))'''
+expect = "fcc_cell"
+
+[[mutation]]
+name = "init-fcc-cell"
+file = "src/systems/init.jl"
+find = '''cell[d, d] = a * nrep[d]'''
+replace = '''cell[d, d] = a'''
+expect = "fcc_cell"
+
+[[mutation]]
+name = "init-remove-atom"
+file = "src/systems/init.jl"
+find = '''keep = [a for a in axes(sys.positions, 2) if a != i]'''
+replace = '''keep = [a for a in axes(sys.positions, 2) if a != i + 1]'''
+expect = "fcc_cell|OffsetArray"
+
+[[mutation]]
+name = "init-cu-mass"
+file = "src/systems/init.jl"
+find = '''58.693, 63.546,'''
+replace = '''58.693, 63.5,'''
+expect = "fcc_cell"
+
+[[mutation]]
+name = "extxyz-lattice-transposed"
+file = "src/io/extxyz.jl"
+find = "        m[q] = _parse_float(p, key, lineno)"
+replace = "        m[(q - 1) % 3 * 3 + (q - 1) ÷ 3 + 1] = _parse_float(p, key, lineno)"
+expect = "fixtures parse"
+
+[[mutation]]
+name = "extxyz-default-pbc-swapped"
+file = "src/io/extxyz.jl"
+find = "isempty(cell) ? (false, false, false) : (true, true, true))"
+replace = "isempty(cell) ? (true, true, true) : (false, false, false))"
+expect = "fixtures parse"
+
+[[mutation]]
+name = "extxyz-write-float32-digits"
+file = "src/io/extxyz.jl"
+find = "        print(io, Float64(x))"
+replace = "        print(io, Float32(x))"
+expect = "bitwise round trip"
+
+[[mutation]]
+name = "extxyz-extra-value-unquoted"
+file = "src/io/extxyz.jl"
+find = "    if isempty(value) || _has_space(value)"
+replace = "    if isempty(value)"
+expect = "bitwise round trip"
+
+[[mutation]]
+name = "extxyz-truncated-frame-accepted"
+file = "src/io/extxyz.jl"
+find = "    i + 1 + n <= length(lines) ||"
+replace = "    i + 1 + n <= length(lines) + 1 ||"
+expect = "malformed input"
+
+[[mutation]]
+name = "copy-ignores-axes"
+file = "src/io/extxyz.jl"
+find = "        dst[p, q] = src[i, j]"
+replace = "        dst[p, q] = src[p, q]"
+expect = "OffsetArray"
+
+[[mutation]]
+name = "trajectory-no-padding"
+file = "src/io/trajectory.jl"
+find = "_pad8(n::Integer) = (8 - n % 8) % 8"
+replace = "_pad8(n::Integer) = 0"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-energy-slot"
+file = "src/io/trajectory.jl"
+find = "    w.head[2] = energy"
+replace = "    w.head[2] = time"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-frame-offset"
+file = "src/io/trajectory.jl"
+find = "    seek(r.io, r.header_bytes + (k - 1) * r.frame_bytes)"
+replace = "    seek(r.io, r.header_bytes + k * r.frame_bytes - r.frame_bytes ÷ 2)"
+expect = "round trip, layout"
+
+[[mutation]]
+name = "trajectory-velocities-dropped"
+file = "src/io/trajectory.jl"
+find = "    w.flags & _FLAG_VELOCITIES != 0 && write(w.io, w.velocities)"
+replace = "    w.flags & _FLAG_VELOCITIES != 0 && write(w.io, w.positions)"
+expect = "restart from a frame"
+
+[[mutation]]
+name = "trajectory-positions-rounded-to-zero"
+file = "src/io/trajectory.jl"
+find = "    _copy_dense!(w.positions, positions)\n"
+replace = "    _copy_dense!(w.positions, positions)\n    w.positions .= trunc.(w.positions, digits = 2)\n"
+expect = "restart from a frame"
+
+[[mutation]]
+name = "analysis-ws-farthest-site"
+file = "src/analysis/vacancy.jl"
+find = "if d2 < bestd"
+replace = "if d2 > bestd"
+expect = "wigner_seitz_occupancy! counts"
+
+[[mutation]]
+name = "analysis-fcc-basis"
+file = "src/analysis/vacancy.jl"
+find = "(1, 1, 0))"
+replace = "(1, 1, 1))"
+expect = "reference_sites builds"
+
+[[mutation]]
+name = "analysis-no-drift-removal"
+file = "src/analysis/vacancy.jl"
+find = "_assign!(tr.occ, tr.owner, tr.avg, drift, tr.sites, cm, ci)"
+replace = "_assign!(tr.occ, tr.owner, tr.avg, zero3, tr.sites, cm, ci)"
+expect = "vacancy tracker follows"
+
+[[mutation]]
+name = "analysis-window-no-minimum-image"
+file = "src/analysis/vacancy.jl"
+find = "acc = _add3(acc, _minimg(_sub3(h, ref), cm, ci))"
+replace = "acc = _add3(acc, _sub3(h, ref))"
+expect = "window averaging"
+
+[[mutation]]
+name = "analysis-dwell-off-by-one"
+file = "src/analysis/vacancy.jl"
+find = "if tr.candcount >= tr.dwell"
+replace = "if tr.candcount > tr.dwell"
+expect = "dwell filter"
+
+[[mutation]]
+name = "analysis-frenkel-accepted"
+file = "src/analysis/vacancy.jl"
+find = "(nempty == 1 && nmulti == 0) ||"
+replace = "true ||"
+expect = "Frenkel pair"
+
+[[mutation]]
+name = "analysis-poisson-error"
+file = "src/analysis/diffusion.jl"
+find = "sqrt(T(tr.nhops)) / total"
+replace = "T(tr.nhops) / total"
+expect = "dwell filter"
+
+[[mutation]]
+name = "analysis-msd-dimension"
+file = "src/analysis/diffusion.jl"
+find = "x = num / (6 * den)"
+replace = "x = num / (4 * den)"
+expect = "msd_diffusion fits"
+
+[[mutation]]
+name = "analysis-arrhenius-sign"
+file = "src/analysis/arrhenius.jl"
+find = "return (E_m = -slope,"
+replace = "return (E_m = slope,"
+expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "analysis-arrhenius-error"
+file = "src/analysis/arrhenius.jl"
+find = "sxx += w * dx^2"
+replace = "sxx += dx^2"
+expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "systems-kick-unit-factor"
+file = "src/systems/motion.jl"
+find = "f = τ / (m[a] * c)"
+replace = "f = τ / m[a]"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "systems-drift-half-step"
+file = "src/systems/motion.jl"
+find = "X[k, a] += h * V[k, a]"
+replace = "X[k, a] += h * V[k, a] / 2"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "verlet-second-kick-missing"
+file = "src/integrators/verlet.jl"
+find = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+    kick!(sys.velocities, potential.result.forces, sys.masses, h / 2)
+'''
+replace = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+'''
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "verlet-prepare-skipped"
+file = "src/integrators/verlet.jl"
+find = '''
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+    kick!'''
+replace = '''
+    energy_forces!(potential, sys.positions, sys.cell)
+    kick!'''
+expect = "step moves atoms across the cell boundary"
+
+[[mutation]]
+name = "verlet-dt-zero-allowed"
+file = "src/integrators/verlet.jl"
+find = "(isfinite(dt) && dt > 0) ||"
+replace = "(isfinite(dt) && dt >= 0) ||"
+expect = "reject invalid arguments"
+
+[[mutation]]
+name = "driver-step-count"
+file = "src/driver.jl"
+find = "    sim.step_count += 1"
+replace = "    sim.step_count += 0"
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "driver-observer-phase"
+file = "src/driver.jl"
+find = "i % every == 0"
+replace = "i % every == 1"
+expect = "observer every k steps"
+
+[[mutation]]
+name = "driver-total-energy-kinetic-only"
+file = "src/driver.jl"
+find = "kinetic_energy(sim.system) + T(sim.potential.result.energy)"
+replace = "kinetic_energy(sim.system)"
+expect = "tiny MACE checkpoint conserves energy"
+
+[[mutation]]
+name = "driver-initial-forces-missing"
+file = "src/driver.jl"
+find = '''
+    energy_forces!(potential, system.positions, system.cell)
+    return Simulation{'''
+replace = '''
+    return Simulation{'''
+expect = "one velocity Verlet step"
+
+[[mutation]]
+name = "driver-negative-nsteps"
+file = "src/driver.jl"
+find = "nsteps >= 0 ||"
+replace = "nsteps >= -1 ||"
+expect = "reject invalid arguments"
+
+[[mutation]]
+name = "driver-atom-count-unchecked"
+file = "src/driver.jl"
+find = "n_atoms(potential) == natoms(system) ||"
+replace = "true ||"
+expect = "reject invalid arguments"
+
+[[mutation]]
+name = "makie-arrhenius-line-sign"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "log(fit.prefactor) - fit.E_m * xe[1], log(fit.prefactor) - fit.E_m * xe[2]"
+replace = "log(fit.prefactor) + fit.E_m * xe[1], log(fit.prefactor) + fit.E_m * xe[2]"
+expect = "plot_arrhenius draws"
+
+[[mutation]]
+name = "makie-energy-drift-origin"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "Makie.lines!(ax1, t, total .- first(total))"
+replace = "Makie.lines!(ax1, t, total)"
+expect = "plot_energy_conservation draws"
+
+[[mutation]]
+name = "makie-vacancy-msd-origin"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "sum(abs2, R[:, k] - R[:, 1])"
+replace = "sum(abs2, R[:, k])"
+expect = "plot_vacancy_track draws"
+
+[[mutation]]
+name = "makie-vacancy-hop-times"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "tr.hop_t[1:tr.nhops]; color"
+replace = "tr.t[1:tr.nhops]; color"
+expect = "plot_vacancy_track draws"
+
+[[mutation]]
+name = "makie-species-colors"
+file = "ext/PureAtomisticMakieExt.jl"
+find = "findfirst(==(s), names)"
+replace = "1"
+expect = "animate_trajectory draws one marker"
+
+[[mutation]]
+name = "optimize-mix-weight"
+file = "src/optimize/fire.jl"
+find = "V[d, a] = (1 - opt.alpha) * V[d, a] + mix * F[d, a]"
+replace = "V[d, a] = opt.alpha * V[d, a] + mix * F[d, a]"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-mix-norm"
+file = "src/optimize/fire.jl"
+find = "mix = opt.alpha * sqrt(vn2 / fn2)"
+replace = "mix = opt.alpha * vn2 / fn2"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-freeze-on-zero-power"
+file = "src/optimize/fire.jl"
+find = "if P > 0\n        # F2"
+replace = "if P >= 0\n        # F2"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-latency"
+file = "src/optimize/fire.jl"
+find = "if opt.npos > opt.nmin"
+replace = "if opt.npos >= opt.nmin"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-dt-ceiling"
+file = "src/optimize/fire.jl"
+find = "opt.dt = min(opt.dt * opt.finc, opt.dtmax)"
+replace = "opt.dt = opt.dt * opt.finc"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-alpha-decay"
+file = "src/optimize/fire.jl"
+find = "opt.alpha *= opt.falpha"
+replace = "opt.alpha *= opt.finc"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-dt-decrease"
+file = "src/optimize/fire.jl"
+find = "opt.dt *= opt.fdec"
+replace = "opt.dt *= opt.finc"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-alpha-restart"
+file = "src/optimize/fire.jl"
+find = "opt.alpha = opt.alpha_start\n        opt.npos = 0\n    end\n    dt = opt.dt"
+replace = "opt.alpha = opt.alpha\n        opt.npos = 0\n    end\n    dt = opt.dt"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "optimize-step-cap"
+file = "src/optimize/fire.jl"
+find = "scale = biggest > opt.maxstep ? opt.maxstep / biggest : one(T)"
+replace = "scale = one(T)"
+expect = "schedule"
+
+[[mutation]]
+name = "optimize-force-norm"
+file = "src/optimize/fire.jl"
+find = "s += F[d, a]^2\n        end\n        m = max"
+replace = "s += abs(F[d, a])\n        end\n        m = max"
+expect = "FIRE relaxes"
+
+[[mutation]]
+name = "optimize-tolerance"
+file = "src/optimize/fire.jl"
+find = "fm < tol && return"
+replace = "fm < 2 * tol && return"
+expect = "FIRE relaxes"
+
+[[mutation]]
+name = "optimize-step-count"
+file = "src/optimize/fire.jl"
+find = "RelaxResult{T}(true, step, E, fm)"
+replace = "RelaxResult{T}(true, step + 1, E, fm)"
+expect = "iteration count"
+
+[[mutation]]
+name = "optimize-nonfinite"
+file = "src/optimize/fire.jl"
+find = "isfinite(fm) && isfinite(E)"
+replace = "isfinite(fm)"
+expect = "reject invalid"
+
+[[mutation]]
+name = "optimize-iteration-limit"
+file = "src/optimize/fire.jl"
+find = "for step in 0:(maxsteps - 1)"
+replace = "for step in 0:maxsteps"
+expect = "iteration count"
+
+[[mutation]]
+name = "optimize-final-convergence"
+file = "src/optimize/fire.jl"
+find = "RelaxResult{T}(fm < tol, Int(maxsteps), E, fm)"
+replace = "RelaxResult{T}(false, Int(maxsteps), E, fm)"
+expect = "iteration count"
+
+[[mutation]]
+name = "optimize-power-sign"
+file = "src/optimize/fire.jl"
+find = "P += F[d, a] * V[d, a]"
+replace = "P -= F[d, a] * V[d, a]"
+expect = "FIRE rules"
+
+[[mutation]]
+name = "gamma-no-boost"
+file = "src/thermostats/gamma_sampler.jl"
+find = "return _marsaglia_tsang(rng, a + one(a)) * u^(one(a) / a)"
+replace = "return _marsaglia_tsang(rng, a + one(a))"
+expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "gamma-d-offset"
+file = "src/thermostats/gamma_sampler.jl"
+find = "d = a - one(T) / 3"
+replace = "d = a - one(T) / 2"
+expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "langevin-noise-variance"
+file = "src/thermostats/langevin.jl"
+find = "-expm1(-2 * th.gamma * dt)"
+replace = "-expm1(-th.gamma * dt)"
+expect = "BAOAB harmonic oscillators"
+
+[[mutation]]
+name = "langevin-friction"
+file = "src/thermostats/langevin.jl"
+find = "c1 = T(exp(-th.gamma * dt))"
+replace = "c1 = T(exp(-th.gamma * dt / 2))"
+expect = "BAOAB friction"
+
+[[mutation]]
+name = "langevin-noise-mass"
+file = "src/thermostats/langevin.jl"
+find = "s = c3 / sqrt(m[a] * amu)"
+replace = "s = c3 / sqrt(m[a])"
+expect = "BAOAB harmonic oscillators"
+
+[[mutation]]
+name = "langevin-second-evaluation"
+file = "src/thermostats/langevin.jl"
+find = "    after_drift!(sys)\n    prepare!(potential, X, sys.cell)"
+replace = "    after_drift!(sys)\n    energy_forces!(potential, X, sys.cell)\n    prepare!(potential, X, sys.cell)"
+expect = "BAOAB friction and force evaluations"
+
+[[mutation]]
+name = "bussi-gamma-shape"
+file = "src/thermostats/bussi.jl"
+find = "randgamma(rng, T(nf - 1) / 2)"
+replace = "randgamma(rng, T(nf) / 2)"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "bussi-removed-dof"
+file = "src/thermostats/bussi.jl"
+find = "nf = 3 * natoms(sys) - th.removed_dof"
+replace = "nf = 3 * natoms(sys)"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "bussi-full-step-rescale"
+file = "src/thermostats/bussi.jl"
+find = "    _rescale!(th, sys, dt / 2, rng)\n    integrate!(sys, potential)"
+replace = "    _rescale!(th, sys, dt, rng)\n    integrate!(sys, potential)"
+expect = "Bussi kinetic energy relaxes"
+
+[[mutation]]
+name = "bussi-noise-cross-term"
+file = "src/thermostats/bussi.jl"
+find = "α = sqrt((sqrt(c) + sqrt(q) * r1)^2 + q * s)"
+replace = "α = sqrt(c + q * (r1^2 + s))"
+expect = "Bussi ideal-gas kinetic energy"
+
+[[mutation]]
+name = "driver-thermostat-ignored"
+file = "src/driver.jl"
+find = "_step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))"
+replace = "_step!(nothing, sim, _rescaling(sim.barostat, sim))"
+expect = "BAOAB|Bussi"
+
+[[mutation]]
+name = "langevin-splitting-order"
+file = "src/thermostats/langevin.jl"
+find = '''
+    drift!(X, V, h / 2)
+    for a in axes(V, 2)
+        s = c3 / sqrt(m[a] * amu)
+        for k in axes(V, 1)
+            V[k, a] = c1 * V[k, a] + s * randn(rng, T)
+        end
+    end
+    drift!(X, V, h / 2)
+'''
+replace = '''
+    for a in axes(V, 2)
+        s = c3 / sqrt(m[a] * amu)
+        for k in axes(V, 1)
+            V[k, a] = c1 * V[k, a] + s * randn(rng, T)
+        end
+    end
+    drift!(X, V, h)
+'''
+expect = "BAOAB splitting order"
+
+[[mutation]]
+name = "gamma-cap-returns-value"
+file = "src/thermostats/gamma_sampler.jl"
+find = "    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
+replace = "    return d\n    throw(ArgumentError(\"pureatomistic: the gamma sampler rejected"
+expect = "Marsaglia-Tsang gamma sampler"
+
+[[mutation]]
+name = "berendsen-sign"
+file = "src/barostats/berendsen.jl"
+find = "(T(b.P0) - P)"
+replace = "(P - T(b.P0))"
+expect = "relaxes"
+
+[[mutation]]
+name = "berendsen-cube-root"
+file = "src/barostats/berendsen.jl"
+find = "return cbrt(μ3)"
+replace = "return μ3"
+expect = "relaxes exponentially"
+
+[[mutation]]
+name = "berendsen-unit-factor"
+file = "src/barostats/berendsen.jl"
+find = "pressure(sys, stress(potential)) * T(EV_PER_A3_IN_GPA)"
+replace = "pressure(sys, stress(potential))"
+expect = "relaxes exponentially|ideal gas"
+
+[[mutation]]
+name = "berendsen-kinetic-term"
+file = "src/systems/system.jl"
+find = "return T(-tr / 3) + 2 * kinetic_energy(sys) / (3 * V)"
+replace = "return T(-tr / 3)"
+expect = "ideal gas|thermal NPT"
+
+[[mutation]]
+name = "verlet-hook-skipped"
+file = "src/integrators/verlet.jl"
+find = "    after_drift!(sys)\n"
+replace = ""
+expect = "relaxes|evaluates the potential once"
+
+[[mutation]]
+name = "verlet-hook-after-forces"
+file = "src/integrators/verlet.jl"
+find = '''
+    after_drift!(sys)
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+'''
+replace = '''
+    prepare!(potential, sys.positions, sys.cell)
+    energy_forces!(potential, sys.positions, sys.cell)
+    after_drift!(sys)
+'''
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "langevin-hook-skipped"
+file = "src/thermostats/langevin.jl"
+find = "    after_drift!(sys)\n"
+replace = ""
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "driver-integrator-step-drops-hook"
+file = "src/driver.jl"
+find = "advance!(s.integrator::VelocityVerlet, sys, potential, s.hook)"
+replace = "advance!(s.integrator, sys, potential)"
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "driver-old-ordering"
+file = "src/driver.jl"
+find = "    _step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))\n"
+replace = '''
+    _step!(sim.thermostat, sim, nothing)
+    r = _rescaling(sim.barostat, sim)
+    if !isnothing(r)
+        r(sim.system)
+        prepare!(sim.potential, sim.system.positions, sim.system.cell)
+        energy_forces!(sim.potential, sim.system.positions, sim.system.cell)
+    end
+'''
+expect = "evaluates the potential once"
+
+[[mutation]]
+name = "berendsen-degenerate-unchecked"
+file = "src/barostats/berendsen.jl"
+find = "(isfinite(μ3) && μ3 > 0) ||"
+replace = "isfinite(μ3) ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "berendsen-coupling-time-unchecked"
+file = "src/barostats/berendsen.jl"
+find = "(isfinite(τ_P) && τ_P > 0) ||"
+replace = "isfinite(τ_P) ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "driver-barostat-ignored"
+file = "src/driver.jl"
+find = "_step!(sim.thermostat, sim, _rescaling(sim.barostat, sim))"
+replace = "_step!(sim.thermostat, sim, nothing)"
+expect = "relaxes"
+
+[[mutation]]
+name = "driver-barostat-stress-unchecked"
+file = "src/driver.jl"
+find = "isnothing(barostat) || potential isa AbstractStressPotential ||"
+replace = "true ||"
+expect = "barostat rejects invalid arguments"
+
+[[mutation]]
+name = "lj-stress-off-diagonal"
+file = "src/potentials/lennard_jones.jl"
+find = "S[1, 2] = S[2, 1] = s12 / vol"
+replace = "S[1, 2] = S[2, 1] = zero(T)"
+expect = "strain derivative of the energy"
+
+[[mutation]]
+name = "lj-stress-volume"
+file = "src/potentials/lennard_jones.jl"
+find = "vol = cell_volume(cell)"
+replace = "vol = abs(cell[1, 1] * cell[2, 2] * cell[3, 3])"
+expect = "strain derivative of the energy"
+
+[[mutation]]
+name = "thermostat-fallback-drops-hook"
+file = "src/thermostats/Thermostats.jl"
+find = '''
+    after_drift! === no_hook ||
+        throw('''
+replace = '''
+    true ||
+        throw('''
+expect = "thermostat fallback rejects a hook"
+
+[[mutation]]
+name = "qn-radius-shrink"
+file = "src/optimize/quasi_newton.jl"
+find = """
+            if ratio < T(1 // 4)
+                opt.radius /= 4"""
+replace = """
+            if ratio < T(1 // 4)
+                opt.radius /= 2"""
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-radius-grow"
+file = "src/optimize/quasi_newton.jl"
+find = "min(2 * opt.radius, opt.max_radius)"
+replace = "min(opt.radius, opt.max_radius)"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-bfgs-sign"
+file = "src/optimize/quasi_newton.jl"
+find = "- ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+replace = "+ ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-initial-scale"
+file = "src/optimize/quasi_newton.jl"
+find = "H[i, i] = sy / yy"
+replace = "H[i, i] = yy / sy"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-box-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = fixed[cart[i][2]] ? zero(T) : Δ"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-fixed-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = Δ / nrm"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-linear-term"
+file = "src/optimize/quasi_newton.jl"
+find = "s += L[i, j] * g[i]"
+replace = "s += L[j, j] * g[i]"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-recover-step"
+file = "src/optimize/quasi_newton.jl"
+find = "p[i] += L[i, j] * wj"
+replace = "p[i] += L[i, i] * wj"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-predicted-decrease"
+file = "src/optimize/quasi_newton.jl"
+find = "pred -= q[j] * w[j] + w[j]^2 / 2"
+replace = "pred -= q[j] * w[j] + w[j]^2"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-frozen-row"
+file = "src/optimize/quasi_newton.jl"
+find = "D[1, k] * L[i1, j]"
+replace = "D[2, k] * L[i1, j]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-fixed-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] = G[2, a] = G[3, a] = zero(T)"
+replace = "G[1, a] = G[2, a] = zero(T)"
+expect = "fixed atoms"
+
+[[mutation]]
+name = "qn-frozen-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] -= c * D[1, k]"
+replace = "G[1, a] -= 0 * c * D[1, k]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-accept"
+file = "src/optimize/quasi_newton.jl"
+find = "keep = ratio > opt.eta"
+replace = "keep = true"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-undo-step"
+file = "src/optimize/quasi_newton.jl"
+find = "copyto!(X, opt.start)"
+replace = "nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-final-evaluation"
+file = "src/optimize/quasi_newton.jl"
+find = "current || _evaluate!(potential, sys)"
+replace = "current || nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-tolerance"
+file = "src/optimize/quasi_newton.jl"
+find = "fm < tol && return _finish"
+replace = "fm < 2 * tol && return _finish"
+expect = "relaxes a Lennard-Jones"
+
+[[mutation]]
+name = "qn-orthogonal-check"
+file = "src/optimize/quasi_newton.jl"
+find = "abs(u[1] * v[1] + u[2] * v[2] + u[3] * v[3]) <= sqrt(eps(T))"
+replace = "true"
+expect = "invalid input"
+
+[[mutation]]
+name = "fire2-no-mixing"
+file = "src/optimize/fire2.jl"
+find = 'V[d, a] = (1 - opt.alpha) * V[d, a] + mix * F[d, a]'
+replace = 'V[d, a] = V[d, a]'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-velocity-update"
+file = "src/optimize/fire2.jl"
+find = 'V[d, a] += dt * F[d, a]'
+replace = 'V[d, a] += 0 * dt * F[d, a]'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-uphill-correction"
+file = "src/optimize/fire2.jl"
+find = '_capped_move!(X, V, -opt.dt / 2, opt.maxstep)'
+replace = 'nothing'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-full-step-back"
+file = "src/optimize/fire2.jl"
+find = '-opt.dt / 2'
+replace = '-opt.dt'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-dtmin"
+file = "src/optimize/fire2.jl"
+find = 'if opt.dt * opt.fdec >= opt.dtmin'
+replace = 'if true'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-initial-delay"
+file = "src/optimize/fire2.jl"
+find = 'if !(opt.initialdelay && opt.iter < opt.ndelay)'
+replace = 'if true'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-alpha-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+            opt.alpha = opt.alpha_start
+        end"""
+replace = """
+        end"""
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-delay"
+file = "src/optimize/fire2.jl"
+find = 'if opt.npos > opt.ndelay'
+replace = 'if opt.npos > 5'
+expect = "FIRE2 time step and mixing schedule"
+
+[[mutation]]
+name = "fire2-no-uphill-stop"
+file = "src/optimize/fire2.jl"
+find = 'opt.nneg > opt.nneg_max && return false'
+replace = 'false && return false'
+expect = "FIRE 2.0 rules|uphill stop"
+
+[[mutation]]
+name = "fire2-uphill-count-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+        opt.npos += 1
+        opt.nneg = 0"""
+replace = """
+        opt.npos += 1"""
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-cap"
+file = "src/optimize/fire2.jl"
+find = 'scale = biggest > maxstep ? maxstep / biggest : one(T)'
+replace = 'scale = one(T)'
+expect = "FIRE2 time step and mixing schedule"
+
+[[mutation]]
+name = "fire2-iteration-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+    opt.nneg = 0
+    opt.iter = 0"""
+replace = """
+    opt.nneg = 0"""
+expect = "FIRE2 iteration count"
+
+[[mutation]]
+name = "lbfgs-two-loop-first"
+file = "src/optimize/lbfgs.jl"
+find = 'r[i] -= a * Y[i, j]'
+replace = 'r[i] -= 0 * a * Y[i, j]'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-two-loop-second"
+file = "src/optimize/lbfgs.jl"
+find = 'b = coef[j] - opt.rho[j] * b'
+replace = 'b = coef[j]'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-initial-scale"
+file = "src/optimize/lbfgs.jl"
+find = 'r[i] *= opt.gamma'
+replace = 'r[i] *= 1'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-gamma-not-updated"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.gamma = sy / yy'
+replace = 'opt.gamma = opt.gamma'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-no-curvature-test"
+file = "src/optimize/lbfgs.jl"
+find = 'sy > sqrt(eps(T)) * sqrt(dot(s, s) * yy) || return false'
+replace = 'true || return false'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-memory-overflow"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.npairs = min(opt.npairs + 1, opt.memory)'
+replace = 'opt.npairs = opt.npairs + 1'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-pair-order"
+file = "src/optimize/lbfgs.jl"
+find = 'mod1(opt.newest - k + 1, opt.memory)'
+replace = 'mod1(k, opt.memory)'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-never-boxed"
+file = "src/optimize/lbfgs.jl"
+find = 'if _max_abs(p) <= opt.radius'
+replace = 'if true'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-inside-pred"
+file = "src/optimize/lbfgs.jl"
+find = 'return -dot(g, p) / 2'
+replace = 'return -dot(g, p)'
+expect = "inside the box"
+
+[[mutation]]
+name = "lbfgs-basis-not-orthogonalized"
+file = "src/optimize/lbfgs.jl"
+find = 'v[i] -= c * M[i, j]'
+replace = 'v[i] -= 0 * c * M[i, j]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-dependent-vector-kept"
+file = "src/optimize/lbfgs.jl"
+find = 'nv > sqrt(eps(T)) * nv0 || continue'
+replace = 'true || continue'
+expect = "one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-subspace-curvature"
+file = "src/optimize/lbfgs.jl"
+find = 'K[i, j] = dot(view(M, :, i), hv)'
+replace = 'K[i, j] = dot(view(M, :, i), view(M, :, j))'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-linear-term"
+file = "src/optimize/lbfgs.jl"
+find = 's += K[i, j] * c[i]'
+replace = 's += c[i]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-rows"
+file = "src/optimize/lbfgs.jl"
+find = 's += M[i, k] * K[k, j]'
+replace = 's += M[i, k] * K[j, k]'
+expect = "subspace problem"
+
+[[mutation]]
+name = "lbfgs-bound-scale"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.upper[i] = Δ / opt.rownorm[i]'
+replace = 'opt.upper[i] = Δ'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-recover-step"
+file = "src/optimize/lbfgs.jl"
+find = 'p[i] = opt.rownorm[i] * s'
+replace = 'p[i] = s'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-subspace-pred"
+file = "src/optimize/lbfgs.jl"
+find = 'pred -= q[j] * w[j] + w[j]^2 / 2'
+replace = 'pred -= q[j] * w[j]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-pairs-not-reset"
+file = "src/optimize/lbfgs.jl"
+find = """
+    opt.npairs = 0
+    opt.newest = 0"""
+replace = """
+    opt.newest = 0"""
+expect = "TrustRegionLBFGS iteration count"
+
+[[mutation]]
+name = "qn-noise-rejection-radius"
+file = "src/optimize/quasi_newton.jl"
+find = 'keep || (opt.radius /= 4)'
+replace = 'keep || nothing'
+expect = "undo a rise"
+
+[[mutation]]
+name = "default-relaxer-ignores-keywords"
+file = "src/optimize/quasi_newton.jl"
+find = 'opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)'
+replace = 'opt = TrustRegionLBFGS(sys)'
+expect = "defaults to TrustRegionLBFGS"
+
+[[mutation]]
+name = "rescale-skips-cell"
+file = "src/barostats/Barostats.jl"
+find = "    _scale!(sys.cell, μ)\n"
+replace = ""
+expect = "evaluates the potential once"

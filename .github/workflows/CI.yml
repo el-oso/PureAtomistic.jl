@@ -9,24 +9,29 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test:
-    name: Julia ${{ matrix.version }}
+    name: ${{ matrix.package }} on Julia ${{ matrix.version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        package: [PureMLIP, PureAtomistic]
         version: ['1.12', '1.13']
     steps:
       - uses: actions/checkout@v4
+      # PureAtomistic's tests load checkpoints through PureMLIP's checkpoint cache.
+      - name: Set the checkpoint cache
+        if: matrix.package == 'PureAtomistic'
+        run: echo "PUREMLIP_CHECKPOINT_DIR=$RUNNER_TEMP/checkpoints" >> "$GITHUB_ENV"
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
       - uses: julia-actions/julia-runtest@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
           check_bounds: 'yes'
   pureblas:
     name: PureBLAS active (Julia 1.13)
@@ -42,23 +47,30 @@ jobs:
       - name: Run the tests with PureBLAS active
         run: julia --check-bounds=yes --project=PureMLIP/test/pureblas PureMLIP/test/pureblas/runtests.jl
   coverage:
-    name: Coverage
+    name: Coverage (${{ matrix.package }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [PureMLIP, PureAtomistic]
     steps:
       - uses: actions/checkout@v4
+      - name: Set the checkpoint cache
+        if: matrix.package == 'PureAtomistic'
+        run: echo "PUREMLIP_CHECKPOINT_DIR=$RUNNER_TEMP/checkpoints" >> "$GITHUB_ENV"
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.13'
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
       - uses: julia-actions/julia-runtest@v1
         with:
-          project: PureMLIP
+          project: ${{ matrix.package }}
           check_bounds: 'yes'
           coverage: 'true'
       - name: Install coverage checker
-        run: julia --project=PureMLIP/test/coverage -e 'using Pkg; Pkg.instantiate()'
+        run: julia --project=${{ matrix.package }}/test/coverage -e 'using Pkg; Pkg.instantiate()'
       - name: Check per-file coverage thresholds
-        run: julia --project=PureMLIP/test/coverage PureMLIP/test/coverage/check.jl
+        run: julia --project=${{ matrix.package }}/test/coverage ${{ matrix.package }}/test/coverage/check.jl
