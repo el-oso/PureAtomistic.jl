@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- PureAtomistic `[deps]`: PureMLIP (`[sources] PureMLIP = {path = "../PureMLIP"}`), StrictMode 0.5.8, TypeContracts 0.14, PrecompileTools, LinearAlgebra, Random. No `_jll`/artifact in the core closure. Makie, Optim, AtomsBase, AtomsCalculators only in `[weakdeps]`/`[extensions]`. Every `[compat]` bounded; `julia = "1.12"`.
+- PureAtomistic `[deps]`: PureMLIP (`[sources] PureMLIP = {path = "../PureMLIP"}`), StrictMode 0.5.8, TypeContracts 0.14, PrecompileTools, PureDAQP, LinearAlgebra, Random. No `_jll`/artifact in the core closure. Makie, AtomsBase, AtomsCalculators only in `[weakdeps]`/`[extensions]`. Every `[compat]` bounded; `julia = "1.12"`.
 - AGENTS.md rules apply to the new package unchanged (generic indexing, `@inbounds` only with measured gain and proof, `lazy"…"` messages with a `pureatomistic:` prefix, concrete fields, fail fast, `@test_throws "message"`, present-tense comments, tolerance policy, coverage row and mutation entry for every new src file).
 - Units: Å, eV, fs, amu, K; `k_B` and the amu→eV·fs²/Å² factor are named constants with their CODATA values in a comment.
 - Every integrator, thermostat and barostat step is allocation-free after warm-up (`@test_noalloc`, Float64 and Float32) and passes TrimCheck `@validate`; the MD loop sees concrete return types (TypeContracts `@verify` with `trim_compat = true`).
@@ -131,6 +131,10 @@
 ### Task 10b: Quasi-Newton relaxation with PureDAQP; remove Optim
 
 - [ ] A trust-region BFGS relaxer: each step minimizes the quadratic model (gradient from the forces, BFGS curvature) inside a box of maximum atom displacement, solved by PureDAQP (`ActiveSet`); fixed atoms and frozen directions as constraint rows. Measure the four PureDAQP settings (`working_set` :rows/:gram × `scan` :all/:window) on the real step problems; check the conditioning before allowing `:gram`, and use `PureDAQP.faster_scan`. Check PureDAQP's dependency closure for `_jll` first. Benchmark FIRE, the PureDAQP relaxer and Optim (L-BFGS, BFGS, conjugate gradient; Optim only in a bench environment) on the Cu vacancy cell and a strained cell: force evaluations, wall time, final energy and fmax, speed-ups against a named reference. Remove the Optim extension and every Optim reference from the package. Amend spec section 6.2: geometry optimization is our FIRE plus PureDAQP.
+
+### Task 10c: Relaxer study — FIRE tuning, FIRE 2.0, limited-memory BFGS
+
+- [ ] FIRE: measure the parameter choices (`dt`, `dtmax`, `maxstep`, `nmin`) on the Cu vacancy and strained cells, and add FIRE 2.0 (Guénolé et al., Comput. Mater. Sci. 175, 109584 (2020)) as a separate optimizer; FIRE's defaults change only on measured evidence. A limited-memory BFGS relaxer in pure Julia (two-loop recursion, memory `m` measured) with the same trust region, acceptance rules and fixed-atom/frozen-direction handling as `TrustRegionBFGS`; PureDAQP solves the step only when the box binds. Benchmark FIRE, FIRE 2.0, `TrustRegionBFGS`, the limited-memory relaxer and Optim L-BFGS (bench environment only) on the two 256-site cells and a cell of at least 4,000 atoms: force evaluations, wall time, peak memory, final energy and fmax, speed-ups against FIRE. The default relaxer is chosen from these measurements at both sizes. Includes the open Task 10b review items (noise-branch radius on rejection, docstring benchmark figures moved to the JSON, citation wording, the KKT model-value tolerance).
 
 ### Task 11: Trimmed `md_run` binary
 

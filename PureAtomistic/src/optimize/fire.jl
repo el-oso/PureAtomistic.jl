@@ -13,7 +13,7 @@
 # the first steps of a far-from-equilibrium configuration inside the range of the potential.
 
 """
-    FIRE{T}(natoms; dt = 0.1, dtmax = 1.0, maxstep = 0.1, nmin = 5, finc = 1.1,
+    FIRE{T}(natoms; dt = 1.0, dtmax = 1.0, maxstep = 0.1, nmin = 2, finc = 1.1,
             fdec = 0.5, alpha_start = 0.1, falpha = 0.99)
     FIRE(sys::System; kwargs...)
 
@@ -21,13 +21,16 @@ The state and parameters of the FIRE minimizer (Bitzek et al., Phys. Rev. Lett. 
 2006) for `natoms` atoms: the velocities, the current time step `dt`, the mixing parameter
 `alpha` and the count `npos` of steps since the power `F · v` was last non-positive.
 
-`nmin`, `finc`, `fdec`, `alpha_start` and `falpha` default to the commonly used values
-(`N_min = 5`, `f_inc = 1.1`, `f_dec = 0.5`, `α_start = 0.1`, `f_α = 0.99`). `f_α = 0.99` is the
-commonly used value and was not verified against the text of the paper. `dt` is the
-starting time step and `dtmax` its ceiling; the paper estimates `Δt_max` as about ten times the
-time step of a molecular dynamics run, and the defaults keep that ratio. All atoms have unit
-mass and the forces are in eV/Å, so `dt` is a unitless scale. `maxstep` (Å) caps the largest
-displacement of any atom in one step.
+`finc`, `fdec`, `alpha_start` and `falpha` default to the commonly used values (`f_inc = 1.1`,
+`f_dec = 0.5`, `α_start = 0.1`, `f_α = 0.99`); `f_α = 0.99` was not verified against the text of
+the paper. `dt` is the starting time step and `dtmax` its ceiling. All atoms have unit mass and
+the forces are in eV/Å, so `dt` is a unitless scale. `maxstep` (Å) caps the largest
+displacement of any atom in one step. With `dt = dtmax` the step starts at its ceiling, so
+only reductions occur until a reduction leaves room to grow. The defaults `dt = dtmax = 1.0`
+and `nmin = 2` are those that took the fewest force evaluations on two 256-atom Cu cells with
+MACE-MPA-0, of the settings measured (`bench/relax_tune.jl`, `bench/results/relax_tune_mac.json`);
+they were also checked on the Lennard-Jones test crystal, where they took 41 steps against 70 for
+the settings they replaced.
 """
 mutable struct FIRE{T <: AbstractFloat}
     const velocity::Matrix{T}
@@ -45,7 +48,7 @@ mutable struct FIRE{T <: AbstractFloat}
 end
 
 function FIRE{T}(
-        natoms::Integer; dt::Real = 0.1, dtmax::Real = 1.0, maxstep::Real = 0.1, nmin::Integer = 5,
+        natoms::Integer; dt::Real = 1.0, dtmax::Real = 1.0, maxstep::Real = 0.1, nmin::Integer = 2,
         finc::Real = 1.1, fdec::Real = 0.5, alpha_start::Real = 0.1, falpha::Real = 0.99
     ) where {T <: AbstractFloat}
     natoms >= 0 || throw(ArgumentError(lazy"pureatomistic: the number of atoms must not be negative, got $natoms"))
@@ -178,14 +181,12 @@ function _check_relax_arguments(sys::System, potential::AbstractPotential, fmax:
 end
 
 """
-    relax!(sys, potential; fmax = 1e-3, maxsteps = 10_000, kwargs...) -> RelaxResult
     relax!(sys, potential, opt::FIRE; fmax = 1e-3, maxsteps = 10_000) -> RelaxResult
 
 Minimize the energy of `potential` over the positions of `sys` at fixed cell with FIRE
 ([`FIRE`](@ref)), updating `sys.positions` in place, until the largest atomic force is below
-`fmax` (eV/Å) or `maxsteps` iterations are done. The keywords `dt`, `dtmax`, `maxstep`, `nmin`,
-`finc`, `fdec`, `alpha_start` and `falpha` build the [`FIRE`](@ref) state; passing a state
-reuses its buffer, which makes the call allocation-free after the potential's first evaluation.
+`fmax` (eV/Å) or `maxsteps` iterations are done. The state is reset at the start, and its buffer
+is reused, which makes the call allocation-free after the potential's first evaluation.
 Positions are not wrapped into the cell. A run that stops at `maxsteps` returns
 `converged = false`; a non-finite energy or force throws. The positions must be 1-based, as the
 potentials require.
@@ -210,13 +211,4 @@ function relax!(
     end
     fm, E = _status(potential, maxsteps)
     return RelaxResult{T}(fm < tol, Int(maxsteps), E, fm)
-end
-
-function relax!(
-        sys::System{T}, potential::AbstractPotential; fmax::Real = 1.0e-3, maxsteps::Integer = 10_000,
-        dt::Real = 0.1, dtmax::Real = 1.0, maxstep::Real = 0.1, nmin::Integer = 5, finc::Real = 1.1,
-        fdec::Real = 0.5, alpha_start::Real = 0.1, falpha::Real = 0.99
-    ) where {T}
-    opt = FIRE(sys; dt, dtmax, maxstep, nmin, finc, fdec, alpha_start, falpha)
-    return relax!(sys, potential, opt; fmax, maxsteps)
 end
