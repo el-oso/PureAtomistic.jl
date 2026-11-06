@@ -1,0 +1,2 @@
+# Deliberate bugs for the extension files (see run.jl, MUTATION_SUITE=gpu). `file` is relative to PureAtomistic/;
+# the format is that of mutations.toml. A file that only declares its module needs no entry.

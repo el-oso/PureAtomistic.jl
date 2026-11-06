@@ -1,0 +1,3 @@
+# Minimum line coverage per extension file, measured by the :gpu items on the KernelAbstractions
+# CPU backend and checked by check.jl --root ext --thresholds thresholds_gpu.toml. Floors only rise.
+"ext/PureAtomisticGPUExt/PureAtomisticGPUExt.jl" = 1.00

@@ -50,6 +50,22 @@ Number of atoms in `sys`.
 """
 natoms(sys::System) = length(axes(sys.positions, 2))
 
+"""
+    copy_state!(dst::System, src::System) -> dst
+
+Copy the positions, velocities and cell of `src` into `dst` with `copyto!`, between host and device
+arrays alike. Masses and species are not copied. Throws a `DimensionMismatch` when the sizes differ.
+"""
+function copy_state!(dst::System, src::System)
+    # The velocities share the positions' axes and the cell is 3 × 3, by the invariants of `System`.
+    size(dst.positions) == size(src.positions) ||
+        throw(DimensionMismatch(lazy"pureatomistic: positions have size $(size(dst.positions)) and $(size(src.positions))"))
+    copyto!(dst.positions, src.positions)
+    copyto!(dst.velocities, src.velocities)
+    copyto!(dst.cell, src.cell)
+    return dst
+end
+
 # The first three indices of an axis: the 1-based position `k` of a 3-element axis maps to
 # `_triple(r)[k]`, whatever the axis offset.
 @inline _triple(r) = (first(r), first(r) + 1, first(r) + 2)

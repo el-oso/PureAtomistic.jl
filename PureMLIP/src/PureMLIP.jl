@@ -6,6 +6,7 @@ include("tensors/Tensors.jl")
 include("model/Model.jl")
 
 using .Checkpoint, .Equivariant, .Model
+using .Model: device_model, device_neighbor_list, device_workspace, device_result
 using .Checkpoint: open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel, crc32
 using .Checkpoint: StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
 using .Checkpoint: TorchArchive, ZipEntry
@@ -21,6 +22,7 @@ export e3nn_spherical_harmonics!, e3nn_spherical_harmonics_and_gradient!, e3nn_b
 export NeighborList, neighbor_list, neighbor_list!
 export MACEModel, MACEResult, MACEWorkspace, MACEEnergyWorkspace, ThreadedChunks, mace_energy!, mace_energy_forces!, mace_energy_forces
 
+public device_model, device_neighbor_list, device_workspace, device_result
 public open_torch_archive, entry_data, embedded_archives, unpickle, read_state_dict, numel, crc32
 public StateDict, IrrepMul, InteractionSpec, ReadoutSpec, PickleTree, PickleNode, PickleKind
 public TorchArchive, ZipEntry
