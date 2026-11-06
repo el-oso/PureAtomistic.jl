@@ -847,3 +847,362 @@ replace = '''
     true ||
         throw('''
 expect = "thermostat fallback rejects a hook"
+
+[[mutation]]
+name = "qn-radius-shrink"
+file = "src/optimize/quasi_newton.jl"
+find = """
+            if ratio < T(1 // 4)
+                opt.radius /= 4"""
+replace = """
+            if ratio < T(1 // 4)
+                opt.radius /= 2"""
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-radius-grow"
+file = "src/optimize/quasi_newton.jl"
+find = "min(2 * opt.radius, opt.max_radius)"
+replace = "min(opt.radius, opt.max_radius)"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-bfgs-sign"
+file = "src/optimize/quasi_newton.jl"
+find = "- ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+replace = "+ ρ * (s[i] * Hy[j] + Hy[i] * s[j])"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-initial-scale"
+file = "src/optimize/quasi_newton.jl"
+find = "H[i, i] = sy / yy"
+replace = "H[i, i] = yy / sy"
+expect = "one spring"
+
+[[mutation]]
+name = "qn-box-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = fixed[cart[i][2]] ? zero(T) : Δ"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-fixed-bound"
+file = "src/optimize/quasi_newton.jl"
+find = "bound = fixed[cart[i][2]] ? zero(T) : Δ / nrm"
+replace = "bound = Δ / nrm"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-linear-term"
+file = "src/optimize/quasi_newton.jl"
+find = "s += L[i, j] * g[i]"
+replace = "s += L[j, j] * g[i]"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-recover-step"
+file = "src/optimize/quasi_newton.jl"
+find = "p[i] += L[i, j] * wj"
+replace = "p[i] += L[i, i] * wj"
+expect = "KKT oracle"
+
+[[mutation]]
+name = "qn-predicted-decrease"
+file = "src/optimize/quasi_newton.jl"
+find = "pred -= q[j] * w[j] + w[j]^2 / 2"
+replace = "pred -= q[j] * w[j] + w[j]^2"
+expect = "box-constrained model"
+
+[[mutation]]
+name = "qn-frozen-row"
+file = "src/optimize/quasi_newton.jl"
+find = "D[1, k] * L[i1, j]"
+replace = "D[2, k] * L[i1, j]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-fixed-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] = G[2, a] = G[3, a] = zero(T)"
+replace = "G[1, a] = G[2, a] = zero(T)"
+expect = "fixed atoms"
+
+[[mutation]]
+name = "qn-frozen-gradient"
+file = "src/optimize/quasi_newton.jl"
+find = "G[1, a] -= c * D[1, k]"
+replace = "G[1, a] -= 0 * c * D[1, k]"
+expect = "frozen directions"
+
+[[mutation]]
+name = "qn-accept"
+file = "src/optimize/quasi_newton.jl"
+find = "keep = ratio > opt.eta"
+replace = "keep = true"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-undo-step"
+file = "src/optimize/quasi_newton.jl"
+find = "copyto!(X, opt.start)"
+replace = "nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-final-evaluation"
+file = "src/optimize/quasi_newton.jl"
+find = "current || _evaluate!(potential, sys)"
+replace = "current || nothing"
+expect = "rejects a step"
+
+[[mutation]]
+name = "qn-tolerance"
+file = "src/optimize/quasi_newton.jl"
+find = "fm < tol && return _finish"
+replace = "fm < 2 * tol && return _finish"
+expect = "relaxes a Lennard-Jones"
+
+[[mutation]]
+name = "qn-orthogonal-check"
+file = "src/optimize/quasi_newton.jl"
+find = "abs(u[1] * v[1] + u[2] * v[2] + u[3] * v[3]) <= sqrt(eps(T))"
+replace = "true"
+expect = "invalid input"
+
+[[mutation]]
+name = "fire2-no-mixing"
+file = "src/optimize/fire2.jl"
+find = 'V[d, a] = (1 - opt.alpha) * V[d, a] + mix * F[d, a]'
+replace = 'V[d, a] = V[d, a]'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-velocity-update"
+file = "src/optimize/fire2.jl"
+find = 'V[d, a] += dt * F[d, a]'
+replace = 'V[d, a] += 0 * dt * F[d, a]'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-uphill-correction"
+file = "src/optimize/fire2.jl"
+find = '_capped_move!(X, V, -opt.dt / 2, opt.maxstep)'
+replace = 'nothing'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-full-step-back"
+file = "src/optimize/fire2.jl"
+find = '-opt.dt / 2'
+replace = '-opt.dt'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-dtmin"
+file = "src/optimize/fire2.jl"
+find = 'if opt.dt * opt.fdec >= opt.dtmin'
+replace = 'if true'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-initial-delay"
+file = "src/optimize/fire2.jl"
+find = 'if !(opt.initialdelay && opt.iter < opt.ndelay)'
+replace = 'if true'
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-alpha-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+            opt.alpha = opt.alpha_start
+        end"""
+replace = """
+        end"""
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-delay"
+file = "src/optimize/fire2.jl"
+find = 'if opt.npos > opt.ndelay'
+replace = 'if opt.npos > 5'
+expect = "FIRE2 time step and mixing schedule"
+
+[[mutation]]
+name = "fire2-no-uphill-stop"
+file = "src/optimize/fire2.jl"
+find = 'opt.nneg > opt.nneg_max && return false'
+replace = 'false && return false'
+expect = "FIRE 2.0 rules|uphill stop"
+
+[[mutation]]
+name = "fire2-uphill-count-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+        opt.npos += 1
+        opt.nneg = 0"""
+replace = """
+        opt.npos += 1"""
+expect = "FIRE 2.0 rules"
+
+[[mutation]]
+name = "fire2-no-cap"
+file = "src/optimize/fire2.jl"
+find = 'scale = biggest > maxstep ? maxstep / biggest : one(T)'
+replace = 'scale = one(T)'
+expect = "FIRE2 time step and mixing schedule"
+
+[[mutation]]
+name = "fire2-iteration-not-reset"
+file = "src/optimize/fire2.jl"
+find = """
+    opt.nneg = 0
+    opt.iter = 0"""
+replace = """
+    opt.nneg = 0"""
+expect = "FIRE2 iteration count"
+
+[[mutation]]
+name = "lbfgs-two-loop-first"
+file = "src/optimize/lbfgs.jl"
+find = 'r[i] -= a * Y[i, j]'
+replace = 'r[i] -= 0 * a * Y[i, j]'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-two-loop-second"
+file = "src/optimize/lbfgs.jl"
+find = 'b = coef[j] - opt.rho[j] * b'
+replace = 'b = coef[j]'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-initial-scale"
+file = "src/optimize/lbfgs.jl"
+find = 'r[i] *= opt.gamma'
+replace = 'r[i] *= 1'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-gamma-not-updated"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.gamma = sy / yy'
+replace = 'opt.gamma = opt.gamma'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-no-curvature-test"
+file = "src/optimize/lbfgs.jl"
+find = 'sy > sqrt(eps(T)) * sqrt(dot(s, s) * yy) || return false'
+replace = 'true || return false'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-memory-overflow"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.npairs = min(opt.npairs + 1, opt.memory)'
+replace = 'opt.npairs = opt.npairs + 1'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-pair-order"
+file = "src/optimize/lbfgs.jl"
+find = 'mod1(opt.newest - k + 1, opt.memory)'
+replace = 'mod1(k, opt.memory)'
+expect = "two-loop recursion"
+
+[[mutation]]
+name = "lbfgs-never-boxed"
+file = "src/optimize/lbfgs.jl"
+find = 'if _max_abs(p) <= opt.radius'
+replace = 'if true'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-inside-pred"
+file = "src/optimize/lbfgs.jl"
+find = 'return -dot(g, p) / 2'
+replace = 'return -dot(g, p)'
+expect = "inside the box"
+
+[[mutation]]
+name = "lbfgs-basis-not-orthogonalized"
+file = "src/optimize/lbfgs.jl"
+find = 'v[i] -= c * M[i, j]'
+replace = 'v[i] -= 0 * c * M[i, j]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-dependent-vector-kept"
+file = "src/optimize/lbfgs.jl"
+find = 'nv > sqrt(eps(T)) * nv0 || continue'
+replace = 'true || continue'
+expect = "one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-subspace-curvature"
+file = "src/optimize/lbfgs.jl"
+find = 'K[i, j] = dot(view(M, :, i), hv)'
+replace = 'K[i, j] = dot(view(M, :, i), view(M, :, j))'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-linear-term"
+file = "src/optimize/lbfgs.jl"
+find = 's += K[i, j] * c[i]'
+replace = 's += c[i]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-rows"
+file = "src/optimize/lbfgs.jl"
+find = 's += M[i, k] * K[k, j]'
+replace = 's += M[i, k] * K[j, k]'
+expect = "subspace problem"
+
+[[mutation]]
+name = "lbfgs-bound-scale"
+file = "src/optimize/lbfgs.jl"
+find = 'opt.upper[i] = Δ / opt.rownorm[i]'
+replace = 'opt.upper[i] = Δ'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-recover-step"
+file = "src/optimize/lbfgs.jl"
+find = 'p[i] = opt.rownorm[i] * s'
+replace = 'p[i] = s'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-subspace-pred"
+file = "src/optimize/lbfgs.jl"
+find = 'pred -= q[j] * w[j] + w[j]^2 / 2'
+replace = 'pred -= q[j] * w[j]'
+expect = "subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-pairs-not-reset"
+file = "src/optimize/lbfgs.jl"
+find = """
+    opt.npairs = 0
+    opt.newest = 0"""
+replace = """
+    opt.newest = 0"""
+expect = "TrustRegionLBFGS iteration count"
+
+[[mutation]]
+name = "qn-noise-rejection-radius"
+file = "src/optimize/quasi_newton.jl"
+find = 'keep || (opt.radius /= 4)'
+replace = 'keep || nothing'
+expect = "undo a rise"
+
+[[mutation]]
+name = "default-relaxer-ignores-keywords"
+file = "src/optimize/quasi_newton.jl"
+find = 'opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)'
+replace = 'opt = TrustRegionLBFGS(sys)'
+expect = "defaults to TrustRegionLBFGS"

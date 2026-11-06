@@ -48,6 +48,27 @@
 
     tiny_model(::Type{T}) where {T} = MACEModel{T}(load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint()))
 
+    # One atom at the center of a 20 Å cell with a constant force of 1e-9 eV/Å along x and an
+    # energy of 1 eV plus the distance from its start: every move raises the energy.
+    mutable struct JumpPotential <: AbstractPotential
+        result::PotentialResult{Float64}
+        start::Matrix{Float64}
+    end
+    Potentials.n_atoms(::JumpPotential) = 1
+    Potentials.cutoff(::JumpPotential) = 0.0
+    Potentials.prepare!(::JumpPotential, ::AbstractMatrix, ::AbstractMatrix) = nothing
+    function Potentials.energy_forces!(p::JumpPotential, x::AbstractMatrix, ::AbstractMatrix)
+        p.result.energy = 1.0 + norm(x - p.start)
+        p.result.forces .= 0
+        p.result.forces[1, 1] = 1.0e-9
+        return nothing
+    end
+    function jump_system()
+        x = fill(10.0, 3, 1)
+        sys = System{Float64}(copy(x), zeros(3, 1), [1.0], [1], Matrix(20.0I, 3, 3))
+        return sys, JumpPotential(PotentialResult{Float64}(1), x)
+    end
+
     # A potential whose energy is NaN, to exercise the non-finite check.
     mutable struct NaNPotential <: AbstractPotential
         result::PotentialResult{Float64}
@@ -67,7 +88,7 @@ end
     # Hand-derived single steps of the paper's rules with unit masses (no step cap: maxstep = 10).
     # P > 0: F = (3, 4, 0), v = (2, 0, 0), α = 0.1, dt = 0.1, so |v| = 2, |F| = 5 and
     #   v ← 0.9 v + 0.1 · 2 · F/5 = (1.92, 0.16, 0);  v += dt F → (2.22, 0.56, 0);  x += dt v.
-    opt = FIRE{T}(1; maxstep = 10.0)
+    opt = FIRE{T}(1; dt = 0.1, nmin = 5, maxstep = 10.0)
     opt.velocity .= [2.0, 0.0, 0.0]
     x = zeros(T, 3, 1)
     fire_step!(opt, x, reshape([3.0, 4.0, 0.0], 3, 1))
@@ -77,7 +98,7 @@ end
     @test opt.npos == 1
     @test opt.dt == 0.1 && opt.alpha == 0.1
     # P ≤ 0: v = (2, 0, 0), F = (-3, 0, 0): freeze, dt ← dt/2, α ← α_start, then v = dt F, x += dt v.
-    opt = FIRE{T}(1; maxstep = 10.0)
+    opt = FIRE{T}(1; dt = 0.1, nmin = 5, maxstep = 10.0)
     opt.velocity .= [2.0, 0.0, 0.0]
     opt.npos = 4
     opt.alpha = 0.05
@@ -87,7 +108,7 @@ end
     @test opt.velocity ≈ reshape([-0.15, 0.0, 0.0], 3, 1) rtol = 4 * eps(T)
     @test x ≈ reshape([-0.0075, 0.0, 0.0], 3, 1) rtol = 4 * eps(T)
     # Zero power (v ⟂ F) freezes as well: the rule is P ≤ 0.
-    opt = FIRE{T}(1; maxstep = 10.0)
+    opt = FIRE{T}(1; dt = 0.1, nmin = 5, maxstep = 10.0)
     opt.velocity .= [0.0, 1.0, 0.0]
     fire_step!(opt, zeros(T, 3, 1), reshape([1.0, 0.0, 0.0], 3, 1))
     @test opt.dt == 0.05 && opt.velocity == reshape([0.05, 0.0, 0.0], 3, 1)
@@ -100,7 +121,7 @@ end
     # With the force along +x and the velocity along +x the power stays positive. The first
     # nmin = 5 steps leave dt and α alone; every later step multiplies dt by finc (until dtmax)
     # and α by falpha.
-    opt = FIRE{T}(1; maxstep = 1.0e3)
+    opt = FIRE{T}(1; dt = 0.1, nmin = 5, maxstep = 1.0e3)
     opt.velocity .= [1.0, 0.0, 0.0]
     x = zeros(T, 3, 1)
     F = reshape([1.0, 0.0, 0.0], 3, 1)
@@ -119,7 +140,7 @@ end
     end
     @test opt.dt == 1.0   # dtmax, reached through min(): exact
     # The displacement cap: one atom moving 10 Å in a step is scaled to maxstep exactly.
-    opt = FIRE{T}(1; maxstep = 0.1)
+    opt = FIRE{T}(1; dt = 0.1, nmin = 5, maxstep = 0.1)
     opt.velocity .= [100.0, 0.0, 0.0]
     x = zeros(T, 3, 1)
     fire_step!(opt, x, F)
@@ -131,13 +152,15 @@ end
     F = RelaxFixtures
     # Oracles: a fresh potential evaluated at the returned positions gives the forces and the
     # energy, and the undisplaced lattice is an equilibrium whose energy the relaxed energy
-    # approaches from above. Measured at fmax = 1e-3 (Float64): E - E_lattice = 8.7e-5 eV for 70
-    # steps; the bound 1e-3 is 11 times that.
-    for (T, fmax, ebound) in ((Float64, 1.0e-3, 1.0e-3), (Float32, 1.0e-3, 1.0e-3))
+    # approaches from above, in Float32 to within the rounding of its energy. Measured at
+    # fmax = 1e-3, 41 steps: E - E_lattice = 6.8e-5 eV (Float64) and -1.1e-4 eV (Float32). The bound
+    # above is 1e-3 (15 times the Float64 value); below, 1e-4 in Float64 and 1e-3 in Float32
+    # (9 times the Float32 value).
+    for (T, fmax, ebound, below) in ((Float64, 1.0e-3, 1.0e-3, 1.0e-4), (Float32, 1.0e-3, 1.0e-3, 1.0e-3))
         sys, perfect, p = F.lj_crystal(T)
         E0 = F.energy_and_forces(F.lj_crystal(T)[3], perfect, sys.cell)[1]
         start = copy(sys.positions)
-        info = relax!(sys, p; fmax)
+        info = relax!(sys, p, FIRE(sys); fmax)
         @test info.converged
         @test info isa RelaxResult{T}
         @test 0 < info.steps < 500
@@ -148,41 +171,42 @@ end
         # The reported values are those of the final configuration, evaluated by the same code.
         @test info.energy == p.result.energy
         @test info.energy ≈ Eref rtol = 4 * eps(T)
-        @test -ebound / 10 < info.energy - E0 < ebound
+        @test -below < info.energy - E0 < ebound
         @test sys.positions != start
         # Positions are not wrapped: the sum of the displacements stays zero (net force is zero).
         @test abs(sum(sys.positions .- start)) < 100 * sqrt(eps(T))
     end
 end
 
-@testitem "relax! reports the iteration count and resumes consistently" setup = [RelaxFixtures] begin
+@testitem "FIRE reports the iteration count and resumes consistently" setup = [RelaxFixtures] begin
+    using PureAtomistic.Integrators: FIRE
     F = RelaxFixtures
     sys, perfect, p = F.lj_crystal(Float64)
     x0 = copy(sys.positions)
-    full = relax!(sys, p; fmax = 1.0e-3)
+    full = relax!(sys, p, FIRE(sys); fmax = 1.0e-3)
     xfull = copy(sys.positions)
     # Stopping after k iterations and the full run take the same k first steps.
     sys2, _, p2 = F.lj_crystal(Float64)
-    part = relax!(sys2, p2; fmax = 1.0e-3, maxsteps = 10)
+    part = relax!(sys2, p2, FIRE(sys2); fmax = 1.0e-3, maxsteps = 10)
     @test !part.converged && part.steps == 10
     sys3, _, p3 = F.lj_crystal(Float64)
-    relax!(sys3, p3; fmax = 1.0e-3, maxsteps = 10)
+    relax!(sys3, p3, FIRE(sys3); fmax = 1.0e-3, maxsteps = 10)
     @test sys3.positions == sys2.positions
     again, _, p4 = F.lj_crystal(Float64)
-    @test relax!(again, p4; fmax = 1.0e-3).steps == full.steps
+    @test relax!(again, p4, FIRE(again); fmax = 1.0e-3).steps == full.steps
     @test again.positions == xfull
     # Converging on the last permitted iteration still reports convergence.
     edge, _, p7 = F.lj_crystal(Float64)
-    last = relax!(edge, p7; fmax = 1.0e-3, maxsteps = full.steps)
+    last = relax!(edge, p7, FIRE(edge); fmax = 1.0e-3, maxsteps = full.steps)
     @test last.converged && last.steps == full.steps && edge.positions == xfull
     # Zero iterations only evaluates.
     sys5, _, p5 = F.lj_crystal(Float64)
-    zero_steps = relax!(sys5, p5; maxsteps = 0)
+    zero_steps = relax!(sys5, p5, FIRE(sys5); maxsteps = 0)
     @test zero_steps.steps == 0 && !zero_steps.converged && sys5.positions == x0
     # A configuration that already satisfies fmax is returned untouched.
     sys6, perfect6, p6 = F.lj_crystal(Float64)
     sys6.positions .= perfect6
-    done = relax!(sys6, p6; fmax = 1.0e-3)
+    done = relax!(sys6, p6, FIRE(sys6); fmax = 1.0e-3)
     @test done.converged && done.steps == 0 && sys6.positions == perfect6
 end
 
@@ -231,8 +255,8 @@ end
     @test info.converged
     @test F.max_force(Fref) < 1.0e-3
     @test info.energy < unrelaxed[1]
-    # Oracle: the example's 1.068 eV (its FIRE stops at 0.01 eV/Å, 3 digits shown). Measured here:
-    # 1.066946 eV at fmax = 1e-3 and 1.067792 eV at 1e-2, so the distance to 1.068 is 1.1e-3;
+    # Oracle: the example's 1.068 eV (its FIRE stops at 0.01 eV/Å, 3 digits shown). Measured here
+    # with the default relaxer: 1.066942 eV at fmax = 1e-3, so the distance to 1.068 is 1.1e-3;
     # the bound 1e-2 is 9 times that and far below the 0.1 eV that a wrong convention
     # (for example the unrelaxed value) would move it by.
     @test abs(E_vac - 1.068) < 1.0e-2
@@ -242,28 +266,13 @@ end
     @test 1.0 < E_vac < 1.1
 end
 
-@testitem "Optim L-BFGS agrees with FIRE" setup = [RelaxFixtures] begin
-    using PureMLIP
-    using Optim, LinearAlgebra
+@testitem "TrustRegionBFGS agrees with FIRE on the MPA-0 vacancy" setup = [RelaxFixtures] begin
+    using PureMLIP, LinearAlgebra
     using PureAtomistic.Systems
+    using PureAtomistic.Integrators: TrustRegionBFGS
     F = RelaxFixtures
-    # Lennard-Jones. Measured: E(FIRE) - E_lattice = 8.7e-5 eV and E(LBFGS) - E_lattice =
-    # 1.3e-5 eV at fmax = 1e-3; the energies differ by 7.5e-5. Bound 1e-3 (13 times).
-    sys, perfect, p = F.lj_crystal(Float64)
-    start = copy(sys.positions)
-    fire = relax!(sys, p; fmax = 1.0e-3)
-    sys2, _, p2 = F.lj_crystal(Float64)
-    @test sys2.positions == start
-    lb = relax!(sys2, p2, LBFGS(); fmax = 1.0e-3)
-    @test lb.converged && fire.converged
-    @test lb.steps < fire.steps
-    Eref, Fref = F.energy_and_forces(F.lj_crystal(Float64)[3], sys2.positions, sys2.cell)
-    @test F.max_force(Fref) < 1.0e-3
-    @test lb.energy == p2.result.energy
-    @test lb.energy ≈ Eref rtol = 4 * eps(Float64)
-    @test abs(lb.energy - fire.energy) < 1.0e-3
-    # MPA-0 vacancy. Measured at fmax = 1e-3: E_vac = 1.066946 (FIRE, 49 steps) and 1.066942
-    # eV (L-BFGS, 6 iterations); difference 4e-6, bound 1e-4 (25 times).
+    # Measured at fmax = 1e-3: E_vac = 1.066952 eV (FIRE, 24 steps) and 1.066942 eV (TrustRegionBFGS,
+    # 6 steps); the relaxed energies differ by 1.0e-5 eV, bound 1e-4 (10 times).
     model = MACEModel(load_mace_checkpoint(F.mpa0_path()))
     mace(sys) = MACEPotential(model, sys.positions, sys.cell, sys.species)
     a0 = 3.640391   # the model's lattice constant to six digits (parabola fit, 4-atom cell)
@@ -272,13 +281,12 @@ end
     v = argmin(j -> norm(perfect.positions[:, j] - fill(2a0, 3)), 1:N)
     a = remove_atom(perfect, v)
     b = remove_atom(perfect, v)
-    ra = relax!(a, mace(a); fmax = 1.0e-3)
-    rb = relax!(b, mace(b), LBFGS(); fmax = 1.0e-3)
+    ra = relax!(a, mace(a), FIRE(a); fmax = 1.0e-3)
+    rb = relax!(b, mace(b), TrustRegionBFGS(b); fmax = 1.0e-3)
     @test ra.converged && rb.converged
+    @test rb.steps < ra.steps
     @test abs(ra.energy - rb.energy) < 1.0e-4
     @test F.max_force(F.energy_and_forces(mace(b), b.positions, b.cell)[2]) < 1.0e-3
-    # Arguments are validated before Optim runs.
-    @test_throws "pureatomistic: fmax must be positive" relax!(b, mace(b), LBFGS(); fmax = 0.0)
 end
 
 @testitem "relax! and FIRE reject invalid input" setup = [RelaxFixtures] begin
@@ -295,7 +303,7 @@ end
     nanp = F.NaNPotential(PotentialResult{Float64}(natoms(sys)))
     @test_throws "pureatomistic: relax! met a non-finite energy or force after 0 steps" relax!(sys, nanp)
     @test_throws "pureatomistic: FIRE dt must be positive and finite, got 0.0" FIRE(sys; dt = 0.0)
-    @test_throws "pureatomistic: FIRE dtmax must be finite and at least dt = 0.1, got 0.05" FIRE(sys; dtmax = 0.05)
+    @test_throws "pureatomistic: FIRE dtmax must be finite and at least dt = 1.0, got 0.05" FIRE(sys; dtmax = 0.05)
     @test_throws "pureatomistic: FIRE maxstep must be positive and finite, got -1.0" FIRE(sys; maxstep = -1.0)
     @test_throws "pureatomistic: FIRE nmin must not be negative, got -1" FIRE(sys; nmin = -1)
     @test_throws "pureatomistic: FIRE finc must exceed 1, got 1.0" FIRE(sys; finc = 1.0)
@@ -397,5 +405,20 @@ end
         opt = FIRE(sys)
         @test Base.return_types(relax!, (typeof(sys), typeof(p), typeof(opt)))[1] === RelaxResult{T}
         @test Base.return_types(fire_step!, (typeof(opt), typeof(sys.positions), typeof(sys.positions)))[1] === Nothing
+    end
+end
+
+@testitem "relax! of a system without atoms converges at once" setup = [RelaxFixtures] begin
+    using LinearAlgebra
+    using PureAtomistic.Systems
+    using PureAtomistic.Integrators: TrustRegionLBFGS
+    using PureAtomistic.Potentials: LennardJones
+    for T in (Float64, Float32)
+        cell = Matrix{T}(20I, 3, 3)
+        sys = System{T}(zeros(T, 3, 0), zeros(T, 3, 0), T[], Int[], cell)
+        p = LennardJones(sys.positions, sys.cell; epsilon = T(0.0104), sigma = T(3.4), r_cut = 8.5)
+        res = relax!(sys, p)
+        @test res.converged && res.steps == 0
+        @test_throws "pureatomistic: TrustRegionLBFGS needs at least one atom, got 0" TrustRegionLBFGS(sys)
     end
 end
