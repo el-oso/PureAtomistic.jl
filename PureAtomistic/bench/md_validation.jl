@@ -25,6 +25,7 @@
 # Each mode writes into PureAtomistic/bench/results/md_<mode>.json (nve appends one entry per dt).
 using JSON, Statistics, Dates, Printf
 include(joinpath(@__DIR__, "cells.jl"))
+include(joinpath(@__DIR__, "autocorrelation.jl"))
 using PureAtomistic.Systems: maxwell_boltzmann!, kinetic_energy, temperature, KB_EV_PER_K
 using PureAtomistic.Analysis: VacancyTracker, reference_sites, update!
 using PureAtomistic.IO: TrajectoryWriter, write_frame
@@ -187,6 +188,8 @@ function run_nvt(dt, tau)
     var_all = var(xs)
     var_jack = [var(vcat((xs[((c - 1) * bs + 1):(c * bs)] for c in 1:nb if c != b)...)) for b in 1:nb]
     var_err = sqrt((nb - 1) / nb * sum(abs2, var_jack .- mean(var_jack)))
+    # The 5-block error underestimates the true one when the blocks are not longer than the
+    # correlation time; "autocorrelation" below is the reference error.
     mean_err = std(mean_blocks) / sqrt(nb)
     theory_var = 2 * Tset^2 / dof
     @printf("nvt: %d steps in %.0f s; mean %.2f ± %.2f K (theory %.1f); var %.0f ± %.0f K² (theory %.0f)\n", n_steps, wall, mean(xs), mean_err, Tset, var_all, var_err, theory_var)
@@ -209,6 +212,7 @@ function run_nvt(dt, tau)
             "std_K" => sqrt(var_all), "mean_over_blocks" => mean_blocks,
             "skewness" => mean((xs .- mean(xs)) .^ 3) / var_all^1.5,
             "mean_z" => (mean(xs) - Tset) / mean_err, "variance_z" => (var_all - theory_var) / var_err,
+            "autocorrelation" => autocorrelation_record(xs, Tset, mean((xs .- mean(xs)) .^ 3) / var_all^1.5, 2 / sqrt(dof / 2)),
             "blocking_sem_K" => [Dict("block_samples" => b, "sem_K" => block_sem(xs, b)) for b in (1, 2, 5, 10, 25, 50, 100)],
         )
         d["t_fs"], d["temperature_K"], d["potential_eV_per_atom"] = t, T, U

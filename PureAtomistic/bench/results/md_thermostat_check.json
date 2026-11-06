@@ -46,7 +46,45 @@
   "std_K": 43.36345100254665,
   "variance_K2": 1880.388882850264,
   "variance_error_K2": 193.43434618314666,
-  "variance_z": -0.22466957599851514
+  "variance_z": -0.22466957599851514,
+  "autocorrelation": {
+   "c": 6,
+   "mean_error_K": 7.2910551816909,
+   "mean_z": 0.9475868334590095,
+   "method": "integrated autocorrelation time with Sokal's automatic window M >= c tau; SEM = std sqrt(2 tau / N); skewness SE = sqrt(6 / N_eff)",
+   "n_eff": 35.37259360991317,
+   "n_samples": 500,
+   "skewness_error": 0.4118529422524318,
+   "skewness_z": 0.48644589800259774,
+   "tau_samples": 7.0676185850827045,
+   "window_samples": 43,
+   "window_sensitivity": [
+    {
+     "c": 4,
+     "mean_error_K": 6.097051091951142,
+     "mean_z": 1.1331556498376718,
+     "tau_samples": 4.942332987195022
+    },
+    {
+     "c": 5,
+     "mean_error_K": 7.033146493510521,
+     "mean_z": 0.9823352746268299,
+     "tau_samples": 6.576452090617666
+    },
+    {
+     "c": 6,
+     "mean_error_K": 7.2910551816909,
+     "mean_z": 0.9475868334590095,
+     "tau_samples": 7.0676185850827045
+    },
+    {
+     "c": 8,
+     "mean_error_K": 6.898674882184809,
+     "mean_z": 1.001483329796422,
+     "tau_samples": 6.327376688425856
+    }
+   ]
+  }
  },
  "potential_eV_per_atom": [
   -4.10032840123786,

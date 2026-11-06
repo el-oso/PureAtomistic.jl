@@ -5,7 +5,7 @@
 #
 # **This is an illustration of the tracker on a molecular-dynamics run, not a measurement of a
 # diffusion coefficient or a migration barrier.** One cell, one temperature and one trajectory of
-# a few picoseconds give a handful of hops at most; their count carries a large statistical error
+# 22 ps give a handful of hops at most; their count carries a large statistical error
 # (a Poisson count of `n` has a relative error of `1/√n`), the cell is held at the lattice constant
 # of the zero-temperature crystal rather than at its thermal expansion at 1300 K, and the
 # tracker's window and dwell are chosen by hand. The campaign over a range of temperatures that

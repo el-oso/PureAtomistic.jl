@@ -1206,3 +1206,10 @@ file = "src/optimize/quasi_newton.jl"
 find = 'opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)'
 replace = 'opt = TrustRegionLBFGS(sys)'
 expect = "defaults to TrustRegionLBFGS"
+
+[[mutation]]
+name = "rescale-skips-cell"
+file = "src/barostats/Barostats.jl"
+find = "    _scale!(sys.cell, μ)\n"
+replace = ""
+expect = "evaluates the potential once"

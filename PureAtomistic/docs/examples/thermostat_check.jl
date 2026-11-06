@@ -28,19 +28,36 @@ nothing #hide
 
 # ## Mean and variance against theory
 #
-# The errors come from 5 blocks of 100 consecutive samples
-# (200 fs each): the standard error of the block means for the mean, and a delete-one-block
-# jackknife for the variance. The samples of consecutive steps are correlated, so they are not
-# counted as independent. `z` is the deviation from theory in units of that error.
+# Consecutive samples (2 fs apart) are strongly correlated, so they are not independent. The error
+# of the mean comes from the integrated autocorrelation time `τ` of the analyzed series, with
+# Sokal's automatic window (`M ≥ 6τ`): `SEM = σ √(2τ/N)`, with `N_eff = N/(2τ)` independent
+# samples. The error of the skewness is `√(6/N_eff)`, the large-sample value for independent
+# Gaussian samples. `z` is the deviation from theory in units of that error. The variance error is a
+# delete-one-block jackknife over 5 blocks of 100 samples (200 fs each); the blocking table below
+# shows that this block length is too short for the mean, and the variance error was not rechecked.
 
+ac = ob["autocorrelation"]
+@printf("τ = %.1f samples (window %d), N_eff = %.0f of %d samples\n", ac["tau_samples"], ac["window_samples"], ac["n_eff"], ac["n_samples"])
 @printf("%-10s %14s %18s %10s\n", "", "observed", "theory", "z")
-@printf("%-10s %9.2f ± %-5.2f %18.2f %10.2f\n", "mean (K)", ob["mean_K"], ob["mean_error_K"], th["mean_K"], ob["mean_z"])
+@printf("%-10s %9.2f ± %-5.2f %18.2f %10.2f\n", "mean (K)", ob["mean_K"], ac["mean_error_K"], th["mean_K"], ac["mean_z"])
 @printf("%-10s %9.0f ± %-5.0f %18.0f %10.2f\n", "var (K²)", ob["variance_K2"], ob["variance_error_K2"], th["variance_K2"], ob["variance_z"])
 @printf("%-10s %9.2f %24.2f\n", "std (K)", ob["std_K"], th["std_K"])
-@printf("%-10s %9.3f %24.3f\n", "skewness", ob["skewness"], th["skewness"])
+@printf("%-10s %9.3f ± %-5.3f %16.3f %10.2f\n", "skewness", ob["skewness"], ac["skewness_error"], th["skewness"], ac["skewness_z"])
+
+# The mean agrees with 1200 K within about one standard error. The window constant `c` of the
+# automatic window changes the error: `c = 4, 5, 6, 8` give the standard error and `z` below.
+
+for r in ac["window_sensitivity"]
+    @printf("c = %d: τ = %.1f samples, SEM %.2f K, z = %.2f\n", r["c"], r["tau_samples"], r["mean_error_K"], r["mean_z"])
+end
 
 # Blocking analysis of the mean: the standard error of the mean against block length. A plateau means
-# the blocks are longer than the correlation time of the temperature.
+# the blocks are longer than the correlation time of the temperature. There is none here: the error
+# is still rising at 50 samples (10 blocks), so the 5 blocks of 100 samples used for the first
+# estimate underestimate the error. The autocorrelation estimate above is the one reported; the
+# 5-block value is printed for comparison.
+
+@printf("5-block estimate: SEM %.2f K, z = %.2f\n", ob["mean_error_K"], ob["mean_z"])
 
 for b in ob["blocking_sem_K"]
     @printf("block of %3d samples (%4d fs): SEM %.3f K\n", b["block_samples"], b["block_samples"] * s["dt_fs"], b["sem_K"])

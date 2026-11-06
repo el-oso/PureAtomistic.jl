@@ -23,7 +23,8 @@
 # MUTATION_LOG_DIR to keep each run's log as <name>.log. Set MUTATION_TIMEOUT_S to the time limit
 # in seconds for one mutated run (default 900); the unmutated control has no limit.
 # Set MUTATION_NO_CONTROL=1 to skip the control run when running the entries in several batches
-# after one passing control.
+# after one passing control. Set MUTATION_SHARD=k/n to run only the k-th of n contiguous slices of
+# the selected entries (each shard runs its own control).
 
 using TOML
 
@@ -127,6 +128,17 @@ function run_suite(m, logdir, name)
     end
 end
 
+# The `k`-th of `n` contiguous slices of `selected`, for `spec = "k/n"`; all of it for an empty `spec`.
+function shard(selected, spec)
+    isempty(spec) && return selected
+    m = match(r"^(\d+)/(\d+)$", spec)
+    isnothing(m) && error("MUTATION_SHARD must be k/n, got \"$spec\"")
+    k, n = parse.(Int, m.captures)
+    1 <= k <= n || error("MUTATION_SHARD must satisfy 1 <= k <= n, got \"$spec\"")
+    chunk = cld(length(selected), n)
+    return selected[((k - 1) * chunk + 1):min(k * chunk, length(selected))]
+end
+
 function main(args)
     muts = get(TOML.parsefile(joinpath(@__DIR__, "mutations.toml")), "mutation", Dict{String, Any}[])
     names = [m["name"] for m in muts]
@@ -134,6 +146,7 @@ function main(args)
     filters = Regex.(args)
     selected = isempty(filters) ? muts : filter(m -> any(f -> occursin(f, m["name"]), filters), muts)
     isempty(selected) && !isempty(args) && error("no mutation matches $(args)")
+    selected = shard(selected, get(ENV, "MUTATION_SHARD", ""))
     # Validate every selected `find` before starting the slow runs.
     for m in selected
         n = count(m["find"], read(joinpath(PKG_DIR, m["file"]), String))

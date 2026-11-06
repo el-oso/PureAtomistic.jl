@@ -12,7 +12,7 @@
 #
 # **Criterion for a stable time step**, fixed before the runs: the run completes with finite
 # energies, the drift (the slope of the least-squares line through the total energy per atom,
-# sampled every 8 fs) is at most 1 meV/atom/ps in magnitude, and the RMS of the residual about that
+# sampled every 8 fs, or every step for time steps above 8 fs) is at most 1 meV/atom/ps in magnitude, and the RMS of the residual about that
 # line is at most 0.5 meV/atom.
 
 using CairoMakie, JSON, Printf, PureAtomistic
@@ -44,7 +44,11 @@ for r in runs
     end
 end
 stable = [r["dt_fs"] for r in runs if r["stable"]]
-@printf("largest stable time step among those run: %g fs\n", maximum(stable))
+@printf("largest step that meets the criterion among those run: %g fs\n", maximum(stable))
+
+# This holds at this temperature (about 150 K) and duration (2 ps) only. The drift limit of
+# 1 meV/atom/ps corresponds to about 4 K/ps of heating, and the largest step that meets the criterion
+# is not a recommended production step. The runs at 1200 to 1300 K use 2 fs.
 
 # The left panel shows the energy of the runs with dt up to 8 fs; at larger steps the deviation is
 # too large for the same axis (see the table). The fluctuation of the total energy of velocity Verlet is a property of the shadow Hamiltonian
