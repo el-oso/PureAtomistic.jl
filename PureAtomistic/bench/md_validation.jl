@@ -130,12 +130,10 @@ function run_nve(dt)
         entry["rms_residual_eV_per_atom"] = f.rms
         entry["max_abs_deviation_eV_per_atom"] = maximum(abs, E .- E[1])
         entry["mean_temperature_K"] = mean(2 .* K .* N ./ ((3N - 3) * KB_EV_PER_K))
-        entry["stable"] = status == "completed" && abs(f.slope) <= STABLE_DRIFT && f.rms <= STABLE_RMS
-    else
-        entry["stable"] = false
     end
     entry["t_fs"], entry["total_eV_per_atom"], entry["kinetic_eV_per_atom"], entry["potential_eV_per_atom"] =
         t, E, K, U
+    entry["stable"] = criteria(entry)["pass"]
     @printf("nve dt %g fs: %s, %d steps, %.0f s, drift %s, rms %s, stable %s\n", dt, status, sim.step_count, wall, get(entry, "drift_eV_per_atom_per_ps", NaN), get(entry, "rms_residual_eV_per_atom", NaN), entry["stable"])
     save("md_nve_conservation$SUFFIX.json") do d
         d["description"] = "Constant-energy MD of 500 Cu atoms with MACE-MPA-0 ($FT) for 2 ps from 300 K velocities, one entry per time step"
@@ -230,6 +228,48 @@ function run_nvt(dt, tau)
 end
 
 # ---------------------------------------------------------------------------------------------
+# A MACEPotential whose evaluation splits the atoms into `nchunks` receiver chunks that run on
+# Julia threads. The results depend on `nchunks` through rounding, not on the number of threads.
+mutable struct ThreadedMACE{P <: MACEPotential, R} <: PP.AbstractPotential
+    const inner::P
+    const result::R
+    const nchunks::Int
+    regrows::Int
+end
+
+function chunked_workspace!(inner::MACEPotential{T}, nchunks) where {T}
+    inner.ws = MACEWorkspace{T}(inner.model, PP.n_atoms(inner), length(inner.nl.senders); elements = inner.atomic_numbers, nchunks)
+    return nothing
+end
+
+function ThreadedMACE(model, sys, nchunks)
+    inner = mace(model, sys)
+    chunked_workspace!(inner, nchunks)
+    return ThreadedMACE(inner, inner.result, nchunks, inner.n_regrows)
+end
+PP.n_atoms(p::ThreadedMACE) = PP.n_atoms(p.inner)
+PP.cutoff(p::ThreadedMACE) = PP.cutoff(p.inner)
+function PP.prepare!(p::ThreadedMACE, x::AbstractMatrix, c::AbstractMatrix)
+    PP.prepare!(p.inner, x, c)
+    # A regrow rebuilds the single-chunk workspace; restore the chunked one.
+    if p.inner.n_regrows != p.regrows
+        chunked_workspace!(p.inner, p.nchunks)
+        p.regrows = p.inner.n_regrows
+    end
+    return nothing
+end
+function PP.energy_forces!(p::ThreadedMACE, x::AbstractMatrix, c::AbstractMatrix)
+    i = p.inner
+    mace_energy_forces!(i.result, i.ws, i.model, x, c, i.atomic_numbers, i.nl, ThreadedChunks())
+    return nothing
+end
+
+# The shared CPU lock, released and taken again between segments of a long run so that other jobs
+# can interleave. PUREATOMISTIC_CPULOCK is the path of the lock script.
+const LOCK_SCRIPT = get(ENV, "PUREATOMISTIC_CPULOCK", "")
+lock_acquire() = isempty(LOCK_SCRIPT) ? "" : strip(read(`$LOCK_SCRIPT acquire`, String))
+lock_release(tok) = isempty(LOCK_SCRIPT) || run(`$LOCK_SCRIPT release $tok`)
+
 # `budget` is a wall-clock limit in seconds, or `(:ps, length)` for a fixed simulated length.
 function run_vacancy(dt, budget)
     Tset = 1300.0
@@ -246,11 +286,16 @@ function run_vacancy(dt, budget)
     sites = reference_sites(sys.cell, FT(A0), nrep)
     window, dwell = 5, 3
     tracker = VacancyTracker(sites; cell = sys.cell, window, dwell, capacity = 200_000)
-    pot = mace(model, sys)
+    nchunks = parse(Int, get(ENV, "PUREATOMISTIC_NCHUNKS", "1"))
+    pot = nchunks == 1 ? mace(model, sys) : ThreadedMACE(model, sys, nchunks)
     sim = Simulation(sys, pot, VelocityVerlet(dt); thermostat = BussiThermostat(Tset, 100.0), rng = Xoshiro(seed + 1))
     traj = TrajectoryWriter(joinpath(TRAJ_DIR, "vacancy.patraj"), N, ["Cu" for _ in 1:N]; velocities = false)
     Tseries, tseries = Float64[], Float64[]
     status, message = "completed", ""
+    segment_ps = parse(Float64, get(ENV, "PUREATOMISTIC_SEGMENT_PS", "0"))
+    segments = 0
+    waited = 0.0
+    token = lock_acquire()
     t_wall = time()
     function observe(s)
         tt = s.step_count * dt
@@ -267,8 +312,20 @@ function run_vacancy(dt, budget)
         if budget isa Tuple
             total = round(Int, budget[2] * 1000 / dt)
             total % every == 0 || error("the simulated length must be a multiple of the frame interval $frame_fs fs")
+            seg_steps = segment_ps > 0 ? round(Int, segment_ps * 1000 / dt) : total
+            seg_steps % (100 * every) == 0 || error("the segment length must be a multiple of $(100 * every) steps")
             while sim.step_count < total
-                run!(sim, min(100 * every, total - sim.step_count); every, observer = observe)
+                segments += 1
+                stop = min(total, segments * seg_steps)
+                while sim.step_count < stop
+                    run!(sim, min(100 * every, stop - sim.step_count); every, observer = observe)
+                end
+                if sim.step_count < total
+                    lock_release(token)
+                    t0 = time()
+                    token = lock_acquire()
+                    waited += time() - t0
+                end
             end
         else
             while time() - t_wall < budget
@@ -278,7 +335,8 @@ function run_vacancy(dt, budget)
     catch err
         status, message = "stopped", sprint(showerror, err)
     end
-    wall = time() - t_wall
+    wall = time() - t_wall - waited
+    lock_release(token)
     close(traj)
     n = tracker.nframes
     @printf("vacancy: %s %s; %d steps (%.1f ps) in %.0f s; %d hops\n", status, message, sim.step_count, sim.step_count * dt / 1000, wall, tracker.nhops)
@@ -287,7 +345,10 @@ function run_vacancy(dt, budget)
         d["settings"] = settings(
             Dict(
                 "natoms" => N, "cells" => nrep, "temperature_K" => Tset, "dt_fs" => dt, "tau_fs" => 100.0, "seed" => seed,
-                "wall_budget_seconds" => budget isa Tuple ? nothing : budget, "simulated_ps_target" => budget isa Tuple ? budget[2] : nothing, "wall_seconds" => wall, "frame_interval_fs" => frame_fs,
+                "wall_budget_seconds" => budget isa Tuple ? nothing : budget, "simulated_ps_target" => budget isa Tuple ? budget[2] : nothing, "wall_seconds" => wall, "nchunks" => nchunks, "segments" => segments, "segment_ps" => segment_ps,
+                "lock_released_between_segments" => segments > 1 && !isempty(LOCK_SCRIPT), "lock_wait_seconds" => waited,
+                "state_across_segments" => "one process; positions, velocities, generators and tracker stay in memory",
+                "frame_interval_fs" => frame_fs,
                 "tracker_window_frames" => window, "tracker_dwell_frames" => dwell, "initial_velocities_K" => Tset,
                 "volume" => "fixed at the lattice constant of the zero-temperature crystal",
             )

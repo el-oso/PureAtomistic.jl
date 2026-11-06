@@ -5294,6 +5294,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5315,6 +5316,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5336,6 +5338,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5357,6 +5360,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5377,7 +5381,8 @@
     "pass": false,
     "rms": false
    },
-   "float32_alone_meets_float64_criteria": true,
+   "float32_alone_meets_float64_criteria": false,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5399,6 +5404,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true
@@ -5420,6 +5426,7 @@
     "rms": true
    },
    "float32_alone_meets_float64_criteria": true,
+   "same_verdict_as_float64": true,
    "versus_float64": {
     "pass": true,
     "stable_where_baseline_stable": true

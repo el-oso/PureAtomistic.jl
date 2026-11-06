@@ -3138,6 +3138,7 @@
    "variance_z": true
   },
   "float32_alone_meets_float64_criteria": true,
+  "note": "The Float32 and Float64 runs draw the thermostat noise from the same seeded stream, so their agreement is not an independent check; a run with another noise generator is independent.",
   "versus_float64": {
    "mean_temperature": true,
    "pass": true

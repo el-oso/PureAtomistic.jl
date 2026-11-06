@@ -19,8 +19,9 @@ const MEAN_T_SES = 3.0       # allowed difference of second-half mean temperatur
 const HOP_P_MIN = 0.01       # exact conditional binomial test of the hop counts
 const NVE_DTS = (1.0, 2.0, 4.0, 8.0, 16.0, 24.0, 32.0)
 const VACANCY_PS = 22.0      # simulated length of the vacancy run
+const NVT_NOISE_NOTE = "The Float32 and Float64 runs draw the thermostat noise from the same seeded stream, so their agreement is not an independent check; a run with another noise generator is independent."
 
-record_kind(r) = haskey(r, "dt_fs") && haskey(r, "stable") ? :nve :
+record_kind(r) = haskey(r, "dt_fs") && haskey(r, "status") ? :nve :
     haskey(r, "observed") ? :nvt :
     haskey(r, "hops") ? :vacancy :
     throw(ArgumentError("validation record of unknown kind with keys $(sort!(collect(keys(r))))"))
@@ -68,6 +69,23 @@ function binomial_exact_p(k::Integer, n::Integer, q::Real)
     return min(1.0, sum(exp(logpmf(j)) for j in 0:n if logpmf(j) <= lk + 1.0e-7))
 end
 
+# The exact conditional binomial test of the hop counts: `n1` in `t1` ps against `n2` in `t2` ps.
+# Given the total, `n1` is binomial with probability `t1 / (t1 + t2)`. `p_min` is the smallest p-value
+# any split of the observed total could give, so `p >= HOP_P_MIN` is only informative when
+# `p_min` is well below `HOP_P_MIN`.
+function hop_test(r::AbstractDict, base::AbstractDict)
+    n1, n2 = r["hops"], base["hops"]
+    t1, t2 = r["duration_ps"], base["duration_ps"]
+    n = n1 + n2
+    q = t1 / (t1 + t2)
+    n == 0 && return Dict{String, Any}("hops" => n1, "baseline_hops" => n2, "p" => 1.0, "p_min" => 1.0, "p_threshold" => HOP_P_MIN)
+    return Dict{String, Any}(
+        "hops" => n1, "baseline_hops" => n2, "duration_ps" => t1, "baseline_duration_ps" => t2,
+        "p" => binomial_exact_p(n1, n, q), "p_min" => min(binomial_exact_p(0, n, q), binomial_exact_p(n, n, q)),
+        "p_threshold" => HOP_P_MIN,
+    )
+end
+
 # Second-half mean and its autocorrelation standard error of a temperature series.
 function second_half(T::AbstractVector)
     x = Float64.(T[(length(T) ÷ 2 + 1):end])
@@ -95,9 +113,7 @@ function compare_to_baseline(r::AbstractDict, base::AbstractDict)::Dict{String, 
         se = hypot(a["mean_error_K"], b["mean_error_K"])
         d["mean_temperature"] = abs(r["observed"]["mean_K"] - base["observed"]["mean_K"]) <= MEAN_T_SES * se
     else
-        n1, n2 = r["hops"], base["hops"]
-        t1, t2 = r["duration_ps"], base["duration_ps"]
-        d["hop_counts"] = n1 + n2 == 0 || binomial_exact_p(n1, n1 + n2, t1 / (t1 + t2)) >= HOP_P_MIN
+        d["hop_counts"] = hop_test(r, base)["p"] >= HOP_P_MIN
         a, b = second_half(r["temperature_K"]), second_half(base["temperature_K"])
         d["mean_temperature"] = abs(a.mean - b.mean) <= MEAN_T_SES * hypot(a.se, b.se)
     end
@@ -122,20 +138,22 @@ function write_float32_baseline(dir::AbstractString)
         base = runs64[r["dt_fs"]]
         nve[string(r["dt_fs"])] = Dict(
             "criteria_float32" => criteria(r), "criteria_float64" => criteria(base),
-            "float32_alone_meets_float64_criteria" => criteria(r)["pass"] == criteria(base)["pass"],
+            "float32_alone_meets_float64_criteria" => criteria(r)["pass"],
+            "same_verdict_as_float64" => criteria(r)["pass"] == criteria(base)["pass"],
             "versus_float64" => compare_to_baseline(r, base),
         )
     end
     put("md_nve_conservation_f32.json", nve)
     for (name, f64name) in (("md_thermostat_check", "md_thermostat_check.json"), ("md_vacancy_hop", "md_vacancy_hop.json"))
         r, base = load(name * "_f32.json"), load(f64name)
-        put(
-            name * "_f32.json", Dict(
-                "criteria_float32" => criteria(r), "criteria_float64" => criteria(base),
-                "float32_alone_meets_float64_criteria" => criteria(r)["pass"],
-                "versus_float64" => compare_to_baseline(r, base),
-            )
+        rec = Dict{String, Any}(
+            "criteria_float32" => criteria(r), "criteria_float64" => criteria(base),
+            "float32_alone_meets_float64_criteria" => criteria(r)["pass"],
+            "versus_float64" => compare_to_baseline(r, base),
         )
+        record_kind(r) === :vacancy && (rec["hop_test"] = hop_test(r, base))
+        record_kind(r) === :nvt && (rec["note"] = NVT_NOISE_NOTE)
+        put(name * "_f32.json", rec)
     end
     return nothing
 end

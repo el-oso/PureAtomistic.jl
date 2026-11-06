@@ -8863,6 +8863,15 @@
    "pass": true
   },
   "float32_alone_meets_float64_criteria": true,
+  "hop_test": {
+   "baseline_duration_ps": 22.0,
+   "baseline_hops": 4,
+   "duration_ps": 22.0,
+   "hops": 1,
+   "p": 0.37500000000000006,
+   "p_min": 0.0625,
+   "p_threshold": 0.01
+  },
   "versus_float64": {
    "hop_counts": true,
    "mean_temperature": true,
