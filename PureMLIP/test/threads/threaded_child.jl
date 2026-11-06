@@ -70,18 +70,19 @@ end
 # The bytes the first threaded evaluation of a new workspace allocates: the workers, their channels,
 # the job vector and, with PureBLAS, each worker's task-local matrix-product scratch. The
 # `@allocated` is inside this function, so the caller's dispatch is not charged to the callee.
+# It returns the bytes of the first evaluation and of the first evaluation after `close(ws)`, which
+# starts the workers again.
 function first_call_bytes(m::MACEModel{T}, P, C, Z, nchunks, energy_only::Bool) where {T}
     nl = neighbor_list(P, C, m.r_max)
     n = nl.n_atoms
     ws = MACEWorkspace{T}(m, n, nl.n_edges; nchunks, elements = Z)
     res = MACEResult{T}(n)
-    bytes = if energy_only
-        @allocated mace_energy!(res, ws, m, P, C, Z, nl, ThreadedChunks())
-    else
-        @allocated mace_energy_forces!(res, ws, m, P, C, Z, nl, ThreadedChunks())
-    end
+    evaluate() = energy_only ? mace_energy!(res, ws, m, P, C, Z, nl, ThreadedChunks()) : mace_energy_forces!(res, ws, m, P, C, Z, nl, ThreadedChunks())
+    first = @allocated evaluate()
     close(ws)
-    return bytes
+    restart = @allocated evaluate()
+    close(ws)
+    return (first, restart)
 end
 
 function child_main(checkpoint, blas)
@@ -116,11 +117,15 @@ function child_main(checkpoint, blas)
         )
     end
     cu = cu_bench(2)
+    # Compiles the restart path, which no earlier case runs, so that its bytes are not counted.
+    for T in (Float64, Float32), energy_only in (false, true)
+        first_call_bytes(models[T], Matrix{T}(cu.positions'), Matrix{T}(cu.cell'), cu.atomic_numbers, 2, energy_only)
+    end
     for T in (Float64, Float32), nchunks in FIRST_CALL_CHUNKS
         P, C = Matrix{T}(cu.positions'), Matrix{T}(cu.cell')
-        bytes = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, false)
-        bytes_energy = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, true)
-        println("FIRST\t", T, "\t", nchunks, "\t", bytes, "\t", bytes_energy)
+        forces = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, false)
+        energy = first_call_bytes(models[T], P, C, cu.atomic_numbers, nchunks, true)
+        println("FIRST\t", T, "\t", nchunks, "\t", forces[1], "\t", energy[1], "\t", forces[2], "\t", energy[2])
     end
     m = models[Float64]
     structures = reference_structures()

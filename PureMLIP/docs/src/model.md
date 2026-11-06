@@ -111,21 +111,26 @@ allocates, measured with `@allocated` inside a function on cu_bench(2) (32 atoms
 threads on Apple arm64 (macOS), Julia 1.12.7 and 1.13.3, are, for both precisions and both
 `mace_energy!` and `mace_energy_forces!`:
 
-| `nchunks` | OpenBLAS (every process) |
-|---|---|
-| 2 | 5,664 |
-| 4 | 7,808 |
-| 8 | 12,432 |
+| `nchunks` | OpenBLAS, first evaluation | OpenBLAS, first evaluation after `close(ws)` |
+|---|---|---|
+| 2 | 5,664 | 384 |
+| 4 | 7,808 | 1,152 |
+| 8 | 12,432 | 2,688 |
 
 They are the tasks, channels, locks and vectors of the workers, and the same in three fresh
-processes on each Julia version. After
-`close(ws)`, restarting the workers allocates 384, 1,152 and 2,688 bytes. With PureBLAS the first
+processes on each Julia version. The tests gate
+these figures exactly on macOS arm64 and as an upper bound of twice the figure on every other
+platform, where they have not been measured. With PureBLAS the first
 evaluation allocates megabytes, because each worker's scratch of matrix-product buffers is
 retained: 11.1 MB (1 worker), 21.1 MB (3 workers) and 27.5 MB (7 workers) in Float64, and 5.6,
 10.8 and 13.8 MB in Float32, the same in every process. The total allocated is larger than the
-retained scratch and varies between processes for `mace_energy_forces!` (Float64, 4 chunks: 23.4
-to 37.6 MB over ten processes; Float32, 4 chunks: 11.9 to 17.9 MB), so the tests gate a range
-there; I have not traced what the extra, unretained bytes are. With `mace_energy!` the totals were
+retained scratch and varies between processes for `mace_energy_forces!` (Float64: 23.4
+to 37.6 MB with 4 chunks and 31.4 to 45.1 MB with 8, over eighteen processes; Float32, 4 chunks: 11.9 to 17.9 MB), so the tests gate a range
+there: per precision and chunk count, from 512 KiB to 1.4 times the largest total seen, on
+macOS arm64 only; on other platforms, where PureBLAS's blocking differs and the totals have not
+been measured, they gate an upper bound of twice that total. The range is temporary: it stands
+in for an exact figure while PureBLAS keeps its scratch per task. What the extra, unretained
+bytes are has not been traced. With `mace_energy!` the totals were
 the same in all three processes: 1.65, 4.21 and 8.45 MB in Float64 and 0.83, 2.14 and 4.20 MB in
 Float32 for 2, 4 and 8 chunks. The allocation profiler lists the small objects of the workers
 (tasks, channels, locks) but not the scratch vectors, whose data buffers it does not record. The tests show that later evaluations

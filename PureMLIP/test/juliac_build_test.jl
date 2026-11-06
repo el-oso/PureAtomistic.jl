@@ -45,8 +45,8 @@ end
         write(ck, PureMLIP.tiny_mace_checkpoint())
         # A run that does not finish in 120 s counts as a hang.
         function run_with_timeout(c::Cmd)
-            out = joinpath(dir, "out.txt")
-            p = run(pipeline(ignorestatus(c); stdout = out, stderr = out); wait = false)
+            out, err = joinpath(dir, "out.txt"), joinpath(dir, "err.txt")
+            p = run(pipeline(ignorestatus(c); stdout = out, stderr = err); wait = false)
             t0 = time()
             while process_running(p) && time() - t0 < 120
                 sleep(0.1)
@@ -54,7 +54,7 @@ end
             hung = process_running(p)
             hung && kill(p)
             wait(p)
-            return (; hung, ok = !hung && success(p), out = read(out, String))
+            return (; hung, ok = !hung && success(p), out = read(out, String), err = read(err, String))
         end
         for mode in ("close", "open", "dropped")
             @testset "$mode" begin
@@ -67,6 +67,7 @@ end
                 )
                 @test !trimmed.hung && trimmed.ok
                 @test untrimmed.ok
+                @test isempty(trimmed.err)
                 @test startswith(trimmed.out, "threads=2\nenergy=")
                 @test trimmed.out == untrimmed.out
                 # The finalizer of a dropped workspace stops its workers in the trimmed program.

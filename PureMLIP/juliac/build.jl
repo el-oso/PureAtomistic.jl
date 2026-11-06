@@ -14,6 +14,7 @@ const OUTDIR = joinpath(@__DIR__, "build")
 mkpath(OUTDIR)
 
 const TOOLENV = joinpath(@__DIR__, "toolenv")
+length(ARGS) in (0, 2) || error("usage: build.jl [<executable name> <entry file in juliac/>]")
 const EXE, ENTRY = length(ARGS) == 2 ? (ARGS[1], joinpath(@__DIR__, ARGS[2])) : ("mace_inspect", joinpath(@__DIR__, "entry.jl"))
 
 const JCFLAGS = `--output-exe $EXE --bundle $OUTDIR --experimental --trim=safe --verbose`

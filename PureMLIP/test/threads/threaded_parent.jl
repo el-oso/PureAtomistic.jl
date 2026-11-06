@@ -4,20 +4,48 @@
 # and `structure` is `LammpsReference.structure`.
 using Test, LinearAlgebra, PureMLIP
 
-# The bytes the first threaded evaluation of a new workspace allocates, for `mace_energy_forces!` and
-# `mace_energy!`, measured on cu_bench(2) with 4 threads (see docs/src/model.md). With OpenBLAS
-# they are the same in both precisions and both entry points, and the same in 3 fresh processes on
-# Julia 1.12.7 and 1.13.3 on Apple arm64 (macOS); the exact figures are the gate. With PureBLAS the
-# retained scratch of each worker is the same every time, but the total of an evaluation with
-# `mace_energy_forces!` varies between processes (Float64, 4 chunks: 23.4 to 37.6 MB), so a
-# range gates: the lower bound shows the scratch was allocated, the upper bound is about 1.4 times
-# the largest figure seen (a 1.5-fold margin for `mace_energy!`, whose figures did not vary).
+# The bytes the first threaded evaluation of a new workspace allocates, and the first after
+# `close(ws)`, for `mace_energy_forces!` and `mace_energy!`, measured on cu_bench(2) with 4 threads
+# (see docs/src/model.md). The figures below were measured on macOS arm64, Julia 1.12.7 and
+# 1.13.3; elsewhere the gate is an upper bound of twice the figure.
+#
+# OpenBLAS: the figures are the same in both precisions and both entry points, and the same in 3
+# fresh processes on both Julia versions.
 const FIRST_CALL_OPENBLAS = Dict(2 => 5664, 4 => 7808, 8 => 12432)
-const FIRST_CALL_PUREBLAS_MIN = 512 * 1024
-const FIRST_CALL_PUREBLAS_MAX = Dict(
-    (Float64, :forces) => 48 * 1024^2, (Float32, :forces) => 24 * 1024^2,
-    (Float64, :energy) => 12 * 1024^2, (Float32, :energy) => 6 * 1024^2,
+const RESTART_OPENBLAS = Dict(2 => 384, 4 => 1152, 8 => 2688)
+
+# PureBLAS: the scratch each worker retains is the same every time, but the total of an
+# evaluation with `mace_energy_forces!` varies between processes (Float64, 4 chunks: 23.4 to 37.6
+# MB; 8 chunks: 31.4 to 45.1 MB). These are the largest totals seen by (precision, entry, chunks),
+# for the first evaluation and the one after `close`, over 8 processes of the child; the gate is
+# 1.4 times them
+# for `mace_energy_forces!` and 1.5 times for `mace_energy!`, whose totals did not vary, and at
+# least 512 KiB, which shows the scratch was allocated. The range is a stand-in for an exact
+# figure while PureBLAS keeps its scratch per task.
+const PUREBLAS_LARGEST = Dict(
+    (Float64, :forces, 2) => 12_138_688, (Float64, :forces, 4) => 37_570_144, (Float64, :forces, 8) => 45_137_120,
+    (Float32, :forces, 2) => 6_072_848, (Float32, :forces, 4) => 17_864_288, (Float32, :forces, 8) => 15_672_048,
+    (Float64, :energy, 2) => 1_652_896, (Float64, :energy, 4) => 4_212_224, (Float64, :energy, 8) => 8_446_480,
+    (Float32, :energy, 2) => 829_600, (Float32, :energy, 4) => 2_135_552, (Float32, :energy, 8) => 4_203_024,
 )
+const PUREBLAS_MIN = 512 * 1024
+
+# Whether the figures above were measured on this platform.
+const MEASURED_PLATFORM = Sys.isapple() && Sys.ARCH === :aarch64
+
+# Checks the bytes of one evaluation against the OpenBLAS figure `exact`.
+function check_openblas_bytes(bytes, exact)
+    return MEASURED_PLATFORM ? (@test bytes == exact) : (@test bytes <= 2 * exact)
+end
+
+function check_pureblas_bytes(bytes, T, entry, nchunks)
+    largest = PUREBLAS_LARGEST[(T, entry, nchunks)]
+    return if MEASURED_PLATFORM
+        @test PUREBLAS_MIN <= bytes <= ceil(Int, (entry === :forces ? 1.4 : 1.5) * largest)
+    else
+        @test bytes <= 2 * largest
+    end
+end
 
 function check_threaded_child(lines, ck, lammps, structure; pureblas::Bool = false)
     @test any(==("NTHREADS\t4"), lines)
@@ -67,11 +95,17 @@ function check_threaded_child(lines, ck, lammps, structure; pureblas::Bool = fal
     for f in first_rows
         T, nchunks = f[2] == "Float64" ? Float64 : Float32, parse(Int, f[3])
         @testset "first evaluation, $T, $nchunks chunks" begin
-            for (entry, bytes) in ((:forces, parse(Int, f[4])), (:energy, parse(Int, f[5])))
+            rows_bytes = (
+                (:forces, parse(Int, f[4]), RESTART_OPENBLAS[nchunks], parse(Int, f[6])),
+                (:energy, parse(Int, f[5]), RESTART_OPENBLAS[nchunks], parse(Int, f[7])),
+            )
+            for (entry, first_bytes, restart_exact, restart_bytes) in rows_bytes
                 if pureblas
-                    @test FIRST_CALL_PUREBLAS_MIN <= bytes <= FIRST_CALL_PUREBLAS_MAX[(T, entry)]
+                    check_pureblas_bytes(first_bytes, T, entry, nchunks)
+                    check_pureblas_bytes(restart_bytes, T, entry, nchunks)
                 else
-                    @test bytes == FIRST_CALL_OPENBLAS[nchunks]
+                    check_openblas_bytes(first_bytes, FIRST_CALL_OPENBLAS[nchunks])
+                    check_openblas_bytes(restart_bytes, restart_exact)
                 end
             end
         end
