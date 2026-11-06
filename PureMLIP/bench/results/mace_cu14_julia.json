@@ -1,6 +1,6 @@
 {
   "schema": "puremlip-mace-cu14-julia-v2",
-  "head_commit": "d4a064553c31",
+  "head_commit": "70f144eac102-dirty",
   "julia_version": "1.13.3",
   "machine": "Apple M6",
   "blas_libraries": [
@@ -11,15 +11,17 @@
     {
       "workspace": "MACEWorkspace",
       "precision": "Float64",
+      "nchunks": 1,
+      "edge_chunk": 4096,
       "n_atoms": 10976,
       "n_edges": 856128,
-      "workspace_bytes": 1005542312,
-      "workspace_bytes_per_atom": 91612.81997084548,
+      "workspace_bytes": 1005542616,
+      "workspace_bytes_per_atom": 91612.84766763849,
       "memory_blocks_bytes": 1005521600,
       "neighbor_list_bytes": 35038568,
-      "julia_peak_rss_bytes_so_far": 1703804928,
-      "swap_start_mb": 13890.06,
-      "swap_end_mb": 13890.06,
+      "julia_peak_rss_bytes_so_far": 1732034560,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
       "blocks": [
         {
           "members": [
@@ -750,315 +752,19 @@
       ]
     },
     {
-      "workspace": "MACEEnergyWorkspace",
-      "precision": "Float64",
-      "n_atoms": 10976,
-      "n_edges": 856128,
-      "workspace_bytes": 158077872,
-      "workspace_bytes_per_atom": 14402.138483965015,
-      "memory_blocks_bytes": 158076416,
-      "neighbor_list_bytes": 35038568,
-      "julia_peak_rss_bytes_so_far": 2028339200,
-      "swap_start_mb": 13890.06,
-      "swap_end_mb": 13890.06,
-      "blocks": [
-        {
-          "members": [
-            "x[2]"
-          ],
-          "sizes": [
-            [
-              128,
-              4,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 44957696,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "tpw",
-            "tpw3"
-          ],
-          "sizes": [
-            [
-              1280,
-              4096
-            ],
-            [
-              128,
-              10,
-              4096
-            ]
-          ],
-          "shared": true,
-          "bytes": 41943040,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "r"
-          ],
-          "sizes": [
-            [
-              3,
-              856128
-            ]
-          ],
-          "shared": false,
-          "bytes": 20547072,
-          "scale": "per-edge"
-        },
-        {
-          "members": [
-            "h0",
-            "M[1]",
-            "M[2]",
-            "L0",
-            "X1",
-            "X2",
-            "B[1]",
-            "B[2]",
-            "h1",
-            "h2",
-            "g",
-            "e2"
-          ],
-          "sizes": [
-            [
-              128,
-              1,
-              256
-            ],
-            [
-              128,
-              16,
-              256
-            ],
-            [
-              128,
-              40,
-              256
-            ],
-            [
-              128,
-              16,
-              256
-            ],
-            [
-              128,
-              16,
-              256
-            ],
-            [
-              128,
-              16,
-              256
-            ],
-            [
-              128,
-              4,
-              256
-            ],
-            [
-              128,
-              1,
-              256
-            ],
-            [
-              128,
-              4,
-              256
-            ],
-            [
-              128,
-              1,
-              256
-            ],
-            [
-              16,
-              1,
-              256
-            ],
-            [
-              1,
-              1,
-              256
-            ]
-          ],
-          "shared": true,
-          "bytes": 15239168,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "x[1]"
-          ],
-          "sizes": [
-            [
-              128,
-              1,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 11239424,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "sc"
-          ],
-          "sizes": [
-            [
-              128,
-              1,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 11239424,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "d"
-          ],
-          "sizes": [
-            [
-              856128
-            ]
-          ],
-          "shared": false,
-          "bytes": 6849024,
-          "scale": "per-edge"
-        },
-        {
-          "members": [
-            "act"
-          ],
-          "sizes": [
-            [
-              64,
-              4096,
-              2
-            ]
-          ],
-          "shared": false,
-          "bytes": 4194304,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "scratch"
-          ],
-          "sizes": [
-            [
-              104448
-            ]
-          ],
-          "shared": false,
-          "bytes": 835584,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "Y"
-          ],
-          "sizes": [
-            [
-              16,
-              4096
-            ]
-          ],
-          "shared": false,
-          "bytes": 524288,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "feats"
-          ],
-          "sizes": [
-            [
-              10,
-              4096
-            ]
-          ],
-          "shared": false,
-          "bytes": 327680,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "species"
-          ],
-          "sizes": [
-            [
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 87808,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "e1"
-          ],
-          "sizes": [
-            [
-              1,
-              1,
-              10976
-            ]
-          ],
-          "shared": false,
-          "bytes": 87808,
-          "scale": "per-atom"
-        },
-        {
-          "members": [
-            "density"
-          ],
-          "sizes": [
-            [
-              256
-            ]
-          ],
-          "shared": false,
-          "bytes": 2048,
-          "scale": "fixed/chunk"
-        },
-        {
-          "members": [
-            "pair"
-          ],
-          "sizes": [
-            [
-              256
-            ]
-          ],
-          "shared": false,
-          "bytes": 2048,
-          "scale": "fixed/chunk"
-        }
-      ]
-    },
-    {
       "workspace": "MACEWorkspace",
       "precision": "Float32",
+      "nchunks": 1,
+      "edge_chunk": 4096,
       "n_atoms": 10976,
       "n_edges": 856128,
-      "workspace_bytes": 502834216,
-      "workspace_bytes_per_atom": 45812.15524781341,
+      "workspace_bytes": 502834520,
+      "workspace_bytes_per_atom": 45812.182944606415,
       "memory_blocks_bytes": 502813504,
       "neighbor_list_bytes": 35038532,
-      "julia_peak_rss_bytes_so_far": 2044821504,
-      "swap_start_mb": 13890.06,
-      "swap_end_mb": 13890.06,
+      "julia_peak_rss_bytes_so_far": 2369421312,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
       "blocks": [
         {
           "members": [
@@ -1790,16 +1496,318 @@
     },
     {
       "workspace": "MACEEnergyWorkspace",
+      "precision": "Float64",
+      "nchunks": 1,
+      "edge_chunk": 0,
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 158077872,
+      "workspace_bytes_per_atom": 14402.138483965015,
+      "memory_blocks_bytes": 158076416,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 2369568768,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
+      "blocks": [
+        {
+          "members": [
+            "x[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "tpw",
+            "tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "r"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "h0",
+            "M[1]",
+            "M[2]",
+            "L0",
+            "X1",
+            "X2",
+            "B[1]",
+            "B[2]",
+            "h1",
+            "h2",
+            "g",
+            "e2"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              4,
+              256
+            ],
+            [
+              128,
+              1,
+              256
+            ],
+            [
+              128,
+              4,
+              256
+            ],
+            [
+              128,
+              1,
+              256
+            ],
+            [
+              16,
+              1,
+              256
+            ],
+            [
+              1,
+              1,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 15239168,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "x[1]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "sc"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "d"
+          ],
+          "sizes": [
+            [
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 6849024,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "species"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "density"
+          ],
+          "sizes": [
+            [
+              256
+            ]
+          ],
+          "shared": false,
+          "bytes": 2048,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "pair"
+          ],
+          "sizes": [
+            [
+              256
+            ]
+          ],
+          "shared": false,
+          "bytes": 2048,
+          "scale": "fixed/chunk"
+        }
+      ]
+    },
+    {
+      "workspace": "MACEEnergyWorkspace",
       "precision": "Float32",
+      "nchunks": 1,
+      "edge_chunk": 0,
       "n_atoms": 10976,
       "n_edges": 856128,
       "workspace_bytes": 79083568,
       "workspace_bytes_per_atom": 7205.135568513119,
       "memory_blocks_bytes": 79082112,
       "neighbor_list_bytes": 35038532,
-      "julia_peak_rss_bytes_so_far": 2044821504,
-      "swap_start_mb": 13890.06,
-      "swap_end_mb": 13890.06,
+      "julia_peak_rss_bytes_so_far": 2493595648,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
       "blocks": [
         {
           "members": [
@@ -2082,6 +2090,8838 @@
           ],
           "shared": false,
           "bytes": 1024,
+          "scale": "fixed/chunk"
+        }
+      ]
+    },
+    {
+      "workspace": "MACEWorkspace",
+      "precision": "Float64",
+      "nchunks": 4,
+      "edge_chunk": 1024,
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 1229633664,
+      "workspace_bytes_per_atom": 112029.30612244898,
+      "memory_blocks_bytes": 1229608640,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 2655240192,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
+      "blocks": [
+        {
+          "members": [
+            "X1"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dX1",
+            "dX2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ],
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "h0",
+            "B[1]",
+            "B[2]",
+            "h1",
+            "sc",
+            "h2",
+            "dh2",
+            "dh1",
+            "dh1_part",
+            "dB[1]",
+            "dB[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 157351936,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[2].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[3].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[4].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "x[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "r"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "dEdr"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "x[1]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].tpw",
+            "chunks[2].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dtpw",
+            "chunks[2].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].M[1]",
+            "chunks[2].M[2]",
+            "chunks[2].dM[1]",
+            "chunks[2].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].tpw",
+            "chunks[3].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dtpw",
+            "chunks[3].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].M[1]",
+            "chunks[3].M[2]",
+            "chunks[3].dM[1]",
+            "chunks[3].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].tpw",
+            "chunks[4].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dtpw",
+            "chunks[4].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].M[1]",
+            "chunks[4].M[2]",
+            "chunks[4].dM[1]",
+            "chunks[4].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "d"
+          ],
+          "sizes": [
+            [
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 6849024,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "chunks[1].L0",
+            "chunks[1].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].L0",
+            "chunks[2].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].L0",
+            "chunks[3].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].L0",
+            "chunks[4].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 2506752,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "chunks[1].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "gpre"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "g"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dg"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "density"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "ddensity"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "species"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "pair"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        }
+      ]
+    },
+    {
+      "workspace": "MACEWorkspace",
+      "precision": "Float64",
+      "nchunks": 4,
+      "edge_chunk": 4096,
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 1536145536,
+      "workspace_bytes_per_atom": 139954.95043731778,
+      "memory_blocks_bytes": 1536120512,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 4077748224,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
+      "blocks": [
+        {
+          "members": [
+            "X1"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dX1",
+            "dX2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ],
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "h0",
+            "B[1]",
+            "B[2]",
+            "h1",
+            "sc",
+            "h2",
+            "dh2",
+            "dh1",
+            "dh1_part",
+            "dB[1]",
+            "dB[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 157351936,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[2].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[3].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[4].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "x[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].tpw",
+            "chunks[2].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dtpw",
+            "chunks[2].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].tpw",
+            "chunks[3].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dtpw",
+            "chunks[3].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].tpw",
+            "chunks[4].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dtpw",
+            "chunks[4].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "r"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "dEdr"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "x[1]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].M[1]",
+            "chunks[2].M[2]",
+            "chunks[2].dM[1]",
+            "chunks[2].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].M[1]",
+            "chunks[3].M[2]",
+            "chunks[3].dM[1]",
+            "chunks[3].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].M[1]",
+            "chunks[4].M[2]",
+            "chunks[4].dM[1]",
+            "chunks[4].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "d"
+          ],
+          "sizes": [
+            [
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 6849024,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "chunks[1].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].L0",
+            "chunks[1].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].L0",
+            "chunks[2].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].L0",
+            "chunks[3].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].L0",
+            "chunks[4].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 2506752,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "gpre"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "g"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dg"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "density"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "ddensity"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "species"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "pair"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        }
+      ]
+    },
+    {
+      "workspace": "MACEWorkspace",
+      "precision": "Float64",
+      "nchunks": 8,
+      "edge_chunk": 1024,
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 1630592352,
+      "workspace_bytes_per_atom": 148559.79883381925,
+      "memory_blocks_bytes": 1630561984,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 4490149888,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
+      "blocks": [
+        {
+          "members": [
+            "X1"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dX1",
+            "dX2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ],
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "h0",
+            "B[1]",
+            "B[2]",
+            "h1",
+            "sc",
+            "h2",
+            "dh2",
+            "dh1",
+            "dh1_part",
+            "dB[1]",
+            "dB[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 157351936,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[2].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[3].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[4].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[5].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[6].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[7].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[8].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "x[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "r"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "dEdr"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "x[1]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].tpw",
+            "chunks[2].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dtpw",
+            "chunks[2].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].M[1]",
+            "chunks[2].M[2]",
+            "chunks[2].dM[1]",
+            "chunks[2].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].tpw",
+            "chunks[3].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dtpw",
+            "chunks[3].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].M[1]",
+            "chunks[3].M[2]",
+            "chunks[3].dM[1]",
+            "chunks[3].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].tpw",
+            "chunks[4].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dtpw",
+            "chunks[4].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].M[1]",
+            "chunks[4].M[2]",
+            "chunks[4].dM[1]",
+            "chunks[4].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].tpw",
+            "chunks[5].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dtpw",
+            "chunks[5].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].M[1]",
+            "chunks[5].M[2]",
+            "chunks[5].dM[1]",
+            "chunks[5].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].tpw",
+            "chunks[6].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dtpw",
+            "chunks[6].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].M[1]",
+            "chunks[6].M[2]",
+            "chunks[6].dM[1]",
+            "chunks[6].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].tpw",
+            "chunks[7].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dtpw",
+            "chunks[7].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].M[1]",
+            "chunks[7].M[2]",
+            "chunks[7].dM[1]",
+            "chunks[7].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].tpw",
+            "chunks[8].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dtpw",
+            "chunks[8].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              1024
+            ],
+            [
+              128,
+              10,
+              1024
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].M[1]",
+            "chunks[8].M[2]",
+            "chunks[8].dM[1]",
+            "chunks[8].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "d"
+          ],
+          "sizes": [
+            [
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 6849024,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "chunks[1].L0",
+            "chunks[1].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].L0",
+            "chunks[2].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].L0",
+            "chunks[3].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].L0",
+            "chunks[4].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].L0",
+            "chunks[5].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].L0",
+            "chunks[6].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].L0",
+            "chunks[7].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].L0",
+            "chunks[8].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 2506752,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "chunks[1].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].act"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 1572864,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "gpre"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "g"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dg"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              1024,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 1048576,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "density"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "ddensity"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 131072,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "species"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "pair"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              1024
+            ]
+          ],
+          "shared": false,
+          "bytes": 81920,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        }
+      ]
+    },
+    {
+      "workspace": "MACEWorkspace",
+      "precision": "Float64",
+      "nchunks": 8,
+      "edge_chunk": 4096,
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "workspace_bytes": 2243616096,
+      "workspace_bytes_per_atom": 204411.08746355685,
+      "memory_blocks_bytes": 2243585728,
+      "neighbor_list_bytes": 35038568,
+      "julia_peak_rss_bytes_so_far": 5201264640,
+      "swap_start_mb": 13818.0,
+      "swap_end_mb": 13818.0,
+      "blocks": [
+        {
+          "members": [
+            "X1"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "X2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dX1",
+            "dX2"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              10976
+            ],
+            [
+              128,
+              16,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 179830784,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "h0",
+            "B[1]",
+            "B[2]",
+            "h1",
+            "sc",
+            "h2",
+            "dh2",
+            "dh1",
+            "dh1_part",
+            "dB[1]",
+            "dB[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 157351936,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].dx",
+            "dx0"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ],
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": true,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[2].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[3].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[4].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[5].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[6].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[7].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[8].dx"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "x[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              4,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 44957696,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].tpw",
+            "chunks[1].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dtpw",
+            "chunks[1].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].tpw",
+            "chunks[2].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dtpw",
+            "chunks[2].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].tpw",
+            "chunks[3].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dtpw",
+            "chunks[3].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].tpw",
+            "chunks[4].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dtpw",
+            "chunks[4].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].tpw",
+            "chunks[5].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dtpw",
+            "chunks[5].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].tpw",
+            "chunks[6].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dtpw",
+            "chunks[6].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].tpw",
+            "chunks[7].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dtpw",
+            "chunks[7].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].tpw",
+            "chunks[8].tpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dtpw",
+            "chunks[8].dtpw3"
+          ],
+          "sizes": [
+            [
+              1280,
+              4096
+            ],
+            [
+              128,
+              10,
+              4096
+            ]
+          ],
+          "shared": true,
+          "bytes": 41943040,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "r"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "dEdr"
+          ],
+          "sizes": [
+            [
+              3,
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 20547072,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "x[1]"
+          ],
+          "sizes": [
+            [
+              128,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 11239424,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].M[1]",
+            "chunks[1].M[2]",
+            "chunks[1].dM[1]",
+            "chunks[1].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].M[1]",
+            "chunks[2].M[2]",
+            "chunks[2].dM[1]",
+            "chunks[2].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].M[1]",
+            "chunks[3].M[2]",
+            "chunks[3].dM[1]",
+            "chunks[3].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].M[1]",
+            "chunks[4].M[2]",
+            "chunks[4].dM[1]",
+            "chunks[4].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].M[1]",
+            "chunks[5].M[2]",
+            "chunks[5].dM[1]",
+            "chunks[5].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].M[1]",
+            "chunks[6].M[2]",
+            "chunks[6].dM[1]",
+            "chunks[6].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].M[1]",
+            "chunks[7].M[2]",
+            "chunks[7].dM[1]",
+            "chunks[7].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].M[1]",
+            "chunks[8].M[2]",
+            "chunks[8].dM[1]",
+            "chunks[8].dM[2]"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              40,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 10485760,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.Z"
+          ],
+          "sizes": [
+            [
+              153,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[1].F[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "contraction[1].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              64,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 10027008,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "d"
+          ],
+          "sizes": [
+            [
+              856128
+            ]
+          ],
+          "shared": false,
+          "bytes": 6849024,
+          "scale": "per-edge"
+        },
+        {
+          "members": [
+            "chunks[1].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].pre"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].act"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 6291456,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].L0",
+            "chunks[1].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].L0",
+            "chunks[2].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].L0",
+            "chunks[3].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].L0",
+            "chunks[4].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].L0",
+            "chunks[5].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].L0",
+            "chunks[6].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].L0",
+            "chunks[7].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].mlp_scratch"
+          ],
+          "sizes": [
+            [
+              64,
+              4096,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].L0",
+            "chunks[8].dL0"
+          ],
+          "sizes": [
+            [
+              128,
+              16,
+              256
+            ],
+            [
+              128,
+              16,
+              256
+            ]
+          ],
+          "shared": true,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.Y"
+          ],
+          "sizes": [
+            [
+              64,
+              128,
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 4194304,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].G[29]"
+          ],
+          "sizes": [
+            [
+              153,
+              16,
+              128
+            ]
+          ],
+          "shared": false,
+          "bytes": 2506752,
+          "scale": "per-element"
+        },
+        {
+          "members": [
+            "gpre"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "g"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "dg"
+          ],
+          "sizes": [
+            [
+              16,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 1404928,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "chunks[1].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].scratch"
+          ],
+          "sizes": [
+            [
+              104448
+            ]
+          ],
+          "shared": false,
+          "bytes": 835584,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].Y"
+          ],
+          "sizes": [
+            [
+              16,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 524288,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].feats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dfeats"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dfeats_chunk"
+          ],
+          "sizes": [
+            [
+              10,
+              4096
+            ]
+          ],
+          "shared": false,
+          "bytes": 327680,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "density"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "ddensity"
+          ],
+          "sizes": [
+            [
+              10976,
+              2
+            ]
+          ],
+          "shared": false,
+          "bytes": 175616,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "species"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "e2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "pair"
+          ],
+          "sizes": [
+            [
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de1"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "de2"
+          ],
+          "sizes": [
+            [
+              1,
+              1,
+              10976
+            ]
+          ],
+          "shared": false,
+          "bytes": 87808,
+          "scale": "per-atom"
+        },
+        {
+          "members": [
+            "contraction[1].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "contraction[2].pairs"
+          ],
+          "sizes": [
+            [
+              136
+            ]
+          ],
+          "shared": false,
+          "bytes": 8544,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].gemm.atoms"
+          ],
+          "sizes": [
+            [
+              64
+            ]
+          ],
+          "shared": false,
+          "bytes": 512,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dYdr"
+          ],
+          "sizes": [
+            [
+              16,
+              3
+            ]
+          ],
+          "shared": false,
+          "bytes": 384,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[1].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[2].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[3].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[4].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[5].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[6].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[7].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
+          "scale": "fixed/chunk"
+        },
+        {
+          "members": [
+            "chunks[8].dYe"
+          ],
+          "sizes": [
+            [
+              16
+            ]
+          ],
+          "shared": false,
+          "bytes": 128,
           "scale": "fixed/chunk"
         }
       ]

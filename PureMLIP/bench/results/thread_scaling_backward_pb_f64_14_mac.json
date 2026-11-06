@@ -100,7 +100,7 @@
     "blas": "pureblas",
     "case": "cu_bench(14)",
     "chunks_per_thread": 1,
-    "commit": "971d734d643e",
+    "commit": "67239d9a015b4969aa50c96c309d75ab4458a791",
     "entries": [
       "mace_energy_forces!",
       "mace_energy!"

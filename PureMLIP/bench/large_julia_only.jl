@@ -1,7 +1,8 @@
 # Memory of `MACEWorkspace` and `MACEEnergyWorkspace` on cu_bench(14) (10,976 atoms), in Float64
 # and Float32, with the per-buffer breakdown of each; the `MACEWorkspace` is built for the one element
 # of the cell (Cu). Workspaces are constructed, not evaluated:
-# LAMMPS does not fit in memory at this size, and the sizes follow from the constructors.
+# LAMMPS does not fit in memory at this size, and the sizes follow from the constructors. Float64
+# `MACEWorkspace`s with 4 and 8 receiver chunks are included, at `edge_chunk` 1024 and 4096.
 #
 #   julia -t 1 --project=PureMLIP/bench PureMLIP/bench/large_julia_only.jl
 #
@@ -77,23 +78,29 @@ z = cu.atomic_numbers
 n = length(z)
 const HEAD_COMMIT = head_commit()
 cases = []
-for T in (Float64, Float32), W in (MACEWorkspace, MACEEnergyWorkspace)
+# The one-chunk workspaces in both precisions, then Float64 `MACEWorkspace`s with several receiver
+# chunks at the default `edge_chunk` (1024) and at 4096.
+configs = vec([(; T, W, nchunks = 1, edge_chunk = 4096) for T in (Float64, Float32), W in (MACEWorkspace, MACEEnergyWorkspace)])
+for nchunks in (4, 8), edge_chunk in (1024, 4096)
+    push!(configs, (; T = Float64, W = MACEWorkspace, nchunks, edge_chunk))
+end
+for (; T, W, nchunks, edge_chunk) in configs
     model = MACEModel{T}(ck)
     positions = Matrix{T}(cu.positions'); cell = Matrix{T}(cu.cell')
     nl = neighbor_list(positions, cell, model.r_max; extra_capacity = 64)
     sw0 = swap_used_mb()
-    ws = W === MACEWorkspace ? W{T}(model, n, nl.n_edges; elements = z) : W{T}(model, n, nl.n_edges)
+    ws = W === MACEWorkspace ? W{T}(model, n, nl.n_edges; elements = z, nchunks, edge_chunk) : W{T}(model, n, nl.n_edges)
     sw1 = swap_used_mb()
     rows = field_breakdown(ws, n, nl.n_edges)
     push!(
         cases, (;
-            workspace = string(nameof(W)), precision = string(T), n_atoms = n, n_edges = nl.n_edges,
+            workspace = string(nameof(W)), precision = string(T), nchunks = W === MACEWorkspace ? nchunks : 1, edge_chunk = W === MACEWorkspace ? edge_chunk : 0, n_atoms = n, n_edges = nl.n_edges,
             workspace_bytes = Base.summarysize(ws), workspace_bytes_per_atom = Base.summarysize(ws) / n,
             memory_blocks_bytes = sum(r -> r.bytes, rows), neighbor_list_bytes = Base.summarysize(nl),
             julia_peak_rss_bytes_so_far = Sys.maxrss(), swap_start_mb = sw0, swap_end_mb = sw1, blocks = rows,
         )
     )
-    println(cases[end].workspace, " ", T, " ", cases[end].workspace_bytes, " B  ", round(cases[end].workspace_bytes_per_atom; digits = 1), " B/atom")
+    println(cases[end].workspace, " ", T, " nchunks=", cases[end].nchunks, " edge_chunk=", cases[end].edge_chunk, " ", cases[end].workspace_bytes, " B  ", round(cases[end].workspace_bytes_per_atom; digits = 1), " B/atom")
     ws = nothing; GC.gc()
 end
 doc = (;

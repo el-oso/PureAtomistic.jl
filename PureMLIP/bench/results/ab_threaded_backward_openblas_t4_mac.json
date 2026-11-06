@@ -5,7 +5,7 @@
   "chairmarks_version": "1.3.1",
   "base_ref": "bdcc0af",
   "base_commit": "bdcc0af8cfbb",
-  "head_commit": "971d734d643e",
+  "head_commit": "67239d9a015b4969aa50c96c309d75ab4458a791",
   "pureblas_commit": null,
   "load": "none",
   "base_load": "none",
