@@ -48,6 +48,12 @@ function thermostat_step!(
     return nothing
 end
 
+# The step moves the positions only through `integrate!`, which carries the hook.
+thermostat_step!(
+    th::BussiThermostat, sys::System, potential::AbstractPotential, dt::Real,
+    rng::Random.AbstractRNG, integrate!, after_drift!
+)::Nothing = thermostat_step!(th, sys, potential, dt, rng, integrate!)
+
 function _rescale!(th::BussiThermostat, sys::System{T}, t::Real, rng::Random.AbstractRNG) where {T}
     nf = 3 * natoms(sys) - th.removed_dof
     nf >= 1 || throw(ArgumentError(lazy"pureatomistic: the Bussi thermostat needs at least one degree of freedom, got $nf"))

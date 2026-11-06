@@ -26,14 +26,19 @@ abstract type AbstractThermostat end
 Advance `sys` by one time step of `dt` fs under `potential` coupled to `thermostat`, drawing
 random numbers from `rng`; see [`AbstractThermostat`](@ref). `after_drift!(sys)` runs after
 the last position update and before the force evaluation of the step. A thermostat that moves
-the positions only through `integrate!` leaves the hook to `integrate!`, which then carries it:
-the seven-argument fallback drops the hook and calls the six-argument method. A thermostat with
-its own splitting implements the seven-argument method.
+the positions only through `integrate!` implements the seven-argument method by calling the
+six-argument one, because `integrate!` carries the hook ([`BussiThermostat`](@ref) does). A
+thermostat with its own splitting implements the seven-argument method and runs the hook itself.
+The seven-argument fallback accepts only `Systems.no_hook` and calls the six-argument method;
+any other hook throws, since the thermostat would otherwise drop it silently.
 """
 function thermostat_step! end
 
-thermostat_step!(th::AbstractThermostat, sys, potential, dt, rng, integrate!, after_drift!) =
-    thermostat_step!(th, sys, potential, dt, rng, integrate!)
+function thermostat_step!(th::AbstractThermostat, sys, potential, dt, rng, integrate!, after_drift!)
+    after_drift! === no_hook ||
+        throw(ArgumentError(lazy"pureatomistic: $(nameof(typeof(th))) has no thermostat_step! method that takes an after_drift! hook"))
+    return thermostat_step!(th, sys, potential, dt, rng, integrate!)
+end
 
 include("gamma_sampler.jl")
 include("langevin.jl")
