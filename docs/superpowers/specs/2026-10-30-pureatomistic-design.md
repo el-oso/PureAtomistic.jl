@@ -177,3 +177,31 @@ Findings that constrain the build:
 - **Python session (agreed):** one session exports three files: MPA-0 Float64, MPA-0 Float32, MP-0b3 Float64. No later additions.
 - **Milestones (agreed):** milestone 1 supports MPA-0 only (MP-0b3 is used only as a parser test against llmlip.rs's inspection file). Milestone 2 is the first training set in section 8, on CPU first. Everything else in the mace-torch training list (LoRA, multi-head replay, the other losses, other interaction blocks, GPU training) is backlog without a date.
 - **Speed target (user, 2026-11-02):** the target comparison is the Rust MACE engine fastatomstruct, on each target machine and on every supported GPU type once GPU kernels exist. Measured on the Apple M6 (MPA-0, 500 Cu atoms, energy + forces + stress, PureMLIP on one thread). Against fastatomstruct's native CPU backend on one thread, PureMLIP is 7.4x (Float64) and 9.5x (Float32) faster with OpenBLAS and 12.1x and 15.1x faster with PureBLAS active. Peak memory: PureMLIP 0.58 GiB (Float64) and 0.69 GiB (Float32) with OpenBLAS, 1.31 GiB and 1.34 GiB with PureBLAS; fastatomstruct's native backend 19.92 GiB and 10.30 GiB. With its XLA CPU backend, which used about 8 cores (CPU time 8.2x and 7.6x wall time), fastatomstruct is faster than PureMLIP with OpenBLAS: PureMLIP's speed-up is 0.77x in Float64 and 0.66x in Float32, so fastatomstruct is 1.30x and 1.52x faster. PureMLIP with PureBLAS is 1.24x (Float64) and 1.09x (Float32) faster than fastatomstruct with XLA. The XLA backend peaks at 10.98 GiB and 5.98 GiB. A comparison with PureMLIP on several threads has not been made.
+
+### Multi-threaded comparison (plan 5b)
+
+- **Method:** 500 Cu atoms (`cu_bench(5)`), Float64 and Float32, 7 interleaved rounds. Speed-up = fastatomstruct XLA time ÷ PureMLIP time, as median [min-max] of the 7 per-round ratios (above 1: PureMLIP faster). PureMLIP uses `ThreadedChunks()`, Julia `-t n,0 --gcthreads=1,0`, BLAS on 1 thread; commit 70f144e (x86) and 93a66ed (Apple), kept on GitHub by the tag `archive/plan5b-pre-reword`. The Apple M6 and x86 runs each use one XLA CPU plugin build with `--xla_cpu_multi_thread_eigen=false`.
+- **Apple M6** (XLA unpinned: 0.873 s Float64, 0.415 s Float32; speed-up vs that XLA time):
+
+  | threads, BLAS | Float64 | Float32 |
+  |---|---|---|
+  | 1 OpenBLAS | 0.87 [0.87-0.90] | 0.75 [0.75-0.76] |
+  | 1 PureBLAS | 1.74 [1.53-1.82] | 1.40 [1.36-1.44] |
+  | 4 OpenBLAS | 2.68 [2.64-2.82] | 2.34 [2.31-2.36] |
+  | 4 PureBLAS | 4.10 [3.64-4.36] | 3.77 [3.68-3.87] |
+  | 6 OpenBLAS | 3.59 [3.48-3.65] | 3.09 [3.06-3.13] |
+  | 6 PureBLAS | 4.74 [4.69-4.87] | 4.63 [4.39-4.80] |
+
+- **x86** (6-core hybrid Ryzen, clock locked at 2000 MHz; threads pinned with `taskset`). "Natural" XLA is unpinned and uses all 12 logical CPUs (2.539 s Float64, 1.343 s Float32); "pinned" XLA uses the same cores as PureMLIP. Speed-up vs natural XLA / vs pinned XLA:
+
+  | threads, BLAS | Float64 | Float32 |
+  |---|---|---|
+  | 1 OpenBLAS | 0.97 [0.97-0.98] / 3.38 [3.38-3.40] | 0.98 [0.97-0.99] / 3.62 [3.60-3.63] |
+  | 1 PureBLAS | 1.15 [1.14-1.15] / 4.00 [3.99-4.01] | 1.02 [1.02-1.03] / 3.79 [3.78-3.80] |
+  | 4 OpenBLAS | 3.85 [3.83-3.87] / 5.04 [4.97-5.11] | 3.83 [3.81-3.88] / 5.24 [5.21-5.26] |
+  | 4 PureBLAS | 4.37 [4.33-4.41] / 5.75 [5.66-5.79] | 3.99 [3.96-4.04] / 5.46 [5.43-5.47] |
+  | 6 OpenBLAS | 5.54 [5.50-5.59] / 5.86 [5.83-5.91] | 5.52 [5.49-5.55] / 5.98 [5.84-6.02] |
+  | 6 PureBLAS | 6.44 [6.41-6.47] / 6.83 [6.72-6.90] | 5.79 [5.76-5.85] / 6.27 [6.17-6.32] |
+
+- **Peak memory:** XLA in Float64 peaks at about 10.6-11 GiB (Float32 about 5.5-6.1 GiB); PureMLIP in Float64 peaks at 0.9-1.8 GiB.
+- **Caveats:** macOS cannot pin threads, so the Apple XLA arm is unpinned. Only `cu_bench(5)` (500 atoms) was measured, and only against the XLA backend of fastatomstruct. PureBLAS is at revision c38f273f, which has no thread pool of its own (single-threaded kernels).
