@@ -146,7 +146,7 @@ end
 # Throws for the flags that a build of `nl` and an evaluation set; the arrays are copied to the host only to name the
 # culprit.
 function _check_status(status::Vector{Int32}, model::DeviceMACEModel, atomic_numbers, ws::DeviceMACEWorkspace, nl::DeviceNeighborList)
-    _check_geometry(status)
+    _check_list_flags(status)
     m = status[STATUS_OVERFLOW]
     m > 0 && throw(ArgumentError(lazy"gpu: $m edges exceed the capacity $(nl.capacity)"))
     if !iszero(status[STATUS_UNKNOWN_ELEMENT])

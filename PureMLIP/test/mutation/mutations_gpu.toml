@@ -445,3 +445,24 @@ file = "ext/PureMLIPGPUExt/neighbors.jl"
 find = "            moved |= cell[k] != reference_cell[k]\n"
 replace = "            moved |= false\n"
 expect = "neighbor list on the device: the skin criterion"
+
+[[mutation]]
+name = "device-list-scan-wraps"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "@inline _saturate(x::Int64) = Int32(min(x, Int64(typemax(Int32))))"
+replace = "@inline _saturate(x::Int64) = x % Int32"
+expect = "neighbor list on the device: counts beyond Int32"
+
+[[mutation]]
+name = "device-list-too-many-edges-unflagged"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "        if row_ptr[n + 1] == typemax(Int32)\n"
+replace = "        if false\n"
+expect = "neighbor list on the device: counts beyond Int32"
+
+[[mutation]]
+name = "device-list-missing-reverse-unflagged"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "    iszero(rev) && (status[STATUS_OVERFLOW] = _MISSING_REVERSE)\n"
+replace = "    nothing\n"
+expect = "neighbor list on the device: counts beyond Int32"

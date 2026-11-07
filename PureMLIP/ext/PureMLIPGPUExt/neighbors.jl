@@ -6,14 +6,18 @@
 # nothing unless `status[STATUS_REBUILT]` is set and `status[STATUS_OVERFLOW]` is zero, so the host
 # launches the sequence without reading anything from the device until the end.
 #
-# `status[STATUS_OVERFLOW]` holds the number of edges found when it exceeds the capacity, or
-# `_INVALID_GEOMETRY` when the cell is not finite or thinner than cutoff/65536 along a lattice
-# direction (a singular cell included), or an atom's position is not finite or
-# lies more than 2^30 cell lengths away. Either leaves the list empty (`n_edges[1] = 0`, every row
-# empty, every slot zero), and the flag stays set: every later `neighbor_list!` and evaluation with the
-# list throws, and the list must be built anew with `device_neighbor_list`.
+# `status[STATUS_OVERFLOW]` holds the number of edges found when it exceeds the capacity, or one of
+# three negative codes: `_INVALID_GEOMETRY` when the cell is not finite or thinner than cutoff/65536
+# along a lattice direction (a singular cell included), or an atom's position is not finite or lies
+# 2^30 or more cell lengths away; `_TOO_MANY_EDGES` when the edges do not fit the `Int32` edge
+# indices; `_MISSING_REVERSE` when an edge's reverse is not in the list. The first two leave the
+# list empty (`n_edges[1] = 0`, every row empty, every slot zero); the third is found after the
+# edges are written. Every flag stays set: every later `neighbor_list!` and evaluation with the list
+# throws, and the list must be built anew with `device_neighbor_list`.
 
 const _INVALID_GEOMETRY = Int32(-1)
+const _TOO_MANY_EDGES = Int32(-2)
+const _MISSING_REVERSE = Int32(-3)
 
 # Work items of the one work group of a prefix sum.
 const _SCAN_GROUP = 256
@@ -55,11 +59,11 @@ function _empty_edges(backend::Backend, n::Int, capacity::Int)
 end
 
 # The checks shared by the device list's entry points; returns the backend.
-function _check_list_arguments(positions::AbstractMatrix, cell::AbstractMatrix, ::Type{T}) where {T}
+function _check_list_arguments(positions::AbstractMatrix, cell::AbstractMatrix)
     _require_one_based(positions, cell)
     backend = _common_backend(positions, cell)
-    (eltype(positions) === T && eltype(cell) === T) ||
-        throw(ArgumentError(lazy"gpu: positions and cell must have element type $T, got $(eltype(positions)) and $(eltype(cell))"))
+    KernelAbstractions.supports_atomics(backend) ||
+        throw(ArgumentError(lazy"gpu: the neighbor list needs atomic operations, which $(_backend_name(backend)) does not support"))
     size(positions, 1) == 3 || throw(DimensionMismatch(lazy"gpu: positions have size $(size(positions)), expected 3 rows"))
     size(cell) == (3, 3) || throw(DimensionMismatch(lazy"gpu: the cell has size $(size(cell)), expected (3, 3)"))
     return backend
@@ -90,7 +94,7 @@ function PureMLIP.device_neighbor_list(
     T = eltype(positions)
     eltype(cell) === T || throw(ArgumentError(lazy"gpu: positions and cell must share one element type, got $T and $(eltype(cell))"))
     T <: AbstractFloat || throw(ArgumentError(lazy"gpu: positions must hold floating-point numbers, got $T"))
-    backend = _check_list_arguments(positions, cell, T)
+    backend = _check_list_arguments(positions, cell)
     (isfinite(r_cut) && r_cut > 0) || throw(ArgumentError(lazy"gpu: r_cut must be positive and finite, got $r_cut"))
     (isfinite(skin) && skin >= 0) || throw(ArgumentError(lazy"gpu: the skin must not be negative, got $skin"))
     extra_capacity >= 0 || throw(ArgumentError(lazy"gpu: extra_capacity must not be negative, got $extra_capacity"))
@@ -101,8 +105,8 @@ function PureMLIP.device_neighbor_list(
     probe = _new_list(backend, T, T(r_cut), T(skin), cutoff, n, 0, _empty_edges(backend, n, 0), s)
     _rebuild!(probe, positions, cell, true)
     copyto!(probe.host_status, probe.status)
-    _check_geometry(probe.host_status)
-    m = Int(max(probe.host_status[STATUS_OVERFLOW], 0))
+    _check_list_flags(probe.host_status)
+    m = Int(probe.host_status[STATUS_OVERFLOW])
     capacity = m + Int(extra_capacity)
     nl = _new_list(backend, T, T(r_cut), T(skin), cutoff, n, capacity, _empty_edges(backend, n, capacity), s)
     _rebuild!(nl, positions, cell, true)
@@ -114,18 +118,24 @@ end
     neighbor_list!(nl::DeviceNeighborList, positions, cell) -> nl
 
 Rebuild `nl` on the device for the device arrays `positions` and `cell` when an atom has moved by
-more than `nl.skin / 2` since the last build, or the cell has changed; with `nl.skin == 0` every
-call rebuilds. The decision is taken on the device and written to `nl.status[STATUS_REBUILT]`;
-an overflow of the capacity is written to `nl.status[STATUS_OVERFLOW]`. The host then reads the
-status word once and throws `"gpu: m edges exceed the capacity c"` on an overflow, after which
-`nl` holds no edges and must be built anew with `device_neighbor_list`. Two atoms at one place
-throw too, and so do a cell that is not finite or thinner than `cutoff/65536` (a singular cell
-included) and a position that is not finite or lies more than 2^30 cell lengths away, which also
-leave `nl` empty.
+more than `nl.skin / 2` since the last build, or when any entry of the cell differs from the cell
+of the last build (the periodic images move with the cell, so a list kept across a cell change
+would miss edges); with `nl.skin == 0` every call rebuilds. The decision is taken on the device and
+written to `nl.status[STATUS_REBUILT]`; an overflow of the capacity is written to
+`nl.status[STATUS_OVERFLOW]` as the number of edges found. The host then reads the status word once
+and throws `"gpu: m edges exceed the capacity c"` on an overflow, after which `nl` holds no edges
+and must be built anew with `device_neighbor_list`. Two atoms at one place throw too. A cell that
+is not finite or thinner than `cutoff/65536` (a singular cell included), or a position that is not
+finite or lies 2^30 or more cell lengths away, sets `nl.status[STATUS_OVERFLOW] = -1`, leaves `nl`
+empty and throws; so do 2^31 - 1 edges or more (`-2`), which the `Int32` edge indices cannot hold.
+An edge whose reverse is missing sets `-3` and throws. Every one of these flags stays set until
+the list is built anew.
 """
 function PureMLIP.neighbor_list!(nl::DeviceNeighborList{T}, positions::AbstractMatrix, cell::AbstractMatrix) where {T}
-    _check_list_arguments(positions, cell, T)
+    _check_list_arguments(positions, cell)
     _common_backend(positions, nl.status)
+    (eltype(positions) === T && eltype(cell) === T) ||
+        throw(ArgumentError(lazy"gpu: positions and cell must have the list's element type $T, got $(eltype(positions)) and $(eltype(cell))"))
     size(positions, 2) == nl.n_atoms ||
         throw(DimensionMismatch(lazy"gpu: positions have size $(size(positions)), the neighbor list has $(nl.n_atoms) atoms"))
     _rebuild!(nl, positions, cell, false)
@@ -137,16 +147,21 @@ end
 function _read_list_status!(nl::DeviceNeighborList, positions, cell)
     status = nl.host_status
     copyto!(status, nl.status)
-    _check_geometry(status)
+    _check_list_flags(status)
     m = status[STATUS_OVERFLOW]
     m > 0 && throw(ArgumentError(lazy"gpu: $m edges exceed the capacity $(nl.capacity)"))
     iszero(status[STATUS_ZERO_LENGTH]) || _throw_coincident(nl, positions, cell)
     return nothing
 end
 
-function _check_geometry(status::Vector{Int32})
-    status[STATUS_OVERFLOW] == _INVALID_GEOMETRY &&
+# Throws for the negative codes of `status[STATUS_OVERFLOW]`; a count of edges is left to the caller.
+function _check_list_flags(status::Vector{Int32})
+    flag = status[STATUS_OVERFLOW]
+    flag == _INVALID_GEOMETRY &&
         throw(ArgumentError("gpu: the neighbor list needs a finite cell at least cutoff/65536 thick and finite positions within 2^30 cell lengths"))
+    flag == _TOO_MANY_EDGES && throw(ArgumentError("gpu: the neighbor list has 2^31 - 1 edges or more, more than its Int32 edge indices hold"))
+    flag == _MISSING_REVERSE && throw(ArgumentError("gpu: an edge of the neighbor list has no reverse edge"))
+    flag < 0 && throw(ArgumentError(lazy"gpu: the neighbor list status holds the unknown code $flag"))
     return nothing
 end
 
@@ -259,7 +274,9 @@ end
             dims[2] >= dims[3] ? (dims[1], dims[2] - 1, dims[3]) : (dims[1], dims[2], dims[3] - 1)
     end
     span = map((nb, h) -> cutoff * nb / h, dims, height)
-    # More than 2^16 grid cells on each side would be a search of 2^48 cells or more.
+    # The reach is converted with `unsafe_trunc`, which needs it finite and within Int; at most 2^16
+    # grid cells on each side also keeps the number of offsets, at most (2^17 + 1)^3, times
+    # `_SEARCH_PARTS` within Int.
     if !(span[1] <= 65536 && span[2] <= 65536 && span[3] <= 65536)
         status[STATUS_OVERFLOW] = _INVALID_GEOMETRY
         return nothing
@@ -292,6 +309,8 @@ end
     id, stride = 0, 1
     for k in 1:3
         f = reciprocal[k, 1] * positions[1, i] + reciprocal[k, 2] * positions[2, i] + reciprocal[k, 3] * positions[3, i]
+        # Images are Int32, and the search subtracts two of them and a wrap of the grid, so an image
+        # below 2^30 in magnitude keeps every shift within Int32.
         if !(abs(f) < T(1073741824))
             status[STATUS_OVERFLOW] = _INVALID_GEOMETRY
             return nothing
@@ -408,7 +427,7 @@ end
     end
     j, part = divrem(w - 2, _SEARCH_PARTS)
     count = _search(positions, cell, image, bin, bin_start, bin_atoms, grid, rc2, j + 1, part, _count_edge, (0, false))
-    slots[w] = count[1]
+    slots[w] = min(count[1], Int(typemax(Int32)))
     count[2] && (status[STATUS_ZERO_LENGTH] = one(eltype(status)))
     return nothing
 end
@@ -426,11 +445,17 @@ end
     _capacity!(n_edges, status, row_ptr, n, capacity)
 end
 
+# The prefix sum saturates at typemax(Int32), so a last row pointer of typemax(Int32) means 2^31 - 1
+# edges or more, which the Int32 edge slots cannot index.
 @inline function _capacity!(n_edges, status, row_ptr, n, capacity)
     iszero(status[STATUS_REBUILT]) && return nothing
     if iszero(status[STATUS_OVERFLOW])
-        m = row_ptr[n + 1] - one(Int32)
-        m > capacity && (status[STATUS_OVERFLOW] = m)
+        if row_ptr[n + 1] == typemax(Int32)
+            status[STATUS_OVERFLOW] = _TOO_MANY_EDGES
+        else
+            m = row_ptr[n + 1] - one(Int32)
+            m > capacity && (status[STATUS_OVERFLOW] = m)
+        end
     end
     n_edges[1] = iszero(status[STATUS_OVERFLOW]) ? row_ptr[n + 1] - one(Int32) : zero(Int32)
     return nothing
@@ -475,7 +500,7 @@ end
     return e + 1
 end
 
-@kernel function _reverse_kernel!(reverse, senders, receivers, shifts, @Const(status), @Const(row_ptr), @Const(n_edges))
+@kernel function _reverse_kernel!(reverse, senders, receivers, shifts, status, @Const(row_ptr), @Const(n_edges))
     e = @index(Global)
     _reverse_edge!(reverse, senders, receivers, shifts, status, row_ptr, n_edges, e)
 end
@@ -483,7 +508,7 @@ end
 # The reverse of edge `e` (from its receiver to its sender, with the negated shift), found in the
 # sender's row; a slot past the edges is zeroed. The search computes the vector of the reverse edge
 # from the same operands with every sign flipped, and rounding is symmetric under negation, so
-# every edge's reverse is in the list.
+# every edge's reverse is in the list; an edge without one is flagged.
 @inline function _reverse_edge!(reverse, senders, receivers, shifts, status, row_ptr, n_edges, e)
     iszero(status[STATUS_REBUILT]) && return nothing
     if e > n_edges[1]
@@ -501,6 +526,7 @@ end
         end
     end
     reverse[e] = rev
+    iszero(rev) && (status[STATUS_OVERFLOW] = _MISSING_REVERSE)
     return nothing
 end
 
@@ -534,11 +560,11 @@ end
 
 @kernel function _scan_kernel!(a, @Const(status), @Const(grid), n)
     t = @index(Local)
-    total = @localmem Int32 (_SCAN_GROUP,)
+    total = @localmem Int64 (_SCAN_GROUP,)
     run = _building(status)
     len = n < 0 ? Int(grid[7]) + 1 : n
     lo, hi = _scan_segment(t, len)
-    total[t] = run ? _segment_sum!(a, lo, hi) : zero(Int32)
+    total[t] = run ? _segment_sum!(a, lo, hi) : zero(Int64)
     @synchronize
     t == 1 && _exclusive_sum!(total)
     @synchronize
@@ -550,17 +576,21 @@ end
     return (t - 1) * seg + 1, min(t * seg, len)
 end
 
+# The sums run in Int64 over non-negative Int32 entries and are stored saturated at typemax(Int32),
+# so a sum that does not fit reads as typemax(Int32) from there on instead of wrapping.
+@inline _saturate(x::Int64) = Int32(min(x, Int64(typemax(Int32))))
+
 @inline function _segment_sum!(a, lo, hi)
-    acc = zero(Int32)
+    acc = zero(Int64)
     for i in lo:hi
         acc += a[i]
-        a[i] = acc
+        a[i] = _saturate(acc)
     end
     return acc
 end
 
 @inline function _exclusive_sum!(total)
-    acc = zero(Int32)
+    acc = zero(Int64)
     for t in eachindex(total)
         v = total[t]
         total[t] = acc
@@ -571,7 +601,7 @@ end
 
 @inline function _add_offset!(a, lo, hi, off)
     for i in lo:hi
-        a[i] += off
+        a[i] = _saturate(Int64(a[i]) + off)
     end
     return nothing
 end

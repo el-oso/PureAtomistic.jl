@@ -251,6 +251,10 @@ end
 # The gate is the measured figure on the CPU backend on macOS, where it was measured, and twice it
 # on other platforms; on Metal the largest fewest-of-five rounded up to 1,000,000 and 2,020,000
 # bytes (0.9 % and 0.5 % above it).
+# The figures hold when the items run through test/gpu/runtests.jl, which puts Revise (loaded by
+# JET) in manual mode: in automatic mode its REPL poll allocates a 112-byte timer every 50 ms for a
+# second after JET loads, and in fresh processes where this item ran within that second every call
+# read 1,280 bytes.
 # `neighbor_list!` on device types is gated in "neighbor list on the device: host bytes per call of
 # neighbor_list!".
 @testitem "backward: host bytes per call of the device evaluations" tags = [:gpu] setup = [GPUBackend, DeviceStructures, EdgeStages] begin

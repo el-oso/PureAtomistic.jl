@@ -290,6 +290,11 @@ end
     @test_throws geometry neighbor_list!(dnl, todevice(bad), todevice(C))
     ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
     @test_throws geometry mace_energy!(res, ws, dm, todevice(P), todevice(C), dZ, dnl)
+    # A NaN position fails the skin criterion's comparison, so it rebuilds and is flagged.
+    dnl = PureMLIP.device_neighbor_list(todevice(P), todevice(C), r_max; skin = 0.5)
+    bad[2, 3] = T(NaN)
+    @test_throws geometry neighbor_list!(dnl, todevice(bad), todevice(C))
+    @test Array(dnl.status)[1:2] == [1, -1] && Array(dnl.n_edges) == [0]
     thin = copy(C)
     thin[3, 3] = T(1.0e-5)
     @test_throws geometry PureMLIP.device_neighbor_list(todevice(P[:, 1:1]), todevice(thin), r_max)
@@ -324,7 +329,7 @@ end
     dnl = PureMLIP.device_neighbor_list(dP, dC, 5.0)
     @test_throws "gpu: positions have size (3, 31), the neighbor list has 32 atoms" neighbor_list!(dnl, dP[:, 1:31], dC)
     @test_throws "gpu: all arrays must be on the backend of the positions" neighbor_list!(dnl, dP, OtherMatrix(C))
-    @test_throws "gpu: positions and cell must have element type $T" neighbor_list!(dnl, todevice(Float16.(P)), dC)
+    @test_throws "gpu: positions and cell must have the list's element type $T, got Float16 and $T" neighbor_list!(dnl, todevice(Float16.(P)), dC)
     # A view of the first columns of a wider device array is accepted and gives the same list.
     wide = todevice(hcat(P, zeros(T, 3, 3)))
     before = map(Array, (dnl.senders, dnl.shifts, dnl.reverse))
@@ -417,4 +422,58 @@ end
     end
     @test grid[7] > 0 && sum(slots) > 1
     @test isempty(StrictMode.conversion_report(ext; from = Float32, to = Float64))
+end
+
+# The flags that real structures of test size cannot reach: a count of 2^31 - 1 edges or more, which
+# the prefix sum saturates instead of wrapping and the capacity check reports, and an edge whose
+# reverse is not in the list. A backend without atomic operations is refused before any launch.
+@testitem "neighbor list on the device: counts beyond Int32, missing reverse edges and backends without atomics" tags = [:gpu] setup = [GPUBackend, DeviceLists] begin
+    using KernelAbstractions
+    ext = Base.get_extension(PureMLIP, :PureMLIPGPUExt)
+    top = typemax(Int32)
+    building = Int32[1, 0, 0, 0, 0]
+    grid = todevice(zeros(Int32, 7))
+    # The device prefix sum over more entries than work items, past typemax(Int32).
+    a = fill(Int32(2)^23, 600)
+    expected = Int32.(min.(cumsum(Int64.(a)), Int64(top)))
+    @test expected[255] < top && expected[256] == top
+    d = todevice(a)
+    ext._scan!(d, todevice(building), grid, length(a), backend)
+    @test Array(d) == expected
+    d = todevice(Int32[1, top - 5, 3, 4])
+    ext._scan!(d, todevice(building), grid, 4, backend)
+    @test Array(d) == Int32[1, top - 4, top - 1, top]
+    # A saturated last row pointer is reported as too many edges, not as a count.
+    status, n_edges = copy(building), Int32[7]
+    ext._capacity!(n_edges, status, Int32[1, 5, top], 2, 100)
+    @test status[2] == -2 && n_edges == [0]
+    status = copy(building)
+    ext._capacity!(n_edges, status, Int32[1, 5, 9], 2, 100)
+    @test status[2] == 0 && n_edges == [8]
+    @test_throws "gpu: the neighbor list has 2^31 - 1 edges or more, more than its Int32 edge indices hold" ext._check_list_flags(Int32[1, -2, 0, 0, 0])
+    @test_throws "gpu: the neighbor list status holds the unknown code -7" ext._check_list_flags(Int32[1, -7, 0, 0, 0])
+    # Edges sorted by receiver: 1 (2 → 1, shift 0) and 3 (1 → 2, shift 0) are each other's reverse;
+    # edge 2 (2 → 1, shift (1, 0, 0)) has no reverse.
+    senders, receivers = Int32[2, 2, 1], Int32[1, 1, 2]
+    shifts = Int32[0 1 0; 0 0 0; 0 0 0]
+    row_ptr, reverse = Int32[1, 3, 4], zeros(Int32, 3)
+    status = copy(building)
+    for e in 1:3
+        ext._reverse_edge!(reverse, senders, receivers, shifts, status, row_ptr, Int32[3], e)
+    end
+    @test reverse == Int32[3, 0, 1]
+    @test status[2] == -3
+    @test_throws "gpu: an edge of the neighbor list has no reverse edge" ext._check_list_flags(status)
+
+    struct NoAtomicsBackend <: KernelAbstractions.Backend end
+    KernelAbstractions.supports_atomics(::NoAtomicsBackend) = false
+    struct NoAtomicsMatrix{T} <: AbstractMatrix{T}
+        data::Matrix{T}
+    end
+    Base.size(A::NoAtomicsMatrix) = size(A.data)
+    Base.getindex(A::NoAtomicsMatrix, i::Int, j::Int) = A.data[i, j]
+    KernelAbstractions.get_backend(::NoAtomicsMatrix) = NoAtomicsBackend()
+    cu = DeviceLists.cu_bench(2)
+    P, C = NoAtomicsMatrix(Float32.(permutedims(cu.positions))), NoAtomicsMatrix(Float32.(cu.cell))
+    @test_throws "gpu: the neighbor list needs atomic operations, which NoAtomics does not support" PureMLIP.device_neighbor_list(P, C, 5.0)
 end
