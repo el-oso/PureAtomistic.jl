@@ -389,3 +389,59 @@ file = "ext/PureMLIPGPUExt/tensors/linear.jl"
 find = "transpose(view(dsl.W, :, :, s, p))"
 replace = "view(dsl.W, :, :, s, p)"
 expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
+
+[[mutation]]
+name = "device-list-bin-stride"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "        id += stride * b\n"
+replace = "        id += b\n"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-reach-floor"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "grid[k + 3] = max(1, unsafe_trunc(Int, ceil(span[k])))"
+replace = "grid[k + 3] = max(1, unsafe_trunc(Int, floor(span[k])))"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-bin-order"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "while t >= lo && bin_atoms[t] > a"
+replace = "while t >= lo && bin_atoms[t] < a"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-scan-offset"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "        total[t] = acc\n"
+replace = "        total[t] = v\n"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-search-part-end"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "(fld((part + 1) * offsets, _SEARCH_PARTS) - 1)"
+replace = "(fld((part + 1) * offsets, _SEARCH_PARTS) - 2)"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-reverse-shift-sign"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "shifts[1, f] == -n1 &&"
+replace = "shifts[1, f] == n1 &&"
+expect = "neighbor list on the device: edges equal the CPU list"
+
+[[mutation]]
+name = "device-list-skin-half"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "        half = nl.skin / 2\n"
+replace = "        half = nl.skin\n"
+expect = "neighbor list on the device: the skin criterion"
+
+[[mutation]]
+name = "device-list-cell-change-ignored"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "            moved |= cell[k] != reference_cell[k]\n"
+replace = "            moved |= false\n"
+expect = "neighbor list on the device: the skin criterion"

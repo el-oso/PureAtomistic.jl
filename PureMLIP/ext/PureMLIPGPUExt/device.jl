@@ -77,17 +77,26 @@ const STATUS_ZERO_LENGTH = 5
 const STATUS_LENGTH = 5
 
 """
-    DeviceNeighborList{T, B, VI, MI}
+    DeviceNeighborList{T, B, VI, MI, M}
 
 A neighbor list on the backend `backend`, with the edges of `NeighborList` sorted by receiver and
 stored as `Int32`: edge `e` runs from `senders[e]` to `receivers[e]` with lattice translation
 `shifts[:, e]`, and the edges of receiver `i` are `row_ptr[i]:row_ptr[i + 1] - 1`. `reverse[e]` is
 the edge from `receivers[e]` to `senders[e]` with translation `-shifts[:, e]`. The arrays have
-`capacity` columns; `n_edges[1]` of them are valid. The edges are those within `r_cut + skin`.
+`capacity` columns; `n_edges[1]` of them are valid, and the slots past them hold zeros. The edges
+are those within `cutoff`, which is `r_cut + skin` rounded once to `T`.
 `status` holds five flags written on the device, at the indices named by the `STATUS_*`
 constants: rebuilt, capacity overflow, sampler cap reached, unknown element and zero-length edge.
+
+The remaining fields are the scratch of `neighbor_list!`, which rebuilds the list on the device
+(`neighbors.jl`): the reciprocal cell, the grid (`grid[1:3]` cells per lattice direction,
+`grid[4:6]` cells searched on each side, `grid[7]` their product), each atom's lattice image and
+grid cell, the atoms sorted by grid cell (`bin_atoms`, with `bin_start` and `bin_fill` sized for
+one grid cell per atom), the first edge slot of each part of each receiver's search (`slots`),
+the positions and cell of the last build, and `host_status`, the host
+copy of `status` that `neighbor_list!` reads back.
 """
-struct DeviceNeighborList{T, B <: Backend, VI <: AbstractVector{Int32}, MI <: AbstractMatrix{Int32}}
+struct DeviceNeighborList{T, B <: Backend, VI <: AbstractVector{Int32}, MI <: AbstractMatrix{Int32}, M <: AbstractMatrix{T}}
     backend::B
     r_cut::T
     skin::T
@@ -100,6 +109,18 @@ struct DeviceNeighborList{T, B <: Backend, VI <: AbstractVector{Int32}, MI <: Ab
     reverse::VI
     n_edges::VI
     status::VI
+    cutoff::T
+    reciprocal::M               # 3 × 3, rows are the reciprocal lattice vectors (without 2π)
+    grid::VI                    # 7
+    image::MI                   # 3 × n
+    bin::MI                     # 3 × n, 0-based grid cell of each atom
+    bin_start::VI               # max(n, 1) + 1
+    bin_fill::VI                # max(n, 1)
+    bin_atoms::VI               # n
+    slots::VI                   # n · _SEARCH_PARTS + 1
+    reference::M                # 3 × n
+    reference_cell::M           # 3 × 3
+    host_status::Vector{Int32}
 end
 
 # The receiver CSR of the first `n_edges` edges of `nl` and the index of each edge's reverse.
@@ -132,29 +153,12 @@ function _device_neighbor_list(nl::NeighborList{T}, backend::Backend, r_cut::T, 
     E, capacity = nl.n_edges, length(nl.senders)
     padded(v) = (w = zeros(Int32, capacity); w[1:E] = view(v, 1:E); w)
     up(A) = _upload(backend, A)
-    return DeviceNeighborList(
-        backend, r_cut, skin, nl.n_atoms, capacity, up(row_ptr), up(padded(nl.receivers)), up(padded(nl.senders)),
-        up(Int32.(nl.shifts)), up(padded(reverse)), up(Int32[E]), _device_zeros(backend, Int32, (STATUS_LENGTH,)),
-    )
+    edges = (up(row_ptr), up(padded(nl.receivers)), up(padded(nl.senders)), up(Int32.(nl.shifts)), up(padded(reverse)), up(Int32[E]))
+    return _new_list(backend, T, r_cut, skin, T(nl.r_cut), nl.n_atoms, capacity, edges, _list_scratch(backend, T, nl.n_atoms))
 end
 
 PureMLIP.device_neighbor_list(nl::NeighborList{T}, backend::Backend) where {T <: AbstractFloat} =
     _device_neighbor_list(nl, backend, T(nl.r_cut), zero(T))
-
-# The edges within `r_cut + skin` are found on the host from copies of `positions` and `cell`.
-# Each call copies the arrays to the host and back, so it is not for use inside an MD step.
-function PureMLIP.device_neighbor_list(
-        positions::AbstractMatrix, cell::AbstractMatrix, r_cut::Real; skin::Real = 0, extra_capacity::Integer = 0
-    )
-    _require_one_based(positions, cell)
-    backend = _common_backend(positions, cell)
-    T = eltype(positions)
-    eltype(cell) === T || throw(ArgumentError(lazy"gpu: positions and cell must share one element type, got $T and $(eltype(cell))"))
-    T <: AbstractFloat || throw(ArgumentError(lazy"gpu: positions must hold floating-point numbers, got $T"))
-    skin >= 0 || throw(ArgumentError(lazy"gpu: the skin must not be negative, got $skin"))
-    nl = neighbor_list(Array(positions), Array(cell), r_cut + skin; extra_capacity)
-    return _device_neighbor_list(nl, backend, T(r_cut), T(skin))
-end
 
 """
     DeviceMACEWorkspace{T, B, V, M, A3, VI}

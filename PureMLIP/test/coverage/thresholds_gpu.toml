@@ -14,3 +14,4 @@
 "ext/PureMLIPGPUExt/reduce.jl" = 1.00
 "ext/PureMLIPGPUExt/tensors/contraction.jl" = 1.00
 "ext/PureMLIPGPUExt/backward.jl" = 1.00
+"ext/PureMLIPGPUExt/neighbors.jl" = 1.00

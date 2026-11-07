@@ -251,7 +251,8 @@ end
 # The gate is the measured figure on the CPU backend on macOS, where it was measured, and twice it
 # on other platforms; on Metal the largest fewest-of-five rounded up to 1,000,000 and 2,020,000
 # bytes (0.9 % and 0.5 % above it).
-# `neighbor_list!` on device types is not covered by this item.
+# `neighbor_list!` on device types is gated in "neighbor list on the device: host bytes per call of
+# neighbor_list!".
 @testitem "backward: host bytes per call of the device evaluations" tags = [:gpu] setup = [GPUBackend, DeviceStructures, EdgeStages] begin
     @noinline call_bytes(f::F, a, b, c, d, e, g, h) where {F} = @allocated f(a, b, c, d, e, g, h)
     function fewest_bytes(f, args)

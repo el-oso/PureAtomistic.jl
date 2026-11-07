@@ -1,0 +1,222 @@
+{
+  "backend": "Metal",
+  "cases": [
+    {
+      "atoms": 500,
+      "cu_bench": 5,
+      "edges": 39000,
+      "evaluation_ms": 68.06450000000001,
+      "keep_ms": 0.1907085,
+      "md": [
+        {
+          "runs": [
+            {
+              "capacity": 42900,
+              "rebuilds": 100,
+              "seconds": 7.2980625,
+              "skin": 0.0
+            },
+            {
+              "capacity": 42900,
+              "rebuilds": 100,
+              "seconds": 7.638607209,
+              "skin": 0.0
+            }
+          ],
+          "seconds": 7.2980625,
+          "skin": 0.0
+        },
+        {
+          "runs": [
+            {
+              "capacity": 47300,
+              "rebuilds": 8,
+              "seconds": 7.929998666,
+              "skin": 0.5
+            },
+            {
+              "capacity": 47300,
+              "rebuilds": 8,
+              "seconds": 7.955172583,
+              "skin": 0.5
+            }
+          ],
+          "seconds": 7.929998666,
+          "skin": 0.5
+        },
+        {
+          "runs": [
+            {
+              "capacity": 73700,
+              "rebuilds": 4,
+              "seconds": 11.322131666,
+              "skin": 1.0
+            },
+            {
+              "capacity": 73700,
+              "rebuilds": 4,
+              "seconds": 11.274679,
+              "skin": 1.0
+            }
+          ],
+          "seconds": 11.274679,
+          "skin": 1.0
+        },
+        {
+          "runs": [
+            {
+              "capacity": 77000,
+              "rebuilds": 0,
+              "seconds": 11.652187375,
+              "skin": 1.5
+            },
+            {
+              "capacity": 77000,
+              "rebuilds": 0,
+              "seconds": 11.907296167,
+              "skin": 1.5
+            }
+          ],
+          "seconds": 11.652187375,
+          "skin": 1.5
+        }
+      ],
+      "rebuild_fraction": 0.008523474057695274,
+      "rebuild_ms": 0.580146,
+      "rounds_evaluation_ms": [
+        68.12225000000001,
+        68.1277495,
+        68.0482085,
+        68.02618749999999,
+        68.06450000000001
+      ],
+      "rounds_keep_ms": [
+        0.447854,
+        0.18843749999999998,
+        0.19102049999999998,
+        0.1907085,
+        0.17195850000000001
+      ],
+      "rounds_rebuild_ms": [
+        1.8019379999999998,
+        0.580146,
+        0.5840415,
+        0.573229,
+        0.571979
+      ]
+    },
+    {
+      "atoms": 10976,
+      "cu_bench": 14,
+      "edges": 856128,
+      "evaluation_ms": 1306.9512705,
+      "keep_ms": 0.2169375,
+      "md": [
+        {
+          "runs": [
+            {
+              "capacity": 941741,
+              "rebuilds": 100,
+              "seconds": 140.189342917,
+              "skin": 0.0
+            },
+            {
+              "capacity": 941741,
+              "rebuilds": 100,
+              "seconds": 140.909369625,
+              "skin": 0.0
+            }
+          ],
+          "seconds": 140.189342917,
+          "skin": 0.0
+        },
+        {
+          "runs": [
+            {
+              "capacity": 1038330,
+              "rebuilds": 10,
+              "seconds": 153.609641084,
+              "skin": 0.5
+            },
+            {
+              "capacity": 1038330,
+              "rebuilds": 10,
+              "seconds": 154.369869625,
+              "skin": 0.5
+            }
+          ],
+          "seconds": 153.609641084,
+          "skin": 0.5
+        },
+        {
+          "runs": [
+            {
+              "capacity": 1617863,
+              "rebuilds": 5,
+              "seconds": 223.746580792,
+              "skin": 1.0
+            },
+            {
+              "capacity": 1617863,
+              "rebuilds": 5,
+              "seconds": 224.602656833,
+              "skin": 1.0
+            }
+          ],
+          "seconds": 223.746580792,
+          "skin": 1.0
+        },
+        {
+          "runs": [
+            {
+              "capacity": 1690304,
+              "rebuilds": 0,
+              "seconds": 236.223255458,
+              "skin": 1.5
+            },
+            {
+              "capacity": 1690304,
+              "rebuilds": 0,
+              "seconds": 236.850138625,
+              "skin": 1.5
+            }
+          ],
+          "seconds": 236.223255458,
+          "skin": 1.5
+        }
+      ],
+      "rebuild_fraction": 0.002902317466319032,
+      "rebuild_ms": 3.7931875,
+      "rounds_evaluation_ms": [
+        1306.9512705,
+        1306.765146,
+        1306.9501665,
+        1307.4402085000002,
+        1307.8876460000001
+      ],
+      "rounds_keep_ms": [
+        0.2028755,
+        0.2121255,
+        0.22925,
+        0.2273335,
+        0.2169375
+      ],
+      "rounds_rebuild_ms": [
+        3.9853955,
+        3.771896,
+        3.778063,
+        3.7964789999999997,
+        3.7931875
+      ]
+    }
+  ],
+  "default_skin": 0.0,
+  "dt_fs": 2.0,
+  "julia": "1.13.3",
+  "model": "mace-mpa-0-medium",
+  "precision": "Float32",
+  "rebuild_under_threshold": true,
+  "steps": 100,
+  "temperature_K": 1300.0,
+  "threshold": 0.02
+}

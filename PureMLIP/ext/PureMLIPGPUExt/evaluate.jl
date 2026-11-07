@@ -143,9 +143,12 @@ end
     return nothing
 end
 
-# Throws for the flags that an evaluation sets; the arrays are copied to the host only to name the
+# Throws for the flags that a build of `nl` and an evaluation set; the arrays are copied to the host only to name the
 # culprit.
 function _check_status(status::Vector{Int32}, model::DeviceMACEModel, atomic_numbers, ws::DeviceMACEWorkspace, nl::DeviceNeighborList)
+    _check_geometry(status)
+    m = status[STATUS_OVERFLOW]
+    m > 0 && throw(ArgumentError(lazy"gpu: $m edges exceed the capacity $(nl.capacity)"))
     if !iszero(status[STATUS_UNKNOWN_ELEMENT])
         z = first(z for z in Array(atomic_numbers) if !(z in model.elements))
         throw(ArgumentError(lazy"gpu: atomic number $z is not among the device model's elements $(model.elements)"))

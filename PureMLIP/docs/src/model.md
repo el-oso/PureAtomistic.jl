@@ -152,12 +152,25 @@ using KernelAbstractions, Metal  # KernelAbstractions loads the extension
 backend = MetalBackend()
 P, C = Float32.(positions), Float32.(cell)
 dm = PureMLIP.device_model(model32, backend; elements = unique(atomic_numbers))
-dnl = PureMLIP.device_neighbor_list(neighbor_list(P, C, model32.r_max), backend)  # a copy of a host list
+dP, dC = MtlArray(P), MtlArray(C)
+dnl = PureMLIP.device_neighbor_list(dP, dC, model32.r_max; extra_capacity = 1000)  # built on the device
 n = size(P, 2)
 ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
 res = PureMLIP.device_result(dm, n)
-mace_energy_forces!(res, ws, dm, MtlArray(P), MtlArray(C), MtlArray(Int32.(atomic_numbers)), dnl)
+mace_energy_forces!(res, ws, dm, dP, dC, MtlArray(Int32.(atomic_numbers)), dnl)
+neighbor_list!(dnl, dP, dC)  # after the positions have changed, on the device
 ```
+
+`device_neighbor_list(positions, cell, r_cut; skin, extra_capacity)` builds the list on the
+device with the grid of the CPU's `neighbor_list`, so its edges, their order and the map from
+each edge to its reverse equal those of `neighbor_list(positions, cell, r_cut + skin)` in the same
+precision; `PureMLIP.device_neighbor_list(nl, backend)` copies a host list instead.
+`neighbor_list!` rebuilds it on the device when an atom has moved by more than half the skin since
+the last build or the cell has changed (every call when the skin is 0, the default), and reads back
+only the list's status word. When the edges exceed the capacity it throws, and the list holds no
+edges until it is built anew with `device_neighbor_list`; an evaluation with such a list throws
+the same error. The default skin is 0 because a rebuild costs under 1 % of an evaluation on Metal
+(`bench/results/gpu_neighbor_skin_metal.json`).
 
 The results stay on the device; `Array(res.forces)` copies them to the host. The forces are
 gathered per atom over the edges it receives, through the list's map from each edge to its
@@ -166,15 +179,16 @@ operations and repeats bit for bit. Metal has no Float64, so a model on Metal is
 `MACEModel{Float32}`. The device backward pass supports at most 256 channels;
 `device_model` throws an `ArgumentError` for a model with more, before any launch.
 
-The device `mace_energy!` and `mace_energy_forces!` are the second exception to "`!` functions do
-not allocate": each call allocates host memory for its kernel launches, its matrix products and
-the one read of the device's status word. Measured on cu_bench(2) (32 Cu atoms, MACE-MPA-0, one
-element, the workspace defaults), as the fewest bytes of five calls:
+The device `mace_energy!`, `mace_energy_forces!` and `neighbor_list!` are the second exception to
+"`!` functions do not allocate": each call allocates host memory for its kernel launches, its
+matrix products and the one read of the device's status word. Measured on cu_bench(2) (32 Cu atoms,
+MACE-MPA-0, one element, the workspace defaults; for `neighbor_list!` a 6 Å cutoff, a call that
+rebuilds and one that keeps the list), as the fewest bytes of five calls:
 
-| backend | `mace_energy!` | `mace_energy_forces!` |
-|---|---|---|
-| KernelAbstractions CPU (Julia 1.12 and 1.13, Float32 and Float64) | 1,168 | 2,400 |
-| Metal, Apple M6 (Julia 1.13, Float32) | 991,408 to 991,504 | 2,007,888 to 2,009,344 |
+| backend | `mace_energy!` | `mace_energy_forces!` | `neighbor_list!` (rebuild / keep) |
+|---|---|---|---|
+| KernelAbstractions CPU (Julia 1.12 and 1.13, Float32 and Float64) | 1,168 | 2,400 | 0 / 0 |
+| Metal, Apple M6 (Julia 1.13, Float32) | 991,408 to 991,504 | 2,007,888 to 2,009,344 | 10,048 / 11,760 |
 
 On Metal one `mul!` allocates 3,008 bytes on the host, and the symmetric contraction runs one
 matrix product per channel, so most of the figure grows with the channels, the contraction
