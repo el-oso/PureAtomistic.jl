@@ -3669,5 +3669,13 @@
   "precision": "Float32",
   "device_memory_bytes": 26800603136,
   "node_layout_note": "The edge-chunk sweeps of cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n).",
-  "messages_note": "The messages rows and the spherical_harmonics+messages fusion pairs of cu_bench(14) are the extension's messages kernel (one work item per channel and receiver, the message in registers) in the (C, n, K) node layout; the copy reference of that run is messages_copy_reference."
+  "messages_note": "The messages rows and the spherical_harmonics+messages fusion pairs of cu_bench(14) are the extension's messages kernel (one work item per channel and receiver, the message in registers) in the (C, n, K) node layout; the copy reference of that run is messages_copy_reference.",
+  "contraction_block": {
+    "case": "cu_bench(14)",
+    "precision": "Float32",
+    "device": "Apple M6",
+    "forward_pass_ms": {"1024": 393, "4096": 360, "all_atoms": 356},
+    "note": "Full forward mace_energy! at contraction_block 1024, 4096 and one block of every atom."
+  },
+  "bandwidth_note": "The copy reference varies by about 30 % between runs, so it is not a ceiling: a fraction of 90 to 112 % of copy means the kernel runs at the copy kernel's rate. bytes_unique counts the matrix M once, although the kernel reads and writes it."
 }

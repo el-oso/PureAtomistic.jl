@@ -26,7 +26,8 @@ arrays on that backend, and `res.energy[1]` and `res.node_energies` are filled. 
 run in chunks of `ws.edge_chunk` edge slots, the node stages over every atom, and the energy is a
 fixed-shape tree sum of the node energies, so an evaluation repeats bit for bit. Afterwards the
 host reads the status word of `nl` once and throws if an atomic number is not among the model's
-`elements` or two atoms are at one place.
+`elements` or two atoms are at one place. After a throw the contents of `res` and of the
+workspace are undefined.
 """
 function PureMLIP.mace_energy!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
@@ -47,7 +48,7 @@ function PureMLIP.mace_energy!(
     # Embedding and interaction 0, product 0, and the inputs of interaction 1.
     _launch!(_embedding_kernel!, backend, (C, n), ws.h0, model.embedding, ws.species)
     _linear!(ws.x[1], model.up[1], ws.h0)
-    _interaction!(ws, model, 1, nl, numbers, _tp_table(m.conv[1]))
+    _interaction!(ws, model, 1, nl, numbers, model.tables[1])
     _linear!(ws.L0, model.linear[1], ws.M[1])
     _launch!(_normalize_kernel!, backend, (C, n, size(ws.L0, 3)), ws.L0, view(ws.density, :, 1))
     _species_linear!(ws.X1, model.skip[1], ws.L0, ws.species, list, ws.dX1, backend)
@@ -59,7 +60,7 @@ function PureMLIP.mace_energy!(
     _linear!(ws.e1, model.readout0, ws.h1)
 
     # Interaction 1 with the ZBL pair repulsion, product 1 with the skip connection, the readout.
-    _interaction!(ws, model, 2, nl, numbers, _tp_table(m.conv[2]))
+    _interaction!(ws, model, 2, nl, numbers, model.tables[2])
     _linear!(ws.X2, model.linear[2], ws.M[2])
     _launch!(_normalize_kernel!, backend, (C, n, size(ws.X2, 3)), ws.X2, view(ws.density, :, 2))
     _symmetric_contraction!(ws.B[2], model.contraction[2], ws.X2, ws.species, n, Zf(2), Yc(2), backend)

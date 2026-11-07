@@ -1,16 +1,17 @@
 # The device model, neighbor list, workspace and result, and the entry points that build them.
 
 """
-    DeviceMACEModel{T, B, V, M, A3, A4, VI, IM}
+    DeviceMACEModel{T, B, V, M, A3, A4, VI, IM, TB}
 
 A `MACEModel{T}` with every parameter array copied to the backend `backend` (the array types are
 `V`, `M`, `A3` and `A4` by rank, `VI` and `IM` for `Int32` vectors and matrices). `host` is the
 model it was built from, for its sizes and scalars. The device model evaluates only the atomic
 numbers in `elements`: `species[z + 1]` is the model's species index of `z` when `z` is in
 `elements`, and 0 otherwise. The contraction matrices of both product blocks are built on the
-host for these species and uploaded. Build it with `device_model`.
+host for these species and uploaded. `tables` holds the coupling table of each convolution as a `Val`
+(`_tp_table`), so that the kernels specialized on it dispatch statically. Build it with `device_model`.
 """
-struct DeviceMACEModel{T, B <: Backend, V, M, A3, A4, VI, IM}
+struct DeviceMACEModel{T, B <: Backend, V, M, A3, A4, VI, IM, TB <: NTuple{2, Val}}
     backend::B
     host::MACEModel{T}
     elements::Vector{Int}
@@ -31,6 +32,7 @@ struct DeviceMACEModel{T, B <: Backend, V, M, A3, A4, VI, IM}
     product_linear::NTuple{2, DeviceE3nnLinear{T, A3, V}}
     readout0::DeviceE3nnLinear{T, A3, V}
     readout1::NTuple{2, DeviceE3nnLinear{T, A3, V}}
+    tables::TB
 end
 
 function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) where {T <: AbstractFloat}
@@ -51,7 +53,8 @@ function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) 
     cm = ntuple(k -> DeviceContractionMatrices(backend, model.product[k], species), Val(2))
     sp = up(map_host)
     up_lin = map(lin, model.up)
-    return DeviceMACEModel{T, typeof(backend), typeof(e0), typeof(emb), typeof(up_lin[1].W), typeof(cm[1].F), typeof(sp), typeof(cm[1].pairs)}(
+    tables = map(_tp_table, model.conv)
+    return DeviceMACEModel{T, typeof(backend), typeof(e0), typeof(emb), typeof(up_lin[1].W), typeof(cm[1].F), typeof(sp), typeof(cm[1].pairs), typeof(tables)}(
         backend, model, unique(zs), sp, e0, emb,
         up(model.radial.bessel_weights), up(model.radial.covalent_radii), up(model.zbl.covalent_radii),
         up_lin, map(m -> map(up, m.W), model.mlp), map(up, model.density),
@@ -59,6 +62,7 @@ function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) 
         map(sl -> DeviceSpeciesLinear(backend, sl), model.skip),
         map(sc -> DeviceSymmetricContraction(backend, sc), model.product), cm,
         map(lin, model.product_linear), lin(model.readout0), map(lin, model.readout1),
+        tables,
     )
 end
 
@@ -238,8 +242,9 @@ end
 const DEFAULT_EDGE_CHUNK = 2^14
 
 # The default `contraction_block` of `device_workspace`, in atoms. On cu_bench(14) (Float32, Metal)
-# the forward pass takes 1 % longer than with one block of every atom, with 455 MB of contraction
-# buffers in place of 1.2 GB; blocks of 1024 atoms take 9 % longer.
+# the forward pass takes 360 ms with blocks of 4096 atoms, 356 ms with one block of every atom (1 %
+# less) and 393 ms with blocks of 1024 atoms (9 % more); one block of every atom takes 1.2 GB of
+# contraction buffers in place of 455 MB (bench/results/gpu_stage_profile_metal.json).
 const DEFAULT_CONTRACTION_BLOCK = 4096
 
 function PureMLIP.device_workspace(

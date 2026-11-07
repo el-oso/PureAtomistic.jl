@@ -27,11 +27,12 @@ device_neighbor_list(nl::NeighborList, backend) = _no_device_backend(backend)
 device_neighbor_list(positions, cell, r_cut; skin = 0, extra_capacity = 0) = _no_device_backend(positions)
 
 """
-    device_workspace(model, n_atoms, n_edges; edge_chunk)
+    device_workspace(model, n_atoms, n_edges; edge_chunk, contraction_block)
 
-Scratch arrays for evaluating a device model. Needs the `PureMLIPGPUExt` extension.
+Scratch arrays for evaluating a device model: per-edge buffers for chunks of `edge_chunk` edge slots, and
+symmetric-contraction buffers for blocks of `contraction_block` atoms. Needs the `PureMLIPGPUExt` extension.
 """
-device_workspace(model, n_atoms, n_edges; edge_chunk) = _no_device_backend(model)
+device_workspace(model, n_atoms, n_edges; edge_chunk = nothing, contraction_block = nothing) = _no_device_backend(model)
 
 """
     device_result(model, n_atoms)

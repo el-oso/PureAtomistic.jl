@@ -7,6 +7,8 @@
     @test_throws msg PureMLIP.device_neighbor_list(nl, nothing)
     @test_throws msg PureMLIP.device_neighbor_list([0.0 1.5; 0.0 0.0; 0.0 0.0], [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0], 4.0)
     @test_throws msg PureMLIP.device_workspace(m, 2, 4; edge_chunk = 8)
+    @test_throws msg PureMLIP.device_workspace(m, 2, 4; edge_chunk = 8, contraction_block = 16)
+    @test_throws msg PureMLIP.device_workspace(m, 2, 4)
     @test_throws msg PureMLIP.device_result(m, 2)
     @test isnothing(Base.get_extension(PureMLIP, :PureMLIPGPUExt))
 end
