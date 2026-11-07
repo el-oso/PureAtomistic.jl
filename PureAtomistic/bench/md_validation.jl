@@ -28,7 +28,7 @@
 #          wall-clock budget; a VacancyTracker follows the vacancy.
 #
 # Each mode writes into PureAtomistic/bench/results/md_<mode>.json (nve appends one entry per dt).
-using JSON, Statistics, Dates, Printf
+using JSON, Statistics, Dates, Printf, Serialization
 include(joinpath(@__DIR__, "cells.jl"))
 include(joinpath(@__DIR__, "autocorrelation.jl"))
 include(joinpath(@__DIR__, "validation_criteria.jl"))
@@ -295,15 +295,29 @@ function run_vacancy(dt, budget)
     segment_ps = parse(Float64, get(ENV, "PUREATOMISTIC_SEGMENT_PS", "0"))
     segments = 0
     waited = 0.0
+    compute = 0.0  # seconds of simulation, without the waits for the lock
+    resumed_from = 0
+    # State at the end of a segment: everything a continuation needs besides the potential, which is
+    # evaluated again at the stored positions.
+    ckpt = joinpath(TRAJ_DIR, "vacancy$(SUFFIX)_checkpoint.jls")
+    if get(ENV, "PUREATOMISTIC_RESUME", "0") == "1"
+        c = Serialization.deserialize(ckpt)
+        sys.positions .= c.positions; sys.velocities .= c.velocities
+        sim.step_count = c.step_count; copy!(sim.rng, c.rng)
+        tracker, Tseries, tseries = c.tracker, c.Tseries, c.tseries
+        segments, waited, compute, resumed_from = c.segments, c.waited, c.compute, c.step_count
+        PP.prepare!(pot, sys.positions, sys.cell); PP.energy_forces!(pot, sys.positions, sys.cell)
+    end
     token = lock_acquire()
     t_wall = time()
+    t_seg = time()
     function observe(s)
         tt = s.step_count * dt
         update!(tracker, s.system.positions, tt)
         write_frame(traj, tt, s.system.positions; cell = s.system.cell, energy = s.potential.result.energy)
         push!(tseries, tt); push!(Tseries, temperature(s.system))
         if tracker.nframes % 100 == 0
-            @printf("  t %.1f ps  frames %d  hops %d  T %.0f K  wall %.0f s\n", tt / 1000, tracker.nframes, tracker.nhops, Tseries[end], time() - t_wall)
+            @printf("  t %.1f ps  frames %d  hops %d  T %.0f K  wall %.0f s\n", tt / 1000, tracker.nframes, tracker.nhops, Tseries[end], compute + time() - t_seg)
             flush(stdout)
         end
         return nothing
@@ -320,11 +334,17 @@ function run_vacancy(dt, budget)
                 while sim.step_count < stop
                     run!(sim, min(100 * every, stop - sim.step_count); every, observer = observe)
                 end
+                compute += time() - t_seg
+                state = (; positions = copy(sys.positions), velocities = copy(sys.velocities), step_count = sim.step_count, rng = copy(sim.rng), tracker, Tseries, tseries, segments, waited, compute)
+                Serialization.serialize(ckpt * ".tmp", state); mv(ckpt * ".tmp", ckpt; force = true)
+                @printf("segment %d done: %.1f ps, %d hops, %.0f s of simulation\n", segments, sim.step_count * dt / 1000, tracker.nhops, compute)
+                flush(stdout)
                 if sim.step_count < total
                     lock_release(token)
                     t0 = time()
                     token = lock_acquire()
                     waited += time() - t0
+                    t_seg = time()
                 end
             end
         else
@@ -335,7 +355,8 @@ function run_vacancy(dt, budget)
     catch err
         status, message = "stopped", sprint(showerror, err)
     end
-    wall = time() - t_wall - waited
+    status == "completed" || (compute += time() - t_seg)
+    wall = budget isa Tuple ? compute : time() - t_wall - waited
     lock_release(token)
     close(traj)
     n = tracker.nframes
@@ -347,7 +368,8 @@ function run_vacancy(dt, budget)
                 "natoms" => N, "cells" => nrep, "temperature_K" => Tset, "dt_fs" => dt, "tau_fs" => 100.0, "seed" => seed,
                 "wall_budget_seconds" => budget isa Tuple ? nothing : budget, "simulated_ps_target" => budget isa Tuple ? budget[2] : nothing, "wall_seconds" => wall, "nchunks" => nchunks, "segments" => segments, "segment_ps" => segment_ps,
                 "lock_released_between_segments" => segments > 1 && !isempty(LOCK_SCRIPT), "lock_wait_seconds" => waited,
-                "state_across_segments" => "one process; positions, velocities, generators and tracker stay in memory",
+                "checkpoint_each_segment" => segment_ps > 0, "resumed_from_step" => resumed_from,
+                "state_across_segments" => "positions, velocities, generator, tracker and series are stored at the end of each segment and continue exactly; a resumed run starts from the last stored segment",
                 "frame_interval_fs" => frame_fs,
                 "tracker_window_frames" => window, "tracker_dwell_frames" => dwell, "initial_velocities_K" => Tset,
                 "volume" => "fixed at the lattice constant of the zero-temperature crystal",
