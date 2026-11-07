@@ -246,8 +246,8 @@ expect = "forward: coincident atoms throw"
 [[mutation]]
 name = "device-force-reverse-edge-sign"
 file = "ext/PureMLIPGPUExt/backward.jl"
-find = "acc += dEdr[a, reverse[e]] - dEdr[a, e]"
-replace = "acc += dEdr[a, reverse[e]] + dEdr[a, e]"
+find = "acc += g - dEdr[a, e]"
+replace = "acc += g + dEdr[a, e]"
 expect = "backward: forces, virial and stress agree"
 
 [[mutation]]
@@ -466,3 +466,24 @@ file = "ext/PureMLIPGPUExt/neighbors.jl"
 find = "    iszero(rev) && (status[STATUS_OVERFLOW] = _MISSING_REVERSE)\n"
 replace = "    nothing\n"
 expect = "neighbor list on the device: counts beyond Int32"
+
+[[mutation]]
+name = "device-force-missing-reverse-unguarded"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "g = rev > 0 ? dEdr[a, rev] : zero(T)"
+replace = "g = dEdr[a, rev]"
+expect = "backward: a list with an edge without a reverse throws"
+
+[[mutation]]
+name = "device-status-overflow-not-returned"
+file = "ext/PureMLIPGPUExt/evaluate.jl"
+find = "m > 0 && return m"
+replace = "m > 0 && return 0"
+expect = "backward: the unread entry points and the status check"
+
+[[mutation]]
+name = "device-list-capacity-fraction-ignored"
+file = "ext/PureMLIPGPUExt/neighbors.jl"
+find = "ceil(Int, Float64(extra_capacity_fraction) * m)"
+replace = "0"
+expect = "backward: the unread entry points and the status check"

@@ -30,14 +30,20 @@ status word of the neighbor list once (`p.readbacks` counts every read), and `ki
 `total_energy` and `temperature` of the simulation each read one scalar summed on the device.
 `copy_state!` copies the positions, velocities and cell to a host system at the output interval.
 
-When a step packs more edges than the device list has room for, the potential rebuilds its list
-and workspace with `extra_capacity_fraction` spare edges (default 0.1), evaluates again, counts it
-in `p.n_regrows` and reports it on standard error. Spare edges cost evaluation time (10 % costs
-5.6 % on Metal at 10,976 atoms); in 2,000 steps of 2 fs of 500 Cu atoms near 1300 K at constant
-volume the edge count stayed within 3.5 % below and 0.005 % above that of the first step, and a
-rebuild took 8 ms against 68 ms for an evaluation (`bench/results/gpu_capacity_margin_metal.json`).
+When a step packs more edges than the device list has room for, the potential builds a new list
+and workspace with `extra_capacity_fraction` spare edges (default 0.05), evaluates again, counts it
+in `p.n_regrows` and reports it on standard error. That step reads the status word twice (both
+counted in `p.readbacks`), and the new list reads its edge count and its status word back while it
+is built (not counted). The old list and workspace stay allocated until the garbage collector frees
+them. Spare edges cost evaluation time: on Metal at 10,976 atoms, 10 % costs 5.6 % per evaluation,
+so the default 5 % costs about 2.8 %. In 2,000 steps of 2 fs of 500 Cu atoms near 1300 K at
+constant volume the edge count stayed within 3.5 % below and 0.005 % above that of the first step,
+and a rebuild took 8 ms against 68 ms for an evaluation
+(`bench/results/gpu_capacity_margin_metal.json`), so a rare regrowth is cheap.
 
 A step allocates host memory for its kernel launches and the status read, an exception to the
 rule that `!` functions do not allocate: 2,464 bytes on the KernelAbstractions CPU backend and
 about 457,000 bytes on Metal for the tiny test checkpoint, both gated by the GPU test suite, which
-also checks that the device memory in use stays the same over 1,000 steps.
+also checks that the device memory in use stays the same over 1,000 steps. With MACE-MPA-0 on 32
+Cu atoms a step allocates 2,400 bytes on the CPU backend and about 2.02 MB on Metal, almost all of
+it the evaluation's matrix products.

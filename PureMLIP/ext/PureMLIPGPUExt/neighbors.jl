@@ -70,13 +70,14 @@ function _check_list_arguments(positions::AbstractMatrix, cell::AbstractMatrix)
 end
 
 """
-    device_neighbor_list(positions, cell, r_cut; skin = 0, extra_capacity = 0) -> DeviceNeighborList
+    device_neighbor_list(positions, cell, r_cut; skin = 0, extra_capacity = 0, extra_capacity_fraction = 0) -> DeviceNeighborList
 
 The edges within `r_cut + skin` of the device arrays `positions` (`3 × n`) and `cell` (lattice
 vectors as columns), built on their backend; they equal those of `neighbor_list(positions, cell,
-r_cut + skin)` in the same order. The capacity is the number of edges plus `extra_capacity`. The
-build reads the edge count back to size the list, so this is not for use inside an MD step;
-`neighbor_list!` rebuilds an existing list there.
+r_cut + skin)` in the same order. With `m` edges found, the capacity is
+`m + extra_capacity + ceil(extra_capacity_fraction · m)`. The build reads the edge count back to
+size the list and then the status word of the sized list (two copies to the host), so this is not
+for use inside an MD step; `neighbor_list!` and `device_rebuild!` rebuild an existing list there.
 
 The default skin is 0: on Metal (Apple M6, Float32, MACE-MPA-0) a rebuild costs 0.85 % of a
 `mace_energy_forces!` at cu_bench(5) (0.58 of 68 ms) and 0.29 % at cu_bench(14) (3.8 of 1307 ms),
@@ -89,7 +90,8 @@ at cu_bench(14), `mace_energy_forces!` takes 5.6 % longer with 10 % spare slots 
 50 % (`bench/results/gpu_capacity_cost_metal.json`).
 """
 function PureMLIP.device_neighbor_list(
-        positions::AbstractMatrix, cell::AbstractMatrix, r_cut::Real; skin::Real = 0, extra_capacity::Integer = 0
+        positions::AbstractMatrix, cell::AbstractMatrix, r_cut::Real; skin::Real = 0, extra_capacity::Integer = 0,
+        extra_capacity_fraction::Real = 0
     )
     T = eltype(positions)
     eltype(cell) === T || throw(ArgumentError(lazy"gpu: positions and cell must share one element type, got $T and $(eltype(cell))"))
@@ -98,6 +100,8 @@ function PureMLIP.device_neighbor_list(
     (isfinite(r_cut) && r_cut > 0) || throw(ArgumentError(lazy"gpu: r_cut must be positive and finite, got $r_cut"))
     (isfinite(skin) && skin >= 0) || throw(ArgumentError(lazy"gpu: the skin must not be negative, got $skin"))
     extra_capacity >= 0 || throw(ArgumentError(lazy"gpu: extra_capacity must not be negative, got $extra_capacity"))
+    (isfinite(extra_capacity_fraction) && extra_capacity_fraction >= 0) ||
+        throw(ArgumentError(lazy"gpu: extra_capacity_fraction must be finite and non-negative, got $extra_capacity_fraction"))
     n = size(positions, 2)
     cutoff = T(Float64(r_cut) + Float64(skin))
     s = _list_scratch(backend, T, n)
@@ -107,7 +111,7 @@ function PureMLIP.device_neighbor_list(
     copyto!(probe.host_status, probe.status)
     _check_list_flags(probe.host_status)
     m = Int(probe.host_status[STATUS_OVERFLOW])
-    capacity = m + Int(extra_capacity)
+    capacity = m + Int(extra_capacity) + ceil(Int, Float64(extra_capacity_fraction) * m)
     nl = _new_list(backend, T, T(r_cut), T(skin), cutoff, n, capacity, _empty_edges(backend, n, capacity), s)
     _rebuild!(nl, positions, cell, true)
     _read_list_status!(nl, positions, cell)
@@ -131,7 +135,13 @@ empty and throws; so do 2^31 - 1 edges or more (`-2`), which the `Int32` edge in
 An edge whose reverse is missing sets `-3` and throws. Every one of these flags stays set until
 the list is built anew.
 """
-function PureMLIP.neighbor_list!(nl::DeviceNeighborList{T}, positions::AbstractMatrix, cell::AbstractMatrix) where {T}
+function PureMLIP.neighbor_list!(nl::DeviceNeighborList, positions::AbstractMatrix, cell::AbstractMatrix)
+    PureMLIP.device_rebuild!(nl, positions, cell)
+    _read_list_status!(nl, positions, cell)
+    return nl
+end
+
+function PureMLIP.device_rebuild!(nl::DeviceNeighborList{T}, positions::AbstractMatrix, cell::AbstractMatrix) where {T}
     _check_list_arguments(positions, cell)
     _common_backend(positions, nl.status)
     (eltype(positions) === T && eltype(cell) === T) ||
@@ -139,7 +149,6 @@ function PureMLIP.neighbor_list!(nl::DeviceNeighborList{T}, positions::AbstractM
     size(positions, 2) == nl.n_atoms ||
         throw(DimensionMismatch(lazy"gpu: positions have size $(size(positions)), the neighbor list has $(nl.n_atoms) atoms"))
     _rebuild!(nl, positions, cell, false)
-    _read_list_status!(nl, positions, cell)
     return nl
 end
 

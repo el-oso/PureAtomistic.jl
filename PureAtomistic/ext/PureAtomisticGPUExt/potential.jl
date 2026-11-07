@@ -1,12 +1,6 @@
 # `DeviceMACEPotential`: a MACE potential whose model, neighbor list, workspace and result live on
 # a KernelAbstractions backend, and `to_device`, which copies a system there.
 
-# The module of PureMLIP's GPU extension, reached through a device type that it defines. An
-# extension cannot name another package's extension when it loads, since that one may load after
-# it; the module of a concrete type is a constant to inference, so calls through it dispatch
-# statically.
-_mlip(x) = parentmodule(typeof(x))
-
 """
     DeviceMACEPotential{T, M, L, W, R, VI, V} <: AbstractStressPotential
 
@@ -20,13 +14,21 @@ its backend.
 
 [`prepare!`](@ref) rebuilds the list on the device and reads nothing back.
 [`energy_forces!`](@ref) evaluates on the device and then reads the status word of the list once.
-When the configuration holds more edges than the list has room for, the evaluation is redone
-with a list and a workspace built with `extra_capacity_fraction` times as many edges again as the
-configuration holds, reported on standard error and counted in `n_regrows`. Every copy from
-device to host memory that the potential makes after it is built (each status read, and each
-scalar read of the energy queries of a `Simulation`) is counted in `readbacks`; the construction
-of a neighbor list (by `device_potential` and at a regrowth) reads back on its own and is not
-counted.
+When the configuration holds more edges than the list has room for, the list and the workspace
+are built anew for the configuration with `extra_capacity_fraction` times as many edges again as
+it holds (default 0.05), the evaluation is redone, and the regrowth is reported on standard error
+and counted in `n_regrows`. Every copy from device to host memory that the potential makes after it
+is built (each status read, and each scalar read of the energy queries of a `Simulation`) is
+counted in `readbacks`: one per step, and two in a step that regrows, whose new list also reads
+its edge count and its status word back inside `device_neighbor_list` (two copies that are not
+counted). The list of `device_potential` reads back the same two.
+
+Spare edges cost evaluation time, since the per-edge kernels run over every slot: on Metal at
+cu_bench(14), 10 % spare slots cost 5.6 % per evaluation and 50 % cost 23.6 %, so the default 5 %
+costs about 2.8 %. In 2,000 steps of 2 fs of 500 Cu atoms near 1300 K at constant volume the edge
+count stayed within 3.5 % below and 0.005 % above that of the first step, and a regrowth took 8 ms
+against 68 ms for an evaluation (`bench/results/gpu_capacity_margin_metal.json`): regrowth is
+cheap, and it is logged.
 """
 mutable struct DeviceMACEPotential{T <: AbstractFloat, M, L, W, R, VI <: AbstractVector{Int32}, V <: AbstractVector{T}} <: AbstractStressPotential
     const model::M
@@ -45,7 +47,7 @@ mutable struct DeviceMACEPotential{T <: AbstractFloat, M, L, W, R, VI <: Abstrac
 end
 
 function PureAtomistic.device_potential(
-        model::MACEModel{T}, sys::System{T}; skin, extra_capacity_fraction = 0.1
+        model::MACEModel{T}, sys::System{T}; skin, extra_capacity_fraction = 0.05
     ) where {T <: AbstractFloat}
     backend = _system_backend(sys)
     (isfinite(skin) && skin >= 0) ||
@@ -58,8 +60,7 @@ function PureAtomistic.device_potential(
     dm = PureMLIP.device_model(model, backend; elements = sort!(unique(species)))
     numbers = allocate(backend, Int32, n)
     copyto!(numbers, Int32.(species))
-    count = PureMLIP.device_neighbor_list(sys.positions, sys.cell, model.r_max; skin).capacity
-    nl = _sized_list(sys.positions, sys.cell, model.r_max, skin, fraction, count)
+    nl = PureMLIP.device_neighbor_list(sys.positions, sys.cell, model.r_max; skin, extra_capacity_fraction = fraction)
     ws = PureMLIP.device_workspace(dm, n, nl.capacity)
     res = PureMLIP.device_result(dm, n)
     z(k) = KernelAbstractions.zeros(backend, T, k)
@@ -77,10 +78,6 @@ function _system_backend(sys::System)
         throw(ArgumentError("pureatomistic: the arrays of the system must all live on one backend"))
     return backend
 end
-
-# A device list for `count` edges with room for `fraction` more.
-_sized_list(positions, cell, r_cut, skin, fraction::Float64, count::Int) =
-    PureMLIP.device_neighbor_list(positions, cell, r_cut; skin, extra_capacity = ceil(Int, fraction * count))
 
 """
     to_device(sys::System, backend::KernelAbstractions.Backend) -> System
@@ -122,42 +119,51 @@ end
 # every other flag of the build, is acted on by the status read of `energy_forces!`.
 function Potentials.prepare!(p::DeviceMACEPotential, positions::AbstractMatrix, cell::AbstractMatrix)::Nothing
     _check_configuration(p, positions, cell)
-    _mlip(p.nl)._rebuild!(p.nl, positions, cell, false)
+    PureMLIP.device_rebuild!(p.nl, positions, cell)
     return nothing
 end
 
 # One status read after the evaluation. An overflow empties the list, so the evaluation it read
-# saw no edges; the list and workspace are rebuilt and the evaluation is redone before any flag is
-# trusted. The other flags throw.
+# saw no edges; the list and workspace are rebuilt and the evaluation is redone before any result
+# is used. The other flags throw.
 function Potentials.energy_forces!(p::DeviceMACEPotential, positions::AbstractMatrix, cell::AbstractMatrix)::Nothing
     _check_configuration(p, positions, cell)
-    ext = _mlip(p.nl)
     _evaluate!(p, positions, cell)
-    if _read_status!(p)[ext.STATUS_OVERFLOW] > 0
+    _read_status!(p)
+    if PureMLIP.check_device_status(p.ws, p.model, p.numbers, p.nl) > 0
         _regrow!(p, positions, cell)
         _evaluate!(p, positions, cell)
         _read_status!(p)
+        # A list built for this configuration holds its edges; an overflow here is a defect.
+        m = PureMLIP.check_device_status(p.ws, p.model, p.numbers, p.nl)
+        iszero(m) || throw(ArgumentError(lazy"pureatomistic: the rebuilt neighbor list overflowed its capacity with $m edges"))
     end
-    ext._check_status(p.ws.status, p.model, p.numbers, p.ws, p.nl)
     return nothing
 end
 
 _evaluate!(p::DeviceMACEPotential, positions, cell) =
-    _mlip(p.nl)._energy_forces_unread!(p.result, p.ws, p.model, positions, cell, p.numbers, p.nl)
+    PureMLIP.device_energy_forces!(p.result, p.ws, p.model, positions, cell, p.numbers, p.nl)
 
-# The only copy from device to host memory after construction; `p.readbacks` counts them.
+# Every copy from device to host memory after construction goes through `_read_status!`, which
+# counts it in `p.readbacks`: the status word of the list, or a scalar of the energy queries.
+function _read_status!(p::DeviceMACEPotential)
+    PureMLIP.read_device_status!(p.ws, p.nl)
+    p.readbacks += 1
+    return nothing
+end
+
 function _read_status!(p::DeviceMACEPotential, host::Vector, device::AbstractVector)
     copyto!(host, device)
     p.readbacks += 1
     return host
 end
-_read_status!(p::DeviceMACEPotential) = _read_status!(p, p.ws.status, p.nl.status)
 
-# The only allocating path of `energy_forces!`: a list and a workspace for the edge count that the
-# overflowed build found, with the potential's spare capacity.
+# The only allocating path of `energy_forces!`: a list built for the configuration (which reads
+# the edge count and then the status word back, two copies that `readbacks` does not count) and a
+# workspace for its capacity. The old list and workspace stay allocated until the garbage
+# collector frees them, so a regrowth briefly holds both.
 @noinline function _regrow!(p::DeviceMACEPotential, positions, cell)
-    count = Int(p.ws.status[_mlip(p.nl).STATUS_OVERFLOW])
-    p.nl = _sized_list(positions, cell, p.nl.r_cut, p.skin, p.extra_capacity_fraction, count)
+    p.nl = PureMLIP.device_neighbor_list(positions, cell, p.nl.r_cut; skin = p.skin, extra_capacity_fraction = p.extra_capacity_fraction)
     p.ws = PureMLIP.device_workspace(p.model, Potentials.n_atoms(p), p.nl.capacity)
     p.n_regrows += 1
     print(Core.stderr, "pureatomistic: DeviceMACEPotential rebuilt its neighbor list and buffers with capacity ", p.nl.capacity, " edges\n")

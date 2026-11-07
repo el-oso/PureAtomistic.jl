@@ -34,11 +34,17 @@ function _check_motion(sys::System, p::DeviceMACEPotential)
     return nothing
 end
 
-_kick!(sys::System{T}, p::DeviceMACEPotential{T}, τ::T) where {T} = _mlip(p.nl)._launch!(
+# Launches `kernel` on `backend` over `ndrange`; a launch with no work items is skipped.
+function _launch!(kernel, backend::Backend, ndrange, args...)
+    prod(ndrange) > 0 && kernel(backend)(args...; ndrange)
+    return nothing
+end
+
+_kick!(sys::System{T}, p::DeviceMACEPotential{T}, τ::T) where {T} = _launch!(
     _kick_kernel!, p.nl.backend, (3, Potentials.n_atoms(p)), sys.velocities, p.result.forces, sys.masses, τ, T(AMU_IN_EV_FS2_PER_A2)
 )
 _drift!(sys::System{T}, p::DeviceMACEPotential{T}, h::T) where {T} =
-    _mlip(p.nl)._launch!(_drift_kernel!, p.nl.backend, (3, Potentials.n_atoms(p)), sys.positions, sys.velocities, h)
+    _launch!(_drift_kernel!, p.nl.backend, (3, Potentials.n_atoms(p)), sys.positions, sys.velocities, h)
 
 @kernel function _kick_kernel!(V, @Const(F), @Const(m), τ, c)
     k, a = @index(Global, NTuple)
@@ -92,10 +98,10 @@ end
 function _energy_readback!(sim::Simulation{T}, with_potential::Bool) where {T}
     sys, p = sim.system, sim.potential
     _check_motion(sys, p)
-    ext, backend, n = _mlip(p.nl), p.nl.backend, Potentials.n_atoms(p)
-    ext._launch!(_kinetic_kernel!, backend, n, p.kinetic, sys.velocities, sys.masses)
-    ext._sum!(p.kinetic_sum, p.kinetic, n, backend)
-    ext._launch!(_energy_kernel!, backend, 1, p.scalar, p.kinetic_sum, p.result.energy, T(AMU_IN_EV_FS2_PER_A2 / 2), with_potential)
+    backend, n = p.nl.backend, Potentials.n_atoms(p)
+    _launch!(_kinetic_kernel!, backend, n, p.kinetic, sys.velocities, sys.masses)
+    PureMLIP.device_sum!(p.kinetic_sum, p.kinetic, n)
+    _launch!(_energy_kernel!, backend, 1, p.scalar, p.kinetic_sum, p.result.energy, T(AMU_IN_EV_FS2_PER_A2 / 2), with_potential)
     return _read_status!(p, p.host_scalar, p.scalar)[1]
 end
 

@@ -10,6 +10,12 @@
     @test_throws msg PureMLIP.device_workspace(m, 2, 4; edge_chunk = 8, contraction_block = 16)
     @test_throws msg PureMLIP.device_workspace(m, 2, 4)
     @test_throws msg PureMLIP.device_result(m, 2)
+    @test_throws msg PureMLIP.device_neighbor_list([0.0 1.5; 0.0 0.0; 0.0 0.0], [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0], 4.0; extra_capacity_fraction = 0.1)
+    @test_throws msg PureMLIP.device_rebuild!(nl, zeros(3, 2), zeros(3, 3))
+    @test_throws msg PureMLIP.device_energy_forces!(nothing, nothing, m, zeros(3, 2), zeros(3, 3), [29, 29], nl)
+    @test_throws msg PureMLIP.read_device_status!(nothing, nl)
+    @test_throws msg PureMLIP.check_device_status(nothing, m, [29, 29], nl)
+    @test_throws msg PureMLIP.device_sum!(zeros(1), zeros(2), 2)
     @test isnothing(Base.get_extension(PureMLIP, :PureMLIPGPUExt))
 end
 

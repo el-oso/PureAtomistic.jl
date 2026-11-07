@@ -172,6 +172,16 @@ edges until it is built anew with `device_neighbor_list`; an evaluation with suc
 the same error. The default skin is 0 because a rebuild costs under 1 % of an evaluation on Metal
 (`bench/results/gpu_neighbor_skin_metal.json`).
 
+A caller that rebuilds the list and evaluates in one step and reads the status word back once for
+both (the MD step of PureAtomistic) uses the parts of `neighbor_list!` and `mace_energy_forces!`:
+`PureMLIP.device_rebuild!(dnl, dP, dC)` and `PureMLIP.device_energy_forces!(res, ws, dm, dP, dC,
+dZ, dnl)` launch their kernels and read nothing back, `PureMLIP.read_device_status!(ws, dnl)` reads
+the status word, and `PureMLIP.check_device_status(ws, dm, dZ, dnl)` throws for every flag except
+an overflow of the capacity, whose edge count it returns so that the caller can build a larger
+list (`device_neighbor_list(...; extra_capacity_fraction)` sizes it as a fraction of the edges
+found) and evaluate again. `PureMLIP.device_sum!(out, x, n)` is the fixed-order device sum of the
+energy.
+
 The results stay on the device; `Array(res.forces)` copies them to the host. The forces are
 gathered per atom over the edges it receives, through the list's map from each edge to its
 reverse, and the energy and virial are fixed-shape tree sums, so an evaluation uses no atomic

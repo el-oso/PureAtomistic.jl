@@ -227,6 +227,10 @@ end
             (mace_energy!, types, typeof(res)), (mace_energy_forces!, types, typeof(res)),
             (PureMLIP.device_result, (typeof(dm), Int), typeof(res)), (workspace, (typeof(dm), Int, Int), typeof(ws)),
             (PureMLIP.device_neighbor_list, (typeof(nl), typeof(backend)), typeof(dnl)),
+            (PureMLIP.device_energy_forces!, types, typeof(res)), (PureMLIP.read_device_status!, (typeof(ws), typeof(dnl)), Vector{Int32}),
+            (PureMLIP.check_device_status, (typeof(ws), typeof(dm), types[6], typeof(dnl)), Int),
+            (PureMLIP.device_rebuild!, (typeof(dnl), types[4], types[5]), typeof(dnl)),
+            (PureMLIP.device_sum!, (typeof(res.energy), typeof(res.node_energies), Int), typeof(res.energy)),
         )
         for (f, tt, rt) in sigs
             @test Base.return_types(f, tt) == [rt]
@@ -368,4 +372,70 @@ end
     ext._readout_slope!(g, randn(rng, T, 4), m.readout_cst, 1)
     @test isfinite(part[1]) && any(!iszero, dw) && any(!iszero, dx) && any(!iszero, F)
     @test isempty(StrictMode.conversion_report(ext; from = Float32, to = Float64))
+end
+
+# A list whose status word holds -3 (an edge without a reverse, which the build marks with a
+# reverse of 0) still runs the whole backward pass before the status read. The force gather skips
+# that edge's reverse term instead of indexing outside the edge gradients (the items run with
+# --check-bounds=yes), and the read throws the list's message.
+@testitem "backward: a list with an edge without a reverse throws without reading outside the edges" tags = [:gpu] setup = [GPUBackend, DeviceStructures] begin
+    T = first(precisions)
+    m = tiny(T)
+    s = structures(T)[1]
+    P, C, Z = s.positions, s.cell, s.atomic_numbers
+    n = size(P, 2)
+    dm = PureMLIP.device_model(m, backend; elements = [29])
+    dnl = PureMLIP.device_neighbor_list(neighbor_list(P, C, Float64(m.r_max)), backend)
+    ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
+    res = PureMLIP.device_result(dm, n)
+    rev = Array(dnl.reverse)
+    rev[1] = 0
+    copyto!(dnl.reverse, rev)
+    status = Array(dnl.status)
+    status[2] = -3
+    copyto!(dnl.status, status)
+    @test_throws "gpu: an edge of the neighbor list has no reverse edge" mace_energy_forces!(res, ws, dm, todevice(P), todevice(C), todevice(Z), dnl)
+    @test all(isfinite, Array(res.forces))
+end
+
+# The entry points of a step that reads the status word once: `device_rebuild!` launches the
+# build and reads nothing, `device_energy_forces!` evaluates and reads nothing, and
+# `read_device_status!` with `check_device_status` act on both: an overflow is returned as the
+# number of edges found, not thrown, and after a valid build the device evaluation equals
+# `mace_energy_forces!` bit for bit (the same kernels). `device_sum!` equals the device energy's
+# own tree sum of the node energies.
+@testitem "backward: the unread entry points and the status check" tags = [:gpu] setup = [GPUBackend, DeviceStructures] begin
+    T = first(precisions)
+    m = tiny(T)
+    s = structures(T)[1]
+    P, C, Z = s.positions, s.cell, s.atomic_numbers
+    n = size(P, 2)
+    r_max = Float64(m.r_max)
+    dP, dC, dZ = todevice(P), todevice(C), todevice(Z)
+    count = neighbor_list(P, C, r_max).n_edges
+    dnl = PureMLIP.device_neighbor_list(dP, dC, r_max; extra_capacity = 2, extra_capacity_fraction = 0.05)
+    @test dnl.capacity == count + 2 + ceil(Int, 0.05 * count)
+    @test_throws "gpu: extra_capacity_fraction must be finite and non-negative, got -0.1" PureMLIP.device_neighbor_list(dP, dC, r_max; extra_capacity_fraction = -0.1)
+    dm = PureMLIP.device_model(m, backend; elements = [29])
+    ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
+    res, ref = PureMLIP.device_result(dm, n), PureMLIP.device_result(dm, n)
+    mace_energy_forces!(ref, ws, dm, dP, dC, dZ, dnl)
+    @test PureMLIP.device_rebuild!(dnl, dP, dC) === dnl
+    @test PureMLIP.device_energy_forces!(res, ws, dm, dP, dC, dZ, dnl) === res
+    @test PureMLIP.read_device_status!(ws, dnl) === ws.status
+    @test PureMLIP.check_device_status(ws, dm, dZ, dnl) == 0
+    @test Array(res.forces) == Array(ref.forces) && Array(res.energy) == Array(ref.energy)
+    out = todevice(zeros(T, 1))
+    @test PureMLIP.device_sum!(out, res.node_energies, n) === out
+    @test Array(out) == Array(res.energy)
+    @test_throws "gpu: positions and cell must have the list's element type" PureMLIP.device_rebuild!(dnl, todevice(Float16.(P)), todevice(Float16.(C)))
+    # A compressed copy overflows: the build reads nothing back, the check returns the count.
+    f = T(0.8)
+    more = neighbor_list(f * P, f * C, r_max).n_edges
+    @test more > dnl.capacity
+    PureMLIP.device_rebuild!(dnl, todevice(f * P), todevice(f * C))
+    PureMLIP.device_energy_forces!(res, ws, dm, todevice(f * P), todevice(f * C), dZ, dnl)
+    PureMLIP.read_device_status!(ws, dnl)
+    @test PureMLIP.check_device_status(ws, dm, dZ, dnl) == more
+    @test_throws "gpu: $more edges exceed the capacity $(dnl.capacity)" mace_energy_forces!(res, ws, dm, todevice(f * P), todevice(f * C), dZ, dnl)
 end

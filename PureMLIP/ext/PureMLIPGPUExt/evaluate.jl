@@ -34,14 +34,14 @@ function PureMLIP.mace_energy!(
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
     _energy_unread!(res, ws, model, positions, cell, atomic_numbers, nl)
-    copyto!(ws.status, nl.status)
-    _check_status(ws.status, model, atomic_numbers, ws, nl)
+    PureMLIP.read_device_status!(ws, nl)
+    _check_status(ws, model, atomic_numbers, nl)
     return res
 end
 
-# The device `mace_energy!` without its read of the status word: `res` is valid only once
-# `_check_status` passes on a copy of `nl.status` taken afterwards. A caller that launches further
-# kernels first (an MD step) reads the status word once for all of them.
+# The device `mace_energy!` without its read of the status word, the forward pass of
+# `device_energy_forces!`: `res` is valid only once `read_device_status!` has read the status word
+# afterwards and `check_device_status` has returned 0.
 function _energy_unread!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
@@ -154,12 +154,22 @@ end
     return nothing
 end
 
-# Throws for the flags that a build of `nl` and an evaluation set; the arrays are copied to the host only to name the
-# culprit.
-function _check_status(status::Vector{Int32}, model::DeviceMACEModel, atomic_numbers, ws::DeviceMACEWorkspace, nl::DeviceNeighborList)
-    _check_list_flags(status)
-    m = status[STATUS_OVERFLOW]
+PureMLIP.read_device_status!(ws::DeviceMACEWorkspace, nl::DeviceNeighborList) = copyto!(ws.status, nl.status)
+
+# Throws for every flag that a build of `nl` and an evaluation set, the overflow of the capacity
+# included.
+function _check_status(ws::DeviceMACEWorkspace, model::DeviceMACEModel, atomic_numbers, nl::DeviceNeighborList)
+    m = PureMLIP.check_device_status(ws, model, atomic_numbers, nl)
     m > 0 && throw(ArgumentError(lazy"gpu: $m edges exceed the capacity $(nl.capacity)"))
+    return nothing
+end
+
+# The arrays are copied to the host only to name the culprit of a flag.
+function PureMLIP.check_device_status(ws::DeviceMACEWorkspace, model::DeviceMACEModel, atomic_numbers, nl::DeviceNeighborList)::Int
+    status = ws.status
+    _check_list_flags(status)
+    m = Int(status[STATUS_OVERFLOW])
+    m > 0 && return m
     if !iszero(status[STATUS_UNKNOWN_ELEMENT])
         z = first(z for z in Array(atomic_numbers) if !(z in model.elements))
         throw(ArgumentError(lazy"gpu: atomic number $z is not among the device model's elements $(model.elements)"))
@@ -169,5 +179,5 @@ function _check_status(status::Vector{Int32}, model::DeviceMACEModel, atomic_num
         s, q = Array(nl.senders)[e], Array(nl.receivers)[e]
         throw(ArgumentError(lazy"gpu: edge $e from atom $s to atom $q has length zero; the two atoms are at one place"))
     end
-    return nothing
+    return 0
 end

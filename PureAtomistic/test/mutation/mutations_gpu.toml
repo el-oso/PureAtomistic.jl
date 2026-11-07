@@ -39,8 +39,8 @@ expect = "md step: kinetic energy, total energy and temperature equal the CPU's"
 [[mutation]]
 name = "device-md-overflow-ignored"
 file = "ext/PureAtomisticGPUExt/potential.jl"
-find = "if _read_status!(p)[ext.STATUS_OVERFLOW] > 0"
-replace = "if _read_status!(p)[ext.STATUS_OVERFLOW] > typemax(Int32)"
+find = "if PureMLIP.check_device_status(p.ws, p.model, p.numbers, p.nl) > 0"
+replace = "if PureMLIP.check_device_status(p.ws, p.model, p.numbers, p.nl) > typemax(Int)"
 expect = "md step: an edge overflow mid-run regrows once"
 
 [[mutation]]
@@ -53,6 +53,6 @@ expect = "md step: an edge overflow mid-run regrows once"
 [[mutation]]
 name = "device-md-regrow-without-spare"
 file = "ext/PureAtomisticGPUExt/potential.jl"
-find = "extra_capacity = ceil(Int, fraction * count)"
-replace = "extra_capacity = 0"
+find = "skin = p.skin, extra_capacity_fraction = p.extra_capacity_fraction)"
+replace = "skin = p.skin, extra_capacity_fraction = 0)"
 expect = "md step: an edge overflow mid-run regrows once"

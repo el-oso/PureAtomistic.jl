@@ -20,14 +20,13 @@ function PureMLIP.mace_energy_forces!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
-    _energy_forces_unread!(res, ws, model, positions, cell, atomic_numbers, nl)
-    copyto!(ws.status, nl.status)
-    _check_status(ws.status, model, atomic_numbers, ws, nl)
+    PureMLIP.device_energy_forces!(res, ws, model, positions, cell, atomic_numbers, nl)
+    PureMLIP.read_device_status!(ws, nl)
+    _check_status(ws, model, atomic_numbers, nl)
     return res
 end
 
-# The device `mace_energy_forces!` without its read of the status word, as `_energy_unread!`.
-function _energy_forces_unread!(
+function PureMLIP.device_energy_forces!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
@@ -177,7 +176,11 @@ end
     for a in 1:3
         acc = zero(T)
         for e in edges
-            acc += dEdr[a, reverse[e]] - dEdr[a, e]
+            # A reverse of 0 marks an edge without a reverse (status -3, for which the status read
+            # throws); its term is skipped so that no index falls outside `dEdr`.
+            rev = reverse[e]
+            g = rev > 0 ? dEdr[a, rev] : zero(T)
+            acc += g - dEdr[a, e]
         end
         F[a, i] = acc
     end

@@ -118,7 +118,9 @@ end
     for z in (47, 200)
         Zx = copy(Z)
         Zx[5] = z
-        @test_throws "gpu: atomic number $z is not among the device model's elements [29]" mace_energy!(res, ws, dm, dpos, dcell, todevice(Zx), dnl)
+        for f in (mace_energy!, mace_energy_forces!)
+            @test_throws "gpu: atomic number $z is not among the device model's elements [29]" f(res, ws, dm, dpos, dcell, todevice(Zx), dnl)
+        end
     end
     mace_energy!(res, ws, dm, dpos, dcell, todevice(Z), dnl)
     @test isfinite(Array(res.energy)[1])
@@ -140,7 +142,9 @@ end
     Q = copy(P)
     Q[:, 2] = Q[:, 1]
     e = findfirst(e -> nl.senders[e] == 2 && nl.receivers[e] == 1 && iszero(nl.shifts[:, e]), 1:nl.n_edges)
-    @test_throws "gpu: edge $e from atom 2 to atom 1 has length zero" mace_energy!(res, ws, dm, todevice(Q), todevice(C), todevice(Z), dnl)
+    for f in (mace_energy!, mace_energy_forces!)
+        @test_throws "gpu: edge $e from atom 2 to atom 1 has length zero" f(res, ws, dm, todevice(Q), todevice(C), todevice(Z), dnl)
+    end
     mace_energy!(res, ws, dm, todevice(P), todevice(C), todevice(Z), dnl)
     @test isfinite(Array(res.energy)[1])
 end

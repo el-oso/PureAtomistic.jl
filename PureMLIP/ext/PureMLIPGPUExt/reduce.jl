@@ -38,3 +38,10 @@ end
         out[1] = buf[1]
     end
 end
+
+function PureMLIP.device_sum!(out::AbstractVector{T}, x::AbstractVector{T}, n::Integer) where {T}
+    backend = get_backend(x)
+    get_backend(out) == backend || throw(ArgumentError("gpu: all arrays must be on the backend of the summed vector"))
+    _sum!(out, x, Int(n), backend)
+    return out
+end

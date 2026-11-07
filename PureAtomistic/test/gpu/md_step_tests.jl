@@ -23,9 +23,9 @@
     end
 
     # The same simulation with its system and potential on the backend.
-    function device_simulation(::Type{T}, dt, backend; extra_capacity_fraction = 0.1) where {T}
+    function device_simulation(::Type{T}, dt, backend; kw...) where {T}
         sys = PureAtomistic.to_device(host_system(T), backend)
-        p = PureAtomistic.device_potential(tiny(T), sys; skin = 0, extra_capacity_fraction)
+        p = PureAtomistic.device_potential(tiny(T), sys; skin = 0, kw...)
         return Simulation(sys, p, VelocityVerlet(dt); rng = Xoshiro(0))
     end
 
@@ -77,6 +77,7 @@ end
         @test Array(sim.system.masses) == h.masses && Array(sim.system.species) == h.species && Array(sim.system.cell) == h.cell
         @test Array(p.numbers) == Int32.(h.species)
         @test p.n_regrows == 0 && p.readbacks == 1
+        @test p.extra_capacity_fraction == 0.05
     end
 end
 
@@ -215,7 +216,7 @@ end
 end
 
 @testitem "md step: each step reads back the status word once and nothing else" tags = [:gpu] setup = [GPUBackend, DeviceMD] begin
-    using PureAtomistic.Systems
+    using PureAtomistic.Systems, PureMLIP
     for T in precisions
         sim = device_simulation(T, 0.5, backend)
         p = sim.potential
@@ -241,6 +242,28 @@ end
     lines = [strip(l) for f in readdir(dir; join = true) for l in eachline(f)]
     @test filter(l -> occursin("copyto!", l), lines) == ["copyto!(numbers, Int32.(species))", "copyto!(H, A)", "copyto!(D, H)", "copyto!(host, device)"]
     @test filter(l -> occursin(r"\bArray\(", l), lines) == ["species = Array(sys.species)"]
+    # The PureMLIP functions that a step calls (`device_rebuild!`, `device_energy_forces!`,
+    # `read_device_status!`, `check_device_status`, `device_sum!`) copy from device to host only in
+    # `read_device_status!`. The other copies of PureMLIPGPUExt are the two reads of a list build
+    # (`device_neighbor_list`, `neighbor_list!`), the upload of the model, and host copies of
+    # device arrays on the paths that throw, to name the culprit.
+    mdir = joinpath(pkgdir(PureMLIP), "ext", "PureMLIPGPUExt")
+    files = [joinpath(root, f) for (root, _, fs) in walkdir(mdir) for f in fs if endswith(f, ".jl")]
+    mlines = [strip(l) for f in sort(files) for l in eachline(f) if !startswith(strip(l), "#")]
+    @test sort(filter(l -> occursin(r"copyto!|\bArray\(", l), mlines)) == sort(
+        [
+            "PureMLIP.read_device_status!(ws::DeviceMACEWorkspace, nl::DeviceNeighborList) = copyto!(ws.status, nl.status)",
+            "z = first(z for z in Array(atomic_numbers) if !(z in model.elements))",
+            "e = findfirst(iszero, Array(view(ws.d, 1:nl.capacity)))",
+            "s, q = Array(nl.senders)[e], Array(nl.receivers)[e]",
+            "copyto!(probe.host_status, probe.status)",
+            "copyto!(status, nl.status)",
+            "P, C = Array(positions), Array(cell)",
+            "snd, rcv, sh = Array(nl.senders), Array(nl.receivers), Array(nl.shifts)",
+            "for e in 1:Int(Array(nl.n_edges)[1])",
+            "copyto!(D, convert(Array{S}, A))",
+        ]
+    )
 end
 
 # Host bytes allocated by one `step!`, through a compiled function so that the dynamic dispatch
@@ -274,7 +297,7 @@ end
 # The device memory in use does not grow from one step to the next. The vendor's query is written
 # for Metal; on the CPU backend there is no device memory apart from the host's, and the CUDA and
 # AMDGPU queries are written on their machines. Over 500 fs the three atoms' edge count drifts from
-# 14 to as many as 26, which outgrows 10 % of spare room; the list gets room for twice its edges
+# 14 to as many as 26, which outgrows 5 % of spare room; the list gets room for twice its edges
 # more, so that no step regrows it.
 @testitem "md step: device memory does not grow over 1,000 steps" tags = [:gpu] setup = [GPUBackend, DeviceMD] begin
     if GPUBackend.NAME != "Metal"
@@ -297,7 +320,7 @@ end
 
 # Review Focus 2: a step whose configuration holds more edges than the list has room for. The
 # after-drift hook compresses the cell and the positions by 0.85 (the edge count rises from 14 to
-# 50 with room for 16); the evaluation's status read finds the overflow, the potential rebuilds
+# 50 with room for 15); the evaluation's status read finds the overflow, the potential rebuilds
 # its list and workspace once and evaluates again. Oracle: a fresh device list, workspace and
 # result at the same configuration, evaluated by `mace_energy_forces!`; the per-edge stages sum per
 # receiver over its own edges, so the results do not depend on the capacity and equal bit for bit.
@@ -317,7 +340,7 @@ end
         @test p.readbacks == r + 2
         m = Array(p.nl.n_edges)[1]
         @test m > capacity
-        @test p.nl.capacity == m + ceil(Int, 0.1 * m)
+        @test p.nl.capacity == m + ceil(Int, 0.05 * m)
         report("regrow, $(GPUBackend.NAME), $T: capacity $capacity -> $(p.nl.capacity), $m edges")
         dnl = PureMLIP.device_neighbor_list(sys.positions, sys.cell, tiny(T).r_max)
         ws = PureMLIP.device_workspace(p.model, 3, dnl.capacity)

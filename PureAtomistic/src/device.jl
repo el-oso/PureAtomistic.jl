@@ -9,13 +9,13 @@ _no_device_backend(what) = throw(
 )
 
 """
-    device_potential(model::MACEModel{T}, sys::System{T}; skin, extra_capacity_fraction = 0.1)
+    device_potential(model::MACEModel{T}, sys::System{T}; skin, extra_capacity_fraction = 0.05)
 
 A MACE potential for `sys` whose arrays live on the backend of `sys`'s arrays. Needs the
 `PureAtomisticGPUExt` extension. The model and the system must share the element type `T`.
 """
 function device_potential(
-        model::PureMLIP.MACEModel{T}, sys::Systems.System{S}; skin, extra_capacity_fraction = 0.1
+        model::PureMLIP.MACEModel{T}, sys::Systems.System{S}; skin, extra_capacity_fraction = 0.05
     ) where {T, S}
     T === S || throw(ArgumentError(lazy"pureatomistic: the model has element type $T and the system $S; they must match"))
     return _no_device_backend(sys)
