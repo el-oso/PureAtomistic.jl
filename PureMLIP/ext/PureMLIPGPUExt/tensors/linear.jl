@@ -111,3 +111,69 @@ end
     xs[u, i, k] = species[i] == s ? x[u, i, k] : zero(eltype(xs))
     return nothing
 end
+
+"""
+    _linear_pullback!(dx, dl::DeviceE3nnLinear, dy) -> dx
+
+[`linear_pullback!`](@ref PureMLIP.Tensors.linear_pullback!) on node features in the `(C, n, K)`
+layout: for each instruction, one matrix product of its transposed weights with the output slot's
+cotangent, added to the input slot. Overwrites `dx`.
+"""
+function _linear_pullback!(dx::AbstractArray{T, 3}, dl::DeviceE3nnLinear{T}, dy::AbstractArray{T, 3}) where {T}
+    lin = dl.host
+    (size(dy, 1), size(dy, 3)) == (lin.C_out, lin.K_out) && size(dx) == (lin.C_in, size(dy, 2), lin.K_in) ||
+        throw(DimensionMismatch(lazy"gpu: linear pullback from $(size(dy)) to $(size(dx)), expected ($(lin.C_out), n, $(lin.K_out)) to ($(lin.C_in), n, $(lin.K_in))"))
+    fill!(dx, zero(T))
+    for p in eachindex(lin.slots)
+        i, o = lin.slots[p]
+        d = 2 * lin.in_ls[i] + 1
+        mul!(_slot(dx, lin.in_off[i], d), transpose(view(dl.W, :, :, p)), _slot(dy, lin.out_off[o], d), lin.pw[p], true)
+    end
+    return dx
+end
+
+"""
+    _species_linear_pullback!(dx, dsl::DeviceSpeciesLinear, dy, species, list, scratch, backend) -> dx
+
+[`species_linear_pullback!`](@ref PureMLIP.Tensors.species_linear_pullback!) on node features in
+the `(C, n, K)` layout, for nodes whose species index is in `list`, as
+[`_species_linear!`](@ref) computes the forward map: with several species, per species the
+cotangent with the other species' nodes set to zero (in `scratch`, at least as long as `dy`) is
+multiplied by that species' transposed weights and added. Overwrites `dx`.
+"""
+function _species_linear_pullback!(
+        dx::AbstractArray{T, 3}, dsl::DeviceSpeciesLinear{T}, dy::AbstractArray{T, 3}, species::AbstractVector{Int32},
+        list::AbstractVector{Int}, scratch::AbstractArray{T, 3}, backend::Backend
+    ) where {T}
+    sl = dsl.host
+    (size(dy, 1), size(dy, 3)) == (sl.C_out, sl.K) && size(dx) == (sl.C_in, size(dy, 2), sl.K) ||
+        throw(DimensionMismatch(lazy"gpu: species linear pullback from $(size(dy)) to $(size(dx)), expected ($(sl.C_out), n, $(sl.K)) to ($(sl.C_in), n, $(sl.K))"))
+    fill!(dx, zero(T))
+    if length(list) == 1
+        _species_pullback_products!(dx, dsl, dy, only(list))
+    else
+        masked = _front(scratch, size(dy))
+        for s in list
+            _launch!(_mask_kernel!, backend, size(dy), masked, dy, species, s)
+            _species_pullback_products!(dx, dsl, masked, s)
+        end
+    end
+    return dx
+end
+
+function _species_pullback_products!(dx::AbstractArray{T, 3}, dsl::DeviceSpeciesLinear{T}, dy::AbstractArray{T, 3}, s::Int) where {T}
+    sl = dsl.host
+    for p in eachindex(sl.slots)
+        i, o = sl.slots[p]
+        d = 2 * sl.ls[i] + 1
+        mul!(_slot(dx, sl.off[i], d), transpose(view(dsl.W, :, :, s, p)), _slot(dy, sl.off[o], d), sl.c[p], true)
+    end
+    return nothing
+end
+
+# The first `prod(dims)` entries of the buffer `A`, as an array of size `dims`.
+function _front(A::AbstractArray, dims::Dims)
+    len = prod(dims)
+    len <= length(A) || throw(ArgumentError(lazy"gpu: scratch of $(length(A)) entries for an array of size $dims"))
+    return reshape(view(vec(A), 1:len), dims)
+end

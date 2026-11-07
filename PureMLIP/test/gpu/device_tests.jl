@@ -143,6 +143,7 @@ end
         W, H, nb = size(m.mlp[2].W[4], 2), size(m.mlp[1].W[1], 2), length(m.radial.bessel_weights)
         @test size(ws.Y) == (16, 16) && size(ws.dY) == (16, 3, 16) && size(ws.feats) == (nb, 16)
         @test size(ws.tpw) == (W, 16) && size(ws.tpw3) == (m.C, W ÷ m.C, 16) && size(ws.pre) == (H, 16, 3)
+        @test size(ws.dYe) == (16, 16) && size(ws.virial_parts) == (7, 9) && size(ws.virial_sum) == (9,)
         # Per-node buffers are (C, n, K).
         @test size(ws.M[2]) == (m.C, 7, m.conv[2].K_out) && size(ws.X2) == (m.C, 7, m.linear[2].K_out)
         @test size(ws.h0) == (m.C, 7, 1) && size(ws.X1) == (m.C, 7, m.skip[1].K) && size(ws.B[1]) == (m.C, 7, 4)

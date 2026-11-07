@@ -243,3 +243,35 @@ end
     h = T(0.5)
     return h * v * f, h * (dv * f + v * df)
 end
+
+"""
+    _zbl_gradient!(ws, model, nl, atomic_numbers) -> nothing
+
+Sets `ws.dEdr[:, e]` to the ZBL term of ∂E/∂r_e for every edge of `nl`: `scale · v'(d) r_e / d`
+with `v'` the length derivative of the edge's ZBL energy (`_zbl_edge`), the start of the backward
+pass's sum over the terms of each edge.
+"""
+function _zbl_gradient!(ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, nl::DeviceNeighborList, atomic_numbers) where {T}
+    m = model.host
+    _launch!(
+        _zbl_gradient_kernel!, ws.backend, nl.capacity, ws.dEdr, ws.r, ws.d, nl.senders, nl.receivers, nl.n_edges, atomic_numbers,
+        model.zbl_radii, _zbl_params(m.zbl, m.r_max), m.scale,
+    )
+    return nothing
+end
+
+@kernel function _zbl_gradient_kernel!(dEdr, @Const(r), @Const(d), @Const(senders), @Const(receivers), @Const(n_edges), @Const(Z), @Const(radii), P, scale)
+    e = @index(Global)
+    if e <= n_edges[1]
+        _zbl_gradient!(dEdr, r, d, senders, receivers, Z, radii, P, scale, e)
+    end
+end
+
+@inline function _zbl_gradient!(dEdr, r, d, senders, receivers, Z, radii, P, scale, e)
+    Zu, Zv = Int(Z[senders[e]]), Int(Z[receivers[e]])
+    dd = scale * _zbl_edge(d[e], Zu, Zv, radii[Zu + 1] + radii[Zv + 1], P)[2] / d[e]
+    for a in 1:3
+        dEdr[a, e] = dd * r[a, e]
+    end
+    return nothing
+end

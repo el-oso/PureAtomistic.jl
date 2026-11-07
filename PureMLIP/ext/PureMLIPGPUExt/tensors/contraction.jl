@@ -70,3 +70,53 @@ end
     B[c, a, j] = acc
     return nothing
 end
+
+"""
+    _symmetric_contraction_pullback!(dX, dcm::DeviceContractionMatrices, dB, X, species, n, Zf, Yc, backend) -> dX
+
+The matrix-product [`symmetric_contraction_pullback!`](@ref PureMLIP.Tensors.symmetric_contraction_pullback!)
+of the first `n` nodes, in the blocks of [`_symmetric_contraction!`](@ref): the features of each
+block from `X`, per species and channel one matrix product with the pullback matrix `G` into `Yc`,
+and `dX[c, a, w] = Σ_j dB[c, a, j] Yc[(j - 1)L + w, ·, c]` for the block's nodes of that species.
+"""
+function _symmetric_contraction_pullback!(
+        dX::AbstractArray{T, 3}, dcm::DeviceContractionMatrices{T}, dB::AbstractArray{T, 3}, X::AbstractArray{T, 3},
+        species::AbstractVector{Int32}, n::Int, Zf::AbstractArray{T, 3}, Yc::AbstractArray{T, 3}, backend::Backend
+    ) where {T}
+    C, L, K = dcm.C, dcm.L, dcm.K_out
+    nf, ncol = size(dcm.G, 1), size(dcm.G, 2)
+    blk = size(Zf, 2)
+    (size(X, 1), size(X, 3)) == (C, L) && size(dX) == size(X) && size(dB) == (C, size(X, 2), K) && n <= size(X, 2) ||
+        throw(DimensionMismatch(lazy"gpu: symmetric contraction pullback from $(size(dB)) to $(size(dX)) for $n nodes, expected ($C, n, $K) to ($C, n, $L)"))
+    size(Zf) == (nf, blk, C) && size(Yc) == (ncol, blk, C) ||
+        throw(DimensionMismatch(lazy"gpu: contraction buffers of sizes $(size(Zf)) and $(size(Yc)), expected ($nf, $blk, $C) and ($ncol, $blk, $C)"))
+    single = length(dcm.species) == 1
+    for a0 in 0:blk:(n - 1)
+        nblk = min(blk, n - a0)
+        _launch!(_features_kernel!, backend, (nblk, C), Zf, X, dcm.pairs, L, a0)
+        for (j, s) in pairs(dcm.species)
+            for c in 1:C
+                mul!(view(Yc, :, 1:nblk, c), transpose(view(dcm.G, :, :, c, j)), view(Zf, :, 1:nblk, c))
+            end
+            _launch!(_contract_pullback_kernel!, backend, (C, L, nblk), dX, Yc, dB, species, single ? 0 : s, L, K, a0)
+        end
+    end
+    return dX
+end
+
+@kernel function _contract_pullback_kernel!(dX, @Const(Yc), @Const(dB), @Const(species), s, L, K, a0)
+    c, w, r = @index(Global, NTuple)
+    _contract_pullback!(dX, Yc, dB, species, s, L, K, c, w, r, a0 + r)
+end
+
+# dX[c, a, w] = Σ_j dB[c, a, j] Yc[(j - 1)L + w, r, c] for node `a` (block column `r`) when its
+# species is `s`, or for every node when `s` is 0.
+@inline function _contract_pullback!(dX, Yc, dB, species, s, L, K, c, w, r, a)
+    (iszero(s) || species[a] == s) || return nothing
+    acc = zero(eltype(dX))
+    for j in 1:K
+        acc += dB[c, a, j] * Yc[(j - 1) * L + w, r, c]
+    end
+    dX[c, a, w] = acc
+    return nothing
+end

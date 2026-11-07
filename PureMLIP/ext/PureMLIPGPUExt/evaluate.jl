@@ -34,36 +34,61 @@ function PureMLIP.mace_energy!(
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
     _check_evaluation(res, ws, model, positions, cell, atomic_numbers, nl)
+    n = nl.n_atoms
+    numbers = view(ws.numbers, 1:n)
+    _prepare!(ws, model, positions, cell, atomic_numbers, nl)
+    _interaction!(ws, model, 1, nl, numbers, model.tables[1])
+    _first_nodes!(ws, model, n)
+    _interaction!(ws, model, 2, nl, numbers, model.tables[2])
+    _second_nodes!(res, ws, model, n)
+    copyto!(ws.status, nl.status)
+    _check_status(ws.status, model, atomic_numbers, ws, nl)
+    return res
+end
+
+# The species of each atom (checked against the model's elements), the edge vectors and lengths,
+# and the embedding with the sender features of interaction 0.
+function _prepare!(ws::DeviceMACEWorkspace, model::DeviceMACEModel, positions, cell, atomic_numbers, nl::DeviceNeighborList)
     backend, m = ws.backend, model.host
-    n, C = nl.n_atoms, m.C
+    n = nl.n_atoms
     fill!(view(nl.status, STATUS_UNKNOWN_ELEMENT:STATUS_ZERO_LENGTH), zero(Int32))
     z1 = model.elements[1]
     _launch!(_species_kernel!, backend, n, ws.species, ws.numbers, nl.status, atomic_numbers, model.species, Int32(z1), Int32(m.species[z1 + 1]))
     _edges!(ws, positions, cell, nl)
-    numbers = view(ws.numbers, 1:n)
-    list = model.contraction[1].species
-    Zf(k) = _contraction_buffer(ws.Zf, model.contraction[k], 1, ws.contraction_block, C)
-    Yc(k) = _contraction_buffer(ws.Yc, model.contraction[k], 2, ws.contraction_block, C)
-
-    # Embedding and interaction 0, product 0, and the inputs of interaction 1.
-    _launch!(_embedding_kernel!, backend, (C, n), ws.h0, model.embedding, ws.species)
+    _launch!(_embedding_kernel!, backend, (m.C, n), ws.h0, model.embedding, ws.species)
     _linear!(ws.x[1], model.up[1], ws.h0)
-    _interaction!(ws, model, 1, nl, numbers, model.tables[1])
+    return nothing
+end
+
+# Product 0 and the inputs of interaction 1, from the messages of interaction 0.
+function _first_nodes!(ws::DeviceMACEWorkspace, model::DeviceMACEModel, n::Int)
+    backend, m = ws.backend, model.host
+    C = m.C
+    list = model.contraction[1].species
     _linear!(ws.L0, model.linear[1], ws.M[1])
     _launch!(_normalize_kernel!, backend, (C, n, size(ws.L0, 3)), ws.L0, view(ws.density, :, 1))
     _species_linear!(ws.X1, model.skip[1], ws.L0, ws.species, list, ws.dX1, backend)
-    _symmetric_contraction!(ws.B[1], model.contraction[1], ws.X1, ws.species, n, Zf(1), Yc(1), backend)
+    Zf = _contraction_buffer(ws.Zf, model.contraction[1], 1, ws.contraction_block, C)
+    Yc = _contraction_buffer(ws.Yc, model.contraction[1], 2, ws.contraction_block, C)
+    _symmetric_contraction!(ws.B[1], model.contraction[1], ws.X1, ws.species, n, Zf, Yc, backend)
     _linear!(ws.h1, model.product_linear[1], ws.B[1])
     K = m.skip[2].K
     _species_linear!(ws.sc, model.skip[2], view(ws.h1, :, :, 1:K), ws.species, list, view(ws.dX1, :, :, 1:K), backend)
     _linear!(ws.x[2], model.up[2], ws.h1)
     _linear!(ws.e1, model.readout0, ws.h1)
+    return nothing
+end
 
-    # Interaction 1 with the ZBL pair repulsion, product 1 with the skip connection, the readout.
-    _interaction!(ws, model, 2, nl, numbers, model.tables[2])
+# Product 1 with the skip connection, the readout, the energy of each atom and their sum, from the
+# messages of interaction 1.
+function _second_nodes!(res::DeviceMACEResult, ws::DeviceMACEWorkspace, model::DeviceMACEModel, n::Int)
+    backend, m = ws.backend, model.host
+    C = m.C
     _linear!(ws.X2, model.linear[2], ws.M[2])
     _launch!(_normalize_kernel!, backend, (C, n, size(ws.X2, 3)), ws.X2, view(ws.density, :, 2))
-    _symmetric_contraction!(ws.B[2], model.contraction[2], ws.X2, ws.species, n, Zf(2), Yc(2), backend)
+    Zf = _contraction_buffer(ws.Zf, model.contraction[2], 1, ws.contraction_block, C)
+    Yc = _contraction_buffer(ws.Yc, model.contraction[2], 2, ws.contraction_block, C)
+    _symmetric_contraction!(ws.B[2], model.contraction[2], ws.X2, ws.species, n, Zf, Yc, backend)
     _linear!(ws.h2, model.product_linear[2], ws.B[2])
     _launch!(_add_kernel!, backend, length(ws.h2), ws.h2, ws.sc)
     _linear!(ws.gpre, model.readout1[1], ws.h2)
@@ -71,10 +96,7 @@ function PureMLIP.mace_energy!(
     _linear!(ws.e2, model.readout1[2], ws.g)
     _launch!(_node_energy_kernel!, backend, n, res.node_energies, model.e0, ws.species, ws.pair, ws.e1, ws.e2, m.scale, m.shift)
     _sum!(res.energy, res.node_energies, n, backend)
-
-    copyto!(ws.status, nl.status)
-    _check_status(ws.status, model, atomic_numbers, ws, nl)
-    return res
+    return nothing
 end
 
 # The per-edge pass of interaction `k` over the edge chunks in order: radial features and

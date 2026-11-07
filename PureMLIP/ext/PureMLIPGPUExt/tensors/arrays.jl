@@ -58,8 +58,8 @@ function _device_pool(backend::Backend, ::Type{T}, groups::Tuple{Vararg{Tuple{Va
     mem = _pool_block(backend, T, len)
     fill!(mem, zero(T))
     function place(g)
-        len = map(prod, g)
-        return map((offset, dims) -> _pool_member(mem, offset, dims), map(-, accumulate(+, len; init = 0), len), g)
+        sizes = map(prod, g)
+        return map((offset, dims) -> _pool_member(mem, offset, dims), map(-, accumulate(+, sizes; init = 0), sizes), g)
     end
     return map(place, groups)
 end
@@ -74,8 +74,9 @@ _pool_member(mem::Memory, offset::Int, dims::NTuple{3, Int}) =
     Base.wrap(Array, iszero(offset) || iszero(prod(dims)) ? memoryref(mem) : memoryref(mem, offset + 1), dims)
 _pool_member(mem::AbstractVector, offset::Int, dims::NTuple{3, Int}) = reshape(view(mem, (offset + 1):(offset + prod(dims))), dims)
 
-# `_launch!` with work groups of size `workgroupsize`.
+# `_launch!` with work groups of size `workgroupsize`. The size is given at the launch, not to the
+# kernel's constructor, whose type would then depend on its value and dispatch at run time.
 function _launch_grouped!(kernel, backend::Backend, ndrange, workgroupsize, args...)
-    prod(ndrange) > 0 && kernel(backend, workgroupsize)(args...; ndrange)
+    prod(ndrange) > 0 && kernel(backend)(args...; ndrange, workgroupsize)
     return nothing
 end

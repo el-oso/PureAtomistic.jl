@@ -116,8 +116,12 @@ expect = "edge stages: ZBL at short range agrees with its CPU function"
 [[mutation]]
 name = "device-messages-weight-path"
 file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
-find = '$(sym(:w, p)) = w[u, $p, col]'
-replace = '$(sym(:w, p)) = w[u, 1, col]'
+find = '''
+$(sym(:w, p)) = w[u, $p, col]) for p in ps]...)
+            $([:($(sym(:x, a)) = x[u, s, $a])'''
+replace = '''
+$(sym(:w, p)) = w[u, 1, col]) for p in ps]...)
+            $([:($(sym(:x, a)) = x[u, s, $a])'''
 expect = "forward: energy and node energies agree"
 
 [[mutation]]
@@ -144,8 +148,8 @@ expect = "forward: energy and node energies agree"
 [[mutation]]
 name = "device-messages-one-receiver-per-work-item"
 file = "ext/PureMLIPGPUExt/messages.jl"
-find = "for i in (lo + il - 1):R:hi"
-replace = "for i in (lo + il - 1):R:min(hi, lo + R - 1)"
+find = "for i in (lo + il - 1):R:hi\n        edges = _receiver_edges(row_ptr, i, e0, nb)"
+replace = "for i in (lo + il - 1):R:min(hi, lo + R - 1)\n        edges = _receiver_edges(row_ptr, i, e0, nb)"
 expect = "forward: per-receiver kernels cover chunks"
 
 [[mutation]]
@@ -186,15 +190,15 @@ expect = "forward: energy and node energies agree"
 [[mutation]]
 name = "device-contraction-column"
 file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
-find = "Yc[(j - 1) * L + w, r, c]"
-replace = "Yc[(j - 1) * L + 1, r, c]"
+find = "acc += Yc[(j - 1) * L + w, r, c] * X[c, a, w]"
+replace = "acc += Yc[(j - 1) * L + 1, r, c] * X[c, a, w]"
 expect = "forward: energy and node energies agree"
 
 [[mutation]]
 name = "device-contraction-every-species"
 file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
-find = "(iszero(s) || species[a] == s) || return nothing"
-replace = "(iszero(s) || true) || return nothing"
+find = "(iszero(s) || species[a] == s) || return nothing\n    acc = zero(eltype(B))"
+replace = "(iszero(s) || true) || return nothing\n    acc = zero(eltype(B))"
 expect = "forward: energy and node energies agree"
 
 [[mutation]]
@@ -238,3 +242,150 @@ file = "ext/PureMLIPGPUExt/edges.jl"
 find = "iszero(d[e]) && (status[STATUS_ZERO_LENGTH]"
 replace = "false && (status[STATUS_ZERO_LENGTH]"
 expect = "forward: coincident atoms throw"
+
+[[mutation]]
+name = "device-force-reverse-edge-sign"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "acc += dEdr[a, reverse[e]] - dEdr[a, e]"
+replace = "acc += dEdr[a, reverse[e]] + dEdr[a, e]"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-virial-part-component"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "acc += r[b, e] * dEdr[a, e]"
+replace = "acc += r[b, e] * dEdr[b, e]"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-virial-symmetrization-factor"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "+ A[(b - 1) * 3 + a]) / 2"
+replace = "+ A[(b - 1) * 3 + a]) / 4"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-stress-determinant"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "C[1, 1] * (C[2, 2] * C[3, 3] - C[2, 3] * C[3, 2])"
+replace = "C[1, 1] * (C[2, 2] * C[2, 3] - C[2, 3] * C[3, 2])"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-stress-sign"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "stress[b, a] = -w / V"
+replace = "stress[b, a] = w / V"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-message-pullback-weight-cotangent"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = "$(sym(:dw, p)) += (($v * y[$j]) * $(sym(:g, k))) * $(sym(:x, a))"
+replace = "$(sym(:dw, p)) += ($v * y[$j]) * $(sym(:g, k))"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-message-pullback-harmonics-cotangent"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = "$(sym(:dy, j)) += $v * (($(sym(:g, k)) * $(sym(:w, p))) * $(sym(:x, a)))"
+replace = "$(sym(:dy, j)) += ($(sym(:g, k)) * $(sym(:w, p))) * $(sym(:x, a))"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-sender-gradient-parity"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = "parity(j) = iseven(isqrt(j - 1)) ? 1 : -1"
+replace = "parity(j) = 1"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-sender-gradient-cotangent-atom"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = "$(sym(:g, k)) = dM[u, s, $k]"
+replace = "$(sym(:g, k)) = dM[u, i, $k]"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-message-pullback-channel-sum"
+file = "ext/PureMLIPGPUExt/messages.jl"
+find = "        for t in 1:C\n"
+replace = "        for t in 2:C\n"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-edge-gradient-density-term"
+file = "ext/PureMLIPGPUExt/messages.jl"
+find = "dd += (dfc[b, col] + a * wd[b]) * dfeats[b, col]"
+replace = "dd += dfc[b, col] * dfeats[b, col]"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-edge-gradient-length"
+file = "ext/PureMLIPGPUExt/messages.jl"
+find = "    dd /= d[e]\n"
+replace = "\n"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-zbl-gradient-scale"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "dd = scale * _zbl_edge("
+replace = "dd = _zbl_edge("
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-normalization-pullback-sign"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "ddensity[i] = -s / q"
+replace = "ddensity[i] = s / q"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-normalization-pullback-scale"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "dL[u, i, k] /= q"
+replace = "dL[u, i, k] *= q"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-readout-slope"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "dg[q] *= cst * (σ + s * (one(z) - σ))"
+replace = "dg[q] *= cst * σ"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-readout-cotangent-scale"
+file = "ext/PureMLIPGPUExt/backward.jl"
+find = "fill!(ws.de1, m.scale)"
+replace = "fill!(ws.de1, one(T))"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-contraction-pullback-block-column"
+file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
+find = "acc += dB[c, a, j] * Yc[(j - 1) * L + w, r, c]"
+replace = "acc += dB[c, a, j] * Yc[(j - 1) * L + w, 1, c]"
+expect = "backward: forces, virial and stress agree"
+
+[[mutation]]
+name = "device-contraction-pullback-matrix"
+file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
+find = "transpose(view(dcm.G, :, :, c, j))"
+replace = "transpose(view(dcm.F, :, :, c, j))"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-linear-pullback-transpose"
+file = "ext/PureMLIPGPUExt/tensors/linear.jl"
+find = "transpose(view(dl.W, :, :, p))"
+replace = "view(dl.W, :, :, p)"
+expect = "backward: forces"
+
+[[mutation]]
+name = "device-species-linear-pullback-transpose"
+file = "ext/PureMLIPGPUExt/tensors/linear.jl"
+find = "transpose(view(dsl.W, :, :, s, p))"
+replace = "view(dsl.W, :, :, s, p)"
+expect = "backward: forces"

@@ -142,6 +142,45 @@ evaluation starts them again. The neighbor list of a threaded evaluation must ha
 type of the model. A workspace serves one evaluation at a time: a threaded phase started on `ws`
 while another runs, or `close(ws)` during one, throws.
 
+## Evaluation on a GPU
+
+With KernelAbstractions loaded (and Metal, CUDA or AMDGPU for a GPU), the `PureMLIPGPUExt`
+extension evaluates a model on the device that holds its arrays:
+
+```julia
+using KernelAbstractions, Metal  # KernelAbstractions loads the extension
+backend = MetalBackend()
+P, C = Float32.(positions), Float32.(cell)
+dm = PureMLIP.device_model(model32, backend; elements = unique(atomic_numbers))
+dnl = PureMLIP.device_neighbor_list(neighbor_list(P, C, model32.r_max), backend)  # a copy of a host list
+n = size(P, 2)
+ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
+res = PureMLIP.device_result(dm, n)
+mace_energy_forces!(res, ws, dm, MtlArray(P), MtlArray(C), MtlArray(Int32.(atomic_numbers)), dnl)
+```
+
+The results stay on the device; `Array(res.forces)` copies them to the host. The forces are
+gathered per atom over the edges it receives, through the list's map from each edge to its
+reverse, and the energy and virial are fixed-shape tree sums, so an evaluation uses no atomic
+operations and repeats bit for bit. Metal has no Float64, so a model on Metal is a
+`MACEModel{Float32}`.
+
+The device `mace_energy!` and `mace_energy_forces!` are the second exception to "`!` functions do
+not allocate": each call allocates host memory for its kernel launches, its matrix products and
+the one read of the device's status word. Measured on cu_bench(2) (32 Cu atoms, MACE-MPA-0, one
+element, the workspace defaults), as the fewest bytes of five calls:
+
+| backend | `mace_energy!` | `mace_energy_forces!` |
+|---|---|---|
+| KernelAbstractions CPU (Julia 1.12 and 1.13, Float32 and Float64) | 1,168 | 2,400 |
+| Metal, Apple M6 (Julia 1.13, Float32) | 991,408 to 991,504 | 2,007,888 to 2,009,344 |
+
+On Metal one `mul!` allocates 3,008 bytes on the host, and the symmetric contraction runs one
+matrix product per channel, so most of the figure grows with the channels, the contraction
+blocks and the elements; more edge chunks add launches too. The tests gate these figures as
+upper bounds per backend. The device memory does not grow: on Metal the allocated device memory
+reads the same after 10 and after 210 evaluations.
+
 ## The neighbor list
 
 `neighbor_list(positions, cell, r_cut)` returns the directed edges `(sender, receiver, shift)`

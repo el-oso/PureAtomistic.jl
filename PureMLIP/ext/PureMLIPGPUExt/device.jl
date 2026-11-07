@@ -160,15 +160,16 @@ end
 The buffers of an evaluation of a `DeviceMACEModel` on up to `n_atoms` atoms and `n_edges`
 directed edges, on the backend `backend`. Per edge it holds the edge vector `r`, its length `d`
 and the energy gradient `dEdr`. The harmonics `Y` and their gradients `dY`, the radial features
-and their length derivatives, the radial-MLP outputs and their cotangents, its hidden layers and
-the ZBL terms are held for `edge_chunk` edges at a time; a chunk is a range of `edge_chunk`
-consecutive edge slots of the neighbor list (fewer in the last), and a receiver's edges may span
-two chunks. The per-node buffers hold the quantities of the `MACEWorkspace` buffers of the same
+and their length derivatives, the radial-MLP outputs and their cotangents, its hidden layers, the
+ZBL terms and the energy gradient with respect to the harmonics (`dYe`) are held for `edge_chunk`
+edges at a time; a chunk is a range of `edge_chunk` consecutive edge slots of the neighbor list
+(fewer in the last), and a receiver's edges may span two chunks. The per-node buffers hold the quantities of the `MACEWorkspace` buffers of the same
 names, in a `(C, n, K)` layout (channel, atom, e3nn component) in which each slot of degree `l` is
 one contiguous `C × n(2l + 1)` matrix for `mul!`; the summed messages `M`, their cotangents `dM`
 and the first linear output `L0` are held for every atom. They share memory in the pools of
 `MACEWorkspace`. The symmetric contraction builds its features `Zf` and matrix products `Yc` for
-`contraction_block` atoms at a time. `species` and `numbers` hold each atom's species index and
+`contraction_block` atoms at a time. `virial_parts` holds each atom's part of the virial sum and
+`virial_sum` its sum over the atoms. `species` and `numbers` hold each atom's species index and
 atomic number as the species kernel checked them, and `status` is the host copy of the neighbor
 list's status word that an evaluation reads back.
 """
@@ -202,6 +203,7 @@ struct DeviceMACEWorkspace{T, B <: Backend, V <: AbstractVector{T}, M <: Abstrac
     dfeats_chunk::M
     zbl::V                   # edge energies
     dzbl::V                  # and their length derivatives
+    dYe::M                   # 16 × edge_chunk, ∂E/∂Y of each edge
     # per node; pools as in MACEWorkspace, plus `messages` (M[1], M[2], then dM[2], dM[1]) and
     # `linear` (L0, then dL0)
     h0::A3                   # pool `small`
@@ -234,6 +236,8 @@ struct DeviceMACEWorkspace{T, B <: Backend, V <: AbstractVector{T}, M <: Abstrac
     dx::A3                   # ∂E/∂x[2] per sender atom; pool `dx`
     dx0::A3                  # ∂E/∂x[1], never written; pool `dx`
     ddensity::M              # n × 2
+    virial_parts::M          # n × 9, column (a - 1)·3 + b: Σ r[b, e] ∂E/∂r[a, e] over the edges received by each atom
+    virial_sum::V            # 9, the sums of the columns of virial_parts
 end
 
 # The default `edge_chunk` of `device_workspace`: the smallest edge chunk whose per-edge pass on
@@ -287,12 +291,12 @@ function PureMLIP.device_workspace(
         zeros(Int32, STATUS_LENGTH), z(nf * cblock * C), z(ncol * cblock * C),
         r, z(E), z(3, E),
         z(16, chunk), z(16, 3, chunk), z(nb, chunk), z(nb, chunk), tpw, reshape(tpw, C, W ÷ C, chunk),
-        z(H, chunk, 3), z(H, chunk, 3), dtpw, reshape(dtpw, C, W ÷ C, chunk), z(H, chunk, 2), z(nb, chunk), z(chunk), z(chunk),
+        z(H, chunk, 3), z(H, chunk, 3), dtpw, reshape(dtpw, C, W ÷ C, chunk), z(H, chunk, 2), z(nb, chunk), z(chunk), z(chunk), z(16, chunk),
         h0, (node(m.up[1]), node(m.up[2])), z(n, 2), (M0, M1), (dM0, dM1), L0, dL0,
         z(C, n, m.skip[1].K), node(m.linear[2]), (B0, B1), h1, sc, h2,
         node(m.readout1[1]), node(m.readout1[1]), node(m.readout0), node(m.readout1[2]), z(n),
         node(m.readout0), node(m.readout1[2]), node(m.readout1[1]), dh2, dh1, dh1_part, (dB0, dB1),
-        dX1, dX2, dx, dx0, z(n, 2),
+        dX1, dX2, dx, dx0, z(n, 2), z(n, 9), z(9),
     )
 end
 

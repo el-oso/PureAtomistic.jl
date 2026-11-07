@@ -3668,14 +3668,205 @@
   "model": "MACE-MPA-0 (medium)",
   "precision": "Float32",
   "device_memory_bytes": 26800603136,
-  "node_layout_note": "The edge-chunk sweeps of cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n).",
+  "node_layout_note": "The edge-chunk sweeps of cu_bench(5), cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n).",
   "messages_note": "The messages rows and the spherical_harmonics+messages fusion pairs of cu_bench(14) are the extension's messages kernel (one work item per channel and receiver, the message in registers) in the (C, n, K) node layout; the copy reference of that run is messages_copy_reference.",
   "contraction_block": {
     "case": "cu_bench(14)",
     "precision": "Float32",
     "device": "Apple M6",
-    "forward_pass_ms": {"1024": 393, "4096": 360, "all_atoms": 356},
+    "forward_pass_ms": {
+      "1024": 393,
+      "4096": 360,
+      "all_atoms": 356
+    },
     "note": "Full forward mace_energy! at contraction_block 1024, 4096 and one block of every atom."
   },
-  "bandwidth_note": "The copy reference varies by about 30 % between runs, so it is not a ceiling: a fraction of 90 to 112 % of copy means the kernel runs at the copy kernel's rate. bytes_unique counts the matrix M once, although the kernel reads and writes it."
+  "bandwidth_note": "The copy reference varies by about 30 % between runs, so it is not a ceiling: a fraction of 90 to 112 % of copy means the kernel runs at the copy kernel's rate. bytes_unique counts the matrix M once, although the kernel reads and writes it.",
+  "pipeline": {
+    "cu_bench(14)": {
+      "n_atoms": 10976,
+      "n_edges": 856128,
+      "edge_chunk": 16384,
+      "contraction_block": 4096,
+      "stages": [
+        {
+          "stage": "prepare: species, edges, embedding",
+          "median_us": 639.333,
+          "min_us": 629.209,
+          "max_us": 768.417,
+          "share": 0.0004885451406223418
+        },
+        {
+          "stage": "interaction 0, per edge",
+          "median_us": 133438.9375,
+          "min_us": 133255.0,
+          "max_us": 134030.042,
+          "share": 0.10196711961596443
+        },
+        {
+          "stage": "product 0 and node stages",
+          "median_us": 59824.604,
+          "min_us": 59494.125,
+          "max_us": 60249.125,
+          "share": 0.045714861541412556
+        },
+        {
+          "stage": "interaction 1 with ZBL, per edge",
+          "median_us": 111475.04149999999,
+          "min_us": 110934.208,
+          "max_us": 112019.791,
+          "share": 0.08518344872781304
+        },
+        {
+          "stage": "product 1, readouts, energy",
+          "median_us": 52744.0835,
+          "min_us": 52127.167,
+          "max_us": 53849.75,
+          "share": 0.04030429477362195
+        },
+        {
+          "stage": "status read",
+          "median_us": 3.6045,
+          "min_us": 2.959,
+          "max_us": 4.459,
+          "share": 2.7543720711635894e-6
+        },
+        {
+          "stage": "readouts and product 1 pullback",
+          "median_us": 55689.7705,
+          "min_us": 55311.209,
+          "max_us": 56196.209,
+          "share": 0.042555236097852674
+        },
+        {
+          "stage": "interaction 1 pullback, per edge",
+          "median_us": 531255.0619999999,
+          "min_us": 530154.375,
+          "max_us": 533078.709,
+          "share": 0.4059575823101903
+        },
+        {
+          "stage": "product 0 pullback",
+          "median_us": 61965.9585,
+          "min_us": 61575.584,
+          "max_us": 62297.5,
+          "share": 0.047351173659392995
+        },
+        {
+          "stage": "interaction 0 pullback, per edge",
+          "median_us": 299080.375,
+          "min_us": 298605.75,
+          "max_us": 299371.708,
+          "share": 0.22854172060844308
+        },
+        {
+          "stage": "forces, virial, stress",
+          "median_us": 2529.9584999999997,
+          "min_us": 2502.042,
+          "max_us": 2614.042,
+          "share": 0.0019332631526155994
+        }
+      ],
+      "sum_of_stage_medians_us": 1.3086467284999997e6,
+      "total": {
+        "median_us": 1.3069922710000002e6,
+        "min_us": 1.305222458e6,
+        "max_us": 1.470106709e6
+      },
+      "device_bytes_current_above_start": 1526251520
+    },
+    "cu_bench(5)": {
+      "n_atoms": 500,
+      "n_edges": 39000,
+      "edge_chunk": 16384,
+      "contraction_block": 500,
+      "stages": [
+        {
+          "stage": "prepare: species, edges, embedding",
+          "median_us": 181.52100000000002,
+          "min_us": 163.5,
+          "max_us": 56703.666,
+          "share": 0.0026602809918042127
+        },
+        {
+          "stage": "interaction 0, per edge",
+          "median_us": 6368.853999999999,
+          "min_us": 6294.209,
+          "max_us": 63036.125,
+          "share": 0.09333873896560851
+        },
+        {
+          "stage": "product 0 and node stages",
+          "median_us": 4185.271,
+          "min_us": 3918.583,
+          "max_us": 59870.417,
+          "share": 0.06133723859415388
+        },
+        {
+          "stage": "interaction 1 with ZBL, per edge",
+          "median_us": 5553.833500000001,
+          "min_us": 5465.375,
+          "max_us": 63914.75,
+          "share": 0.08139420613425147
+        },
+        {
+          "stage": "product 1, readouts, energy",
+          "median_us": 4006.2915000000003,
+          "min_us": 3746.708,
+          "max_us": 69348.917,
+          "share": 0.05871420455526791
+        },
+        {
+          "stage": "status read",
+          "median_us": 2.208,
+          "min_us": 1.625,
+          "max_us": 5060.208,
+          "share": 3.235934371176724e-5
+        },
+        {
+          "stage": "readouts and product 1 pullback",
+          "median_us": 4605.8330000000005,
+          "min_us": 4430.542,
+          "max_us": 65789.666,
+          "share": 0.06750078493025365
+        },
+        {
+          "stage": "interaction 1 pullback, per edge",
+          "median_us": 24397.7085,
+          "min_us": 23948.042,
+          "max_us": 88057.0,
+          "share": 0.35756061373686826
+        },
+        {
+          "stage": "product 0 pullback",
+          "median_us": 4535.75,
+          "min_us": 4373.125,
+          "max_us": 59519.167,
+          "share": 0.06647368353290228
+        },
+        {
+          "stage": "interaction 0 pullback, per edge",
+          "median_us": 13981.583,
+          "min_us": 13843.208,
+          "max_us": 70514.958,
+          "share": 0.20490708783134137
+        },
+        {
+          "stage": "forces, virial, stress",
+          "median_us": 414.916,
+          "min_us": 357.958,
+          "max_us": 8051.666,
+          "share": 0.006080801383836782
+        }
+      ],
+      "sum_of_stage_medians_us": 68233.7695,
+      "total": {
+        "median_us": 68078.70850000001,
+        "min_us": 67464.5,
+        "max_us": 70973.292
+      },
+      "device_bytes_current_above_start": 300417024
+    }
+  },
+  "pipeline_note": "Stages of the device mace_energy_forces! (bench/gpu_stage_profile.jl, pipeline_case) at the default edge_chunk and contraction_block, each synchronized; share = stage median / sum of stage medians. total is the evaluation without synchronization between stages."
 }

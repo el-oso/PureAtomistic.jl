@@ -11,10 +11,11 @@
 #                            memory, so that a run stays clear of swap on unified memory); a larger
 #                            edge chunk is recorded as not fitting, with the bytes it needs
 #   STAGE_FROM               a JSON of an earlier run: rebuild its decision table without measuring
-#   STAGE_ONLY               with STAGE_FROM: `sweep`, `messages` or `sweep,messages`; measure only
-#                            the edge-chunk sweep and/or the messages rows with the harmonics +
-#                            messages fusion pairs of STAGE_CASES, and replace those entries in the
-#                            earlier run's record
+#   STAGE_ONLY               with STAGE_FROM: a comma-separated list of `sweep`, `messages` and
+#                            `pipeline`; measure only the edge-chunk sweep, the messages rows with
+#                            the harmonics + messages fusion pairs, and/or the stages of the device
+#                            `mace_energy_forces!` (`pipeline`) of STAGE_CASES, and replace those
+#                            entries in the earlier run's record
 #   PUREMLIP_BENCH_OUT       JSON output path (default results/gpu_stage_profile_<backend>.json)
 #
 # On macOS, export HWLOC_COMPONENTS=-darwin first (see the KernelAbstractions rule in AGENTS.md).
@@ -616,6 +617,61 @@ function messages_case(N, dm, model)
     return rows, fusion, copy_rec
 end
 
+# The stages of the device `mace_energy_forces!` at the defaults of `device_workspace`, each
+# synchronized and timed as the median of REPS runs of the whole sequence after two warm-up
+# evaluations. A stage reads what the stages before it wrote, so they run in the order of an
+# evaluation. The shares are of the sum of the stage medians; `total` times the evaluation
+# without a synchronization between stages, and `device_bytes_current_above_start` is the device
+# memory allocated by the model's workspace, result and list.
+function pipeline_case(N, dm, model, ext)
+    cu = cu_bench(N)
+    pos_h, cell_h = T.(permutedims(cu.positions)), T.(permutedims(cu.cell))
+    nl = neighbor_list(pos_h, cell_h, Float64(model.r_max))
+    n = nl.n_atoms
+    println("pipeline cu_bench($N): $n atoms, $(nl.n_edges) edges"); flush(stdout)
+    base = device_bytes()
+    dnl = PureMLIP.device_neighbor_list(nl, backend)
+    ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
+    res = PureMLIP.device_result(dm, n)
+    pos, cell, Zd = upload(pos_h), upload(cell_h), upload(Int32.(cu.atomic_numbers))
+    numbers = view(ws.numbers, 1:n)
+    stages = [
+        "prepare: species, edges, embedding" => () -> ext._prepare!(ws, dm, pos, cell, Zd, dnl),
+        "interaction 0, per edge" => () -> ext._interaction!(ws, dm, 1, dnl, numbers, dm.tables[1]),
+        "product 0 and node stages" => () -> ext._first_nodes!(ws, dm, n),
+        "interaction 1 with ZBL, per edge" => () -> ext._interaction!(ws, dm, 2, dnl, numbers, dm.tables[2]),
+        "product 1, readouts, energy" => () -> ext._second_nodes!(res, ws, dm, n),
+        "status read" => () -> copyto!(ws.status, dnl.status),
+        "readouts and product 1 pullback" => () -> ext._second_nodes_pullback!(ws, dm, n),
+        "interaction 1 pullback, per edge" => () -> ext._interaction_pullback!(ws, dm, 2, dnl, numbers, dm.tables[2]),
+        "product 0 pullback" => () -> ext._first_nodes_pullback!(ws, dm, n),
+        "interaction 0 pullback, per edge" => () -> ext._interaction_pullback!(ws, dm, 1, dnl, numbers, dm.tables[1]),
+        "forces, virial, stress" => () -> ext._forces!(res, ws, cell, dnl),
+    ]
+    evaluate() = PureMLIP.mace_energy_forces!(res, ws, dm, pos, cell, Zd, dnl)
+    evaluate(); sync()
+    evaluate(); sync()
+    ts = Dict(name => Float64[] for (name, _) in stages)
+    for _ in 1:REPS
+        for (name, f) in stages
+            t0 = time_ns()
+            f()
+            sync()
+            push!(ts[name], (time_ns() - t0) / 1.0e3)
+        end
+    end
+    sum_median = sum(median(ts[name]) for (name, _) in stages)
+    rows = [
+        (; stage = name, median_us = median(ts[name]), min_us = minimum(ts[name]), max_us = maximum(ts[name]), share = median(ts[name]) / sum_median)
+            for (name, _) in stages
+    ]
+    total = timed(evaluate)
+    return (;
+        n_atoms = n, n_edges = nl.n_edges, edge_chunk = ws.edge_chunk, contraction_block = ws.contraction_block,
+        stages = rows, sum_of_stage_medians_us = sum_median, total, device_bytes_current_above_start = device_bytes() - base,
+    )
+end
+
 function profile_case(N, dm, model, ext)
     ctx = case_setup(N, dm, model)
     (; n, E, dnl, pos, cell, Zd, C, nb, P, ZP, snd, rcv, shifts, chunk_need, mlp_cands) = ctx
@@ -897,7 +953,7 @@ end
 function main()
     from = get(ENV, "STAGE_FROM", "")
     only = filter(!isempty, split(get(ENV, "STAGE_ONLY", ""), ','))
-    all(in(("sweep", "messages")), only) || error("STAGE_ONLY must list sweep and/or messages, got ", only)
+    all(in(("sweep", "messages", "pipeline")), only) || error("STAGE_ONLY must list sweep, messages and/or pipeline, got ", only)
     isempty(only) || !isempty(from) || error("STAGE_ONLY needs STAGE_FROM")
     out = if isempty(from)
         ck = load_mace_checkpoint(CK)
@@ -923,6 +979,19 @@ function main()
         rec = JSON.parsefile(from)
         model = MACEModel{T}(load_mace_checkpoint(CK))
         dm = PureMLIP.device_model(model, backend; elements = [29])
+        ext = Base.get_extension(PureMLIP, :PureMLIPGPUExt)
+        if "pipeline" in only
+            pipeline = get!(rec, "pipeline", Dict{String, Any}())
+            for N in CASES
+                pipeline["cu_bench($N)"] = JSON.parse(JSON.json(pipeline_case(N, dm, model, ext)))
+                GC.gc(true)
+            end
+            rec["pipeline_note"] = string(
+                "Stages of the device mace_energy_forces! (bench/gpu_stage_profile.jl, pipeline_case) at the default edge_chunk and ",
+                "contraction_block, each synchronized; share = stage median / sum of stage medians. total is the evaluation without ",
+                "synchronization between stages."
+            )
+        end
         for N in CASES
             c = rec["cases"]["cu_bench($N)"]
             if "messages" in only
