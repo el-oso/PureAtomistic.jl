@@ -1,2 +1,23 @@
 # Deliberate bugs for the extension files (see run.jl, MUTATION_SUITE=gpu). `file` is relative to PureMLIP/;
 # the format is that of mutations.toml. A file that only declares its module needs no entry.
+
+[[mutation]]
+name = "device-reverse-edge-shift-sign"
+file = "ext/PureMLIPGPUExt/device.jl"
+find = "(nl.senders[e], nl.receivers[e], -nl.shifts[1, e], -nl.shifts[2, e], -nl.shifts[3, e])"
+replace = "(nl.senders[e], nl.receivers[e], nl.shifts[1, e], -nl.shifts[2, e], -nl.shifts[3, e])"
+expect = "device neighbor list: the CSR and the reverse map"
+
+[[mutation]]
+name = "device-row-ptr-start"
+file = "ext/PureMLIPGPUExt/device.jl"
+find = "    row_ptr[1] = 1\n"
+replace = "    row_ptr[1] = 0\n"
+expect = "device neighbor list: the CSR and the reverse map"
+
+[[mutation]]
+name = "device-species-map-ignores-elements"
+file = "ext/PureMLIPGPUExt/device.jl"
+find = "Int32[s in species ? s : 0 for s in model.species]"
+replace = "Int32[s for s in model.species]"
+expect = "device model: every parameter array is uploaded exactly"
