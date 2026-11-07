@@ -58,7 +58,16 @@ function scale_factor(b::BerendsenBarostat, sys::System{T}, potential::AbstractS
     # The force evaluation after the rescaling needs a 1-based cell; checking here fails before
     # anything moves.
     Base.require_one_based_indexing(sys.cell)
-    P = pressure(sys, stress(potential)) * T(EV_PER_A3_IN_GPA)
+    return scale_factor(b, pressure(sys, stress(potential)) * T(EV_PER_A3_IN_GPA), dt)
+end
+
+"""
+    scale_factor(b::BerendsenBarostat, P::AbstractFloat, dt) -> μ
+
+The factor `μ` of one time step of `dt` fs at the instantaneous pressure `P` in GPa, in the
+floating-point type of `P`; the method above computes `P` from the system and the stress.
+"""
+function scale_factor(b::BerendsenBarostat, P::T, dt::Real) where {T <: AbstractFloat}
     μ3 = 1 - T(b.β_T * dt / b.τ_P) * (T(b.P0) - P)
     (isfinite(μ3) && μ3 > 0) ||
         throw(ArgumentError(lazy"pureatomistic: the Berendsen step would make the cell degenerate (volume factor $μ3 at pressure $P GPa)"))

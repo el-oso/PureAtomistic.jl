@@ -40,11 +40,11 @@ function rescale!(sys::System, μ::Real)
     return nothing
 end
 
-# Multiply every entry of `A` by `μ` in place.
+# Multiply every entry of `A` by `μ` in place: one product per entry. `map!` runs on device
+# arrays too; the in-place broadcast `A .*= μ` would do the same, but its aliasing check holds an
+# allocating branch that the allocation gates of the barostat steps reject.
 function _scale!(A::AbstractArray, μ)
-    for i in eachindex(A)
-        A[i] *= μ
-    end
+    map!(x -> x * μ, A, A)
     return nothing
 end
 

@@ -40,11 +40,13 @@ function _launch!(kernel, backend::Backend, ndrange, args...)
     return nothing
 end
 
-_kick!(sys::System{T}, p::DeviceMACEPotential{T}, τ::T) where {T} = _launch!(
-    _kick_kernel!, p.nl.backend, (3, Potentials.n_atoms(p)), sys.velocities, p.result.forces, sys.masses, τ, T(AMU_IN_EV_FS2_PER_A2)
-)
-_drift!(sys::System{T}, p::DeviceMACEPotential{T}, h::T) where {T} =
-    _launch!(_drift_kernel!, p.nl.backend, (3, Potentials.n_atoms(p)), sys.positions, sys.velocities, h)
+_kick!(sys::System{T}, p::DeviceMACEPotential{T}, τ::T) where {T} = _kick!(p.nl.backend, sys.velocities, p.result.forces, sys.masses, τ)
+_drift!(sys::System{T}, p::DeviceMACEPotential{T}, h::T) where {T} = _drift!(p.nl.backend, sys.positions, sys.velocities, h)
+
+# The kick and the drift on the 3 × n arrays of one backend.
+_kick!(backend::Backend, V::AbstractMatrix{T}, F, m, τ::T) where {T} =
+    _launch!(_kick_kernel!, backend, size(V), V, F, m, τ, T(AMU_IN_EV_FS2_PER_A2))
+_drift!(backend::Backend, X::AbstractMatrix{T}, V, h::T) where {T} = _launch!(_drift_kernel!, backend, size(X), X, V, h)
 
 @kernel function _kick_kernel!(V, @Const(F), @Const(m), τ, c)
     k, a = @index(Global, NTuple)
@@ -98,11 +100,17 @@ end
 function _energy_readback!(sim::Simulation{T}, with_potential::Bool) where {T}
     sys, p = sim.system, sim.potential
     _check_motion(sys, p)
-    backend, n = p.nl.backend, Potentials.n_atoms(p)
-    _launch!(_kinetic_kernel!, backend, n, p.kinetic, sys.velocities, sys.masses)
-    PureMLIP.device_sum!(p.kinetic_sum, p.kinetic, n)
-    _launch!(_energy_kernel!, backend, 1, p.scalar, p.kinetic_sum, p.result.energy, T(AMU_IN_EV_FS2_PER_A2 / 2), with_potential)
+    _kinetic_sum!(sys, p)
+    _launch!(_energy_kernel!, p.nl.backend, 1, p.scalar, p.kinetic_sum, p.result.energy, T(AMU_IN_EV_FS2_PER_A2 / 2), with_potential)
     return _read_status!(p, p.host_scalar, p.scalar)[1]
+end
+
+# `p.kinetic_sum[1] = Σᵢ mᵢ |vᵢ|²` on the device, the sum of `kinetic_energy` before its factor.
+function _kinetic_sum!(sys::System, p::DeviceMACEPotential)
+    n = Potentials.n_atoms(p)
+    _launch!(_kinetic_kernel!, p.nl.backend, n, p.kinetic, sys.velocities, sys.masses)
+    PureMLIP.device_sum!(p.kinetic_sum, p.kinetic, n)
+    return nothing
 end
 
 @kernel function _kinetic_kernel!(out, @Const(V), @Const(m))

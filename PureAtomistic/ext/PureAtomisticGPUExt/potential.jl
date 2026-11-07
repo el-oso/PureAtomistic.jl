@@ -8,9 +8,9 @@ A PureMLIP MACE model as a potential on a KernelAbstractions backend; build it w
 [`device_potential`](@ref PureAtomistic.device_potential). It holds the device model `model`,
 the device neighbor list `nl` of cutoff `r_max` with skin `skin`, the device workspace `ws`, the
 device result `result` (`result.energy` is a device vector of length 1, `result.forces` a device
-`3 × n` matrix), the atomic numbers `numbers` as a device `Int32` vector, and the scratch of the
-device reductions of the kinetic energy. The arrays of a configuration passed to it must live on
-its backend.
+`3 × n` matrix), the atomic numbers `numbers` as a device `Int32` vector, the scratch of the
+device reductions of the kinetic energy, and that of the device Bussi step. The arrays of a
+configuration passed to it must live on its backend.
 
 [`prepare!`](@ref) rebuilds the list on the device and reads nothing back.
 [`energy_forces!`](@ref) evaluates on the device and then reads the status word of the list once.
@@ -18,10 +18,13 @@ When the configuration holds more edges than the list has room for, the list and
 are built anew for the configuration with `extra_capacity_fraction` times as many edges again as
 it holds (default 0.05), the evaluation is redone, and the regrowth is reported on standard error
 and counted in `n_regrows`. Every copy from device to host memory that the potential makes after it
-is built (each status read, and each scalar read of the energy queries of a `Simulation`) is
-counted in `readbacks`: one per step, and two in a step that regrows, whose new list also reads
-its edge count and its status word back inside `device_neighbor_list` (two copies that are not
-counted). The list of `device_potential` reads back the same two.
+is built (each status read, each scalar read of the energy queries of a `Simulation`, and the
+pressure read of the Berendsen barostat) is counted in `readbacks`: one per step, one more with
+the barostat, and one more in a step that regrows, whose new list also reads its edge count
+and its status word back inside `device_neighbor_list` (two copies that are not counted). The
+list of `device_potential` reads back the same two. A status read also throws for the flag
+that the device thermostats set in the list's status word (a gamma sampler at its cap, or a
+Bussi step at zero kinetic energy).
 
 Spare edges cost evaluation time, since the per-edge kernels run over every slot: on Metal at
 cu_bench(14), 10 % spare slots cost 5.6 % per evaluation and 50 % cost 23.6 %, so the default 5 %
@@ -43,6 +46,7 @@ mutable struct DeviceMACEPotential{T <: AbstractFloat, M, L, W, R, VI <: Abstrac
     const kinetic::V          # n: mᵢ |vᵢ|² of each atom
     const kinetic_sum::V      # 1: the sum of `kinetic`
     const scalar::V           # 1: the energy that a query reads back
+    const draws::V            # 5: R₁ and S of the two Bussi half-steps of a step, then the factor α
     const host_scalar::Vector{T}
 end
 
@@ -66,7 +70,7 @@ function PureAtomistic.device_potential(
     z(k) = KernelAbstractions.zeros(backend, T, k)
     kinetic = z(n)
     return DeviceMACEPotential{T, typeof(dm), typeof(nl), typeof(ws), typeof(res), typeof(numbers), typeof(kinetic)}(
-        dm, numbers, Float64(skin), fraction, nl, ws, res, 0, 0, kinetic, z(1), z(1), zeros(T, 1)
+        dm, numbers, Float64(skin), fraction, nl, ws, res, 0, 0, kinetic, z(1), z(1), z(5), zeros(T, 1)
     )
 end
 
@@ -145,10 +149,12 @@ _evaluate!(p::DeviceMACEPotential, positions, cell) =
     PureMLIP.device_energy_forces!(p.result, p.ws, p.model, positions, cell, p.numbers, p.nl)
 
 # Every copy from device to host memory after construction goes through `_read_status!`, which
-# counts it in `p.readbacks`: the status word of the list, or a scalar of the energy queries.
+# counts it in `p.readbacks`: the status word of the list, or a scalar of the energy queries or of
+# the barostat.
 function _read_status!(p::DeviceMACEPotential)
-    PureMLIP.read_device_status!(p.ws, p.nl)
+    status = PureMLIP.read_device_status!(p.ws, p.nl)
     p.readbacks += 1
+    _check_thermostat_flag(status)
     return nothing
 end
 

@@ -41,6 +41,21 @@ constant volume the edge count stayed within 3.5 % below and 0.005 % above that 
 and a rebuild took 8 ms against 68 ms for an evaluation
 (`bench/results/gpu_capacity_margin_metal.json`), so a rare regrowth is cheap.
 
+`BussiThermostat`, `LangevinBAOAB` and `BerendsenBarostat` run on the device too. Their random
+numbers come from the counter-based generator Philox4x32-10 (J. K. Salmon et al., SC'11), drawn
+in the kernels: each step takes one key from `sim.rng`, and each normal number has its own counter
+(atom and component for the Langevin noise), so a seeded run repeats bit for bit on one device and a
+regrowth does not move the generator. Normal numbers come from the Box–Muller transform and the
+gamma variate of the Bussi step from the Marsaglia–Tsang method, as on the CPU. Device runs match
+CPU runs in their statistics, not in their random numbers. The Bussi step sums the kinetic energy
+and computes its scale factor on the device, and the BAOAB step runs its O step as a kernel, so a
+thermostatted step reads back only the status word. The barostat computes the pressure on the
+device and reads it back as one scalar, so a barostatted step reads twice; `rescale!` scales the
+cell and the positions on the device. Under the barostat the edge count follows the volume: in
+2,000 steps of 2 fs of 500 Cu atoms near 1300 K at 0, 10 and 30 GPa, the volume ranged from 0.906
+to 1.106 times its first value and the edge count from 12.5 % below to 3.8 % above, and the default
+5 % spare edges never regrew the list (`bench/results/gpu_barostat_regrow_metal.json`).
+
 A step allocates host memory for its kernel launches and the status read, an exception to the
 rule that `!` functions do not allocate: 2,464 bytes on the KernelAbstractions CPU backend and
 about 457,000 bytes on Metal for the tiny test checkpoint, both gated by the GPU test suite, which

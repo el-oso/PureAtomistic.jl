@@ -3,3 +3,7 @@
 "ext/PureAtomisticGPUExt/PureAtomisticGPUExt.jl" = 1.00
 "ext/PureAtomisticGPUExt/motion.jl" = 1.00
 "ext/PureAtomisticGPUExt/potential.jl" = 1.00
+"ext/PureAtomisticGPUExt/barostat.jl" = 1.00
+"ext/PureAtomisticGPUExt/philox.jl" = 1.00
+"ext/PureAtomisticGPUExt/samplers.jl" = 1.00
+"ext/PureAtomisticGPUExt/thermostats.jl" = 1.00

@@ -325,10 +325,38 @@ end
     # Oracle for μ: the formula with the pressure computed here; rounding bound 8 eps.
     P = B.pressure_gpa(sys, stress(p))
     @test μ ≈ cbrt(1 - 0.3 * 2.0 / 100.0 * (1.0 - P)) rtol = 8 * eps()
+    # The factor from the pressure alone is the same computation.
+    @test scale_factor(BerendsenBarostat(1.0, 100.0, 0.3), pressure(sys, stress(p)) * EV_PER_A3_IN_GPA, 2.0) === μ
     rescale!(sys, μ)
     @test sys.velocities == v
     @test sys.cell ≈ μ .* c rtol = 2 * eps()
     @test sys.positions ≈ μ .* x rtol = 2 * eps()
+end
+
+# Oracle: the product x·μ of each entry, rounded once. `rescale!` multiplies each entry of the
+# cell and the positions by μ once and leaves the rest alone, so the result equals the elementwise
+# product bit for bit, on arrays, views and offset arrays.
+@testitem "rescale! gives the bits of the elementwise product" setup = [BarostatFixtures] begin
+    using PureAtomistic.Systems
+    using PureAtomistic.Barostats
+    using OffsetArrays, Random
+    for T in (Float64, Float32)
+        rng = Xoshiro(3)
+        X, V, C = 10 .* rand(rng, T, 3, 5), rand(rng, T, 3, 5), T[5 0.1 0.2; 0 5 0.3; 0 0 5] .+ rand(rng, T, 3, 3)
+        μ = T(1.0003)
+        sys = System{T}(copy(X), copy(V), ones(T, 5), fill(29, 5), copy(C))
+        rescale!(sys, μ)
+        @test sys.positions == [x * μ for x in X]
+        @test sys.cell == [c * μ for c in C]
+        @test sys.velocities == V
+        bigx = zeros(T, 3, 7)
+        bigx[:, 2:6] .= X
+        vsys = System{T}(view(bigx, :, 2:6), copy(V), ones(T, 5), fill(29, 5), OffsetArray(copy(C), 0:2, 0:2))
+        rescale!(vsys, μ)
+        @test vsys.positions == [x * μ for x in X]
+        @test parent(vsys.cell) == [c * μ for c in C]
+        @test iszero(bigx[:, 1]) && iszero(bigx[:, 7])
+    end
 end
 
 @testitem "barostat rejects invalid arguments" setup = [BarostatFixtures, VerletFixtures] begin

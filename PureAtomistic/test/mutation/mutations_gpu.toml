@@ -56,3 +56,101 @@ file = "ext/PureAtomisticGPUExt/potential.jl"
 find = "skin = p.skin, extra_capacity_fraction = p.extra_capacity_fraction)"
 replace = "skin = p.skin, extra_capacity_fraction = 0)"
 expect = "md step: an edge overflow mid-run regrows once"
+
+[[mutation]]
+name = "device-rng-philox-multiplier"
+file = "ext/PureAtomisticGPUExt/philox.jl"
+find = "const _PHILOX_M0 = 0xD2511F53"
+replace = "const _PHILOX_M0 = 0xD2511F55"
+expect = "thermostats: Philox4x32-10 gives Random123's known-answer vectors"
+
+[[mutation]]
+name = "device-rng-philox-weyl-constant"
+file = "ext/PureAtomisticGPUExt/philox.jl"
+find = "const _PHILOX_W1 = 0xBB67AE85"
+replace = "const _PHILOX_W1 = 0xBB67AE84"
+expect = "thermostats: Philox4x32-10 gives Random123's known-answer vectors"
+
+[[mutation]]
+name = "device-rng-philox-permutation"
+file = "ext/PureAtomisticGPUExt/philox.jl"
+find = "return (hi1 ⊻ c[2] ⊻ k[1], lo1, hi0 ⊻ c[4] ⊻ k[2], lo0)"
+replace = "return (hi0 ⊻ c[2] ⊻ k[1], lo1, hi1 ⊻ c[4] ⊻ k[2], lo0)"
+expect = "thermostats: Philox4x32-10 gives Random123's known-answer vectors"
+
+[[mutation]]
+name = "device-rng-box-muller-radius"
+file = "ext/PureAtomisticGPUExt/samplers.jl"
+find = "r = sqrt(-2 * log(u1))"
+replace = "r = sqrt(-log(u1))"
+expect = "thermostats: Box–Muller normals have the normal fractions"
+
+[[mutation]]
+name = "device-rng-box-muller-angle"
+file = "ext/PureAtomisticGPUExt/samplers.jl"
+find = "sincospi(2 * u2)"
+replace = "sincospi(u2)"
+expect = "thermostats: Box–Muller normals have the normal fractions"
+
+[[mutation]]
+name = "device-gamma-squeeze-accepts-all"
+file = "ext/PureAtomisticGPUExt/samplers.jl"
+find = "u < one(T) - T(0.0331) * x2 * x2"
+replace = "u < one(T) + T(0.0331) * x2 * x2"
+expect = "thermostats: the device gamma sampler has the gamma moments"
+
+[[mutation]]
+name = "device-gamma-cap-ignored"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "accepted || (status[_STATUS_THERMOSTAT] = _SAMPLER_CAP)"
+replace = "accepted || nothing"
+expect = "thermostats: the device gamma sampler has the gamma moments and stops at its cap"
+
+[[mutation]]
+name = "device-bussi-without-cross-term"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "sqrt((sqrt(c) + sqrt(q) * r1)^2 + q * s)"
+replace = "sqrt(c + q * (r1^2 + s))"
+expect = "thermostats: Bussi ideal-gas kinetic energy follows Gamma"
+
+[[mutation]]
+name = "device-bussi-kinetic-energy-factor"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "_bussi_alpha(status, half_amu * ksum[1],"
+replace = "_bussi_alpha(status, ksum[1],"
+expect = "thermostats: Bussi ideal-gas kinetic energy follows Gamma"
+
+[[mutation]]
+name = "device-langevin-c1-half-step"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "c1 = T(exp(-th.gamma * dt))"
+replace = "c1 = T(exp(-th.gamma * dt / 2))"
+expect = "thermostats: a device BAOAB step equals the splitting"
+
+[[mutation]]
+name = "device-langevin-c3-variance"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "c3 = T(sqrt(-expm1(-2 * th.gamma * dt) * KB_EV_PER_K * th.temp))"
+replace = "c3 = T(sqrt(-expm1(-th.gamma * dt) * KB_EV_PER_K * th.temp))"
+expect = "thermostats: (a device BAOAB step equals the splitting|Langevin on the device ideal gas)"
+
+[[mutation]]
+name = "device-langevin-order-abo"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "    _launch!(_o_step_kernel!, backend, size(V), V, m, src, c1, c3, T(AMU_IN_EV_FS2_PER_A2))\n    _drift!(backend, X, V, h / 2)\n"
+replace = "    _drift!(backend, X, V, h / 2)\n    _launch!(_o_step_kernel!, backend, size(V), V, m, src, c1, c3, T(AMU_IN_EV_FS2_PER_A2))\n"
+expect = "thermostats: (a device BAOAB step equals the splitting|the device BAOAB sequence samples the oscillator)"
+
+[[mutation]]
+name = "device-langevin-noise-shared-by-components"
+file = "ext/PureAtomisticGPUExt/thermostats.jl"
+find = "_normal(src, eltype(V), a, k, _STREAM_LANGEVIN)"
+replace = "_normal(src, eltype(V), a, 1, _STREAM_LANGEVIN)"
+expect = "thermostats: a device BAOAB step equals the splitting"
+
+[[mutation]]
+name = "device-barostat-pressure-kinetic-half"
+file = "ext/PureAtomisticGPUExt/barostat.jl"
+find = "return -tr / 3 + 2 * K / (3 * abs(det))"
+replace = "return -tr / 3 + K / (3 * abs(det))"
+expect = "barostat: the device scale factor equals the CPU's"
