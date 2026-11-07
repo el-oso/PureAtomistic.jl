@@ -163,7 +163,8 @@ The results stay on the device; `Array(res.forces)` copies them to the host. The
 gathered per atom over the edges it receives, through the list's map from each edge to its
 reverse, and the energy and virial are fixed-shape tree sums, so an evaluation uses no atomic
 operations and repeats bit for bit. Metal has no Float64, so a model on Metal is a
-`MACEModel{Float32}`.
+`MACEModel{Float32}`. The device backward pass supports at most 256 channels;
+`device_model` throws an `ArgumentError` for a model with more, before any launch.
 
 The device `mace_energy!` and `mace_energy_forces!` are the second exception to "`!` functions do
 not allocate": each call allocates host memory for its kernel launches, its matrix products and

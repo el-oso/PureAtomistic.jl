@@ -12,7 +12,9 @@ since the reverse of an edge received by `i` is an edge sent by `i`; the cotange
 features are gathered the same way. The virial sums `r_e g_eᵀ` per receiving atom, then over the
 atoms in a fixed-shape tree, and the stress divides it by the volume `|det cell|`, computed on the
 device. No sum depends on how the work items are scheduled, so an evaluation repeats bit for bit.
-After a throw the contents of `res` and of the workspace are undefined.
+The model may have at most 256 channels (`device_model` throws for more), since the message
+pullback sums the channels' terms in group memory of that size. After a throw the contents of
+`res` and of the workspace are undefined.
 """
 function PureMLIP.mace_energy_forces!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,

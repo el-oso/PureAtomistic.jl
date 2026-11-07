@@ -14,15 +14,15 @@
 # The force on an atom is a sum of the ∂E/∂r of its edges, and in a nearly force-free cell they
 # cancel: in triclinic_ni3al the largest force is 0.002 eV/Å while the sums of the terms' magnitudes
 # reach 3.1 eV/Å. Each edge's ∂E/∂r carries its rounding (checked against the largest |∂E/∂r|
-# below), and the force carries the sum of it, so the forces are compared relative to the largest
-# sum of term magnitudes, Σ_e |∂E/∂r_e| over the edges an atom sends and receives (per component,
-# from the CPU's ∂E/∂r). Against the Float64 CPU forces, the Float32 forces of that cell are off by
+# below), and the force carries the sum of it, so each force component of each atom is compared
+# relative to the sum of term magnitudes, Σ_e |∂E/∂r_e| over the edges that atom sends and receives
+# (from the CPU's ∂E/∂r). Against the Float64 CPU forces, the Float32 forces of that cell are off by
 # 4.0e-6 eV/Å on the CPU and 4.4e-6 on the device, 11 and 12 eps(Float32) of that sum; relative to
 # the largest force, the device and CPU Float32 results differ by 34,800 eps(Float32).
 # Measured, largest over the five structures and over Julia 1.12.7 and 1.13.3, in eps(T):
-#   CPU backend, Float32: energy 0.85, node energies 4.9, ∂E/∂r 321, forces 89, virial 84, stress 85;
-#   CPU backend, Float64: energy 1.9, node energies 5.8, ∂E/∂r 326, forces 63, virial 150, stress 150;
-#   Metal, Float32: energy 0.95, node energies 5.8, ∂E/∂r 321, forces 80, virial 152, stress 152.
+#   CPU backend, Float32: energy 0.85, node energies 4.9, ∂E/∂r 321, forces 144, virial 84, stress 85;
+#   CPU backend, Float64: energy 1.9, node energies 5.8, ∂E/∂r 326, forces 388, virial 150, stress 150;
+#   Metal, Float32: energy 0.95, node energies 5.8, ∂E/∂r 321, forces 114, virial 152, stress 152.
 @testitem "backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures" tags = [:gpu] setup = [GPUBackend, DeviceStructures, EdgeStages] begin
     ck = mpa0()
     for T in precisions
@@ -51,14 +51,18 @@
                 scale[a, nl.receivers[e]] += abs(g[a, e])
             end
             F = Array(dres.forces)
-            ferr = iszero(maximum(scale)) ? (F == res.forces ? 0.0 : Inf) : maximum(abs, F - res.forces) / maximum(scale) / eps(T)
+            Δ = abs.(F .- res.forces)
+            ferr = maximum(ifelse.(iszero.(scale), ifelse.(iszero.(Δ), 0.0, Inf), Δ ./ scale)) / eps(T)
             @test note!("energy", Float64(abs(Array(dres.energy)[1] - res.energy) / abs(res.energy) / eps(T))) <= tol
             @test note!("node energies", relerr(Array(dres.node_energies), res.node_energies)) <= tol
             @test note!("dE/dr", relerr(Array(ws.dEdr)[:, 1:E], g)) <= tol
             @test note!("forces", ferr) <= tol
             @test note!("virial", relerr(Array(dres.virial), res.virial)) <= tol
             @test note!("stress", relerr(Array(dres.stress), res.stress)) <= tol
-            note!("forces relative to the largest force", relerr(F, res.forces))
+            # triclinic_ni3al is the one structure whose forces are (nearly) zero by symmetry; there the literal
+            # bound relative to the largest force is not a meaningful test (recorded below).
+            lit = note!("forces relative to the largest force", relerr(F, res.forces))
+            s.name == "triclinic_ni3al" || @test lit <= tol
             @test Array(dnl.status) == zeros(Int32, 5)
         end
         report("backward, $(GPUBackend.NAME), $T: largest error in eps($T): ", sort(collect(worst)))
@@ -167,6 +171,11 @@ end
     P, C, Z = s.positions, s.cell, s.atomic_numbers
     n = size(P, 2)
     dm = PureMLIP.device_model(m, backend; elements = [29])
+    # A model with 257 channels is refused when the device model is built, before any launch. The
+    # copy of `m` differs from it in the field `C` only, which `device_model` reads before any array.
+    fields = Any[name === :C ? 257 : getfield(m, name) for name in fieldnames(typeof(m))]
+    wide = ccall(:jl_new_structv, Any, (Any, Ptr{Any}, UInt32), typeof(m), fields, length(fields))
+    @test_throws "gpu: the message pullback holds at most 256 channels, the model has 257" PureMLIP.device_model(wide, backend; elements = [29])
     dnl = PureMLIP.device_neighbor_list(neighbor_list(P, C, Float64(m.r_max)), backend)
     ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
     good = PureMLIP.device_result(dm, n)
@@ -182,7 +191,6 @@ end
     @test_throws "gpu: linear pullback from $(size(ws.x[2])) to $(size(ws.h0))" ext._linear_pullback!(ws.h0, dm.up[2], ws.x[2])
     @test_throws "gpu: species linear pullback from $(size(ws.X1)) to $(size(ws.h0))" ext._species_linear_pullback!(ws.h0, dm.skip[1], ws.X1, ws.species, [1], ws.dM[1], backend)
     @test_throws "gpu: scratch of 1 entries for an array of size (1, 2)" ext._front(todevice(zeros(T, 1)), (1, 2))
-    @test_throws "gpu: the message pullback holds at most 256 channels, the model has 257" ext._check_pullback_channels(257)
     Zf = ext._contraction_buffer(ws.Zf, dm.contraction[1], 1, ws.contraction_block, m.C)
     Yc = ext._contraction_buffer(ws.Yc, dm.contraction[1], 2, ws.contraction_block, m.C)
     @test_throws "gpu: symmetric contraction pullback from $(size(ws.B[2])) to $(size(ws.dX1)) for $n nodes" ext._symmetric_contraction_pullback!(ws.dX1, dm.contraction[1], ws.B[2], ws.X1, ws.species, n, Zf, Yc, backend)
@@ -243,7 +251,7 @@ end
 # The gate is the measured figure on the CPU backend on macOS, where it was measured, and twice it
 # on other platforms; on Metal the largest fewest-of-five rounded up to 1,000,000 and 2,020,000
 # bytes (0.9 % and 0.5 % above it).
-# `neighbor_list!` on a device list is gated with the device neighbor list.
+# `neighbor_list!` on device types is not covered by this item.
 @testitem "backward: host bytes per call of the device evaluations" tags = [:gpu] setup = [GPUBackend, DeviceStructures, EdgeStages] begin
     @noinline call_bytes(f::F, a, b, c, d, e, g, h) where {F} = @allocated f(a, b, c, d, e, g, h)
     function fewest_bytes(f, args)

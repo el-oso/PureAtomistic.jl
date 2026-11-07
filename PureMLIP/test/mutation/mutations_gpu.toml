@@ -283,49 +283,49 @@ name = "device-message-pullback-weight-cotangent"
 file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
 find = "$(sym(:dw, p)) += (($v * y[$j]) * $(sym(:g, k))) * $(sym(:x, a))"
 replace = "$(sym(:dw, p)) += ($v * y[$j]) * $(sym(:g, k))"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-message-pullback-harmonics-cotangent"
 file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
 find = "$(sym(:dy, j)) += $v * (($(sym(:g, k)) * $(sym(:w, p))) * $(sym(:x, a)))"
 replace = "$(sym(:dy, j)) += ($(sym(:g, k)) * $(sym(:w, p))) * $(sym(:x, a))"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-sender-gradient-parity"
 file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
 find = "parity(j) = iseven(isqrt(j - 1)) ? 1 : -1"
 replace = "parity(j) = 1"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-sender-gradient-cotangent-atom"
 file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
 find = "$(sym(:g, k)) = dM[u, s, $k]"
 replace = "$(sym(:g, k)) = dM[u, i, $k]"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-message-pullback-channel-sum"
 file = "ext/PureMLIPGPUExt/messages.jl"
 find = "        for t in 1:C\n"
 replace = "        for t in 2:C\n"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-edge-gradient-density-term"
 file = "ext/PureMLIPGPUExt/messages.jl"
 find = "dd += (dfc[b, col] + a * wd[b]) * dfeats[b, col]"
 replace = "dd += dfc[b, col] * dfeats[b, col]"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-edge-gradient-length"
 file = "ext/PureMLIPGPUExt/messages.jl"
 find = "    dd /= d[e]\n"
 replace = "\n"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-zbl-gradient-scale"
@@ -339,28 +339,28 @@ name = "device-normalization-pullback-sign"
 file = "ext/PureMLIPGPUExt/backward.jl"
 find = "ddensity[i] = -s / q"
 replace = "ddensity[i] = s / q"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-normalization-pullback-scale"
 file = "ext/PureMLIPGPUExt/backward.jl"
 find = "dL[u, i, k] /= q"
 replace = "dL[u, i, k] *= q"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-readout-slope"
 file = "ext/PureMLIPGPUExt/backward.jl"
 find = "dg[q] *= cst * (σ + s * (one(z) - σ))"
 replace = "dg[q] *= cst * σ"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-readout-cotangent-scale"
 file = "ext/PureMLIPGPUExt/backward.jl"
 find = "fill!(ws.de1, m.scale)"
 replace = "fill!(ws.de1, one(T))"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-contraction-pullback-block-column"
@@ -374,18 +374,18 @@ name = "device-contraction-pullback-matrix"
 file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
 find = "transpose(view(dcm.G, :, :, c, j))"
 replace = "transpose(view(dcm.F, :, :, c, j))"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-linear-pullback-transpose"
 file = "ext/PureMLIPGPUExt/tensors/linear.jl"
 find = "transpose(view(dl.W, :, :, p))"
 replace = "view(dl.W, :, :, p)"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"
 
 [[mutation]]
 name = "device-species-linear-pullback-transpose"
 file = "ext/PureMLIPGPUExt/tensors/linear.jl"
 find = "transpose(view(dsl.W, :, :, s, p))"
 replace = "view(dsl.W, :, :, s, p)"
-expect = "backward: forces"
+expect = "^backward: forces, virial and stress agree with CPU mace_energy_forces! on the reference structures$"

@@ -76,12 +76,12 @@ The pullback of the messages of interaction `k` for the edges of `chunk`, from t
 `ws.dtpw3` and of the harmonics into `ws.dYe`, from the chunk's harmonics `ws.Y`, the radial-MLP
 outputs `ws.tpw3` and the sender features `ws.x[k]`. One work group per edge, one work item per
 channel; the channels' terms of `ws.dYe` are added in channel order. Columns of slots past
-`nl.n_edges[1]` get zero cotangents. The model may have at most `_PULLBACK_CHANNELS` channels.
+`nl.n_edges[1]` get zero cotangents. `device_model` rejects models with more than `_PULLBACK_CHANNELS` channels.
 """
 function _messages_pullback!(ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, k::Int, chunk::EdgeChunk, table::Val) where {T}
     nb = _chunk_length(ws, chunk)
     nl = chunk.nl
-    C = _check_pullback_channels(model.host.C)
+    C = model.host.C
     _launch_grouped!(
         _edge_pullback_kernel!, ws.backend, (C, nb), (C, 1), ws.dtpw3, ws.dYe, ws.Y, ws.tpw3, ws.x[k], ws.dM[k],
         nl.senders, nl.receivers, nl.n_edges, table, C, first(chunk.edges) - 1,
@@ -92,9 +92,6 @@ end
 # The largest channel count of the message pullback: its group memory holds one column of terms
 # per channel, and its size must be known when the kernel compiles.
 const _PULLBACK_CHANNELS = 256
-
-_check_pullback_channels(C::Int) =
-    C <= _PULLBACK_CHANNELS ? C : throw(ArgumentError(lazy"gpu: the message pullback holds at most $_PULLBACK_CHANNELS channels, the model has $C"))
 
 # The channels' terms of ∂E/∂Y meet in group memory, which only a kernel body can hold; the
 # arithmetic is in `_tp_edge_pullback!` and `_channel_sum!`.

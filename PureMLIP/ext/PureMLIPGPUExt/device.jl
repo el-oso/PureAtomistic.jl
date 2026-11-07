@@ -37,6 +37,8 @@ end
 
 function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) where {T <: AbstractFloat}
     _check_precision(backend, T)
+    model.C <= _PULLBACK_CHANNELS ||
+        throw(ArgumentError(lazy"gpu: the message pullback holds at most $_PULLBACK_CHANNELS channels, the model has $(model.C)"))
     isempty(elements) && throw(ArgumentError("gpu: elements must name at least one atomic number"))
     species = Int[]
     for z in elements
