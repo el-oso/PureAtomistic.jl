@@ -21,3 +21,72 @@ file = "ext/PureMLIPGPUExt/device.jl"
 find = "Int32[s in species ? s : 0 for s in model.species]"
 replace = "Int32[s for s in model.species]"
 expect = "device model: every parameter array is uploaded exactly"
+
+[[mutation]]
+name = "device-edge-vector-direction"
+file = "ext/PureMLIPGPUExt/edges.jl"
+find = "r[a, e] = positions[a, q] - positions[a, s] +"
+replace = "r[a, e] = positions[a, s] - positions[a, q] +"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-harmonics-gradient-projection-sign"
+file = "ext/PureMLIPGPUExt/edges.jl"
+find = "dY[k, 3, col] = c * ((gx - p * x) / r)"
+replace = "dY[k, 3, col] = c * ((gx + p * x) / r)"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-radial-agnesi-derivative-sign"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "dt = -t^2 * du / r0"
+replace = "dt = t^2 * du / r0"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-radial-skin-shell-not-zero"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "    if !(dd < P.r_max)\n"
+replace = "    if !(dd < P.r_max + 1)\n"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-radial-bessel-frequency"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "w = P.multiples ? n * w1 : weights[n]"
+replace = "w = P.multiples ? w1 : weights[n]"
+expect = "edge stages: each stage agrees with its CPU function"
+[[mutation]]
+name = "device-silu-drops-normalization"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "act[q, j, l] = z * σ * cst"
+replace = "act[q, j, l] = z * σ"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-silu-slope"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "g[q, j, s] *= cst * σ + act[q, j, l] * (one(σ) - σ)"
+replace = "g[q, j, s] *= cst * σ + act[q, j, l] * σ"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-zbl-derivative-sign"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "dv = K * (dφ / d - φ / d^2)"
+replace = "dv = K * (dφ / d + φ / d^2)"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-zbl-not-cut-at-r-max"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "(d < R && d < P.r_max) || return"
+replace = "d < R || return"
+expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-zbl-pair-sum"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "        acc += v\n"
+replace = "        acc = v\n"
+expect = "edge stages: each stage agrees with its CPU function"

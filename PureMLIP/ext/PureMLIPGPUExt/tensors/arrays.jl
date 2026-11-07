@@ -42,6 +42,13 @@ function _check_precision(backend::Backend, ::Type{T}) where {T}
     return nothing
 end
 
+# Launches `kernel` on `backend` over `ndrange` with `args`; a launch with no work items is
+# skipped.
+function _launch!(kernel, backend::Backend, ndrange, args...)
+    prod(ndrange) > 0 && kernel(backend)(args...; ndrange)
+    return nothing
+end
+
 # Zero-filled arrays over one block of device memory, given as groups of sizes, with the layout
 # of the core's workspace pools: the arrays of a group lie side by side from the block's first
 # element, and the groups overlap each other. Each member has the type of a separately allocated
