@@ -20,12 +20,23 @@ function PureMLIP.mace_energy_forces!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
+    _energy_forces_unread!(res, ws, model, positions, cell, atomic_numbers, nl)
+    copyto!(ws.status, nl.status)
+    _check_status(ws.status, model, atomic_numbers, ws, nl)
+    return res
+end
+
+# The device `mace_energy_forces!` without its read of the status word, as `_energy_unread!`.
+function _energy_forces_unread!(
+        res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
+        cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
+    ) where {T}
     n = nl.n_atoms
     size(res.forces) == (3, n) ||
         throw(DimensionMismatch(lazy"gpu: the result forces have size $(size(res.forces)), expected (3, $n)"))
     (size(res.virial) == (3, 3) && size(res.stress) == (3, 3)) ||
         throw(DimensionMismatch(lazy"gpu: the result virial and stress must be 3 × 3, got $(size(res.virial)) and $(size(res.stress))"))
-    PureMLIP.mace_energy!(res, ws, model, positions, cell, atomic_numbers, nl)
+    _energy_unread!(res, ws, model, positions, cell, atomic_numbers, nl)
     numbers = view(ws.numbers, 1:n)
     _second_nodes_pullback!(ws, model, n)
     _interaction_pullback!(ws, model, 2, nl, numbers, model.tables[2])

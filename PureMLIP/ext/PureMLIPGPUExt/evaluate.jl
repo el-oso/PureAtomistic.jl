@@ -33,6 +33,19 @@ function PureMLIP.mace_energy!(
         res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
         cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
     ) where {T}
+    _energy_unread!(res, ws, model, positions, cell, atomic_numbers, nl)
+    copyto!(ws.status, nl.status)
+    _check_status(ws.status, model, atomic_numbers, ws, nl)
+    return res
+end
+
+# The device `mace_energy!` without its read of the status word: `res` is valid only once
+# `_check_status` passes on a copy of `nl.status` taken afterwards. A caller that launches further
+# kernels first (an MD step) reads the status word once for all of them.
+function _energy_unread!(
+        res::DeviceMACEResult{T}, ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, positions::AbstractMatrix,
+        cell::AbstractMatrix, atomic_numbers::AbstractVector{<:Integer}, nl::DeviceNeighborList
+    ) where {T}
     _check_evaluation(res, ws, model, positions, cell, atomic_numbers, nl)
     n = nl.n_atoms
     numbers = view(ws.numbers, 1:n)
@@ -41,8 +54,6 @@ function PureMLIP.mace_energy!(
     _first_nodes!(ws, model, n)
     _interaction!(ws, model, 2, nl, numbers, model.tables[2])
     _second_nodes!(res, ws, model, n)
-    copyto!(ws.status, nl.status)
-    _check_status(ws.status, model, atomic_numbers, ws, nl)
     return res
 end
 

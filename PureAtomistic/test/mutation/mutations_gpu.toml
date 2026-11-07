@@ -1,2 +1,58 @@
 # Deliberate bugs for the extension files (see run.jl, MUTATION_SUITE=gpu). `file` is relative to PureAtomistic/;
 # the format is that of mutations.toml. A file that only declares its module needs no entry.
+
+[[mutation]]
+name = "device-md-kick-mass-unit"
+file = "ext/PureAtomisticGPUExt/motion.jl"
+find = "v + τ / (m * c) * f"
+replace = "v + τ / m * f"
+expect = "md step: kick and drift equal the CPU velocity Verlet"
+
+[[mutation]]
+name = "device-md-kick-full-step"
+file = "ext/PureAtomisticGPUExt/motion.jl"
+find = "    _kick!(sys, p, h / 2)\n    _drift!(sys, p, h)"
+replace = "    _kick!(sys, p, h)\n    _drift!(sys, p, h)"
+expect = "md step: kick and drift equal the CPU velocity Verlet"
+
+[[mutation]]
+name = "device-md-drift-half-step"
+file = "ext/PureAtomisticGPUExt/motion.jl"
+find = "x + h * v"
+replace = "x + h / 2 * v"
+expect = "md step: kick and drift equal the CPU velocity Verlet"
+
+[[mutation]]
+name = "device-md-kinetic-component"
+file = "ext/PureAtomisticGPUExt/motion.jl"
+find = "m[a] * (V[1, a]^2 + V[2, a]^2 + V[3, a]^2)"
+replace = "m[a] * (V[1, a]^2 + V[2, a]^2)"
+expect = "md step: kinetic energy, total energy and temperature equal the CPU's"
+
+[[mutation]]
+name = "device-md-total-without-potential"
+file = "ext/PureAtomisticGPUExt/motion.jl"
+find = "with_potential ? half_amu * s + e : half_amu * s"
+replace = "with_potential ? half_amu * s : half_amu * s"
+expect = "md step: kinetic energy, total energy and temperature equal the CPU's"
+
+[[mutation]]
+name = "device-md-overflow-ignored"
+file = "ext/PureAtomisticGPUExt/potential.jl"
+find = "if _read_status!(p)[ext.STATUS_OVERFLOW] > 0"
+replace = "if _read_status!(p)[ext.STATUS_OVERFLOW] > typemax(Int32)"
+expect = "md step: an edge overflow mid-run regrows once"
+
+[[mutation]]
+name = "device-md-regrow-keeps-overflowed-result"
+file = "ext/PureAtomisticGPUExt/potential.jl"
+find = "        _regrow!(p, positions, cell)\n        _evaluate!(p, positions, cell)\n"
+replace = "        _regrow!(p, positions, cell)\n"
+expect = "md step: an edge overflow mid-run regrows once"
+
+[[mutation]]
+name = "device-md-regrow-without-spare"
+file = "ext/PureAtomisticGPUExt/potential.jl"
+find = "extra_capacity = ceil(Int, fraction * count)"
+replace = "extra_capacity = 0"
+expect = "md step: an edge overflow mid-run regrows once"

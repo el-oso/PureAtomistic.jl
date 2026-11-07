@@ -4,6 +4,9 @@
     sys = SystemFixtures.small_system(Float64)
     msg = "pureatomistic: device evaluation needs a KernelAbstractions backend"
     @test_throws msg PureAtomistic.device_potential(m, sys; skin = 0.5)
+    @test_throws "pureatomistic: the model has element type Float64 and the system Float32; they must match" PureAtomistic.device_potential(
+        m, SystemFixtures.small_system(Float32); skin = 0.5
+    )
     @test_throws msg PureAtomistic.to_device(sys, nothing)
     @test_throws "got Nothing" PureAtomistic.to_device(sys, nothing)
     @test isnothing(Base.get_extension(PureAtomistic, :PureAtomisticGPUExt))

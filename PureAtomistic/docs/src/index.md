@@ -8,3 +8,36 @@ reads the results, and `IO` reads and writes configurations.
 
 The [example gallery](gallery.md) shows the validation runs of the molecular-dynamics driver:
 energy conservation, canonical sampling with the Bussi thermostat, and a vacancy at 1300 K.
+
+## Molecular dynamics on a GPU
+
+With KernelAbstractions loaded (and Metal, CUDA or AMDGPU for a GPU), the `PureAtomisticGPUExt`
+extension runs the whole velocity Verlet step on the device that holds the system's arrays:
+
+```julia
+using PureAtomistic, PureMLIP, Metal, Random
+model = MACEModel{Float32}(load_mace_checkpoint(path))
+host = PureAtomistic.Systems.fcc_cell(3.615f0, 5, :Cu)
+sys = PureAtomistic.to_device(host, MetalBackend())
+p = PureAtomistic.device_potential(model, sys; skin = 0)
+sim = Simulation(sys, p, VelocityVerlet(2.0); rng = Xoshiro(0))
+run!(sim, 1000; every = 100, observer = s -> (copy_state!(host, s.system); println(total_energy(s))))
+```
+
+The kicks and the drift are kernels with the arithmetic of the CPU step, so for the same forces
+they give the CPU's bits. A step copies no array between host and device: the host reads back the
+status word of the neighbor list once (`p.readbacks` counts every read), and `kinetic_energy`,
+`total_energy` and `temperature` of the simulation each read one scalar summed on the device.
+`copy_state!` copies the positions, velocities and cell to a host system at the output interval.
+
+When a step packs more edges than the device list has room for, the potential rebuilds its list
+and workspace with `extra_capacity_fraction` spare edges (default 0.1), evaluates again, counts it
+in `p.n_regrows` and reports it on standard error. Spare edges cost evaluation time (10 % costs
+5.6 % on Metal at 10,976 atoms); in 2,000 steps of 2 fs of 500 Cu atoms near 1300 K at constant
+volume the edge count stayed within 3.5 % below and 0.005 % above that of the first step, and a
+rebuild took 8 ms against 68 ms for an evaluation (`bench/results/gpu_capacity_margin_metal.json`).
+
+A step allocates host memory for its kernel launches and the status read, an exception to the
+rule that `!` functions do not allocate: 2,464 bytes on the KernelAbstractions CPU backend and
+about 457,000 bytes on Metal for the tiny test checkpoint, both gated by the GPU test suite, which
+also checks that the device memory in use stays the same over 1,000 steps.

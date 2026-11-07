@@ -5,7 +5,11 @@
     m = MACEModel(load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint()))
     sys = PureAtomistic.Systems.fcc_cell(3.6, 2, :Cu)
     @test_throws "pureatomistic: device evaluation needs a KernelAbstractions backend" PureAtomistic.to_device(sys, nothing)
-    @test_throws "pureatomistic: device evaluation needs a KernelAbstractions backend" PureAtomistic.device_potential(m, sys; skin = 0.5)
+    # A host system is a system on the KernelAbstractions CPU backend; a model of another precision
+    # than the system's stays with the core's method.
+    @test_throws "pureatomistic: the model has element type Float32 and the system Float64; they must match" PureAtomistic.device_potential(
+        MACEModel{Float32}(load_mace_checkpoint(PureMLIP.tiny_mace_checkpoint())), sys; skin = 0.5
+    )
 end
 
 @testitem "Aqua ambiguities and piracies with both extensions loaded" tags = [:gpu] setup = [GPUBackend] begin

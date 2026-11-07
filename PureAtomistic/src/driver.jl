@@ -58,6 +58,20 @@ working type of the system.
 total_energy(sim::Simulation{T}) where {T} = kinetic_energy(sim.system) + T(sim.potential.result.energy)
 
 """
+    kinetic_energy(sim::Simulation)
+
+The kinetic energy of `sim.system` in eV.
+"""
+Systems.kinetic_energy(sim::Simulation) = kinetic_energy(sim.system)
+
+"""
+    temperature(sim::Simulation; dof = 3 * natoms(sim.system) - 3)
+
+The kinetic temperature of `sim.system` in K.
+"""
+Systems.temperature(sim::Simulation; dof::Integer = 3 * natoms(sim.system) - 3) = Systems.temperature(sim.system; dof)
+
+"""
     step!(sim) -> nothing
 
 Advance `sim` by one time step: a step of its integrator, or of its thermostat when it has one.

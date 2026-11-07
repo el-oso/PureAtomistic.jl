@@ -237,6 +237,19 @@ end
     end
 end
 
+@testitem "kinetic_energy and temperature of a Simulation are those of its system" setup = [VerletFixtures] begin
+    using PureAtomistic.Systems
+    F = VerletFixtures
+    for T in (Float64, Float32)
+        sim = F.mace_simulation(T, 0.5)
+        run!(sim, 3)
+        # The same function on the same values: equality is exact.
+        @test kinetic_energy(sim) == kinetic_energy(sim.system)
+        @test temperature(sim) == temperature(sim.system)
+        @test temperature(sim; dof = 4) == temperature(sim.system; dof = 4)
+    end
+end
+
 @testitem "run! calls the observer every k steps" setup = [VerletFixtures] begin
     using Random
     F = VerletFixtures
