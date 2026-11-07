@@ -73,3 +73,9 @@ _pool_block(backend::Backend, ::Type{T}, len::Int) where {T} = allocate(backend,
 _pool_member(mem::Memory, offset::Int, dims::NTuple{3, Int}) =
     Base.wrap(Array, iszero(offset) || iszero(prod(dims)) ? memoryref(mem) : memoryref(mem, offset + 1), dims)
 _pool_member(mem::AbstractVector, offset::Int, dims::NTuple{3, Int}) = reshape(view(mem, (offset + 1):(offset + prod(dims))), dims)
+
+# `_launch!` with work groups of size `workgroupsize`.
+function _launch_grouped!(kernel, backend::Backend, ndrange, workgroupsize, args...)
+    prod(ndrange) > 0 && kernel(backend, workgroupsize)(args...; ndrange)
+    return nothing
+end

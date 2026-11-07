@@ -62,6 +62,14 @@ function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) 
     )
 end
 
+# The entries of the status word of a device neighbor list.
+const STATUS_REBUILT = 1
+const STATUS_OVERFLOW = 2
+const STATUS_SAMPLER_CAP = 3
+const STATUS_UNKNOWN_ELEMENT = 4
+const STATUS_ZERO_LENGTH = 5
+const STATUS_LENGTH = 5
+
 """
     DeviceNeighborList{T, B, VI, MI}
 
@@ -70,8 +78,8 @@ stored as `Int32`: edge `e` runs from `senders[e]` to `receivers[e]` with lattic
 `shifts[:, e]`, and the edges of receiver `i` are `row_ptr[i]:row_ptr[i + 1] - 1`. `reverse[e]` is
 the edge from `receivers[e]` to `senders[e]` with translation `-shifts[:, e]`. The arrays have
 `capacity` columns; `n_edges[1]` of them are valid. The edges are those within `r_cut + skin`.
-`status` holds four flags written on the device: rebuilt, capacity overflow, sampler cap reached
-and unknown element.
+`status` holds five flags written on the device, at the indices named by the `STATUS_*`
+constants: rebuilt, capacity overflow, sampler cap reached, unknown element and zero-length edge.
 """
 struct DeviceNeighborList{T, B <: Backend, VI <: AbstractVector{Int32}, MI <: AbstractMatrix{Int32}}
     backend::B
@@ -120,7 +128,7 @@ function _device_neighbor_list(nl::NeighborList{T}, backend::Backend, r_cut::T, 
     up(A) = _upload(backend, A)
     return DeviceNeighborList(
         backend, r_cut, skin, nl.n_atoms, capacity, up(row_ptr), up(padded(nl.receivers)), up(padded(nl.senders)),
-        up(Int32.(nl.shifts)), up(padded(reverse)), up(Int32[E]), _device_zeros(backend, Int32, (4,)),
+        up(Int32.(nl.shifts)), up(padded(reverse)), up(Int32[E]), _device_zeros(backend, Int32, (STATUS_LENGTH,)),
     )
 end
 
@@ -149,19 +157,28 @@ The buffers of an evaluation of a `DeviceMACEModel` on up to `n_atoms` atoms and
 directed edges, on the backend `backend`. Per edge it holds the edge vector `r`, its length `d`
 and the energy gradient `dEdr`. The harmonics `Y` and their gradients `dY`, the radial features
 and their length derivatives, the radial-MLP outputs and their cotangents, its hidden layers and
-the ZBL terms are held for `edge_chunk` edges at a time; a chunk is a range of whole receivers, so
-`edge_chunk` must be at least the largest number of edges of one receiver. The per-node buffers
-hold the quantities of the `MACEWorkspace` buffers of the same names, in a `(C, n, K)` layout
-(channel, atom, e3nn component) in which each slot of degree `l` is one contiguous
-`C × n(2l + 1)` matrix for `mul!`; the summed messages `M`, their cotangents `dM` and the first
-linear output `L0` are held for every atom. They share memory in the pools of `MACEWorkspace`.
+the ZBL terms are held for `edge_chunk` edges at a time; a chunk is a range of `edge_chunk`
+consecutive edge slots of the neighbor list (fewer in the last), and a receiver's edges may span
+two chunks. The per-node buffers hold the quantities of the `MACEWorkspace` buffers of the same
+names, in a `(C, n, K)` layout (channel, atom, e3nn component) in which each slot of degree `l` is
+one contiguous `C × n(2l + 1)` matrix for `mul!`; the summed messages `M`, their cotangents `dM`
+and the first linear output `L0` are held for every atom. They share memory in the pools of
+`MACEWorkspace`. The symmetric contraction builds its features `Zf` and matrix products `Yc` for
+`contraction_block` atoms at a time. `species` and `numbers` hold each atom's species index and
+atomic number as the species kernel checked them, and `status` is the host copy of the neighbor
+list's status word that an evaluation reads back.
 """
 struct DeviceMACEWorkspace{T, B <: Backend, V <: AbstractVector{T}, M <: AbstractMatrix{T}, A3 <: AbstractArray{T, 3}, VI <: AbstractVector{Int32}}
     backend::B
     n_atoms::Int
     n_edges::Int
     edge_chunk::Int
+    contraction_block::Int
     species::VI
+    numbers::VI
+    status::Vector{Int32}
+    Zf::V                    # features × contraction_block × C, for the largest feature count
+    Yc::V                    # columns × contraction_block × C, for the largest column count
     # per edge
     r::M                     # 3 × E
     d::V
@@ -218,21 +235,31 @@ end
 # The default `edge_chunk` of `device_workspace`: the smallest edge chunk whose per-edge pass on
 # cu_bench(14) is within 5 % of the fastest and whose edge-chunk buffers take at most 1/8 of the
 # device memory (bench/results/gpu_stage_profile_metal.json).
-const DEFAULT_EDGE_CHUNK = 2^16
+const DEFAULT_EDGE_CHUNK = 2^14
+
+# The default `contraction_block` of `device_workspace`, in atoms. On cu_bench(14) (Float32, Metal)
+# the forward pass takes 1 % longer than with one block of every atom, with 455 MB of contraction
+# buffers in place of 1.2 GB; blocks of 1024 atoms take 9 % longer.
+const DEFAULT_CONTRACTION_BLOCK = 4096
 
 function PureMLIP.device_workspace(
-        model::DeviceMACEModel{T}, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = DEFAULT_EDGE_CHUNK
+        model::DeviceMACEModel{T}, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = DEFAULT_EDGE_CHUNK,
+        contraction_block::Integer = DEFAULT_CONTRACTION_BLOCK
     ) where {T}
     (n_atoms >= 0 && n_edges >= 0) ||
         throw(ArgumentError(lazy"gpu: workspace sizes must not be negative, got $n_atoms atoms and $n_edges edges"))
     edge_chunk > 0 || throw(ArgumentError(lazy"gpu: the edge chunk must be positive, got $edge_chunk"))
+    contraction_block > 0 || throw(ArgumentError(lazy"gpu: the contraction block must be positive, got $contraction_block"))
     backend, m = model.backend, model.host
     n, E = Int(n_atoms), Int(n_edges)
     chunk = min(Int(edge_chunk), max(E, 1))
+    cblock = min(Int(contraction_block), max(n, 1))
     C = m.C
     nb = length(m.radial.bessel_weights)
     W = max(size(m.mlp[1].W[4], 2), size(m.mlp[2].W[4], 2))
     H = max(size(m.mlp[1].W[1], 2), size(m.mlp[2].W[1], 2))
+    nf = maximum(cm -> size(cm.F, 1), model.contraction)
+    ncol = maximum(cm -> size(cm.F, 2), model.contraction)
     z(dims...) = _device_zeros(backend, T, dims)
     dims(lin::E3nnLinear) = (lin.C_out, n, lin.K_out)
     node(lin::E3nnLinear) = z(dims(lin)...)
@@ -251,7 +278,8 @@ function PureMLIP.device_workspace(
     tpw, dtpw = z(W, chunk), z(W, chunk)
     r = z(3, E)
     return DeviceMACEWorkspace{T, typeof(backend), typeof(z(0)), typeof(r), typeof(h0), typeof(model.species)}(
-        backend, n, E, chunk, _device_zeros(backend, Int32, (n,)),
+        backend, n, E, chunk, cblock, _device_zeros(backend, Int32, (n,)), _device_zeros(backend, Int32, (n,)),
+        zeros(Int32, STATUS_LENGTH), z(nf * cblock * C), z(ncol * cblock * C),
         r, z(E), z(3, E),
         z(16, chunk), z(16, 3, chunk), z(nb, chunk), z(nb, chunk), tpw, reshape(tpw, C, W ÷ C, chunk),
         z(H, chunk, 3), z(H, chunk, 3), dtpw, reshape(dtpw, C, W ÷ C, chunk), z(H, chunk, 2), z(nb, chunk), z(chunk), z(chunk),

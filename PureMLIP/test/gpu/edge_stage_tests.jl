@@ -146,32 +146,39 @@ end
             gY, gdY, gfeats, gdfeats = similar(Y), similar(dY), similar(feats), similar(dfeats)
             gzbl, gdzbl = similar(zbl), similar(dzbl)
             gmlp = [(; out = similar(c.out), pre = similar(c.pre), act = similar(c.act), df = similar(c.df)) for c in mlp]
-            chunks = ext._edge_chunks(dnl, dZ, Array(dnl.row_ptr), ws.edge_chunk)
-            @test reduce(vcat, [collect(c.atoms) for c in chunks]) == 1:n
-            @test reduce(vcat, [collect(c.edges) for c in chunks]; init = Int[]) == 1:E
+            # The chunks cover every slot of the list; slots past the E edges hold no edge and get
+            # zero harmonics and features. A receiver's edges may lie in two chunks.
+            chunks = ext._edge_chunks(dnl, dZ, ws.edge_chunk)
+            @test reduce(vcat, [collect(c.edges) for c in chunks]; init = Int[]) == 1:(dnl.capacity)
             E > 512 && @test length(chunks) > 1
+            fill!(ws.pair, zero(T))
             for c in chunks
                 nb = length(c.edges)
+                v = first(c.edges):min(last(c.edges), E)
+                j = 1:length(v)
                 ext._edge_features!(ws, dm, 1, c)
-                gY[:, c.edges] = Array(ws.Y)[:, 1:nb]
-                gdY[:, :, c.edges] = Array(ws.dY)[:, :, 1:nb]
-                gfeats[:, c.edges] = Array(ws.feats)[:, 1:nb]
-                gdfeats[:, c.edges] = Array(ws.dfeats)[:, 1:nb]
+                gY[:, v] = Array(ws.Y)[:, j]
+                gdY[:, :, v] = Array(ws.dY)[:, :, j]
+                gfeats[:, v] = Array(ws.feats)[:, j]
+                gdfeats[:, v] = Array(ws.dfeats)[:, j]
+                past = (length(v) + 1):nb
+                @test all(iszero, Array(ws.Y)[:, past]) && all(iszero, Array(ws.dY)[:, :, past])
+                @test all(iszero, Array(ws.feats)[:, past]) && all(iszero, Array(ws.dfeats)[:, past])
                 ext._zbl_edges!(ws, dm, c)
-                gzbl[c.edges] = Array(ws.zbl)[1:nb]
-                gdzbl[c.edges] = Array(ws.dzbl)[1:nb]
+                gzbl[v] = Array(ws.zbl)[j]
+                gdzbl[v] = Array(ws.dzbl)[j]
                 for k in 1:2
                     (; H, W) = mlp[k]
-                    upload_columns!(ws.feats, feats[:, c.edges])
+                    upload_columns!(ws.feats, feats[:, v])
                     ext._radial_mlp!(ws, dm, k, c)
-                    gmlp[k].out[:, c.edges] = Array(ws.tpw)[1:W, 1:nb]
-                    gmlp[k].pre[:, c.edges, :] = Array(ws.pre)[1:H, 1:nb, :]
-                    gmlp[k].act[:, c.edges, :] = Array(ws.act)[1:H, 1:nb, :]
-                    upload_columns!(ws.pre, mlp[k].pre[:, c.edges, :])
-                    upload_columns!(ws.act, mlp[k].act[:, c.edges, :])
-                    upload_columns!(ws.dtpw, mlp[k].dout[:, c.edges])
+                    gmlp[k].out[:, v] = Array(ws.tpw)[1:W, j]
+                    gmlp[k].pre[:, v, :] = Array(ws.pre)[1:H, j, :]
+                    gmlp[k].act[:, v, :] = Array(ws.act)[1:H, j, :]
+                    upload_columns!(ws.pre, mlp[k].pre[:, v, :])
+                    upload_columns!(ws.act, mlp[k].act[:, v, :])
+                    upload_columns!(ws.dtpw, mlp[k].dout[:, v])
                     ext._radial_mlp_pullback!(ws, dm, k, c)
-                    gmlp[k].df[:, c.edges] = Array(ws.dfeats_chunk)[:, 1:nb]
+                    gmlp[k].df[:, v] = Array(ws.dfeats_chunk)[:, j]
                 end
             end
             gpair = Array(ws.pair)[1:n]
@@ -250,7 +257,8 @@ end
         upload_columns!(ws.d, d)
         dZ = todevice(Int32.(Z))
         gzbl, gdzbl = similar(zbl), similar(dzbl)
-        for c in ext._edge_chunks(dnl, dZ, Array(dnl.row_ptr), ws.edge_chunk)
+        fill!(ws.pair, zero(T))
+        for c in ext._edge_chunks(dnl, dZ, ws.edge_chunk)
             ext._zbl_edges!(ws, dm, c)
             gzbl[c.edges] = Array(ws.zbl)[1:length(c.edges)]
             gdzbl[c.edges] = Array(ws.dzbl)[1:length(c.edges)]
@@ -286,7 +294,7 @@ end
         for e in 1:E
             M.radial_embedding!(view(feats, :, e), view(dfeats, :, e), m.radial, d[e], 29, 29)
         end
-        (c,) = ext._edge_chunks(dnl, dZ, Array(dnl.row_ptr), ws.edge_chunk)
+        (c,) = ext._edge_chunks(dnl, dZ, ws.edge_chunk)
         ext._edge_features!(ws, dm, 2, c)
         @test relerr(Array(ws.feats)[:, 1:E], feats) <= 10 * 1280
         @test relerr(Array(ws.dfeats)[:, 1:E], dfeats) <= 10 * 1280
@@ -331,17 +339,16 @@ end
     @test_throws "gpu: all arrays must be on the backend of the positions" ext._edges!(ws, OtherMatrix(s.positions), dcell, dnl)
     @test_throws "gpu: arrays must be 1-based" ext._edges!(ws, OffsetArray(dpos, 0:2, 1:n), dcell, dnl)
 
-    row_ptr = Array(dnl.row_ptr)
-    degree = row_ptr[2] - row_ptr[1]
-    @test_throws "gpu: receiver 1 has $degree edges, more than the edge chunk $(degree - 1)" ext._edge_chunks(dnl, dZ, row_ptr, degree - 1)
-    @test_throws "gpu: row_ptr has length $n, expected $(n + 1)" ext._edge_chunks(dnl, dZ, row_ptr[1:n], 256)
-    @test_throws "gpu: $(n - 1) atomic numbers for $n atoms" ext._edge_chunks(dnl, dZ[1:(n - 1)], row_ptr, 256)
-    chunks = ext._edge_chunks(dnl, dZ, row_ptr, ws.edge_chunk)
-    small = PureMLIP.device_workspace(dm, n, dnl.capacity; edge_chunk = degree)
-    @test_throws "gpu: the chunk has $(degree + 1) edges, the workspace holds $degree" ext._edge_features!(small, dm, 1, ext.EdgeChunk(dnl, dZ, 1:2, 1:(degree + 1)))
-    beyond = ext.EdgeChunk(dnl, dZ, 1:n, (dnl.capacity):(dnl.capacity + 1))
-    @test_throws "gpu: the chunk reaches edge $(dnl.capacity + 1), the workspace holds $(dnl.capacity)" ext._zbl_edges!(ws, dm, beyond)
-    @test_throws "gpu: the chunk reaches atom $(n + 1), the workspace holds $n" ext._radial_mlp!(ws, dm, 1, ext.EdgeChunk(dnl, dZ, 1:(n + 1), 1:1))
+    @test_throws "gpu: the edge chunk must be positive, got 0" ext._edge_chunks(dnl, dZ, 0)
+    @test_throws "gpu: $(n - 1) atomic numbers for $n atoms" ext._edge_chunks(dnl, dZ[1:(n - 1)], 256)
+    @test_throws "gpu: arrays must be 1-based" ext._edge_chunks(dnl, OffsetArray(dZ, 0:(n - 1)), 256)
+    chunks = ext._edge_chunks(dnl, dZ, ws.edge_chunk)
+    small = PureMLIP.device_workspace(dm, n, dnl.capacity; edge_chunk = 9)
+    @test_throws "gpu: the chunk has 10 edges, the workspace holds 9" ext._edge_features!(small, dm, 1, ext.EdgeChunk(dnl, dZ, 1:10))
+    beyond = ext.EdgeChunk(dnl, dZ, (dnl.capacity):(dnl.capacity + 1))
+    @test_throws "gpu: the chunk reaches edge $(dnl.capacity + 1), the workspace holds $(dnl.capacity) and the list $(dnl.capacity)" ext._zbl_edges!(ws, dm, beyond)
+    fewer = PureMLIP.device_workspace(dm, n - 1, dnl.capacity)
+    @test_throws "gpu: the list has $n atoms, the workspace holds $(n - 1)" ext._radial_mlp!(fewer, dm, 1, chunks[1])
     for f in (ext._edge_features!, ext._radial_mlp!, ext._radial_mlp_pullback!)
         @test_throws "gpu: the interaction must be 1 or 2, got 3" f(ws, dm, 3, chunks[1])
     end
@@ -369,7 +376,7 @@ end
     ws = PureMLIP.device_workspace(dm, n, dnl.capacity)
     dZ = todevice(Int32.(s.atomic_numbers))
     ext._edges!(ws, todevice(s.positions), todevice(s.cell), dnl)
-    for c in ext._edge_chunks(dnl, dZ, Array(dnl.row_ptr), ws.edge_chunk)
+    for c in ext._edge_chunks(dnl, dZ, ws.edge_chunk)
         ext._edge_features!(ws, dm, 1, c)
         ext._zbl_edges!(ws, dm, c)
         for k in 1:2
@@ -394,7 +401,7 @@ end
     ext._slope!(g, 1, pre, act, 1, 1, 1, m.mlp[1].cst)
     row_ptr = Array(dnl.row_ptr)
     zbl, dzbl, pair = zeros(T, E), zeros(T, E), zeros(T, n)
-    ext._zbl_receiver!(zbl, dzbl, pair, d, nl.senders, row_ptr, Z, m.zbl.covalent_radii, ext._zbl_params(m.zbl, m.r_max), 1, 0)
+    ext._zbl_receiver!(zbl, dzbl, pair, d, nl.senders, row_ptr, Z, m.zbl.covalent_radii, ext._zbl_params(m.zbl, m.r_max), 1, 0, E)
     @test any(!iszero, zbl)
     @test isempty(StrictMode.conversion_report(ext; from = Float32, to = Float64))
 

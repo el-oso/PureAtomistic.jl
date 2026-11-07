@@ -14,31 +14,31 @@
           "edge_chunk": 16384,
           "fits": true,
           "chunks": 53,
-          "median_us": 2.0492639585e6,
-          "min_us": 2.034567042e6,
-          "max_us": 2.083004583e6,
+          "median_us": 399066.4795,
+          "min_us": 397891.375,
+          "max_us": 461140.0,
           "edge_chunk_bytes": 207618048,
-          "device_bytes_current_above_start": 976355328
+          "device_bytes_current_above_start": 1403076608
         },
         "262144": {
           "edge_chunk": 262144,
           "fits": true,
           "chunks": 4,
-          "median_us": 1.6546311665e6,
-          "min_us": 1.648327667e6,
-          "max_us": 1.659479084e6,
+          "median_us": 529433.084,
+          "min_us": 527335.417,
+          "max_us": 533707.75,
           "edge_chunk_bytes": 3321888768,
-          "device_bytes_current_above_start": 4090363904
+          "device_bytes_current_above_start": 4517347328
         },
         "65536": {
           "edge_chunk": 65536,
           "fits": true,
           "chunks": 14,
-          "median_us": 1.722650958e6,
-          "min_us": 1.699396875e6,
-          "max_us": 1.739001708e6,
+          "median_us": 535518.167,
+          "min_us": 534174.125,
+          "max_us": 536954.584,
           "edge_chunk_bytes": 830472192,
-          "device_bytes_current_above_start": 1695416320
+          "device_bytes_current_above_start": 2122399744
         },
         "all": {
           "edge_chunk": 856128,
@@ -53,13 +53,43 @@
           "fuse": true
         },
         "spherical_harmonics+messages_1": {
-          "separate_us": 143589.04150000002,
-          "fused_us": 165661.27049999998,
+          "separate_us": 22067.0625,
+          "fused_us": 38733.188,
+          "sh": {
+            "median_us": 1137.2085,
+            "min_us": 1024.458,
+            "max_us": 2710.5
+          },
+          "messages": {
+            "median_us": 20929.854,
+            "min_us": 20701.25,
+            "max_us": 21102.5
+          },
+          "fused": {
+            "median_us": 38733.188,
+            "min_us": 38630.459,
+            "max_us": 38940.0
+          },
           "fuse": false
         },
         "spherical_harmonics+messages_2": {
-          "separate_us": 716128.2289999999,
-          "fused_us": 724394.8955,
+          "separate_us": 41874.604,
+          "fused_us": 58260.875,
+          "sh": {
+            "median_us": 1137.2085,
+            "min_us": 1024.458,
+            "max_us": 2710.5
+          },
+          "messages": {
+            "median_us": 40737.3955,
+            "min_us": 40526.083,
+            "max_us": 40891.125
+          },
+          "fused": {
+            "median_us": 58260.875,
+            "min_us": 57937.416,
+            "max_us": 58451.792
+          },
           "fuse": false
         },
         "zbl+pair_sum": {
@@ -1005,18 +1035,22 @@
           "bandwidth_fraction": 0.9551234221996072
         },
         "messages_1": {
-          "median_us": 142598.9585,
-          "min_us": 142148.666,
-          "max_us": 143902.167,
+          "median_us": 20929.854,
+          "min_us": 20701.25,
+          "max_us": 21102.5,
           "bytes": 2374064896,
-          "bandwidth_fraction": 0.12053520643479922
+          "bandwidth_fraction": 1.0974583752240707,
+          "bytes_unique": 1944815492,
+          "bandwidth_fraction_unique": 0.8990293624900646
         },
         "messages_2": {
-          "median_us": 715138.146,
-          "min_us": 714695.0,
-          "max_us": 718998.208,
+          "median_us": 40737.3955,
+          "min_us": 40526.083,
+          "max_us": 40891.125,
           "bytes": 6453975808,
-          "bandwidth_fraction": 0.06533938946910964
+          "bandwidth_fraction": 1.5328361825527541,
+          "bytes_unique": 4726572932,
+          "bandwidth_fraction_unique": 1.1225734686925026
         },
         "pair_sum": {
           "median_us": 153.0205,
@@ -1574,7 +1608,13 @@
         }
       },
       "edge_chunk_sweep_memory_budget_bytes": 6.700150784e9,
-      "edge_chunk_sweep_node_layout": "(C, n, K)"
+      "edge_chunk_sweep_node_layout": "(C, n, K)",
+      "messages_copy_reference": {
+        "bytes": 536870912,
+        "median_us": 5194.353999999999,
+        "min_us": 3987.583,
+        "max_us": 5788.667
+      }
     },
     "cu_bench(5)": {
       "copy_reference": {
@@ -3058,7 +3098,7 @@
         "radial_mlp_hidden_bwd": "mul!",
         "radial_mlp_hidden_fwd": "mul!",
         "radial_mlp_layer1_bwd": "mul!",
-        "radial_mlp_layer1_fwd": "mul!",
+        "radial_mlp_layer1_fwd": "kernel",
         "radial_mlp_layer4_bwd_interaction1": "mul!",
         "radial_mlp_layer4_bwd_interaction2": "mul!",
         "radial_mlp_layer4_fwd_interaction1": "mul!",
@@ -3135,7 +3175,7 @@
         "radial_mlp_hidden_bwd": "mul!",
         "radial_mlp_hidden_fwd": "mul!",
         "radial_mlp_layer1_bwd": "mul!",
-        "radial_mlp_layer1_fwd": "mul!",
+        "radial_mlp_layer1_fwd": "kernel",
         "radial_mlp_layer4_bwd_interaction1": "mul!",
         "radial_mlp_layer4_bwd_interaction2": "mul!",
         "radial_mlp_layer4_fwd_interaction1": "mul!",
@@ -3168,7 +3208,7 @@
       }
     },
     "decided_at": "cu_bench(14)",
-    "edge_chunk": 65536,
+    "edge_chunk": 16384,
     "fused": [
       "edges+radial_features",
       "zbl+pair_sum"
@@ -3345,13 +3385,13 @@
         "mul_us": 2448.5209999999997
       },
       "messages_1": {
-        "bandwidth_fraction": 0.12053520643479922,
-        "kernel_us": 142598.9585,
+        "bandwidth_fraction": 1.0974583752240707,
+        "kernel_us": 20929.854,
         "method": "kernel"
       },
       "messages_2": {
-        "bandwidth_fraction": 0.06533938946910964,
-        "kernel_us": 715138.146,
+        "bandwidth_fraction": 1.5328361825527541,
+        "kernel_us": 40737.3955,
         "method": "kernel"
       },
       "node_elementwise": {
@@ -3419,44 +3459,44 @@
         "method": "kernel"
       },
       "radial_mlp_hidden_bwd": {
-        "kernel_us": 3744.9790000000003,
+        "kernel_us": 1040.2915,
         "method": "mul!",
-        "mul_us": 1126.1045
+        "mul_us": 226.10399999999998
       },
       "radial_mlp_hidden_fwd": {
-        "kernel_us": 3594.187,
+        "kernel_us": 972.1245,
         "method": "mul!",
-        "mul_us": 1005.2080000000001
+        "mul_us": 483.41650000000004
       },
       "radial_mlp_layer1_bwd": {
-        "kernel_us": 1000.4375,
+        "kernel_us": 364.167,
         "method": "mul!",
-        "mul_us": 418.70849999999996
+        "mul_us": 162.20850000000002
       },
       "radial_mlp_layer1_fwd": {
-        "kernel_us": 1308.0,
-        "method": "mul!",
-        "mul_us": 988.729
+        "kernel_us": 429.14599999999996,
+        "method": "kernel",
+        "mul_us": 465.7085
       },
       "radial_mlp_layer4_bwd_interaction1": {
-        "kernel_us": 24968.5625,
+        "kernel_us": 6389.562,
         "method": "mul!",
-        "mul_us": 3508.7290000000003
+        "mul_us": 439.95849999999996
       },
       "radial_mlp_layer4_bwd_interaction2": {
-        "kernel_us": 71239.708,
+        "kernel_us": 18043.354,
         "method": "mul!",
-        "mul_us": 8001.25
+        "mul_us": 855.375
       },
       "radial_mlp_layer4_fwd_interaction1": {
-        "kernel_us": 26732.146,
+        "kernel_us": 6792.1669999999995,
         "method": "mul!",
-        "mul_us": 3135.2290000000003
+        "mul_us": 400.77099999999996
       },
       "radial_mlp_layer4_fwd_interaction2": {
-        "kernel_us": 66336.687,
+        "kernel_us": 16745.688000000002,
         "method": "mul!",
-        "mul_us": 7436.3745
+        "mul_us": 738.708
       },
       "readout_0_bwd": {
         "kernel_us": 950.1665,
@@ -3628,5 +3668,6 @@
   "model": "MACE-MPA-0 (medium)",
   "precision": "Float32",
   "device_memory_bytes": 26800603136,
-  "node_layout_note": "The edge-chunk sweeps of cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n)."
+  "node_layout_note": "The edge-chunk sweeps of cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n).",
+  "messages_note": "The messages rows and the spherical_harmonics+messages fusion pairs of cu_bench(14) are the extension's messages kernel (one work item per channel and receiver, the message in registers) in the (C, n, K) node layout; the copy reference of that run is messages_copy_reference."
 }

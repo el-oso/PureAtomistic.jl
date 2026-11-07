@@ -98,7 +98,7 @@ end
         E, n = nl.n_edges, nl.n_atoms
         @test (dnl.r_cut, dnl.skin, dnl.n_atoms, dnl.capacity) == (T(6), zero(T), n, E + 5)
         @test Array(dnl.n_edges) == [E]
-        @test Array(dnl.status) == zeros(Int32, 4)
+        @test Array(dnl.status) == zeros(Int32, 5)
         row_ptr = Array(dnl.row_ptr)
         rcv, snd, sh, rev = Array(dnl.receivers), Array(dnl.senders), Array(dnl.shifts), Array(dnl.reverse)
         @test row_ptr[end] - 1 == E

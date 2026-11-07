@@ -46,8 +46,8 @@ expect = "edge stages: each stage agrees with its CPU function"
 [[mutation]]
 name = "device-radial-skin-shell-not-zero"
 file = "ext/PureMLIPGPUExt/radial.jl"
-find = "    if !(dd < P.r_max)\n"
-replace = "    if !(dd < P.r_max + 1)\n"
+find = "!(dd < P.r_max) && return"
+replace = "!(dd < P.r_max + 1) && return"
 expect = "edge stages: each stage agrees with its CPU function"
 
 [[mutation]]
@@ -112,3 +112,129 @@ file = "ext/PureMLIPGPUExt/radial.jl"
 find = "T(0.4028), T(0.2016))"
 replace = "T(0.4028), T(0.2))"
 expect = "edge stages: ZBL at short range agrees with its CPU function"
+
+[[mutation]]
+name = "device-messages-weight-path"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = '$(sym(:w, p)) = w[u, $p, col]'
+replace = '$(sym(:w, p)) = w[u, 1, col]'
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-messages-drop-earlier-chunks"
+file = "ext/PureMLIPGPUExt/tensors/tensor_product.jl"
+find = '$([:($(acc(k)) = M[u, i, $k]) for k in 1:K]...)'
+replace = '$([:($(acc(k)) = zero(eltype(M))) for k in 1:K]...)'
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-receiver-edges-outside-chunk"
+file = "ext/PureMLIPGPUExt/edges.jl"
+find = "max(Int(row_ptr[i]), e0 + 1)"
+replace = "Int(row_ptr[i])"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-receiver-range-past-edges"
+file = "ext/PureMLIPGPUExt/edges.jl"
+find = "stop = min(e0 + nb, Int(n_edges))"
+replace = "stop = e0 + nb"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-messages-one-receiver-per-work-item"
+file = "ext/PureMLIPGPUExt/messages.jl"
+find = "for i in (lo + il - 1):R:hi"
+replace = "for i in (lo + il - 1):R:min(hi, lo + R - 1)"
+expect = "forward: per-receiver kernels cover chunks"
+
+[[mutation]]
+name = "device-density-not-squared"
+file = "ext/PureMLIPGPUExt/messages.jl"
+find = "ρ += tanh(z * z)"
+replace = "ρ += tanh(z)"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-density-norm-without-one"
+file = "ext/PureMLIPGPUExt/readout.jl"
+find = "L[u, i, k] /= density[i] + one(eltype(L))"
+replace = "L[u, i, k] /= density[i]"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-species-linear-unmasked"
+file = "ext/PureMLIPGPUExt/tensors/linear.jl"
+find = "species[i] == s ? x[u, i, k] : zero(eltype(xs))"
+replace = "x[u, i, k]"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-linear-path-weight"
+file = "ext/PureMLIPGPUExt/tensors/linear.jl"
+find = "_slot(x, lin.in_off[i], d), lin.pw[p], true)"
+replace = "_slot(x, lin.in_off[i], d), one(T), true)"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-contraction-feature-pair"
+file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
+find = "X[c, a, pairs[1, q]] * X[c, a, pairs[2, q]]"
+replace = "X[c, a, pairs[1, q]] * X[c, a, pairs[1, q]]"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-contraction-column"
+file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
+find = "Yc[(j - 1) * L + w, r, c]"
+replace = "Yc[(j - 1) * L + 1, r, c]"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-contraction-every-species"
+file = "ext/PureMLIPGPUExt/tensors/contraction.jl"
+find = "(iszero(s) || species[a] == s) || return nothing"
+replace = "(iszero(s) || true) || return nothing"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-readout-silu-normalization"
+file = "ext/PureMLIPGPUExt/readout.jl"
+find = "g[q] = z * σ * cst"
+replace = "g[q] = z * σ"
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-node-energy-without-e0"
+file = "ext/PureMLIPGPUExt/readout.jl"
+find = "energies[i] = e0[species[i]] + ("
+replace = "energies[i] = ("
+expect = "forward: energy and node energies agree"
+
+[[mutation]]
+name = "device-tree-sum-pairs"
+file = "ext/PureMLIPGPUExt/reduce.jl"
+find = "buf[t] += buf[t + h]"
+replace = "buf[t] = buf[t + h]"
+expect = "forward: the tree sum adds every entry"
+
+[[mutation]]
+name = "device-tree-sum-stride"
+file = "ext/PureMLIPGPUExt/reduce.jl"
+find = "for i in t:_REDUCE_GROUP:n"
+replace = "for i in t:_REDUCE_GROUP:min(n, _REDUCE_GROUP)"
+expect = "forward: the tree sum adds every entry"
+
+[[mutation]]
+name = "device-unknown-element-not-flagged"
+file = "ext/PureMLIPGPUExt/evaluate.jl"
+find = "    if iszero(s)\n"
+replace = "    if false\n"
+expect = "forward: an atomic number outside the device model's elements throws"
+
+[[mutation]]
+name = "device-zero-length-not-flagged"
+file = "ext/PureMLIPGPUExt/edges.jl"
+find = "iszero(d[e]) && (status[STATUS_ZERO_LENGTH]"
+replace = "false && (status[STATUS_ZERO_LENGTH]"
+expect = "forward: coincident atoms throw"

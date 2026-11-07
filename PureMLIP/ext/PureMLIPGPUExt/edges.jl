@@ -1,63 +1,77 @@
-# The per-edge geometry on the device: edge vectors and lengths of every edge, the receiver chunks
-# that the per-edge buffers hold one at a time, and e3nn's spherical harmonics with their gradient.
+# The per-edge geometry on the device: edge vectors and lengths of every edge, the edge chunks that
+# the per-edge buffers hold one at a time, and e3nn's spherical harmonics with their gradient.
 
 """
     EdgeChunk{L, VZ}
 
-The receivers `atoms` of the device neighbor list `nl` and their edges `edges`, a contiguous range
-because the edges are sorted by receiver; `atomic_numbers` are those of every atom of the list, on
-its backend. Column `j` of the workspace's per-edge-chunk buffers holds edge `first(edges) + j - 1`.
+The edge slots `edges` of the device neighbor list `nl`, a range of consecutive slots that the
+workspace's per-edge-chunk buffers hold: column `j` holds slot `first(edges) + j - 1`. Slots past
+`nl.n_edges[1]` hold no edge; the kernels read that count on the device and give such a column zero
+features. A receiver's edges may lie in two or more chunks. `atomic_numbers` are those of every atom
+of the list, on its backend.
 """
 struct EdgeChunk{L <: DeviceNeighborList, VZ <: AbstractVector{<:Integer}}
     nl::L
     atomic_numbers::VZ
-    atoms::UnitRange{Int}
     edges::UnitRange{Int}
 end
 
-"""
-    _edge_chunks(nl, atomic_numbers, row_ptr, edge_chunk) -> Vector{EdgeChunk}
+# The number of edge chunks of `edge_chunk` slots that cover the slots of `nl`.
+_n_edge_chunks(nl::DeviceNeighborList, edge_chunk::Int) = cld(nl.capacity, edge_chunk)
 
-Consecutive ranges of whole receivers of `nl` that cover every atom, each with at most
-`edge_chunk` edges and as many receivers as fit. `row_ptr` is a host copy of `nl.row_ptr`.
+# Chunk `c` of the chunks of `edge_chunk` slots of `nl`.
+_edge_chunk(nl::DeviceNeighborList, atomic_numbers::AbstractVector{<:Integer}, edge_chunk::Int, c::Int) =
+    EdgeChunk(nl, atomic_numbers, ((c - 1) * edge_chunk + 1):min(c * edge_chunk, nl.capacity))
+
 """
-function _edge_chunks(nl::DeviceNeighborList, atomic_numbers::AbstractVector{<:Integer}, row_ptr::AbstractVector{<:Integer}, edge_chunk::Integer)
-    _require_one_based(row_ptr, atomic_numbers)
+    _edge_chunks(nl, atomic_numbers, edge_chunk) -> Vector{EdgeChunk}
+
+The chunks of `edge_chunk` consecutive edge slots that cover the `nl.capacity` slots of `nl`. They
+depend only on sizes known on the host, so building them reads nothing from the device.
+"""
+function _edge_chunks(nl::DeviceNeighborList, atomic_numbers::AbstractVector{<:Integer}, edge_chunk::Integer)
+    _require_one_based(atomic_numbers)
     _common_backend(nl.senders, atomic_numbers)
-    n = nl.n_atoms
-    length(row_ptr) == n + 1 || throw(DimensionMismatch(lazy"gpu: row_ptr has length $(length(row_ptr)), expected $(n + 1)"))
-    length(atomic_numbers) == n || throw(DimensionMismatch(lazy"gpu: $(length(atomic_numbers)) atomic numbers for $n atoms"))
-    chunks = EdgeChunk{typeof(nl), typeof(atomic_numbers)}[]
-    a = 1
-    while a <= n
-        degree = row_ptr[a + 1] - row_ptr[a]
-        degree <= edge_chunk || throw(ArgumentError(lazy"gpu: receiver $a has $degree edges, more than the edge chunk $edge_chunk"))
-        b = a
-        while b < n && row_ptr[b + 2] - row_ptr[a] <= edge_chunk
-            b += 1
-        end
-        push!(chunks, EdgeChunk(nl, atomic_numbers, a:b, Int(row_ptr[a]):Int(row_ptr[b + 1] - 1)))
-        a = b + 1
-    end
-    return chunks
+    edge_chunk > 0 || throw(ArgumentError(lazy"gpu: the edge chunk must be positive, got $edge_chunk"))
+    length(atomic_numbers) == nl.n_atoms ||
+        throw(DimensionMismatch(lazy"gpu: $(length(atomic_numbers)) atomic numbers for $(nl.n_atoms) atoms"))
+    return [_edge_chunk(nl, atomic_numbers, Int(edge_chunk), c) for c in 1:_n_edge_chunks(nl, Int(edge_chunk))]
 end
 
-# The number of edges of `chunk`, after checking that the chunk fits the workspace.
+# The number of edge slots of `chunk`, after checking that the chunk fits the workspace.
 function _chunk_length(ws::DeviceMACEWorkspace, chunk::EdgeChunk)
     _common_backend(ws.r, chunk.nl.senders, chunk.atomic_numbers)
     nb = length(chunk.edges)
     nb <= ws.edge_chunk || throw(ArgumentError(lazy"gpu: the chunk has $nb edges, the workspace holds $(ws.edge_chunk)"))
-    last(chunk.edges) <= ws.n_edges || throw(ArgumentError(lazy"gpu: the chunk reaches edge $(last(chunk.edges)), the workspace holds $(ws.n_edges)"))
-    last(chunk.atoms) <= ws.n_atoms || throw(ArgumentError(lazy"gpu: the chunk reaches atom $(last(chunk.atoms)), the workspace holds $(ws.n_atoms)"))
+    last(chunk.edges) <= min(ws.n_edges, chunk.nl.capacity) ||
+        throw(ArgumentError(lazy"gpu: the chunk reaches edge $(last(chunk.edges)), the workspace holds $(ws.n_edges) and the list $(chunk.nl.capacity)"))
+    chunk.nl.n_atoms <= ws.n_atoms || throw(ArgumentError(lazy"gpu: the list has $(chunk.nl.n_atoms) atoms, the workspace holds $(ws.n_atoms)"))
     return nb
 end
+
+# The number of receivers that the per-receiver kernels of a chunk of `nb` slots launch work items
+# for: about the receivers of `nb` edges at the list's mean degree per slot. Each work item handles
+# every `R`-th receiver of the chunk's receiver range, so any `R ≥ 1` covers the range.
+_chunk_receivers(nl::DeviceNeighborList, nb::Int) = max(1, min(nl.n_atoms, cld(nb * nl.n_atoms, max(nl.capacity, 1)) + 2))
+
+# The first and last receiver with an edge in slots `e0 + 1 : e0 + nb`, with `n_edges` valid
+# slots; `(1, 0)` when the slots hold no edge.
+@inline function _receiver_range(receivers, n_edges, e0, nb)
+    stop = min(e0 + nb, Int(n_edges))
+    stop >= e0 + 1 || return 1, 0
+    return Int(receivers[e0 + 1]), Int(receivers[stop])
+end
+
+# The edges of receiver `i` among slots `e0 + 1 : e0 + nb`.
+@inline _receiver_edges(row_ptr, i, e0, nb) = max(Int(row_ptr[i]), e0 + 1):min(Int(row_ptr[i + 1]) - 1, e0 + nb)
 
 """
     _edges!(ws, positions, cell, nl) -> nothing
 
 Edge vectors `ws.r[:, e] = positions[:, receiver] - positions[:, sender] + cell · shift` and their
 lengths `ws.d[e]` for the first `nl.n_edges[1]` edges, read on the device. The workspace holds
-every edge the list can hold.
+every edge the list can hold. An edge of length zero (two atoms at one place) sets
+`nl.status[STATUS_ZERO_LENGTH]`; its harmonics are undefined.
 """
 function _edges!(ws::DeviceMACEWorkspace{T}, positions::AbstractMatrix, cell::AbstractMatrix, nl::DeviceNeighborList) where {T}
     _require_one_based(positions, cell)
@@ -69,7 +83,7 @@ function _edges!(ws::DeviceMACEWorkspace{T}, positions::AbstractMatrix, cell::Ab
     size(cell) == (3, 3) || throw(DimensionMismatch(lazy"gpu: the cell has size $(size(cell)), expected (3, 3)"))
     ws.n_edges >= nl.capacity ||
         throw(ArgumentError(lazy"gpu: the workspace holds $(ws.n_edges) edges, the neighbor list up to $(nl.capacity)"))
-    _launch!(_edges_kernel!, ws.backend, nl.capacity, ws.r, ws.d, positions, cell, nl.senders, nl.receivers, nl.shifts, nl.n_edges)
+    _launch!(_edges_kernel!, ws.backend, nl.capacity, ws.r, ws.d, nl.status, positions, cell, nl.senders, nl.receivers, nl.shifts, nl.n_edges)
     return nothing
 end
 
@@ -79,9 +93,19 @@ end
 # functions on the host instead, so arithmetic written in a kernel body would go unchecked.
 #
 # One work item per edge slot of the list; slots past `n_edges[1]` hold no edge.
-@kernel function _edges_kernel!(r, d, @Const(positions), @Const(cell), @Const(senders), @Const(receivers), @Const(shifts), @Const(n_edges))
+@kernel function _edges_kernel!(r, d, status, @Const(positions), @Const(cell), @Const(senders), @Const(receivers), @Const(shifts), @Const(n_edges))
     e = @index(Global)
-    e <= n_edges[1] && _edge!(r, d, e, positions, cell, senders[e], receivers[e], shifts)
+    if e <= n_edges[1]
+        _edge!(r, d, e, positions, cell, senders[e], receivers[e], shifts)
+        _flag_zero_length!(status, d, e)
+    end
+end
+
+# Every work item that finds a zero length writes the same value, so the order of the writes does
+# not matter.
+@inline function _flag_zero_length!(status, d, e)
+    iszero(d[e]) && (status[STATUS_ZERO_LENGTH] = one(eltype(status)))
+    return nothing
 end
 
 # The vector and length of edge `e` from atom `s` to atom `q`.
@@ -101,26 +125,41 @@ end
 For the edges of `chunk`, in columns `1:length(chunk.edges)`: e3nn's spherical harmonics `ws.Y`
 of the edge vectors and their gradients `ws.dY[:, i, j] = ∂Y/∂r_i`, and the radial features
 `ws.feats` with their length derivatives `ws.dfeats`. Edges with `d ≥ r_max` get zero features and
-derivatives. The features are the same for both interactions; `k` names the interaction, as for
-every per-edge stage.
+derivatives, and so do the columns of slots past `nl.n_edges[1]`, whose harmonics are zero. The
+features are the same for both interactions; `k` names the interaction, as for every per-edge
+stage.
 """
 function _edge_features!(ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, k::Integer, chunk::EdgeChunk) where {T}
     1 <= k <= 2 || throw(ArgumentError(lazy"gpu: the interaction must be 1 or 2, got $k"))
     nb = _chunk_length(ws, chunk)
     e0 = first(chunk.edges) - 1
-    _launch!(_harmonics_kernel!, ws.backend, nb, ws.Y, ws.dY, ws.r, isqrt(size(ws.Y, 1)) - 1, e0)
     nl = chunk.nl
+    _launch!(_harmonics_kernel!, ws.backend, nb, ws.Y, ws.dY, ws.r, nl.n_edges, isqrt(size(ws.Y, 1)) - 1, e0)
     _launch!(
-        _radial_features_kernel!, ws.backend, nb, ws.feats, ws.dfeats, ws.d, nl.senders, nl.receivers, chunk.atomic_numbers,
+        _radial_features_kernel!, ws.backend, nb, ws.feats, ws.dfeats, ws.d, nl.senders, nl.receivers, nl.n_edges, chunk.atomic_numbers,
         model.radial_radii, model.bessel_weights, _radial_params(model.host.radial), e0,
     )
     return nothing
 end
 
-@kernel function _harmonics_kernel!(Y, dY, @Const(r), L, e0)
+@kernel function _harmonics_kernel!(Y, dY, @Const(r), @Const(n_edges), L, e0)
     j = @index(Global)
     e = e0 + j
-    _e3nn_harmonics_column!(Y, dY, j, L, r[1, e], r[2, e], r[3, e])
+    if e <= n_edges[1]
+        _e3nn_harmonics_column!(Y, dY, j, L, r[1, e], r[2, e], r[3, e])
+    else
+        _zero_column!(Y, dY, j)
+    end
+end
+
+@inline function _zero_column!(Y, dY, col)
+    for k in axes(Y, 1)
+        Y[k, col] = zero(eltype(Y))
+        for i in 1:3
+            dY[k, i, col] = zero(eltype(dY))
+        end
+    end
+    return nothing
 end
 
 # e3nn's harmonics (`e3nn_spherical_harmonics_and_gradient!`) of the vector (v1, v2, v3) up to

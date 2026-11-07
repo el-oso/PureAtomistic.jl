@@ -27,11 +27,23 @@ function _radial_params(emb)
 end
 
 @kernel function _radial_features_kernel!(
-        feats, dfeats, @Const(d), @Const(senders), @Const(receivers), @Const(Z), @Const(radii), @Const(weights), P, e0
+        feats, dfeats, @Const(d), @Const(senders), @Const(receivers), @Const(n_edges), @Const(Z), @Const(radii), @Const(weights), P, e0
     )
     j = @index(Global)
     e = e0 + j
-    _radial_column!(feats, dfeats, j, d[e], radii[Z[senders[e]] + 1], radii[Z[receivers[e]] + 1], weights, P)
+    if e <= n_edges[1]
+        _radial_column!(feats, dfeats, j, d[e], radii[Z[senders[e]] + 1], radii[Z[receivers[e]] + 1], weights, P)
+    else
+        _zero_features!(feats, dfeats, j)
+    end
+end
+
+@inline function _zero_features!(feats, dfeats, col)
+    for n in axes(feats, 1)
+        feats[n, col] = zero(eltype(feats))
+        dfeats[n, col] = zero(eltype(dfeats))
+    end
+    return nothing
 end
 
 # The radial features of an edge of length `dd` between atoms of covalent radii `ru` and `rv` into
@@ -40,13 +52,7 @@ end
 @inline function _radial_column!(feats, dfeats, col, dd, ru, rv, weights, P)
     T = eltype(feats)
     nb = size(feats, 1)
-    if !(dd < P.r_max)
-        for n in 1:nb
-            feats[n, col] = zero(T)
-            dfeats[n, col] = zero(T)
-        end
-        return nothing
-    end
+    !(dd < P.r_max) && return _zero_features!(feats, dfeats, col)
     fc, dfc = _poly_envelope_device(dd / P.r_max, P.p, inv(P.r_max))
     # Agnesi transform: x = d / r0, u = a x^q / (1 + x^(q-p)), t = 1 / (1 + u), and dt/dd.
     r0 = (ru + rv) / 2
@@ -170,31 +176,41 @@ end
 
 The ZBL repulsion of the edges of `chunk` as in `zbl_edge_energy`: the energy credited to the
 receiver in `ws.zbl[j]` and its length derivative in `ws.dzbl[j]` for column `j`, and their sum
-over the edges of each receiver `i` of the chunk in `ws.pair[i]`, added in edge order. Edges with
-`d ≥ r_max` contribute zero.
+over the chunk's edges of each receiver `i` added to `ws.pair[i]` in edge order. Over the chunks in
+order, starting from `ws.pair` zero, `ws.pair[i]` is the sum over every edge of `i` in edge order.
+Edges with `d ≥ r_max` contribute zero.
 """
 function _zbl_edges!(ws::DeviceMACEWorkspace{T}, model::DeviceMACEModel{T}, chunk::EdgeChunk) where {T}
-    _chunk_length(ws, chunk)
+    nb = _chunk_length(ws, chunk)
     nl = chunk.nl
     P = _zbl_params(model.host.zbl, model.host.r_max)
+    R = _chunk_receivers(nl, nb)
     _launch!(
-        _zbl_kernel!, ws.backend, length(chunk.atoms), ws.zbl, ws.dzbl, ws.pair, ws.d, nl.senders, nl.row_ptr,
-        chunk.atomic_numbers, model.zbl_radii, P, first(chunk.atoms) - 1, first(chunk.edges) - 1,
+        _zbl_kernel!, ws.backend, R, ws.zbl, ws.dzbl, ws.pair, ws.d, nl.senders, nl.receivers, nl.row_ptr, nl.n_edges,
+        chunk.atomic_numbers, model.zbl_radii, P, first(chunk.edges) - 1, nb, R,
     )
     return nothing
 end
 
-# One work item per receiver of the chunk, which sums its edges in order.
-@kernel function _zbl_kernel!(zbl, dzbl, pair, @Const(d), @Const(senders), @Const(row_ptr), @Const(Z), @Const(radii), P, a0, e0)
-    i = a0 + @index(Global)
-    _zbl_receiver!(zbl, dzbl, pair, d, senders, row_ptr, Z, radii, P, i, e0)
+# Work item `il` handles receivers `lo + il - 1`, `lo + il - 1 + R`, … of the chunk's
+# receiver range `lo:hi` and sums each one's edges of the chunk in order.
+@kernel function _zbl_kernel!(
+        zbl, dzbl, pair, @Const(d), @Const(senders), @Const(receivers), @Const(row_ptr), @Const(n_edges), @Const(Z), @Const(radii),
+        P, e0, nb, R
+    )
+    il = @index(Global)
+    lo, hi = _receiver_range(receivers, n_edges[1], e0, nb)
+    for i in (lo + il - 1):R:hi
+        _zbl_receiver!(zbl, dzbl, pair, d, senders, row_ptr, Z, radii, P, i, e0, nb)
+    end
 end
 
-# The ZBL terms of the edges of receiver `i`, in columns `e - e0`, and their sum in `pair[i]`.
-@inline function _zbl_receiver!(zbl, dzbl, pair, d, senders, row_ptr, Z, radii, P, i, e0)
+# The ZBL terms of the edges of receiver `i` among slots `e0 + 1 : e0 + nb`, in columns `e - e0`,
+# added to `pair[i]`.
+@inline function _zbl_receiver!(zbl, dzbl, pair, d, senders, row_ptr, Z, radii, P, i, e0, nb)
     Zv = Int(Z[i])
-    acc = zero(eltype(pair))
-    for e in row_ptr[i]:(row_ptr[i + 1] - 1)
+    acc = pair[i]
+    for e in _receiver_edges(row_ptr, i, e0, nb)
         Zu = Int(Z[senders[e]])
         v, dv = _zbl_edge(d[e], Zu, Zv, radii[Zu + 1] + radii[Zv + 1], P)
         zbl[e - e0], dzbl[e - e0] = v, dv

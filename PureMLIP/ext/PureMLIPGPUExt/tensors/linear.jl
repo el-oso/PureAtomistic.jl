@@ -40,3 +40,74 @@ function DeviceSpeciesLinear(backend::Backend, sl::SpeciesLinear{T}) where {T}
     end
     return DeviceSpeciesLinear(_upload(backend, W), _upload(backend, sl.c), sl)
 end
+
+# Slot `off + 1 : off + d` of the node features `x` (`(C, n, K)` layout) as one `C × n·d` matrix.
+_slot(x::AbstractArray{T, 3}, off::Int, d::Int) where {T} = reshape(view(x, :, :, (off + 1):(off + d)), size(x, 1), size(x, 2) * d)
+
+"""
+    _linear!(y, dl::DeviceE3nnLinear, x) -> y
+
+[`linear!`](@ref PureMLIP.Tensors.linear!) on node features in the `(C, n, K)` layout: for each
+instruction, one matrix product of its weights with the input slot, as one `C × n(2l + 1)`
+matrix, added to the output slot. Overwrites `y`.
+"""
+function _linear!(y::AbstractArray{T, 3}, dl::DeviceE3nnLinear{T}, x::AbstractArray{T, 3}) where {T}
+    lin = dl.host
+    (size(x, 1), size(x, 3)) == (lin.C_in, lin.K_in) && size(y) == (lin.C_out, size(x, 2), lin.K_out) ||
+        throw(DimensionMismatch(lazy"gpu: linear map from $(size(x)) to $(size(y)), expected ($(lin.C_in), n, $(lin.K_in)) to ($(lin.C_out), n, $(lin.K_out))"))
+    fill!(y, zero(T))
+    for p in eachindex(lin.slots)
+        i, o = lin.slots[p]
+        d = 2 * lin.in_ls[i] + 1
+        mul!(_slot(y, lin.out_off[o], d), view(dl.W, :, :, p), _slot(x, lin.in_off[i], d), lin.pw[p], true)
+    end
+    return y
+end
+
+"""
+    _species_linear!(y, dsl::DeviceSpeciesLinear, x, species, list, scratch, backend) -> y
+
+[`species_linear!`](@ref PureMLIP.Tensors.species_linear!) on node features in the `(C, n, K)`
+layout, for nodes whose species index `species[i]` is in `list`. With one species, one matrix
+product per instruction over every node; with several, per species the input with the other
+species' nodes set to zero (in `scratch`, the size of `x`) is multiplied by that species' weights
+and added, so each node receives exactly its own species' product. Overwrites `y`.
+"""
+function _species_linear!(
+        y::AbstractArray{T, 3}, dsl::DeviceSpeciesLinear{T}, x::AbstractArray{T, 3}, species::AbstractVector{Int32},
+        list::AbstractVector{Int}, scratch::AbstractArray{T, 3}, backend::Backend
+    ) where {T}
+    sl = dsl.host
+    (size(x, 1), size(x, 3)) == (sl.C_in, sl.K) && size(y) == (sl.C_out, size(x, 2), sl.K) && size(scratch) == size(x) ||
+        throw(DimensionMismatch(lazy"gpu: species linear map from $(size(x)) to $(size(y)), expected ($(sl.C_in), n, $(sl.K)) to ($(sl.C_out), n, $(sl.K))"))
+    fill!(y, zero(T))
+    if length(list) == 1
+        _species_products!(y, dsl, x, only(list))
+    else
+        for s in list
+            _launch!(_mask_kernel!, backend, size(x), scratch, x, species, s)
+            _species_products!(y, dsl, scratch, s)
+        end
+    end
+    return y
+end
+
+function _species_products!(y::AbstractArray{T, 3}, dsl::DeviceSpeciesLinear{T}, x::AbstractArray{T, 3}, s::Int) where {T}
+    sl = dsl.host
+    for p in eachindex(sl.slots)
+        i, o = sl.slots[p]
+        d = 2 * sl.ls[i] + 1
+        mul!(_slot(y, sl.off[o], d), view(dsl.W, :, :, s, p), _slot(x, sl.off[i], d), sl.c[p], true)
+    end
+    return nothing
+end
+
+@kernel function _mask_kernel!(xs, @Const(x), @Const(species), s)
+    u, i, k = @index(Global, NTuple)
+    _mask!(xs, x, species, s, u, i, k)
+end
+
+@inline function _mask!(xs, x, species, s, u, i, k)
+    xs[u, i, k] = species[i] == s ? x[u, i, k] : zero(eltype(xs))
+    return nothing
+end
