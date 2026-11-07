@@ -56,6 +56,14 @@ file = "ext/PureMLIPGPUExt/radial.jl"
 find = "w = P.multiples ? n * w1 : weights[n]"
 replace = "w = P.multiples ? w1 : weights[n]"
 expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-envelope-power-widens"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "pow(n) = Base.power_by_squaring(t, n)"
+replace = "pow(n) = t^n"
+expect = "edge stages: Float32 stages do not widen to Float64"
+
 [[mutation]]
 name = "device-silu-drops-normalization"
 file = "ext/PureMLIPGPUExt/radial.jl"
@@ -90,3 +98,17 @@ file = "ext/PureMLIPGPUExt/radial.jl"
 find = "        acc += v\n"
 replace = "        acc = v\n"
 expect = "edge stages: each stage agrees with its CPU function"
+
+[[mutation]]
+name = "device-zbl-half-energy"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "zbl[e - e0], dzbl[e - e0] = v, dv"
+replace = "zbl[e - e0], dzbl[e - e0] = v / 2, dv"
+expect = "edge stages: ZBL at short range agrees with its CPU function"
+
+[[mutation]]
+name = "device-zbl-screening-exponent"
+file = "ext/PureMLIPGPUExt/radial.jl"
+find = "T(0.4028), T(0.2016))"
+replace = "T(0.4028), T(0.2))"
+expect = "edge stages: ZBL at short range agrees with its CPU function"

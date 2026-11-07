@@ -73,10 +73,12 @@ function _edges!(ws::DeviceMACEWorkspace{T}, positions::AbstractMatrix, cell::Ab
     return nothing
 end
 
-# One work item per edge slot of the list; slots past `n_edges[1]` hold no edge. Each kernel of
-# the extension only indexes and calls one `@inline` function that holds its arithmetic, so that
-# the arithmetic also compiles as host code, where the Float32 conversion sweep of the tests sees
-# it.
+# Convention for every kernel of the extension: the kernel body only indexes and calls one
+# `@inline` function that holds the arithmetic. A kernel compiles through the backend's own
+# compiler, which the Float32 conversion sweep does not read; the tests check the `@inline`
+# functions on the host instead, so arithmetic written in a kernel body would go unchecked.
+#
+# One work item per edge slot of the list; slots past `n_edges[1]` hold no edge.
 @kernel function _edges_kernel!(r, d, @Const(positions), @Const(cell), @Const(senders), @Const(receivers), @Const(shifts), @Const(n_edges))
     e = @index(Global)
     e <= n_edges[1] && _edge!(r, d, e, positions, cell, senders[e], receivers[e], shifts)
