@@ -14,41 +14,36 @@
           "edge_chunk": 16384,
           "fits": true,
           "chunks": 53,
-          "median_us": 2.053075521e6,
-          "min_us": 2.036306458e6,
-          "max_us": 2.100738333e6,
+          "median_us": 2.0492639585e6,
+          "min_us": 2.034567042e6,
+          "max_us": 2.083004583e6,
           "edge_chunk_bytes": 207618048,
-          "device_bytes_above_start": 976093184
+          "device_bytes_current_above_start": 976355328
         },
         "262144": {
           "edge_chunk": 262144,
           "fits": true,
           "chunks": 4,
-          "median_us": 1.6602179164999998e6,
-          "min_us": 1.651366167e6,
-          "max_us": 1.67869925e6,
+          "median_us": 1.6546311665e6,
+          "min_us": 1.648327667e6,
+          "max_us": 1.659479084e6,
           "edge_chunk_bytes": 3321888768,
-          "device_bytes_above_start": 4090363904
+          "device_bytes_current_above_start": 4090363904
         },
         "65536": {
           "edge_chunk": 65536,
           "fits": true,
           "chunks": 14,
-          "median_us": 1.732726187e6,
-          "min_us": 1.702389625e6,
-          "max_us": 1.739723875e6,
+          "median_us": 1.722650958e6,
+          "min_us": 1.699396875e6,
+          "max_us": 1.739001708e6,
           "edge_chunk_bytes": 830472192,
-          "device_bytes_above_start": 1695416320
+          "device_bytes_current_above_start": 1695416320
         },
         "all": {
           "edge_chunk": 856128,
-          "fits": true,
-          "chunks": 1,
-          "median_us": 1.6528146664999998e6,
-          "min_us": 1.645757e6,
-          "max_us": 1.686418375e6,
-          "edge_chunk_bytes": 10848854016,
-          "device_bytes_above_start": 11617419264
+          "fits": false,
+          "edge_chunk_bytes": 10848854016
         }
       },
       "fusion": {
@@ -1577,7 +1572,9 @@
           "nf": 153,
           "ncol": 16
         }
-      }
+      },
+      "edge_chunk_sweep_memory_budget_bytes": 6.700150784e9,
+      "edge_chunk_sweep_node_layout": "(C, n, K)"
     },
     "cu_bench(5)": {
       "copy_reference": {
@@ -1596,7 +1593,7 @@
           "min_us": 91119.583,
           "max_us": 98519.0,
           "edge_chunk_bytes": 207618048,
-          "device_bytes_above_start": 223789056
+          "device_bytes_current_above_start": 223789056
         },
         "all": {
           "edge_chunk": 39000,
@@ -1606,7 +1603,7 @@
           "min_us": 81923.333,
           "max_us": 90830.333,
           "edge_chunk_bytes": 494208000,
-          "device_bytes_above_start": 581812224
+          "device_bytes_current_above_start": 581812224
         }
       },
       "fusion": {
@@ -3171,7 +3168,7 @@
       }
     },
     "decided_at": "cu_bench(14)",
-    "edge_chunk": 262144,
+    "edge_chunk": 65536,
     "fused": [
       "edges+radial_features",
       "zbl+pair_sum"
@@ -3422,44 +3419,44 @@
         "method": "kernel"
       },
       "radial_mlp_hidden_bwd": {
-        "kernel_us": 14437.604500000001,
+        "kernel_us": 3744.9790000000003,
         "method": "mul!",
-        "mul_us": 3925.5
+        "mul_us": 1126.1045
       },
       "radial_mlp_hidden_fwd": {
-        "kernel_us": 13735.0,
+        "kernel_us": 3594.187,
         "method": "mul!",
-        "mul_us": 3512.625
+        "mul_us": 1005.2080000000001
       },
       "radial_mlp_layer1_bwd": {
-        "kernel_us": 3667.4795,
+        "kernel_us": 1000.4375,
         "method": "mul!",
-        "mul_us": 1229.9165
+        "mul_us": 418.70849999999996
       },
       "radial_mlp_layer1_fwd": {
-        "kernel_us": 4801.8955,
+        "kernel_us": 1308.0,
         "method": "mul!",
-        "mul_us": 2768.7290000000003
+        "mul_us": 988.729
       },
       "radial_mlp_layer4_bwd_interaction1": {
-        "kernel_us": 99013.39600000001,
+        "kernel_us": 24968.5625,
         "method": "mul!",
-        "mul_us": 13152.207999999999
+        "mul_us": 3508.7290000000003
       },
       "radial_mlp_layer4_bwd_interaction2": {
-        "kernel_us": 284039.1045,
+        "kernel_us": 71239.708,
         "method": "mul!",
-        "mul_us": 31116.125500000002
+        "mul_us": 8001.25
       },
       "radial_mlp_layer4_fwd_interaction1": {
-        "kernel_us": 106032.10399999999,
+        "kernel_us": 26732.146,
         "method": "mul!",
-        "mul_us": 12166.7085
+        "mul_us": 3135.2290000000003
       },
       "radial_mlp_layer4_fwd_interaction2": {
-        "kernel_us": 264739.896,
+        "kernel_us": 66336.687,
         "method": "mul!",
-        "mul_us": 29682.4795
+        "mul_us": 7436.3745
       },
       "readout_0_bwd": {
         "kernel_us": 950.1665,
@@ -3619,7 +3616,7 @@
       }
     }
   },
-  "description": "Stage profile of the MACE evaluation on a GPU (bench/gpu_stage_profile.jl): matrix-shaped stages with mul! against a KernelAbstractions kernel, per-edge stages against a copy kernel's bandwidth, fusion candidates, and the edge-chunk sweep with peak device memory. Times in microseconds, median [min, max] of 20 synchronized runs.",
+  "description": "Stage profile of the MACE evaluation on a GPU (bench/gpu_stage_profile.jl): matrix-shaped stages with mul! against a KernelAbstractions kernel, per-edge stages against a copy kernel's bandwidth, fusion candidates, and the edge-chunk sweep with the device memory allocated after each pass. Times in microseconds, median [min, max] of 20 synchronized runs.",
   "device": "Apple M6",
   "edge_chunk_candidates": [
     16384,
@@ -3629,5 +3626,7 @@
   "julia": "1.13.3",
   "memory_budget_bytes": 1.2884901888e10,
   "model": "MACE-MPA-0 (medium)",
-  "precision": "Float32"
+  "precision": "Float32",
+  "device_memory_bytes": 26800603136,
+  "node_layout_note": "The edge-chunk sweeps of cu_bench(14) ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n)."
 }

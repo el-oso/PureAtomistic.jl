@@ -35,6 +35,7 @@ end
 
 function PureMLIP.device_model(model::MACEModel{T}, backend::Backend; elements) where {T <: AbstractFloat}
     _check_precision(backend, T)
+    isempty(elements) && throw(ArgumentError("gpu: elements must name at least one atomic number"))
     species = Int[]
     for z in elements
         s = 0 <= z < length(model.species) ? model.species[z + 1] : 0
@@ -127,6 +128,7 @@ PureMLIP.device_neighbor_list(nl::NeighborList{T}, backend::Backend) where {T <:
     _device_neighbor_list(nl, backend, T(nl.r_cut), zero(T))
 
 # The edges within `r_cut + skin` are found on the host from copies of `positions` and `cell`.
+# Each call copies the arrays to the host and back, so it is not for use inside an MD step.
 function PureMLIP.device_neighbor_list(
         positions::AbstractMatrix, cell::AbstractMatrix, r_cut::Real; skin::Real = 0, extra_capacity::Integer = 0
     )
@@ -149,8 +151,10 @@ and the energy gradient `dEdr`. The harmonics `Y` and their gradients `dY`, the 
 and their length derivatives, the radial-MLP outputs and their cotangents, its hidden layers and
 the ZBL terms are held for `edge_chunk` edges at a time; a chunk is a range of whole receivers, so
 `edge_chunk` must be at least the largest number of edges of one receiver. The per-node buffers
-are those of `MACEWorkspace`, with the summed messages `M`, their cotangents `dM` and the first
-linear output `L0` held for every atom, and they share memory in the same pools.
+hold the quantities of the `MACEWorkspace` buffers of the same names, in a `(C, n, K)` layout
+(channel, atom, e3nn component) in which each slot of degree `l` is one contiguous
+`C × n(2l + 1)` matrix for `mul!`; the summed messages `M`, their cotangents `dM` and the first
+linear output `L0` are held for every atom. They share memory in the pools of `MACEWorkspace`.
 """
 struct DeviceMACEWorkspace{T, B <: Backend, V <: AbstractVector{T}, M <: AbstractMatrix{T}, A3 <: AbstractArray{T, 3}, VI <: AbstractVector{Int32}}
     backend::B
@@ -211,9 +215,10 @@ struct DeviceMACEWorkspace{T, B <: Backend, V <: AbstractVector{T}, M <: Abstrac
     ddensity::M              # n × 2
 end
 
-# The default `edge_chunk` of `device_workspace`: the smallest edge chunk within 2 % of the fastest
-# per-edge pass on cu_bench(14) (bench/results/gpu_stage_profile_metal.json).
-const DEFAULT_EDGE_CHUNK = 2^18
+# The default `edge_chunk` of `device_workspace`: the smallest edge chunk whose per-edge pass on
+# cu_bench(14) is within 5 % of the fastest and whose edge-chunk buffers take at most 1/8 of the
+# device memory (bench/results/gpu_stage_profile_metal.json).
+const DEFAULT_EDGE_CHUNK = 2^16
 
 function PureMLIP.device_workspace(
         model::DeviceMACEModel{T}, n_atoms::Integer, n_edges::Integer; edge_chunk::Integer = DEFAULT_EDGE_CHUNK
@@ -229,14 +234,14 @@ function PureMLIP.device_workspace(
     W = max(size(m.mlp[1].W[4], 2), size(m.mlp[2].W[4], 2))
     H = max(size(m.mlp[1].W[1], 2), size(m.mlp[2].W[1], 2))
     z(dims...) = _device_zeros(backend, T, dims)
-    dims(lin::E3nnLinear) = (lin.C_out, lin.K_out, n)
+    dims(lin::E3nnLinear) = (lin.C_out, n, lin.K_out)
     node(lin::E3nnLinear) = z(dims(lin)...)
-    products(k) = (C, sum(ct -> 2ct.l + 1, m.product[k].contractions), n)
-    messages(k) = (C, m.conv[k].K_out, n)
-    ((dX2,), (dX1,)) = _device_pool(backend, T, ((dims(m.linear[2]),), ((C, m.skip[1].K, n),)))
+    products(k) = (C, n, sum(ct -> 2ct.l + 1, m.product[k].contractions))
+    messages(k) = (C, n, m.conv[k].K_out)
+    ((dX2,), (dX1,)) = _device_pool(backend, T, ((dims(m.linear[2]),), ((C, n, m.skip[1].K),)))
     ((h0, h1, B0, B1, sc, h2), (dh2, dh1, dh1_part, dB0, dB1)) = _device_pool(
         backend, T, (
-            ((C, 1, n), dims(m.product_linear[1]), products(1), products(2), (C, m.skip[2].K, n), dims(m.product_linear[2])),
+            ((C, n, 1), dims(m.product_linear[1]), products(1), products(2), (C, n, m.skip[2].K), dims(m.product_linear[2])),
             (dims(m.product_linear[2]), dims(m.product_linear[1]), dims(m.product_linear[1]), products(1), products(2)),
         )
     )
@@ -251,7 +256,7 @@ function PureMLIP.device_workspace(
         z(16, chunk), z(16, 3, chunk), z(nb, chunk), z(nb, chunk), tpw, reshape(tpw, C, W ÷ C, chunk),
         z(H, chunk, 3), z(H, chunk, 3), dtpw, reshape(dtpw, C, W ÷ C, chunk), z(H, chunk, 2), z(nb, chunk), z(chunk), z(chunk),
         h0, (node(m.up[1]), node(m.up[2])), z(n, 2), (M0, M1), (dM0, dM1), L0, dL0,
-        z(C, m.skip[1].K, n), node(m.linear[2]), (B0, B1), h1, sc, h2,
+        z(C, n, m.skip[1].K), node(m.linear[2]), (B0, B1), h1, sc, h2,
         node(m.readout1[1]), node(m.readout1[1]), node(m.readout0), node(m.readout1[2]), z(n),
         node(m.readout0), node(m.readout1[2]), node(m.readout1[1]), dh2, dh1, dh1_part, (dB0, dB1),
         dX1, dX2, dx, dx0, z(n, 2),

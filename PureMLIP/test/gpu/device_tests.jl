@@ -6,6 +6,9 @@
     struct OtherBackend <: KernelAbstractions.Backend end
     struct NoFloat64Backend <: KernelAbstractions.Backend end
     KernelAbstractions.supports_float64(::NoFloat64Backend) = false
+    # A backend that allocates host vectors, as a GPU backend allocates its arrays (not `Memory`).
+    struct HostAllocBackend <: KernelAbstractions.Backend end
+    KernelAbstractions.allocate(::HostAllocBackend, ::Type{T}, dims::Tuple) where {T} = Array{T}(undef, dims)
 
     # A host matrix that reports `OtherBackend` as its backend.
     struct OtherMatrix{T} <: AbstractMatrix{T}
@@ -15,7 +18,7 @@
     Base.getindex(A::OtherMatrix, i::Int, j::Int) = A.data[i, j]
     KernelAbstractions.get_backend(::OtherMatrix) = OtherBackend()
 
-    export OtherBackend, NoFloat64Backend, OtherMatrix
+    export OtherBackend, NoFloat64Backend, HostAllocBackend, OtherMatrix
 end
 
 @testmodule DeviceStructures begin
@@ -127,7 +130,7 @@ end
     end
 end
 
-@testitem "device workspace and result: sizes, zeros and shared pools" tags = [:gpu] setup = [GPUBackend, DeviceStructures] begin
+@testitem "device workspace and result: sizes, zeros and shared pools" tags = [:gpu] setup = [GPUBackend, DeviceStructures, FakeDevice] begin
     ext = Base.get_extension(PureMLIP, :PureMLIPGPUExt)
     for T in precisions
         m = tiny(T)
@@ -140,7 +143,10 @@ end
         W, H, nb = size(m.mlp[2].W[4], 2), size(m.mlp[1].W[1], 2), length(m.radial.bessel_weights)
         @test size(ws.Y) == (16, 16) && size(ws.dY) == (16, 3, 16) && size(ws.feats) == (nb, 16)
         @test size(ws.tpw) == (W, 16) && size(ws.tpw3) == (m.C, W ÷ m.C, 16) && size(ws.pre) == (H, 16, 3)
-        @test size(ws.M[2]) == (m.C, m.conv[2].K_out, 7) && size(ws.X2) == (m.C, m.linear[2].K_out, 7)
+        # Per-node buffers are (C, n, K).
+        @test size(ws.M[2]) == (m.C, 7, m.conv[2].K_out) && size(ws.X2) == (m.C, 7, m.linear[2].K_out)
+        @test size(ws.h0) == (m.C, 7, 1) && size(ws.X1) == (m.C, 7, m.skip[1].K) && size(ws.B[1]) == (m.C, 7, 4)
+        @test size(ws.x[2]) == (m.C, 7, m.up[2].K_out) && size(ws.dx) == (m.C, 7, m.up[2].K_out) && size(ws.e2) == (1, 7, 1)
         @test all(f -> all(iszero, Array(getfield(ws, f))), (:r, :feats, :tpw, :h0, :X1, :pair, :dx, :ddensity))
         # Members of one pool share memory; tpw3 is tpw.
         fill!(ws.h0, one(T))
@@ -151,12 +157,13 @@ end
         @test Array(ws.dL0)[1] == T(3)
         fill!(ws.tpw, T(4))
         @test all(==(T(4)), Array(ws.tpw3))
-        # A pool member over a GPU-array block is a reshaped contiguous view; checked here on a
-        # host vector, since the CPU backend's pools are blocks of `Memory`.
-        block = zeros(T, 12)
-        member = ext._pool_member(block, 4, (2, 2, 2))
-        member[1, 1, 1] = one(T)
-        @test size(member) == (2, 2, 2) && block[5] == one(T)
+        # On a backend that allocates vectors, as GPU backends do, pool members are reshaped
+        # contiguous views of one block, side by side within a group and overlapping across groups.
+        ((a, b), (c,)) = ext._device_pool(HostAllocBackend(), T, (((2, 1, 1), (1, 2, 2)), ((3, 1, 1),)))
+        @test size(a) == (2, 1, 1) && size(b) == (1, 2, 2) && size(c) == (3, 1, 1)
+        @test all(iszero, a) && all(iszero, b) && all(iszero, c)
+        b[1, 1, 1] = one(T)
+        @test c[3, 1, 1] == one(T) && parent(parent(b)) === parent(parent(c))
         # The edge chunk holds at most every edge.
         @test PureMLIP.device_workspace(dm, 7, 40; edge_chunk = 1000).edge_chunk == 40
         @test PureMLIP.device_workspace(dm, 0, 0).edge_chunk == 1
@@ -184,6 +191,7 @@ end
         @test_throws "gpu: Metal has no Float64; build the model as MACEModel{Float32}" PureMLIP.device_model(MACEModel{Float64}(ck), backend; elements = [29])
     end
     @test_throws "gpu: element 47 is not in the model's element table" PureMLIP.device_model(m32, backend; elements = [29, 47])
+    @test_throws "gpu: elements must name at least one atomic number" PureMLIP.device_model(m32, backend; elements = Int[])
     @test_throws "gpu: element -1 is not in the model's element table" PureMLIP.device_model(m32, backend; elements = [-1])
 
     s = structures(Float32)[3]

@@ -2,7 +2,7 @@
 # CPU backend and checked by check.jl --root ext/PureMLIPGPUExt --thresholds thresholds_gpu.toml. Floors only rise.
 "ext/PureMLIPGPUExt/PureMLIPGPUExt.jl" = 1.00
 "ext/PureMLIPGPUExt/device.jl" = 1.00
-"ext/PureMLIPGPUExt/tensors/arrays.jl" = 0.96
+"ext/PureMLIPGPUExt/tensors/arrays.jl" = 1.00
 "ext/PureMLIPGPUExt/tensors/linear.jl" = 1.00
 "ext/PureMLIPGPUExt/tensors/symmetric_contraction.jl" = 1.00
 "ext/PureMLIPGPUExt/tensors/tensor_product.jl" = 1.00

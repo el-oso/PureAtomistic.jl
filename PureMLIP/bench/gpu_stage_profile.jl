@@ -7,8 +7,12 @@
 #   GPU_BACKEND              Metal (default), CUDA or AMDGPU; the environment is bench/gpu/<backend in lower case>
 #   PUREMLIP_CHECKPOINT_DIR  directory with mace-mpa-0-medium.model
 #   STAGE_CASES              cu_bench sizes (default "5,14")
-#   STAGE_MEMORY_BUDGET_GB   largest edge-chunk buffer set to allocate (default 12); a larger edge
-#                            chunk is recorded as not fitting, with the bytes it needs
+#   STAGE_MEMORY_BUDGET_GB   largest edge-chunk buffer set to allocate (default: 1/4 of the device
+#                            memory, so that a run stays clear of swap on unified memory); a larger
+#                            edge chunk is recorded as not fitting, with the bytes it needs
+#   STAGE_FROM               a JSON of an earlier run: rebuild its decision table without measuring
+#   STAGE_ONLY=sweep         with STAGE_FROM: measure only the edge-chunk sweep of STAGE_CASES and
+#                            replace those sweeps in the earlier run's record
 #   PUREMLIP_BENCH_OUT       JSON output path (default results/gpu_stage_profile_<backend>.json)
 #
 # On macOS, export HWLOC_COMPONENTS=-darwin first (see the KernelAbstractions rule in AGENTS.md).
@@ -16,8 +20,10 @@
 # Every operation is synchronized and timed as the median of 20 runs after two warm-up runs. The
 # per-edge and per-node kernels here are profile kernels with the arithmetic of the CPU stages
 # (`src/model/`, `src/equivariant/`, `src/tensors/`); they are not compared with the CPU results.
+# The device memory is the vendor's figure for the memory a process may use: on Metal, whose
+# memory is unified with the host's, the recommended working set.
 #
-# Decision rules, fixed before any measurement:
+# Decision rules:
 # - A matrix-shaped stage uses `mul!` when its median, including any elementwise pass it needs
 #   (the activation of a radial-MLP layer, its slope in the pullback), is below the median of the
 #   kernel that computes the same result in the layout the stage reads; otherwise the kernel.
@@ -27,7 +33,8 @@
 # - A pair of stages is fused when the fused kernel's median is below the sum of the separate ones.
 # - The default `edge_chunk` is the smallest candidate whose per-edge pass (both interactions:
 #   radial features, harmonics, radial MLP forward and its pullback's matrix products, messages)
-#   is within 2 % of the fastest candidate, at cu_bench(14).
+#   is within 5 % of the fastest measured candidate, at cu_bench(14), among the candidates whose
+#   edge-chunk buffers take at most 1/8 of the device memory.
 # - The per-edge stages are reported against a copy kernel's bandwidth: bytes each stage must read
 #   and write, divided by its median, as a fraction of the copy kernel's bytes per second.
 using PureMLIP, KernelAbstractions, LinearAlgebra, Statistics, JSON
@@ -41,20 +48,22 @@ const backend = BACKEND_NAME == "Metal" ? VENDOR.MetalBackend() : BACKEND_NAME =
 
 include(joinpath(pkgdir(PureMLIP), "test", "reference", "structures.jl"))
 
+# The vendor memory queries are written for Metal only so far.
+function no_memory_query()
+    return error("gpu_stage_profile: the device-memory queries for ", BACKEND_NAME, " are not written yet")
+end
+# Bytes the device has allocated now.
+device_bytes() = BACKEND_NAME == "Metal" ? Int(VENDOR.device().currentAllocatedSize) : no_memory_query()
+# Bytes of device memory a process may use.
+device_memory() = BACKEND_NAME == "Metal" ? Int(VENDOR.device().recommendedMaxWorkingSetSize) : no_memory_query()
+
 const T = Float32
 const CK = joinpath(ENV["PUREMLIP_CHECKPOINT_DIR"], "mace-mpa-0-medium.model")
 const CASES = parse.(Int, split(get(ENV, "STAGE_CASES", "5,14"), ','))
-const BUDGET = parse(Float64, get(ENV, "STAGE_MEMORY_BUDGET_GB", "12")) * 2^30
+const BUDGET = haskey(ENV, "STAGE_MEMORY_BUDGET_GB") ? parse(Float64, ENV["STAGE_MEMORY_BUDGET_GB"]) * 2^30 : device_memory() / 4
 const OUT = get(ENV, "PUREMLIP_BENCH_OUT", joinpath(@__DIR__, "results", "gpu_stage_profile_$(lowercase(BACKEND_NAME)).json"))
 const CHUNKS = (2^14, 2^16, 2^18)
 const REPS = 20
-
-# Bytes the device has allocated (vendor query).
-function device_bytes()
-    BACKEND_NAME == "Metal" && return Int(VENDOR.device().currentAllocatedSize)
-    BACKEND_NAME == "CUDA" && return Int(VENDOR.used_memory())
-    return Int(VENDOR.HIP.used_memory())
-end
 
 sync() = KernelAbstractions.synchronize(backend)
 
@@ -308,22 +317,23 @@ end
 
 # Summed messages of the receivers `a0 + 1 : a0 + n` (one work item per channel and receiver), over
 # their edges, and the density of each receiver: the channel-wise tensor product of
-# `tp_edge_add!` and `density_edge`. Column `e - e0 + 1` of the edge-chunk buffers is edge `e`.
+# `tp_edge_add!` and `density_edge`. Column `e - e0 + 1` of the edge-chunk buffers is edge `e`; the
+# messages `Mg` and the sender features `x` are in the (C, n, K) node layout.
 @kernel function messages_kernel!(
         Mg, dens, @Const(x), @Const(Y), @Const(tpw3), @Const(feats), @Const(dw), @Const(row_ptr), @Const(snd),
         @Const(idx), @Const(val), @Const(path), a0, e0
     )
     u, il = @index(Global, NTuple)
     i = a0 + il
-    for k in axes(Mg, 2)
-        Mg[u, k, i] = zero(T)
+    for k in axes(Mg, 3)
+        Mg[u, i, k] = zero(T)
     end
     ρ = zero(T)
     for e in row_ptr[i]:(row_ptr[i + 1] - 1)
         j = e - e0 + 1
         s = snd[e]
         for q in eachindex(val)
-            Mg[u, idx[3, q], i] += val[q] * Y[idx[2, q], j] * tpw3[u, path[q], j] * x[u, idx[1, q], s]
+            Mg[u, i, idx[3, q]] += val[q] * Y[idx[2, q], j] * tpw3[u, path[q], j] * x[u, s, idx[1, q]]
         end
         if u == 1
             zz = zero(T)
@@ -344,8 +354,8 @@ end
     u, il = @index(Global, NTuple)
     i = a0 + il
     Yp = @private T (16, 1)
-    for k in axes(Mg, 2)
-        Mg[u, k, i] = zero(T)
+    for k in axes(Mg, 3)
+        Mg[u, i, k] = zero(T)
     end
     ρ = zero(T)
     for e in row_ptr[i]:(row_ptr[i + 1] - 1)
@@ -353,7 +363,7 @@ end
         s = snd[e]
         sh_column!(Yp, nothing, 1, r[1, e], r[2, e], r[3, e])
         for q in eachindex(val)
-            Mg[u, idx[3, q], i] += val[q] * Yp[idx[2, q], 1] * tpw3[u, path[q], j] * x[u, idx[1, q], s]
+            Mg[u, i, idx[3, q]] += val[q] * Yp[idx[2, q], 1] * tpw3[u, path[q], j] * x[u, s, idx[1, q]]
         end
         if u == 1
             zz = zero(T)
@@ -487,7 +497,8 @@ end
 
 stage(f) = timed(f)
 
-function profile_case(N, dm, model, ext)
+# The structure cu_bench(N), its neighbor list on the device, and the sizes every part of a case reads.
+function case_setup(N, dm, model)
     cu = cu_bench(N)
     pos_h = T.(permutedims(cu.positions))
     cell_h = T.(permutedims(cu.cell))
@@ -495,127 +506,30 @@ function profile_case(N, dm, model, ext)
     n, E = nl.n_atoms, nl.n_edges
     println("cu_bench($N): $n atoms, $E edges"); flush(stdout)
     dnl = PureMLIP.device_neighbor_list(nl, backend)
-    row_ptr_h = Array(dnl.row_ptr)
-    pos, cell = upload(pos_h), upload(cell_h)
-    Zd = upload(Int32.(cu.atomic_numbers))
-    C = model.C
-    nb = length(model.radial.bessel_weights)
     rad = model.radial
     @assert rad.multiples
-    P = (; r_max = rad.r_max, p = rad.cutoff_p, a = rad.agnesi_a, ap = rad.agnesi_p, q = rad.agnesi_q, w1 = rad.bessel_weights[1], prefactor = rad.prefactor)
     zb = model.zbl
-    ZP = (; c = zb.c, p = zb.p, a_exp = zb.a_exp, a_prefactor = zb.a_prefactor)
-    snd, rcv, shifts = dnl.senders, dnl.receivers, dnl.shifts
-    r, d = dzeros(3, E), dzeros(E)
-    rec = Dict{String, Any}("n_atoms" => n, "n_edges" => E)
-
-    # Bandwidth reference: a copy of 2^26 floats.
-    src, dst = drand(2^26), dzeros(2^26)
-    tc = timed(() -> copy_kernel!(backend)(dst, src; ndrange = length(src)))
-    copy_Bps = 2 * sizeof(T) * 2^26 / (tc.median_us * 1.0e-6)
-    rec["copy_reference"] = (; bytes = 2 * sizeof(T) * 2^26, tc..., bytes_per_second = copy_Bps)
-    src = dst = nothing
-
-    # ---- per-edge stages over all edges (one chunk of every edge) and the fusion candidates
-    feats, dfeats = dzeros(nb, E), dzeros(nb, E)
-    Y, G = dzeros(16, E), dzeros(16, 3, E)
-    per_edge = Dict{String, Any}()
-    bw(bytes, t) = (; t..., bytes, bandwidth_fraction = bytes / (t.median_us * 1.0e-6) / copy_Bps)
-    t_edges = stage(() -> edges_kernel!(backend)(r, d, pos, cell, snd, rcv, shifts; ndrange = E))
-    per_edge["edges"] = bw(E * (2 * 12 + 12 + 8 + 16), t_edges)
-    t_radial = stage(() -> radial_kernel!(backend)(feats, dfeats, d, Zd, snd, rcv, dm.radial_radii, P, 1; ndrange = E))
-    per_edge["radial_features"] = bw(E * (4 + 8 + 8 + 2 * 4 * nb), t_radial)
-    t_er = stage(() -> edges_radial_kernel!(backend)(r, d, feats, dfeats, pos, cell, snd, rcv, shifts, Zd, dm.radial_radii, P; ndrange = E))
-    per_edge["edges_and_radial_features_fused"] = bw(E * (2 * 12 + 12 + 8 + 16 + 8 + 2 * 4 * nb), t_er)
-    t_sh = stage(() -> sh_kernel!(backend)(Y, r, 1; ndrange = E))
-    per_edge["spherical_harmonics"] = bw(E * (12 + 64), t_sh)
-    t_shg = stage(() -> sh_grad_kernel!(backend)(Y, G, r, 1; ndrange = E))
-    per_edge["spherical_harmonics_and_gradient"] = bw(E * (12 + 64 + 192), t_shg)
-    ez, dez, pair = dzeros(E), dzeros(E), dzeros(n)
-    t_zbl = stage(() -> zbl_kernel!(backend)(ez, dez, d, Zd, snd, rcv, dm.zbl_radii, ZP; ndrange = E))
-    per_edge["zbl"] = bw(E * (4 + 8 + 8 + 8 + 8), t_zbl)
-    t_pair = stage(() -> pair_kernel!(backend)(pair, ez, dnl.row_ptr; ndrange = n))
-    per_edge["pair_sum"] = bw(E * 4 + n * 12, t_pair)
-    t_zp = stage(() -> zbl_pair_kernel!(backend)(pair, d, Zd, snd, dnl.row_ptr, dm.zbl_radii, ZP; ndrange = n))
-    per_edge["zbl_and_pair_sum_fused"] = bw(E * (4 + 8 + 4 + 8) + n * 12, t_zp)
-    # Messages of both interactions over every edge, with random sender features and weights of
-    # the right sizes.
-    msg = Dict{String, Any}()
-    for k in 1:2
-        tp = model.conv[k]
-        Pk = length(tp.paths)
-        tpw3 = drand(C, Pk, E)
-        x = drand(C, tp.K_in1, n)
-        Mg = dzeros(C, tp.K_out, n)
-        dens = dzeros(n)
-        path = upload(Int32[p for p in eachindex(tp.paths) for _ in tp.paths[p]])
-        dtp = dm.conv[k]
-        dw = upload(model.density[k] ./ sqrt(T(nb)))
-        t_m = stage(() -> messages_kernel!(backend)(Mg, dens, x, Y, tpw3, feats, dw, dnl.row_ptr, snd, dtp.index, dtp.value, path, 0, 1; ndrange = (C, n)))
-        t_ms = stage(() -> messages_sh_kernel!(backend)(Mg, dens, x, r, tpw3, feats, dw, dnl.row_ptr, snd, dtp.index, dtp.value, path, 0, 1; ndrange = (C, n)))
-        bytes = E * 4 * (C * Pk + 16 + C * tp.K_in1 + nb + 1) + n * C * tp.K_out * 4
-        per_edge["messages_$k"] = bw(bytes, t_m)
-        msg["messages_$k"] = (; separate_us = t_sh.median_us + t_m.median_us, fused_us = t_ms.median_us, sh = t_sh, messages = t_m, fused = t_ms)
-        tpw3 = x = Mg = nothing
-    end
-    rec["per_edge"] = per_edge
-    fusion = Dict{String, Any}()
-    fusion["edges+radial_features"] = (; separate_us = t_edges.median_us + t_radial.median_us, fused_us = t_er.median_us)
-    fusion["zbl+pair_sum"] = (; separate_us = t_zbl.median_us + t_pair.median_us, fused_us = t_zp.median_us)
-    for k in 1:2
-        fusion["spherical_harmonics+messages_$k"] = (; separate_us = msg["messages_$k"].separate_us, fused_us = msg["messages_$k"].fused_us)
-    end
-    for (kk, v) in fusion
-        fusion[kk] = (; v..., fuse = v.fused_us < v.separate_us)
-    end
-    rec["fusion"] = fusion
-    feats = dfeats = Y = G = ez = dez = nothing
-    GC.gc(true)
-
-    # ---- radial MLP: mul! (+ elementwise pass) against the kernel, at each edge chunk
-    mlp_shapes = Dict{String, Any}()
+    nb = length(rad.bessel_weights)
     # Bytes of the edge-chunk buffers of a workspace for `nc` edges (see DeviceMACEWorkspace).
     Wmax = max(size(dm.mlp[1][4], 2), size(dm.mlp[2][4], 2))
     Hmax = size(dm.mlp[1][1], 2)
     chunk_need(nc) = sizeof(T) * nc * (16 + 48 + 3 * nb + 2 * Wmax + 8 * Hmax + 2)
-    mlp_cands = unique([min(c, E) for c in (CHUNKS..., E)])
-    for nc in mlp_cands
-        rows = Dict{String, Any}()
-        if chunk_need(nc) > BUDGET
-            mlp_shapes[string(nc)] = rows
-            continue
-        end
-        for k in 1:2
-            W = dm.mlp[k]
-            H = size(W[1], 2)
-            Wout = size(W[4], 2)
-            begin
-                f0 = drand(nb, nc)
-                a1, a2, p1, p2 = dzeros(H, nc), dzeros(H, nc), dzeros(H, nc), dzeros(H, nc)
-                out = dzeros(Wout, nc)
-                dout = drand(Wout, nc)
-                g1, g2 = dzeros(H, nc), dzeros(H, nc)
-                df = dzeros(nb, nc)
-                cst = model.mlp[k].cst
-                arms = Dict{String, Any}()
-                k == 1 && (arms["layer1_fwd"] = (mul = stage(() -> (mul!(p1, transpose(W[1]), f0); silu!(a1, p1, cst))), kernel = stage(() -> gemm!(a1, W[1], f0; tA = true, epi = :silu, pre = p1, cst))))
-                k == 1 && (arms["hidden_fwd"] = (mul = stage(() -> (mul!(p2, transpose(W[2]), a1); silu!(a2, p2, cst))), kernel = stage(() -> gemm!(a2, W[2], a1; tA = true, epi = :silu, pre = p2, cst))))
-                arms["layer4_fwd"] = (mul = stage(() -> mul!(out, transpose(W[4]), a2)), kernel = stage(() -> gemm!(out, W[4], a2; tA = true)))
-                arms["layer4_bwd"] = (mul = stage(() -> (mul!(g1, W[4], dout); slope!(g1, p2, a2, cst))), kernel = stage(() -> gemm!(g1, W[4], dout; epi = :slope, pre = p2, act = a2, cst)))
-                k == 1 && (arms["hidden_bwd"] = (mul = stage(() -> (mul!(g2, W[3], g1); slope!(g2, p1, a1, cst))), kernel = stage(() -> gemm!(g2, W[3], g1; epi = :slope, pre = p1, act = a1, cst))))
-                k == 1 && (arms["layer1_bwd"] = (mul = stage(() -> mul!(df, W[1], g2)), kernel = stage(() -> gemm!(df, W[1], g2))))
-                for (name, a) in arms
-                    key = k == 1 && !startswith(name, "layer4") ? name : string(name, "_interaction", k)
-                    rows[key] = (; mul_us = a.mul.median_us, kernel_us = a.kernel.median_us, mul = a.mul, kernel = a.kernel)
-                end
-            end
-        end
-        mlp_shapes[string(nc)] = rows
-        GC.gc(true)
-    end
-    rec["radial_mlp"] = mlp_shapes
+    return (;
+        n, E, dnl, row_ptr_h = Array(dnl.row_ptr), pos = upload(pos_h), cell = upload(cell_h),
+        Zd = upload(Int32.(cu.atomic_numbers)), C = model.C, nb,
+        P = (; r_max = rad.r_max, p = rad.cutoff_p, a = rad.agnesi_a, ap = rad.agnesi_p, q = rad.agnesi_q, w1 = rad.bessel_weights[1], prefactor = rad.prefactor),
+        ZP = (; c = zb.c, p = zb.p, a_exp = zb.a_exp, a_prefactor = zb.a_prefactor),
+        snd = dnl.senders, rcv = dnl.receivers, shifts = dnl.shifts, chunk_need,
+        mlp_cands = unique([min(c, E) for c in (CHUNKS..., E)]),
+    )
+end
 
-    # ---- edge-chunk sweep: the per-edge pass of both interactions in receiver chunks
+# The per-edge pass of both interactions in receiver chunks, for each candidate edge chunk that
+# fits the budget. `mlp_rows[string(nc)]` holds the radial-MLP medians (`mul_us`, `kernel_us`) at
+# `nc` edges, which choose the faster form of each layer. The device bytes recorded are those
+# allocated after the pass, above those before the workspace was built (current, not a peak).
+function edge_chunk_sweep(ctx, dm, model, mlp_rows)
+    (; n, E, dnl, row_ptr_h, pos, cell, Zd, C, nb, P, snd, rcv, shifts, chunk_need, mlp_cands) = ctx
     sweep = Dict{String, Any}()
     for nc in mlp_cands
         tag = nc == E ? "all" : string(nc)
@@ -630,9 +544,9 @@ function profile_case(N, dm, model, ext)
         base = device_bytes()
         ws = PureMLIP.device_workspace(dm, n, E; edge_chunk = nc)
         chunks = receiver_chunks(row_ptr_h, nc)
-        rows = mlp_shapes[string(nc)]
-        usemul(name) = rows[name].mul_us < rows[name].kernel_us
-        xs = (drand(C, model.conv[1].K_in1, n), drand(C, model.conv[2].K_in1, n))
+        rows = mlp_rows[string(nc)]
+        usemul(name) = rows[name]["mul_us"] < rows[name]["kernel_us"]
+        xs = (drand(C, n, model.conv[1].K_in1), drand(C, n, model.conv[2].K_in1))
         dens = dzeros(n)
         paths = [upload(Int32[p for p in eachindex(tp.paths) for _ in tp.paths[p]]) for tp in model.conv]
         dws_ = [upload(model.density[k] ./ sqrt(T(nb))) for k in 1:2]
@@ -675,12 +589,122 @@ function profile_case(N, dm, model, ext)
             return nothing
         end
         t = timed(pass)
-        peak = device_bytes() - base
-        sweep[tag] = (; edge_chunk = nc, fits = true, chunks = length(chunks), t..., edge_chunk_bytes = need, device_bytes_above_start = peak)
+        current = device_bytes() - base
+        sweep[tag] = (; edge_chunk = nc, fits = true, chunks = length(chunks), t..., edge_chunk_bytes = need, device_bytes_current_above_start = current)
         println("  edge_chunk $tag: $(round(t.median_us / 1.0e3; digits = 2)) ms, $(round(need / 2^20; digits = 1)) MiB of edge-chunk buffers"); flush(stdout)
         ws = xs = dout = nothing
     end
-    rec["edge_chunk_sweep"] = sweep
+    return sweep
+end
+
+function profile_case(N, dm, model, ext)
+    ctx = case_setup(N, dm, model)
+    (; n, E, dnl, pos, cell, Zd, C, nb, P, ZP, snd, rcv, shifts, chunk_need, mlp_cands) = ctx
+    r, d = dzeros(3, E), dzeros(E)
+    rec = Dict{String, Any}("n_atoms" => n, "n_edges" => E)
+
+    # Bandwidth reference: a copy of 2^26 floats.
+    src, dst = drand(2^26), dzeros(2^26)
+    tc = timed(() -> copy_kernel!(backend)(dst, src; ndrange = length(src)))
+    copy_Bps = 2 * sizeof(T) * 2^26 / (tc.median_us * 1.0e-6)
+    rec["copy_reference"] = (; bytes = 2 * sizeof(T) * 2^26, tc..., bytes_per_second = copy_Bps)
+    src = dst = nothing
+
+    # ---- per-edge stages over all edges (one chunk of every edge) and the fusion candidates
+    feats, dfeats = dzeros(nb, E), dzeros(nb, E)
+    Y, G = dzeros(16, E), dzeros(16, 3, E)
+    per_edge = Dict{String, Any}()
+    bw(bytes, t) = (; t..., bytes, bandwidth_fraction = bytes / (t.median_us * 1.0e-6) / copy_Bps)
+    t_edges = stage(() -> edges_kernel!(backend)(r, d, pos, cell, snd, rcv, shifts; ndrange = E))
+    per_edge["edges"] = bw(E * (2 * 12 + 12 + 8 + 16), t_edges)
+    t_radial = stage(() -> radial_kernel!(backend)(feats, dfeats, d, Zd, snd, rcv, dm.radial_radii, P, 1; ndrange = E))
+    per_edge["radial_features"] = bw(E * (4 + 8 + 8 + 2 * 4 * nb), t_radial)
+    t_er = stage(() -> edges_radial_kernel!(backend)(r, d, feats, dfeats, pos, cell, snd, rcv, shifts, Zd, dm.radial_radii, P; ndrange = E))
+    per_edge["edges_and_radial_features_fused"] = bw(E * (2 * 12 + 12 + 8 + 16 + 8 + 2 * 4 * nb), t_er)
+    t_sh = stage(() -> sh_kernel!(backend)(Y, r, 1; ndrange = E))
+    per_edge["spherical_harmonics"] = bw(E * (12 + 64), t_sh)
+    t_shg = stage(() -> sh_grad_kernel!(backend)(Y, G, r, 1; ndrange = E))
+    per_edge["spherical_harmonics_and_gradient"] = bw(E * (12 + 64 + 192), t_shg)
+    ez, dez, pair = dzeros(E), dzeros(E), dzeros(n)
+    t_zbl = stage(() -> zbl_kernel!(backend)(ez, dez, d, Zd, snd, rcv, dm.zbl_radii, ZP; ndrange = E))
+    per_edge["zbl"] = bw(E * (4 + 8 + 8 + 8 + 8), t_zbl)
+    t_pair = stage(() -> pair_kernel!(backend)(pair, ez, dnl.row_ptr; ndrange = n))
+    per_edge["pair_sum"] = bw(E * 4 + n * 12, t_pair)
+    t_zp = stage(() -> zbl_pair_kernel!(backend)(pair, d, Zd, snd, dnl.row_ptr, dm.zbl_radii, ZP; ndrange = n))
+    per_edge["zbl_and_pair_sum_fused"] = bw(E * (4 + 8 + 4 + 8) + n * 12, t_zp)
+    # Messages of both interactions over every edge, with random sender features and weights of
+    # the right sizes.
+    msg = Dict{String, Any}()
+    for k in 1:2
+        tp = model.conv[k]
+        Pk = length(tp.paths)
+        tpw3 = drand(C, Pk, E)
+        x = drand(C, n, tp.K_in1)
+        Mg = dzeros(C, n, tp.K_out)
+        dens = dzeros(n)
+        path = upload(Int32[p for p in eachindex(tp.paths) for _ in tp.paths[p]])
+        dtp = dm.conv[k]
+        dw = upload(model.density[k] ./ sqrt(T(nb)))
+        t_m = stage(() -> messages_kernel!(backend)(Mg, dens, x, Y, tpw3, feats, dw, dnl.row_ptr, snd, dtp.index, dtp.value, path, 0, 1; ndrange = (C, n)))
+        t_ms = stage(() -> messages_sh_kernel!(backend)(Mg, dens, x, r, tpw3, feats, dw, dnl.row_ptr, snd, dtp.index, dtp.value, path, 0, 1; ndrange = (C, n)))
+        bytes = E * 4 * (C * Pk + 16 + C * tp.K_in1 + nb + 1) + n * C * tp.K_out * 4
+        per_edge["messages_$k"] = bw(bytes, t_m)
+        msg["messages_$k"] = (; separate_us = t_sh.median_us + t_m.median_us, fused_us = t_ms.median_us, sh = t_sh, messages = t_m, fused = t_ms)
+        tpw3 = x = Mg = nothing
+    end
+    rec["per_edge"] = per_edge
+    fusion = Dict{String, Any}()
+    fusion["edges+radial_features"] = (; separate_us = t_edges.median_us + t_radial.median_us, fused_us = t_er.median_us)
+    fusion["zbl+pair_sum"] = (; separate_us = t_zbl.median_us + t_pair.median_us, fused_us = t_zp.median_us)
+    for k in 1:2
+        fusion["spherical_harmonics+messages_$k"] = (; separate_us = msg["messages_$k"].separate_us, fused_us = msg["messages_$k"].fused_us)
+    end
+    for (kk, v) in fusion
+        fusion[kk] = (; v..., fuse = v.fused_us < v.separate_us)
+    end
+    rec["fusion"] = fusion
+    feats = dfeats = Y = G = ez = dez = nothing
+    GC.gc(true)
+
+    # ---- radial MLP: mul! (+ elementwise pass) against the kernel, at each edge chunk
+    mlp_shapes = Dict{String, Any}()
+    for nc in mlp_cands
+        rows = Dict{String, Any}()
+        if chunk_need(nc) > BUDGET
+            mlp_shapes[string(nc)] = rows
+            continue
+        end
+        for k in 1:2
+            W = dm.mlp[k]
+            H = size(W[1], 2)
+            Wout = size(W[4], 2)
+            begin
+                f0 = drand(nb, nc)
+                a1, a2, p1, p2 = dzeros(H, nc), dzeros(H, nc), dzeros(H, nc), dzeros(H, nc)
+                out = dzeros(Wout, nc)
+                dout = drand(Wout, nc)
+                g1, g2 = dzeros(H, nc), dzeros(H, nc)
+                df = dzeros(nb, nc)
+                cst = model.mlp[k].cst
+                arms = Dict{String, Any}()
+                k == 1 && (arms["layer1_fwd"] = (mul = stage(() -> (mul!(p1, transpose(W[1]), f0); silu!(a1, p1, cst))), kernel = stage(() -> gemm!(a1, W[1], f0; tA = true, epi = :silu, pre = p1, cst))))
+                k == 1 && (arms["hidden_fwd"] = (mul = stage(() -> (mul!(p2, transpose(W[2]), a1); silu!(a2, p2, cst))), kernel = stage(() -> gemm!(a2, W[2], a1; tA = true, epi = :silu, pre = p2, cst))))
+                arms["layer4_fwd"] = (mul = stage(() -> mul!(out, transpose(W[4]), a2)), kernel = stage(() -> gemm!(out, W[4], a2; tA = true)))
+                arms["layer4_bwd"] = (mul = stage(() -> (mul!(g1, W[4], dout); slope!(g1, p2, a2, cst))), kernel = stage(() -> gemm!(g1, W[4], dout; epi = :slope, pre = p2, act = a2, cst)))
+                k == 1 && (arms["hidden_bwd"] = (mul = stage(() -> (mul!(g2, W[3], g1); slope!(g2, p1, a1, cst))), kernel = stage(() -> gemm!(g2, W[3], g1; epi = :slope, pre = p1, act = a1, cst))))
+                k == 1 && (arms["layer1_bwd"] = (mul = stage(() -> mul!(df, W[1], g2)), kernel = stage(() -> gemm!(df, W[1], g2))))
+                for (name, a) in arms
+                    key = k == 1 && !startswith(name, "layer4") ? name : string(name, "_interaction", k)
+                    rows[key] = (; mul_us = a.mul.median_us, kernel_us = a.kernel.median_us, mul = a.mul, kernel = a.kernel)
+                end
+            end
+        end
+        mlp_shapes[string(nc)] = rows
+        GC.gc(true)
+    end
+    rec["radial_mlp"] = mlp_shapes
+
+    rec["edge_chunk_sweep"] = edge_chunk_sweep(ctx, dm, model, JSON.parse(JSON.json(mlp_shapes)))
 
     # ---- node stages: e3nn linear per irrep, species linear, symmetric contraction
     lin = Dict{String, Any}()
@@ -815,14 +839,18 @@ end
 choose(row) = row["mul_us"] < row["kernel_us"] ? "mul!" : "kernel"
 
 # The decision table from the measured cases (as read back from JSON).
-function decide(cases)
+function decide(cases, device_memory_bytes)
     target = haskey(cases, "cu_bench(14)") ? "cu_bench(14)" : last(sort(collect(keys(cases))))
     tc = cases[target]
 
-    # Default edge chunk: the smallest candidate within 2 % of the fastest that fits.
-    fitting = [(v["edge_chunk"], v["median_us"]) for v in values(tc["edge_chunk_sweep"]) if v["fits"]]
-    best = minimum(last, fitting)
-    default_chunk = minimum(first(f) for f in fitting if last(f) <= 1.02 * best)
+    # Default edge chunk: the smallest candidate within 5 % of the fastest measured one whose
+    # edge-chunk buffers take at most 1/8 of the device memory.
+    measured = [v for v in values(tc["edge_chunk_sweep"]) if v["fits"]]
+    best = minimum(v -> v["median_us"], measured)
+    cap = device_memory_bytes / 8
+    eligible = [v["edge_chunk"] for v in measured if v["median_us"] <= 1.05 * best && v["edge_chunk_bytes"] <= cap]
+    isempty(eligible) && error("no edge chunk is within 5 % of the fastest with buffers of at most ", cap, " bytes")
+    default_chunk = minimum(eligible)
 
     matrix_rows(c, chunk) = vcat(
         [("radial_mlp_" * nm, row) for (nm, row) in c["radial_mlp"][string(chunk)]],
@@ -863,8 +891,19 @@ function decide(cases)
     )
 end
 
+# Older records name the device bytes after a sweep pass `device_bytes_above_start`.
+function current_bytes_key!(cases)
+    for c in values(cases), v in values(c["edge_chunk_sweep"])
+        haskey(v, "device_bytes_above_start") && (v["device_bytes_current_above_start"] = pop!(v, "device_bytes_above_start"))
+    end
+    return cases
+end
+
 function main()
     from = get(ENV, "STAGE_FROM", "")
+    only = get(ENV, "STAGE_ONLY", "")
+    only in ("", "sweep") || error("STAGE_ONLY must be sweep or unset, got ", only)
+    isempty(only) || !isempty(from) || error("STAGE_ONLY=sweep needs STAGE_FROM")
     out = if isempty(from)
         ck = load_mace_checkpoint(CK)
         model = MACEModel{T}(ck)
@@ -877,19 +916,39 @@ function main()
         end
         stage_shares = JSON.parsefile(joinpath(@__DIR__, "results", "stage_profile_mac.json"))["cases"]
         Dict(
-            "description" => "Stage profile of the MACE evaluation on a GPU (bench/gpu_stage_profile.jl): matrix-shaped stages with mul! against a KernelAbstractions kernel, per-edge stages against a copy kernel's bandwidth, fusion candidates, and the edge-chunk sweep with peak device memory. Times in microseconds, median [min, max] of $REPS synchronized runs.",
+            "description" => "Stage profile of the MACE evaluation on a GPU (bench/gpu_stage_profile.jl): matrix-shaped stages with mul! against a KernelAbstractions kernel, per-edge stages against a copy kernel's bandwidth, fusion candidates, and the edge-chunk sweep with the device memory allocated after each pass. Times in microseconds, median [min, max] of $REPS synchronized runs.",
             "backend" => BACKEND_NAME, "device" => BACKEND_NAME == "Metal" ? String(VENDOR.device().name) : "",
             "precision" => "Float32", "model" => "MACE-MPA-0 (medium)", "julia" => string(VERSION),
-            "edge_chunk_candidates" => collect(CHUNKS), "memory_budget_bytes" => BUDGET,
+            "edge_chunk_candidates" => collect(CHUNKS), "memory_budget_bytes" => BUDGET, "device_memory_bytes" => device_memory(),
             "cases" => JSON.parse(JSON.json(cases)),
             "cpu_work_mix" => Dict(k => stage_shares[k]["shares"] for k in keys(stage_shares) if endswith(k, "Float32")),
             "cpu_work_mix_source" => "stage_profile_mac.json, Float32 cases (shares of the samples of mace_energy_forces! on one CPU thread)",
         )
+    elseif only == "sweep"
+        rec = JSON.parsefile(from)
+        model = MACEModel{T}(load_mace_checkpoint(CK))
+        dm = PureMLIP.device_model(model, backend; elements = [29])
+        for N in CASES
+            c = rec["cases"]["cu_bench($N)"]
+            sweep = edge_chunk_sweep(case_setup(N, dm, model), dm, model, c["radial_mlp"])
+            c["edge_chunk_sweep"] = JSON.parse(JSON.json(sweep))
+            c["edge_chunk_sweep_memory_budget_bytes"] = BUDGET
+            c["edge_chunk_sweep_node_layout"] = "(C, n, K)"
+            GC.gc(true)
+        end
+        rec["description"] = replace(rec["description"], "with peak device memory" => "with the device memory allocated after each pass")
+        rec["device_memory_bytes"] = device_memory()
+        rec["node_layout_note"] = string(
+            "The edge-chunk sweeps of ", join(("cu_bench($N)" for N in CASES), ", "),
+            " ran with the messages and sender features in the (C, n, K) node layout; the other entries were measured with them in (C, K, n)."
+        )
+        rec
     else
         # Rebuild the decision table from the measurements of an earlier run.
         JSON.parsefile(from)
     end
-    out["decision"] = decide(out["cases"])
+    current_bytes_key!(out["cases"])
+    out["decision"] = decide(out["cases"], get(out, "device_memory_bytes", device_memory()))
     mkpath(dirname(OUT))
     open(io -> JSON.print(io, out, 2), OUT, "w")
     println("decision: ", JSON.json(out["decision"], 2))
