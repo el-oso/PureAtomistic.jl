@@ -32,3 +32,8 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
           MUTATION_SHARD: ${{ matrix.shard }}
         run: julia ${{ matrix.package }}/test/mutation/run.jl
+      - name: Apply each extension mutation and run the :gpu items on the CPU backend
+        env:
+          MUTATION_SUITE: gpu
+          MUTATION_SHARD: ${{ matrix.shard }}
+        run: julia ${{ matrix.package }}/test/mutation/run.jl

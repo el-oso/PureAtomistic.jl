@@ -46,6 +46,26 @@ jobs:
         run: julia --project=PureMLIP/test/pureblas -e 'using Pkg; Pkg.instantiate()'
       - name: Run the tests with PureBLAS active
         run: julia --check-bounds=yes --project=PureMLIP/test/pureblas PureMLIP/test/pureblas/runtests.jl
+  gpu-cpu-backend:
+    name: GPU kernels on the KernelAbstractions CPU backend (${{ matrix.package }}, Julia ${{ matrix.version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [PureMLIP, PureAtomistic]
+        version: ['1.12', '1.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v2
+      - name: Instantiate the CPU-backend test environment
+        run: julia --project=${{ matrix.package }}/test/gpu/cpu -e 'using Pkg; Pkg.instantiate()'
+      - name: Run the :gpu items on the CPU backend
+        env:
+          PUREMLIP_GPU_BACKEND: CPU
+        run: julia --check-bounds=yes --code-coverage=user --project=${{ matrix.package }}/test/gpu/cpu ${{ matrix.package }}/test/gpu/runtests.jl
   coverage:
     name: Coverage (${{ matrix.package }})
     runs-on: ubuntu-latest
@@ -74,3 +94,11 @@ jobs:
         run: julia --project=${{ matrix.package }}/test/coverage -e 'using Pkg; Pkg.instantiate()'
       - name: Check per-file coverage thresholds
         run: julia --project=${{ matrix.package }}/test/coverage ${{ matrix.package }}/test/coverage/check.jl
+      - name: Run the :gpu items on the CPU backend for the extension files
+        env:
+          PUREMLIP_GPU_BACKEND: CPU
+        run: |
+          julia --project=${{ matrix.package }}/test/gpu/cpu -e 'using Pkg; Pkg.instantiate()'
+          julia --check-bounds=yes --code-coverage=user --project=${{ matrix.package }}/test/gpu/cpu ${{ matrix.package }}/test/gpu/runtests.jl
+      - name: Check per-file coverage thresholds of the extensions
+        run: julia --project=${{ matrix.package }}/test/coverage ${{ matrix.package }}/test/coverage/check.jl --root ext/${{ matrix.package }}GPUExt --thresholds thresholds_gpu.toml

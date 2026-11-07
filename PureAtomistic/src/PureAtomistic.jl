@@ -12,7 +12,8 @@ include("io/IO.jl")
 include("analysis/Analysis.jl")
 include("viz.jl")
 
-using .Systems: System, natoms, kinetic_energy
+using .Systems: System, natoms, kinetic_energy, copy_state!
+export copy_state!
 using .Potentials: AbstractPotential, AbstractStressPotential, PotentialResult, n_atoms, cutoff, prepare!,
     energy_forces!, stress, node_energies, MACEPotential, HarmonicPotential, LennardJones
 using .Integrators: AbstractIntegrator, VelocityVerlet, advance!
@@ -26,12 +27,13 @@ export AbstractBarostat, BerendsenBarostat
 
 include("driver.jl")
 include("md_run.jl")
+include("device.jl")
 
 export animate_trajectory, plot_vacancy_track, plot_arrhenius, plot_energy_conservation
 
 using .Integrators: FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
 export FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
 
-public run_md, Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
+public device_potential, to_device, run_md, Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
 end

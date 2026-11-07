@@ -17,6 +17,10 @@
 # killed elsewhere: `expect` names the item that must catch the bug, so a different item failing
 # means the intended test no longer does its job.
 #
+# MUTATION_SUITE=gpu judges the extension files instead: the entries come from mutations_gpu.toml and
+# each run executes test/gpu/runtests.jl on the KernelAbstractions CPU backend, in the environment
+# test/gpu/cpu.
+#
 # Usage: julia run.jl [filter ...]
 # A filter is a regular expression matched against mutation names; with none, all run.
 # Set PUREMLIP_CHECKPOINT_DIR to the checkpoint cache the suite reads, and
@@ -27,6 +31,10 @@
 # the selected entries (each shard runs its own control).
 
 using TOML
+
+const GPU_SUITE = get(ENV, "MUTATION_SUITE", "") == "gpu"
+# hwloc's Darwin component is skipped on macOS; see the KernelAbstractions rule in AGENTS.md.
+Sys.isapple() && get!(ENV, "HWLOC_COMPONENTS", "-darwin")
 
 const PKG_DIR = dirname(dirname(@__DIR__))
 const DEFAULT_TIMEOUT_S = 900.0
@@ -107,15 +115,24 @@ function run_suite(m, logdir, name)
     try
         dst = joinpath(dir, "PureAtomistic")
         copy_package(PKG_DIR, dst)
-        # PureAtomistic's [sources] entry reaches PureMLIP at ../PureMLIP; only its Project.toml and
-        # src are needed to load it.
+        # PureAtomistic's [sources] entry reaches PureMLIP at ../PureMLIP; only its Project.toml,
+        # src and ext are needed to load it.
         mlip = joinpath(dirname(PKG_DIR), "PureMLIP")
         mkpath(joinpath(dir, "PureMLIP"))
         cp(joinpath(mlip, "Project.toml"), joinpath(dir, "PureMLIP", "Project.toml"))
         cp(joinpath(mlip, "src"), joinpath(dir, "PureMLIP", "src"))
+        cp(joinpath(mlip, "ext"), joinpath(dir, "PureMLIP", "ext"))
         isnothing(m) || apply_mutation(dst, m)
         logfile = joinpath(dir, "log.txt")
-        cmd = `$(Base.julia_cmd()) --project=$dst -e "using Pkg; Pkg.test()"`
+        cmd = if GPU_SUITE
+            env = joinpath(dst, "test", "gpu", "cpu")
+            addenv(
+                `$(Base.julia_cmd()) --check-bounds=yes --project=$env -e "using Pkg; Pkg.instantiate(); include(ARGS[1])" $(joinpath(dst, "test", "gpu", "runtests.jl"))`,
+                "PUREMLIP_GPU_BACKEND" => "CPU",
+            )
+        else
+            `$(Base.julia_cmd()) --project=$dst -e "using Pkg; Pkg.test()"`
+        end
         limit = isnothing(m) ? Inf : timeout_s()
         ok, timed_out = open(logfile, "w") do io
             run_limited(cmd, io, limit)
@@ -140,7 +157,7 @@ function shard(selected, spec)
 end
 
 function main(args)
-    muts = get(TOML.parsefile(joinpath(@__DIR__, "mutations.toml")), "mutation", Dict{String, Any}[])
+    muts = get(TOML.parsefile(joinpath(@__DIR__, GPU_SUITE ? "mutations_gpu.toml" : "mutations.toml")), "mutation", Dict{String, Any}[])
     names = [m["name"] for m in muts]
     allunique(names) || error("mutation names are not unique")
     filters = Regex.(args)

@@ -14,15 +14,18 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 TypeContracts = "c7a3f1e2-84b5-4d69-9e0a-1f2b3c4d5e6f"
 
 [weakdeps]
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [sources]
 PureMLIP = {path = "../PureMLIP"}
 
 [extensions]
+PureAtomisticGPUExt = "KernelAbstractions"
 PureAtomisticMakieExt = "Makie"
 
 [compat]
+KernelAbstractions = "0.10"
 LinearAlgebra = "1.12"
 Makie = "0.24"
 PrecompileTools = "1.3"
