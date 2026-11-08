@@ -1,0 +1,265 @@
+{
+  "schema": "puremlip-gpu-compare-v1",
+  "mode": "eval",
+  "precision": "Float32",
+  "backend": "Metal",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "commit": "0133b560bca4",
+  "cpu_threads": 6,
+  "cpu_threads_flags": "-t 6,0 --gcthreads=1,0",
+  "blas_threads": 1,
+  "cpu_blas": "PureBLAS",
+  "pureblas_commit": "c38f273fd758",
+  "samples_per_measurement": 3,
+  "rounds": 7,
+  "swap_first_start_mb": 16336.88,
+  "swap_last_end_mb": 16328.88,
+  "speed_up": "reference time / gpu time per round; above 1 the gpu arm is faster",
+  "calibration_tolerance": {
+    "within": 0.1,
+    "pair": 0.1,
+    "threaded_within": 0.5
+  },
+  "cells": [
+    {
+      "cu_bench": 14,
+      "arms": {
+        "cpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 10976,
+            "edge_chunk": 1024,
+            "edges": 856128,
+            "nchunks": 6
+          },
+          "maxrss_bytes": 2245165056,
+          "seconds": {
+            "min": 2.070673625,
+            "median": 2.112577833,
+            "max": 2.220645167,
+            "values": [
+              2.070673625,
+              2.073843084,
+              2.089956167,
+              2.199862333,
+              2.220645167,
+              2.112577833,
+              2.148334
+            ]
+          }
+        },
+        "gpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 10976,
+            "capacity": 898935,
+            "edge_chunk": 16384
+          },
+          "maxrss_bytes": 1317371904,
+          "peak_device_bytes": 1581154304,
+          "query_check": [
+            268435456,
+            269877248
+          ],
+          "seconds": {
+            "min": 1.351650375,
+            "median": 1.353889,
+            "max": 1.355000375,
+            "values": [
+              1.355000375,
+              1.354000041,
+              1.353889,
+              1.352656459,
+              1.353502417,
+              1.351650375,
+              1.354163125
+            ]
+          }
+        }
+      },
+      "speed_up_over_gpu": {
+        "cpu": {
+          "min": 1.5281719940483411,
+          "median": 1.5629617481517735,
+          "max": 1.6406658304474973,
+          "values": [
+            1.5281719940483411,
+            1.531641817727242,
+            1.5436687697440485,
+            1.626327452445928,
+            1.6406658304474973,
+            1.5629617481517735,
+            1.586466179988471
+          ]
+        }
+      },
+      "external_fits": true,
+      "external_untimed": null,
+      "rounds": [
+        {
+          "round": 1,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16336.88,
+          "swap_after_mb": 16336.88,
+          "seconds": {
+            "cpu": 2.070673625,
+            "gpu": 1.355000375
+          },
+          "calibration_s": {
+            "cpu": [
+              0.00088275,
+              0.001324083
+            ],
+            "gpu": [
+              0.000750708,
+              0.000762583
+            ]
+          }
+        },
+        {
+          "round": 2,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16336.88,
+          "swap_after_mb": 16336.88,
+          "seconds": {
+            "cpu": 2.073843084,
+            "gpu": 1.354000041
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000998834,
+              0.000942042
+            ],
+            "gpu": [
+              0.000756833,
+              0.00075175
+            ]
+          }
+        },
+        {
+          "round": 3,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16336.88,
+          "swap_after_mb": 16336.88,
+          "seconds": {
+            "cpu": 2.089956167,
+            "gpu": 1.353889
+          },
+          "calibration_s": {
+            "cpu": [
+              0.00088725,
+              0.000932
+            ],
+            "gpu": [
+              0.0007535,
+              0.000755833
+            ]
+          }
+        },
+        {
+          "round": 4,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16336.88,
+          "swap_after_mb": 16336.88,
+          "seconds": {
+            "cpu": 2.199862333,
+            "gpu": 1.352656459
+          },
+          "calibration_s": {
+            "cpu": [
+              0.001318791,
+              0.000884875
+            ],
+            "gpu": [
+              0.00075075,
+              0.000756542
+            ]
+          }
+        },
+        {
+          "round": 5,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16336.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.220645167,
+            "gpu": 1.353502417
+          },
+          "calibration_s": {
+            "cpu": [
+              0.001003959,
+              0.000940291
+            ],
+            "gpu": [
+              0.000744834,
+              0.000748875
+            ]
+          }
+        },
+        {
+          "round": 6,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.112577833,
+            "gpu": 1.351650375
+          },
+          "calibration_s": {
+            "cpu": [
+              0.001318833,
+              0.000886917
+            ],
+            "gpu": [
+              0.000761542,
+              0.000753583
+            ]
+          }
+        },
+        {
+          "round": 7,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.148334,
+            "gpu": 1.354163125
+          },
+          "calibration_s": {
+            "cpu": [
+              0.001,
+              0.000887292
+            ],
+            "gpu": [
+              0.000757583,
+              0.000756666
+            ]
+          }
+        }
+      ],
+      "discarded_rounds": []
+    }
+  ]
+}

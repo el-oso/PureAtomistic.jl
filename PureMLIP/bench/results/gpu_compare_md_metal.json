@@ -1,0 +1,500 @@
+{
+  "schema": "puremlip-gpu-compare-v1",
+  "mode": "md",
+  "precision": "Float32",
+  "backend": "Metal",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "commit": "0133b560bca4",
+  "cpu_threads": 6,
+  "cpu_threads_flags": "-t 6,0 --gcthreads=1,0",
+  "blas_threads": 1,
+  "cpu_blas": "PureBLAS",
+  "pureblas_commit": "c38f273fd758",
+  "samples_per_measurement": 3,
+  "rounds": 7,
+  "swap_first_start_mb": 16328.88,
+  "swap_last_end_mb": 16328.88,
+  "speed_up": "reference time / gpu time per round; above 1 the gpu arm is faster",
+  "calibration_tolerance": {
+    "within": 0.1,
+    "pair": 0.1,
+    "threaded_within": 0.5
+  },
+  "cells": [
+    {
+      "cu_bench": 5,
+      "arms": {
+        "cpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 500,
+            "edges": 39000,
+            "nchunks": 6
+          },
+          "maxrss_bytes": 1753989120,
+          "seconds": {
+            "min": 0.088966875,
+            "median": 0.0903485,
+            "max": 0.101321084,
+            "values": [
+              0.0903485,
+              0.094412042,
+              0.09522025,
+              0.101321084,
+              0.0892935,
+              0.088966875,
+              0.089327167
+            ]
+          }
+        },
+        "gpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 500,
+            "capacity": 40950
+          },
+          "maxrss_bytes": 1315684352,
+          "peak_device_bytes": 350912512,
+          "query_check": [
+            268435456,
+            269877248
+          ],
+          "seconds": {
+            "min": 0.069810708,
+            "median": 0.070017291,
+            "max": 0.070402083,
+            "values": [
+              0.070070042,
+              0.070402083,
+              0.070145459,
+              0.069990833,
+              0.069956,
+              0.070017291,
+              0.069810708
+            ]
+          }
+        }
+      },
+      "speed_up_over_gpu": {
+        "cpu": {
+          "min": 1.270641490542672,
+          "median": 1.2894026808204282,
+          "max": 1.4476336351076147,
+          "values": [
+            1.2894026808204282,
+            1.3410404632487933,
+            1.3574684855936292,
+            1.4476336351076147,
+            1.2764237520727313,
+            1.270641490542672,
+            1.2795625421819243
+          ]
+        }
+      },
+      "external_fits": true,
+      "external_untimed": null,
+      "rounds": [
+        {
+          "round": 1,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.0903485,
+            "gpu": 0.070070042
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000814084,
+              0.000814917
+            ],
+            "gpu": [
+              0.000754583,
+              0.000754834
+            ]
+          }
+        },
+        {
+          "round": 2,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.094412042,
+            "gpu": 0.070402083
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000762583,
+              0.000961875
+            ],
+            "gpu": [
+              0.0007535,
+              0.000753667
+            ]
+          }
+        },
+        {
+          "round": 3,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.09522025,
+            "gpu": 0.070145459
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000807542,
+              0.000812958
+            ],
+            "gpu": [
+              0.000750667,
+              0.000746791
+            ]
+          }
+        },
+        {
+          "round": 4,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.101321084,
+            "gpu": 0.069990833
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000767541,
+              0.000783
+            ],
+            "gpu": [
+              0.000759583,
+              0.000737334
+            ]
+          }
+        },
+        {
+          "round": 5,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.0892935,
+            "gpu": 0.069956
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000850833,
+              0.001186917
+            ],
+            "gpu": [
+              0.000736,
+              0.000741458
+            ]
+          }
+        },
+        {
+          "round": 6,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.088966875,
+            "gpu": 0.070017291
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000759583,
+              0.000850833
+            ],
+            "gpu": [
+              0.000735875,
+              0.000735458
+            ]
+          }
+        },
+        {
+          "round": 7,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 0.089327167,
+            "gpu": 0.069810708
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000752625,
+              0.000785625
+            ],
+            "gpu": [
+              0.000727208,
+              0.000738041
+            ]
+          }
+        }
+      ],
+      "discarded_rounds": []
+    },
+    {
+      "cu_bench": 14,
+      "arms": {
+        "cpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 10976,
+            "edges": 856128,
+            "nchunks": 6
+          },
+          "maxrss_bytes": 2664644608,
+          "seconds": {
+            "min": 2.15645775,
+            "median": 2.232287542,
+            "max": 2.298535541,
+            "values": [
+              2.2068745,
+              2.15645775,
+              2.177224375,
+              2.232287542,
+              2.298535541,
+              2.278151708,
+              2.292097041
+            ]
+          }
+        },
+        "gpu": {
+          "blas": "libopenblas64_.0.3.30.dylib",
+          "info": {
+            "atoms": 10976,
+            "capacity": 898935
+          },
+          "maxrss_bytes": 1377091584,
+          "peak_device_bytes": 1581498368,
+          "query_check": [
+            268435456,
+            269877248
+          ],
+          "seconds": {
+            "min": 1.351588542,
+            "median": 1.354003959,
+            "max": 1.356623167,
+            "values": [
+              1.352558041,
+              1.351588542,
+              1.356623167,
+              1.354345125,
+              1.352112958,
+              1.356526083,
+              1.354003959
+            ]
+          }
+        }
+      },
+      "speed_up_over_gpu": {
+        "cpu": {
+          "min": 1.5954986913465563,
+          "median": 1.6482412797107384,
+          "max": 1.6999582227212116,
+          "values": [
+            1.631630165289151,
+            1.5954986913465563,
+            1.60488515010005,
+            1.6482412797107384,
+            1.6999582227212116,
+            1.6794013300221962,
+            1.6928289062705761
+          ]
+        }
+      },
+      "external_fits": true,
+      "external_untimed": null,
+      "rounds": [
+        {
+          "round": 1,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.2068745,
+            "gpu": 1.352558041
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000883875,
+              0.0009445
+            ],
+            "gpu": [
+              0.000757583,
+              0.000756583
+            ]
+          }
+        },
+        {
+          "round": 2,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.15645775,
+            "gpu": 1.351588542
+          },
+          "calibration_s": {
+            "cpu": [
+              0.00088525,
+              0.000884959
+            ],
+            "gpu": [
+              0.000753541,
+              0.000757583
+            ]
+          }
+        },
+        {
+          "round": 3,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.177224375,
+            "gpu": 1.356623167
+          },
+          "calibration_s": {
+            "cpu": [
+              0.00087925,
+              0.000886125
+            ],
+            "gpu": [
+              0.000752667,
+              0.000752625
+            ]
+          }
+        },
+        {
+          "round": 4,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.232287542,
+            "gpu": 1.354345125
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000997459,
+              0.000948166
+            ],
+            "gpu": [
+              0.000750667,
+              0.0007605
+            ]
+          }
+        },
+        {
+          "round": 5,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.298535541,
+            "gpu": 1.352112958
+          },
+          "calibration_s": {
+            "cpu": [
+              0.001010459,
+              0.001003958
+            ],
+            "gpu": [
+              0.000750666,
+              0.000748875
+            ]
+          }
+        },
+        {
+          "round": 6,
+          "order": [
+            "cpu",
+            "gpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.278151708,
+            "gpu": 1.356526083
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000994708,
+              0.001321417
+            ],
+            "gpu": [
+              0.000753542,
+              0.0007595
+            ]
+          }
+        },
+        {
+          "round": 7,
+          "order": [
+            "gpu",
+            "cpu"
+          ],
+          "swap_before_mb": 16328.88,
+          "swap_after_mb": 16328.88,
+          "seconds": {
+            "cpu": 2.292097041,
+            "gpu": 1.354003959
+          },
+          "calibration_s": {
+            "cpu": [
+              0.000888042,
+              0.000944583
+            ],
+            "gpu": [
+              0.000758,
+              0.000750583
+            ]
+          }
+        }
+      ],
+      "discarded_rounds": []
+    }
+  ]
+}

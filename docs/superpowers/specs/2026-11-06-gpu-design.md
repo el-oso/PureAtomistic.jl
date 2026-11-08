@@ -104,3 +104,36 @@ Run MACE molecular dynamics on GPUs, written once and portable across GPU vendor
 - Reductions (energy, virial) on the GPU and their reproducibility.
 - The campaign's temperatures, cell size and run lengths, to be proposed with a cost estimate
   from the measured GPU speed before it runs.
+
+## Measured results
+
+Apple M6 with Metal, MACE-MPA-0, Float32. Each figure is the median over 7 interleaved rounds (one
+process per arm per round, the arm order rotating); a speed-up is the reference time over the Metal
+time, quoted as median [min, max] over the rounds. The records are
+`PureMLIP/bench/results/gpu_compare_{eval,md,readback}_metal*.json`, produced by
+`PureMLIP/bench/gpu_compare.jl`. The unit is one energy + forces + stress evaluation, or one
+velocity Verlet step of a `Simulation`; the device is synchronized before the clock stops.
+
+| cell | unit | Metal | threaded CPU | speed-up | Metal device memory |
+|---|---|---|---|---|---|
+| `cu_bench(5)`, 500 atoms | evaluation | 0.0698 s | 0.0869 s | 1.25 [1.24, 1.30] | 0.35 GB |
+| `cu_bench(14)`, 10,976 atoms | evaluation | 1.354 s | 2.113 s | 1.56 [1.53, 1.64] | 1.58 GB |
+| `cu_bench(5)` | MD step | 0.0700 s | 0.0903 s | 1.29 [1.27, 1.45] | 0.35 GB |
+| `cu_bench(14)` | MD step | 1.354 s | 2.232 s | 1.65 [1.60, 1.70] | 1.58 GB |
+
+The CPU arm is threaded PureMLIP (6 threads under `-t 6,0 --gcthreads=1,0`, one BLAS thread,
+PureBLAS, Float32, `ThreadedChunks()`); its maximum resident set is 1.7 GB at `cu_bench(5)` and
+2.2 GB at `cu_bench(14)`. The target, a minimum speed-up above 1 at `cu_bench(14)`, is met (1.53).
+
+| cell | fastatomstruct XLA CPU | Metal | speed-up | XLA maximum resident set |
+|---|---|---|---|---|
+| `cu_bench(5)` | 0.437 s | 0.0698 s | 6.25 [6.19, 6.31] | 6.2 GB |
+| `cu_bench(8)`, 2,048 atoms (largest that fits) | 1.994 s | 0.250 s | 7.96 [7.88, 8.38] | 22.8 GB |
+| `cu_bench(9)`, 2,916 atoms | does not fit | 0.352 s | not measured | 24.7 GB when stopped |
+
+fastatomstruct's XLA CPU backend ran unpinned on all cores. At `cu_bench(9)` a memory guard stopped
+it at 24.7 GB with swap use up by 73 MB.
+
+The status read of a device step costs 0.20 ms at `cu_bench(5)` (0.29 % of the step; 49 µs to
+3.6 ms over the rounds, with the step that reads taking 3 ms longer in 3 of 7 processes) and is
+not measurable at `cu_bench(14)` (median -0.05 % of the step, within +-0.14 %).
