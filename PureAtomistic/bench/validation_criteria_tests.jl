@@ -73,3 +73,21 @@ end
     @test hop_test(vacancy(40, 440.0), vacancy(4, 44.0))["p"] > 0.9
     @test compare_to_baseline(vacancy(4, 22.0), vacancy(4, 22.0))["pass"]
 end
+
+@testset "write_device_verdicts" begin
+    # The stored Float32 records stand in for a device run: each agrees with itself.
+    mktempdir() do dir
+        for name in ("md_nve_conservation", "md_thermostat_check", "md_vacancy_hop")
+            cp(joinpath(@__DIR__, "results", name * "_f32.json"), joinpath(dir, name * "_f32.json"))
+            cp(joinpath(@__DIR__, "results", name * "_f32.json"), joinpath(dir, name * "_f32_dev.json"))
+        end
+        write_device_verdicts(dir, "_f32_dev")
+        nve = JSON.parsefile(joinpath(dir, "md_nve_conservation_f32_dev.json"))["md_float32_cpu_baseline"]
+        @test all(nve[string(dt)]["versus_cpu_float32"]["pass"] for dt in NVE_DTS)
+        for name in ("md_thermostat_check", "md_vacancy_hop")
+            rec = JSON.parsefile(joinpath(dir, name * "_f32_dev.json"))["md_float32_cpu_baseline"]
+            @test rec["versus_cpu_float32"]["pass"] && rec["criteria"]["pass"]
+        end
+        @test JSON.parsefile(joinpath(dir, "md_vacancy_hop_f32_dev.json"))["md_float32_cpu_baseline"]["hop_test"]["p"] == 1.0
+    end
+end

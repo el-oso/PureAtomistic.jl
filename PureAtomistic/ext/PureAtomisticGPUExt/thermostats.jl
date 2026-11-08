@@ -28,7 +28,12 @@ draws `R₁` and the gamma variate `S/2` of both half-steps under it (counters `
 `(pass, half)`), so the sampler's cap is in the status word before the step's force evaluation
 reads it. Each half-step sums the kinetic energy on the device, computes `α` in a single work
 item, and scales the velocities by it; nothing is read back. A zero kinetic energy leaves the
-velocities unchanged and sets the thermostat's flag, which the next status read throws.
+velocities unchanged and sets the thermostat's flag. The CPU method throws before it changes
+anything; the flag reaches the host only at the next status read, which is the one inside the
+force evaluation of the step (a flag set by the second half-step: the next step's). The step has
+then already made its first half kick and its drift, so the exception leaves the positions and
+velocities advanced by that much and `sim.step_count` unchanged. The flag stays set, so every
+later status read of that potential throws too.
 """
 function Thermostats.thermostat_step!(
         th::BussiThermostat, sys::System{T}, p::DeviceMACEPotential{T}, dt::Real,

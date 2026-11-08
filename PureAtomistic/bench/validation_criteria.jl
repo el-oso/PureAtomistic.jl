@@ -157,3 +157,36 @@ function write_float32_baseline(dir::AbstractString)
     end
     return nothing
 end
+
+# Adds `md_float32_cpu_baseline` to the three records `md_*<suffix>.json` of a device run: the
+# verdict of `criteria` on the record and its agreement with the CPU Float32 records
+# `md_*_f32.json`. The device draws its noise from another generator than the CPU, so the
+# agreement is that of independent runs. `dir` holds both sets of files.
+function write_device_verdicts(dir::AbstractString, suffix::AbstractString)
+    load(f) = JSON.parsefile(joinpath(dir, f))
+    function put(file, record)
+        d = load(file)
+        d["md_float32_cpu_baseline"] = record
+        open(io -> JSON.print(io, d, 1), joinpath(dir, file), "w")
+        return record
+    end
+    note = "The device and the CPU baseline draw their noise from different generators (Philox and Xoshiro), so the runs are statistically independent."
+    runs = load("md_nve_conservation$suffix.json")["runs"]
+    base = Dict(r["dt_fs"] => r for r in load("md_nve_conservation_f32.json")["runs"])
+    nve = Dict{String, Any}()
+    for r in runs
+        b = base[r["dt_fs"]]
+        nve[string(r["dt_fs"])] = Dict(
+            "criteria" => criteria(r), "criteria_cpu_float32" => criteria(b), "versus_cpu_float32" => compare_to_baseline(r, b),
+        )
+    end
+    nve["note"] = note
+    put("md_nve_conservation$suffix.json", nve)
+    for name in ("md_thermostat_check", "md_vacancy_hop")
+        r, b = load("$name$suffix.json"), load(name * "_f32.json")
+        rec = Dict{String, Any}("criteria" => criteria(r), "criteria_cpu_float32" => criteria(b), "versus_cpu_float32" => compare_to_baseline(r, b), "note" => note)
+        record_kind(r) === :vacancy && (rec["hop_test"] = hop_test(r, b))
+        put("$name$suffix.json", rec)
+    end
+    return nothing
+end

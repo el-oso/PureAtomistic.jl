@@ -11,7 +11,7 @@
 #   PUREMLIP_CHECKPOINT_DIR  directory with mace-mpa-0-medium.model
 #   REGROW_SIZE              fcc cells per edge of the Cu crystal (default 5: 500 atoms)
 #   REGROW_STEPS             steps of 2 fs per target pressure (default 2000)
-#   REGROW_P0                comma-separated target pressures in GPa (default "0,10")
+#   REGROW_P0                comma-separated target pressures in GPa (default "0,10,30")
 #   PUREMLIP_BENCH_OUT       JSON output path (default results/gpu_barostat_regrow_<backend>.json)
 #
 # On macOS, export HWLOC_COMPONENTS=-darwin first (see the KernelAbstractions rule in AGENTS.md).
@@ -30,7 +30,7 @@ const BACKEND = BACKEND_NAME == "Metal" ? MetalBackend() : BACKEND_NAME == "CUDA
 
 const SIZE = parse(Int, get(ENV, "REGROW_SIZE", "5"))
 const STEPS = parse(Int, get(ENV, "REGROW_STEPS", "2000"))
-const PRESSURES = parse.(Float64, split(get(ENV, "REGROW_P0", "0,10"), ","))
+const PRESSURES = parse.(Float64, split(get(ENV, "REGROW_P0", "0,10,30"), ","))
 const FRACTION = 0.05
 const FRACTIONS = [0.0, 0.01, 0.02, 0.05, 0.1, 0.2]
 const OUT = get(ENV, "PUREMLIP_BENCH_OUT", joinpath(@__DIR__, "results", "gpu_barostat_regrow_$(lowercase(BACKEND_NAME)).json"))

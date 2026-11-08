@@ -42,7 +42,9 @@ end
 
 # Multiply every entry of `A` by `μ` in place: one product per entry. `map!` runs on device
 # arrays too; the in-place broadcast `A .*= μ` would do the same, but its aliasing check holds an
-# allocating branch that the allocation gates of the barostat steps reject.
+# allocating branch that the allocation gates of the barostat steps reject. The destination is `A`
+# itself, so the aliasing is the same-index kind: entry `i` is read before it is written and no
+# other entry is touched, which is why the in-place `map!` is safe.
 function _scale!(A::AbstractArray, μ)
     map!(x -> x * μ, A, A)
     return nothing

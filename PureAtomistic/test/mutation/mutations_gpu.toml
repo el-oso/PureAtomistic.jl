@@ -154,3 +154,17 @@ file = "ext/PureAtomisticGPUExt/barostat.jl"
 find = "return -tr / 3 + 2 * K / (3 * abs(det))"
 replace = "return -tr / 3 + K / (3 * abs(det))"
 expect = "barostat: the device scale factor equals the CPU's"
+
+[[mutation]]
+name = "device-gamma-log-branch-sign"
+file = "ext/PureAtomisticGPUExt/samplers.jl"
+find = "d * (one(T) - v + log(v))"
+replace = "d * (one(T) - v - log(v))"
+expect = "thermostats: the device gamma sampler"
+
+[[mutation]]
+name = "device-rng-gamma-streams-collapsed"
+file = "ext/PureAtomisticGPUExt/samplers.jl"
+find = "const _STREAM_GAMMA_UNIFORM = 0x00000004"
+replace = "const _STREAM_GAMMA_UNIFORM = 0x00000003"
+expect = "thermostats: the device gamma sampler"

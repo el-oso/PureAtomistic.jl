@@ -568,6 +568,19 @@ end
     # Zero kinetic energy: the device sets the thermostat's flag, and the step's status read throws.
     sim = simulation(ideal_gas(T, 0.0), backend; dt = 2.0, thermostat = BussiThermostat(300.0, 10.0))
     @test_throws "pureatomistic: the Bussi thermostat cannot rescale velocities with zero kinetic energy" step!(sim)
+    # The flag reaches the host at the status read inside the step: the step has made its first
+    # half kick and its drift by then, the step count has not advanced, the flag stays set, and the
+    # scalar reads do not look at it.
+    at_rest = host_system(T)
+    at_rest.velocities .= 0
+    sim = simulation(at_rest, backend; thermostat = BussiThermostat(300.0, 10.0))
+    x0, v0 = Array(sim.system.positions), Array(sim.system.velocities)
+    @test_throws "pureatomistic: the Bussi thermostat cannot rescale velocities with zero kinetic energy" step!(sim)
+    @test sim.step_count == 0
+    @test Array(sim.system.positions) != x0 && Array(sim.system.velocities) != v0
+    @test_throws "pureatomistic: the Bussi thermostat cannot rescale velocities with zero kinetic energy" PureAtomistic.Potentials.energy_forces!(sim.potential, sim.system.positions, sim.system.cell)
+    @test isfinite(kinetic_energy(sim))
+
     # An unknown code in the thermostat's entry.
     @test_throws "pureatomistic: the thermostat flag holds the unknown code 7" ext._check_thermostat_flag(Int32[0, 0, 7, 0, 0])
     # Arrays of the system on another backend than the potential's.

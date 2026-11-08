@@ -24,7 +24,10 @@ the barostat, and one more in a step that regrows, whose new list also reads its
 and its status word back inside `device_neighbor_list` (two copies that are not counted). The
 list of `device_potential` reads back the same two. A status read also throws for the flag
 that the device thermostats set in the list's status word (a gamma sampler at its cap, or a
-Bussi step at zero kinetic energy).
+Bussi step at zero kinetic energy). That flag is sticky: nothing clears it, so after a thermostat
+step has set it, every later status read of the potential throws, and the simulation cannot
+continue. The scalar reads of the energy queries and of the barostat do not read the status word
+and never throw for it.
 
 Spare edges cost evaluation time, since the per-edge kernels run over every slot: on Metal at
 cu_bench(14), 10 % spare slots cost 5.6 % per evaluation and 50 % cost 23.6 %, so the default 5 %
@@ -158,6 +161,7 @@ function _read_status!(p::DeviceMACEPotential)
     return nothing
 end
 
+# A scalar read does not look at the status word, so it never throws for a flag.
 function _read_status!(p::DeviceMACEPotential, host::Vector, device::AbstractVector)
     copyto!(host, device)
     p.readbacks += 1
