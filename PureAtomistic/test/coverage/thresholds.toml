@@ -18,6 +18,7 @@
 "src/optimize/fire.jl" = 1.00
 "src/optimize/fire2.jl" = 1.00
 "src/optimize/lbfgs.jl" = 1.00
+"src/optimize/neb.jl" = 1.00
 "src/optimize/quasi_newton.jl" = 1.00
 "src/potentials/Potentials.jl" = 1.00
 "src/potentials/contracts.jl" = 1.00

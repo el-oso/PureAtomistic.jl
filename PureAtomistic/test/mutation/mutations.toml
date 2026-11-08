@@ -1213,3 +1213,80 @@ file = "src/barostats/Barostats.jl"
 find = "    _scale!(sys.cell, μ)\n"
 replace = ""
 expect = "evaluates the potential once"
+
+[[mutation]]
+name = "neb-tangent-rising"
+file = "src/optimize/neb.jl"
+find = "Vp > V > Vm && return (one(T), zero(T))"
+replace = "Vp > V > Vm && return (zero(T), one(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-falling"
+file = "src/optimize/neb.jl"
+find = "Vp < V < Vm && return (zero(T), one(T))"
+replace = "Vp < V < Vm && return (one(T), zero(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-flat"
+file = "src/optimize/neb.jl"
+find = "iszero(dmax) && return (one(T), one(T))"
+replace = "iszero(dmax) && return (one(T), zero(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-extremum-weights"
+file = "src/optimize/neb.jl"
+find = "return Vp > Vm ? (dmax, dmin) : (dmin, dmax)"
+replace = "return Vp > Vm ? (dmin, dmax) : (dmax, dmin)"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-climbing-not-reversed"
+file = "src/optimize/neb.jl"
+find = "c = i + 1 == ci ? -2par :"
+replace = "c = i + 1 == ci ? -par :"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-climbing-lowest-image"
+file = "src/optimize/neb.jl"
+find = "E[j] > E[ci] && (ci = j)"
+replace = "E[j] < E[ci] && (ci = j)"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-spring-sign"
+file = "src/optimize/neb.jl"
+find = "b.spring * (sqrt(dp2) - sqrt(dm2)) - par"
+replace = "b.spring * (sqrt(dm2) - sqrt(dp2)) - par"
+expect = "spaces the images equally"
+
+[[mutation]]
+name = "neb-parallel-force-sign"
+file = "src/optimize/neb.jl"
+find = "F[d, a] = Ft[d, a] + c * τ"
+replace = "F[d, a] = Ft[d, a] - c * τ"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-constraints-ignored"
+file = "src/optimize/neb.jl"
+find = "        _project!(F, b.fixed, b.frozen_atoms, b.frozen_dirs)\n"
+replace = ""
+expect = "neb keeps fixed atoms and frozen directions"
+
+[[mutation]]
+name = "neb-fire2-stop-ignored"
+file = "src/optimize/neb.jl"
+find = "where {T} = fire2_step!(opt, X, F)"
+replace = "where {T} = (fire2_step!(opt, X, F); true)"
+expect = "neb limits and the FIRE2 uphill stop"
+
+[[mutation]]
+name = "neb-no-convergence-stop"
+file = "src/optimize/neb.jl"
+find = "        fm < tol && return _neb_result(b, true, step, fm, ci)\n"
+replace = ""
+expect = "climbing image finds the Müller–Brown saddle point"

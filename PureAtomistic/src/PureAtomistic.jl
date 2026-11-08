@@ -31,8 +31,8 @@ include("device.jl")
 
 export animate_trajectory, plot_vacancy_track, plot_arrhenius, plot_energy_conservation
 
-using .Integrators: FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
-export FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS
+using .Integrators: FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS, NEBResult, neb
+export FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS, NEBResult, neb
 
 public device_potential, to_device, run_md, Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
