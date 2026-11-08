@@ -19,16 +19,21 @@
 #   VACANCY_CAMPAIGN_MAX_HOURS  hours of computing the campaign may spend (default 150): it stops
 #                             before a cycle that would pass them, and after 1200 K when the
 #                             re-estimated total at 0.70 eV exceeds them
+#   VACANCY_CAMPAIGN_DT_FS    2 or 4: the production time step, in place of the dt_check rule (whose
+#                             result is still recorded); stored in the campaign state, and a later
+#                             value that differs is an error. VACANCY_CAMPAIGN_DT_REASON is recorded
+#                             with it
 #   GPU_BACKEND               Metal (default), CUDA or AMDGPU; the project is bench/gpu/<lower case>
 #
 # Each run: 4 × 4 × 4 fcc cells with one vacancy (255 atoms; 5 × 5 × 5, 499 atoms, for the size
 # check), Maxwell-Boltzmann velocities at T from the run's seed, then 20 ps of Bussi (τ 100 fs)
 # and Berendsen (P₀ 0, τ_P 500 fs, β_T 1/140 GPa⁻¹), the cell scaled to the mean volume of the
 # last 10 ps, 2 ps of Bussi NVT that are discarded, and production NVT with Bussi (τ 100 fs). A
-# VacancyTracker (window 5, dwell 3) reads a frame every 20 fs; a trajectory frame is written
-# every 100 fs. Production runs in segments of 100 ps; the state at the end of each segment
-# (positions, velocities, cell, generator, tracker and series) is stored, and a run continues
-# from it exactly.
+# VacancyTracker (window 5, dwell 3) reads a frame every 20 fs and skips up to 500 fs of
+# consecutive frames whose occupancy is not one vacancy (each record counts them); a trajectory
+# frame is written every 100 fs. Production runs in segments of 100 ps; the state at the end of
+# each segment (positions, velocities, cell, generator, tracker and series) is stored, and a run
+# continues from it exactly.
 #
 # The two runs of a stage run as two worker processes. A cycle advances both by 50,000 steps
 # (100 ps at 2 fs, 200 ps at 4 fs) under one token of the lock, which is released between cycles.
@@ -86,6 +91,11 @@ const BETA_T = 1 / 140
 const WINDOW, DWELL = 5, 3
 const CAPACITY_PS = 24_000.0
 const MAXLAG_FRAMES = 2_500
+# A tracker frame whose Wigner-Seitz occupancy is not one vacancy is skipped while it is one of at
+# most this many fs of consecutive such frames (an atom near the saddle of a jump); beyond it the
+# run stops.
+const MAX_TRANSIENT_FS = 500.0
+const MAX_TRANSIENT = round(Int, MAX_TRANSIENT_FS / FRAME_FS)
 const SEED_BASE = 2026110800
 
 const DT_CHECK_T = 1200.0
@@ -99,6 +109,10 @@ const SIZE_CHECK_HOPS = SMOKE ? 1 : 100
 const RESULTS = SMOKE ? joinpath(get(ENV, "VACANCY_CAMPAIGN_DIR", tempdir()), "results") : joinpath(@__DIR__, "results", "vacancy_campaign")
 const HARNESS = @__FILE__
 const MAX_HOURS = parse(Float64, get(ENV, "VACANCY_CAMPAIGN_MAX_HOURS", "150"))
+# VACANCY_CAMPAIGN_DT_FS fixes the production time step instead of the dt_check rule; it is stored
+# in the campaign state, and a later value that differs is an error. VACANCY_CAMPAIGN_DT_REASON is
+# recorded with it.
+const DT_OVERRIDE = get(ENV, "VACANCY_CAMPAIGN_DT_FS", "")
 
 function campaign_dir()
     d = get(ENV, "VACANCY_CAMPAIGN_DIR", "")
@@ -158,7 +172,7 @@ end
 # standard output; everything else goes to standard error.
 #   status            reply with the state
 #   advance_to <n>    equilibrate if not done, then run production to step n (whole segments)
-#   finish            write the final record and exit
+#   finish [status]   store the state, write the record with `status` (default "completed") and exit
 reply(s) = (println(stdout, "@@ ", s); flush(stdout))
 logln(s) = (println(stderr, Dates.format(now(), "yyyy-mm-dd HH:MM:SS"), "  ", s); flush(stderr))
 
@@ -187,6 +201,24 @@ new_state() = Dict{String, Any}(
     "eq" => Dict{String, Any}(), "regrowths" => 0, "status" => "running", "message" => "",
 )
 
+# The tracker is stored in a checkpoint as a Dict of its fields, so a checkpoint stays readable when
+# VacancyTracker gains fields: fields the Dict lacks keep the values of a new tracker, the time of
+# the last frame defaults to that of the last stored frame, and the campaign's transient limit applies.
+tracker_fields(tr::VacancyTracker) = Dict{Symbol, Any}(f => getfield(tr, f) for f in fieldnames(typeof(tr)))
+tracker_fields(::Nothing) = nothing
+
+function restore_tracker(d::AbstractDict, cell)
+    tr = VacancyTracker{FT}(d[:sites]; cell, window = d[:window], dwell = d[:dwell], capacity = length(d[:t]), max_transient = MAX_TRANSIENT)
+    for (k, v) in d
+        k === :max_transient && continue
+        hasfield(typeof(tr), k) || error("checkpoint: the stored tracker has a field $k that VacancyTracker does not")
+        x = getfield(tr, k)
+        x isa AbstractArray ? copyto!(x, v) : setfield!(tr, k, convert(fieldtype(typeof(tr), k), v))
+    end
+    haskey(d, :tlast) || (tr.tlast = tr.t[tr.nframes])
+    return tr
+end
+
 function load_worker(dir)
     spec = readjson(joinpath(dir, "spec.json"))
     model = MACEModel{FT}(load_mace_checkpoint(mpa0_path()))
@@ -197,6 +229,8 @@ function load_worker(dir)
         c = deserialize(ck)
         copyto!(host.positions, c["positions"]); copyto!(host.velocities, c["velocities"]); copyto!(host.cell, c["cell"])
         st, rng = c["state"], c["rng"]
+        isnothing(st["tracker"]) || (st["tracker"] = restore_tracker(st["tracker"], host.cell))
+        st["status"] = "running"
         logln("resumed at production step $(st["prod_steps"]) ($(st["equilibrated"] ? "equilibrated" : "not equilibrated"))")
     end
     backend = BACKEND_NAME == "Metal" ? MetalBackend() : BACKEND_NAME == "CUDA" ? CUDABackend() : ROCBackend()
@@ -209,7 +243,7 @@ function checkpoint!(w::Worker)
     copy_state!(w.host, w.sys)
     c = Dict{String, Any}(
         "positions" => copy(w.host.positions), "velocities" => copy(w.host.velocities), "cell" => copy(w.host.cell),
-        "rng" => copy(w.rng), "state" => w.st,
+        "rng" => copy(w.rng), "state" => merge(w.st, Dict{String, Any}("tracker" => tracker_fields(w.st["tracker"]))),
     )
     atomic_serialize(joinpath(w.dir, "checkpoint.jls"), c)
     return nothing
@@ -254,7 +288,7 @@ function equilibrate!(w::Worker)
     copy_state!(w.host, w.sys)
     a = Float64(w.host.cell[1, 1]) / w.spec["nrep"]
     sites = reference_sites(w.host.cell, FT(a), w.spec["nrep"])
-    tr = VacancyTracker(sites; cell = w.host.cell, window = WINDOW, dwell = DWELL, capacity = round(Int, CAPACITY_PS * 1000 / FRAME_FS) + 1)
+    tr = VacancyTracker(sites; cell = w.host.cell, window = WINDOW, dwell = DWELL, capacity = round(Int, CAPACITY_PS * 1000 / FRAME_FS) + 1, max_transient = MAX_TRANSIENT)
     update!(tr, w.host.positions, 0.0)
     w.st["tracker"] = tr
     push!(w.st["t_fs"], 0.0); push!(w.st["T_K"], temperature(w.host)); push!(w.st["P_GPa"], press(w))
@@ -353,6 +387,9 @@ function write_record(w::Worker)
         r["hop_times_fs"] = tr.hop_t[1:tr.nhops]
         r["hop_sites"] = hop_sites(tr)
         r["initial_site"] = tr.vsite[1]
+        r["transient_limit_frames"], r["transient_limit_fs"] = tr.max_transient, tr.max_transient * FRAME_FS
+        r["transient_frames"], r["transient_longest_frames"] = tr.ntransient, tr.longest_transient
+        r["transient_episodes"], r["transient_episode_start_fs"] = tr.nepisodes, tr.transient_t[1:tr.nepisodes]
         r["mean_temperature_K"], r["temperature_se_K"] = mean(st["T_K"]), block_se(st["T_K"])
         r["mean_pressure_GPa"], r["pressure_se_GPa"] = mean(st["P_GPa"]), block_se(st["P_GPa"])
         a = st["eq"]["lattice_constant_A"]
@@ -403,7 +440,7 @@ function worker_main(dir)
                 advance_to!(w, parse(Int, cmd[2]))
                 reply(status_line(w))
             elseif cmd[1] == "finish"
-                w.st["status"] = "completed"
+                w.st["status"] = length(cmd) >= 2 ? String(cmd[2]) : "completed"
                 checkpoint!(w)
                 write_record(w)
                 reply("bye")
@@ -475,8 +512,8 @@ function start_worker(root, spec)
     return Handle(spec, proc, log, 0, 0, 0.0)
 end
 
-function stop_worker(h::Handle)
-    println(h.proc, "finish"); flush(h.proc)
+function stop_worker(h::Handle, status = "completed")
+    println(h.proc, "finish $status"); flush(h.proc)
     read_reply(h)
     wait(h.proc)
     close(h.log)
@@ -589,11 +626,12 @@ function stage_dt_check!(root, state)
     rec = merge(provenance(), Dict{String, Any}("status" => "running", "rule" => dt_check_rule()))
     path = joinpath(RESULTS, "dt_check.json")
     isfile(path) && (rec = merge(readjson(path), Dict("status" => "running")))
+    haskey(state, "dt_override_fs") && (rec["override"] = override_record(state))
     save_json(path, rec)
     hs = [start_worker(root, run_spec("dt_check", DT_CHECK_T, 2.0, 1)), start_worker(root, run_spec("dt_check", DT_CHECK_T, 4.0, 2))]
     foreach(read_reply, hs)
     while sum(h.hops for h in hs) < DT_CHECK_HOPS && count(c -> c["stage"] == "dt_check", state["cycles"]) < DT_CHECK_MAX_CYCLES
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(stop_worker, hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
+        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
         write_summary(root, state)
     end
     foreach(stop_worker, hs)
@@ -602,11 +640,14 @@ function stage_dt_check!(root, state)
     rec["decision"] = d
     rec["decided"] = string(now())
     save_json(path, rec)
-    state["dt_fs"] = d["chosen_dt_fs"]
-    state["first_1200_run"] = d["chosen_dt_fs"] == 2.0 ? d["run_2fs"] : d["run_4fs"]
+    dt = get(state, "dt_override_fs", d["chosen_dt_fs"])
+    rec["dt_fs_used"] = dt
+    save_json(path, rec)
+    state["dt_fs"] = dt
+    state["first_1200_run"] = dt == 2.0 ? d["run_2fs"] : d["run_4fs"]
     state["stage"] = "t1200_rest"
     save_state(root, state)
-    clog("dt check: $(d["hops_2fs"]) hops in $(d["ps_2fs"]) ps at 2 fs, $(d["hops_4fs"]) in $(d["ps_4fs"]) ps at 4 fs; ratio $(round(d["rate_ratio"]; digits = 3)) $(round.(d["ratio_ci95"]; digits = 3)), p $(round(d["binomial_p"]; digits = 3)); dt $(d["chosen_dt_fs"]) fs")
+    clog("dt check: $(d["hops_2fs"]) hops in $(d["ps_2fs"]) ps at 2 fs, $(d["hops_4fs"]) in $(d["ps_4fs"]) ps at 4 fs; ratio $(round(d["rate_ratio"]; digits = 3)) $(round.(d["ratio_ci95"]; digits = 3)), p $(round(d["binomial_p"]; digits = 3)); rule $(d["chosen_dt_fs"]) fs, used $dt fs")
     return true
 end
 
@@ -619,7 +660,7 @@ function stage_t1200_rest!(root, state)
     hs = [start_worker(root, run_spec("t1200_rest", 1200.0, dt, 3; max_steps = L)), start_worker(root, run_spec("t1200_rest", 1200.0, dt, 4; nrep = 5, max_steps = L))]
     foreach(read_reply, hs)
     while any(h.steps < L for h in hs)
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(stop_worker, hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
+        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
         write_summary(root, state)
     end
     foreach(stop_worker, hs)
@@ -642,7 +683,7 @@ function stage_pair!(root, state, T, target, seeds)
     hs = [start_worker(root, run_spec(stage, T, dt, seeds[1])), start_worker(root, run_spec(stage, T, dt, seeds[2]))]
     foreach(read_reply, hs)
     while sum(h.hops for h in hs) < target
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(stop_worker, hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
+        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
         write_summary(root, state)
     end
     foreach(stop_worker, hs)
@@ -715,6 +756,8 @@ function write_summary(root, state)
         temps[string(Int(T))] = e
     end
     s = merge(provenance(), Dict{String, Any}("stage" => state["stage"], "dt_fs" => dt, "gpu_hours" => state["gpu_hours"], "temperatures" => temps))
+    s["starts"] = get(state, "starts", Any[])
+    haskey(state, "dt_override_fs") && (s["dt_override"] = override_record(state))
     sz = filter(r -> r["cells"] == 5 && haskey(r, "hops"), recs)
     isempty(sz) || (s["size_check_499"] = Dict{String, Any}("run" => sz[1]["run"], "hops" => sz[1]["hops"], "duration_ps" => sz[1]["duration_ps"], "rate_per_ps" => sz[1]["hops"] / sz[1]["duration_ps"]))
     if !isempty(sz) && haskey(temps, "1200")
@@ -734,11 +777,34 @@ function write_summary(root, state)
     return nothing
 end
 
+function apply_dt_override!(state)
+    isempty(DT_OVERRIDE) && return state
+    dt = parse(Float64, DT_OVERRIDE)
+    dt in (2.0, 4.0) || error("VACANCY_CAMPAIGN_DT_FS must be 2 or 4, got $DT_OVERRIDE")
+    old = get(state, "dt_override_fs", nothing)
+    isnothing(old) || old == dt || error("VACANCY_CAMPAIGN_DT_FS=$DT_OVERRIDE conflicts with the override of $old fs stored in the campaign state")
+    isnothing(state["dt_fs"]) || state["dt_fs"] == dt || error("VACANCY_CAMPAIGN_DT_FS=$DT_OVERRIDE conflicts with the time step $(state["dt_fs"]) fs the campaign already uses")
+    if isnothing(old)
+        state["dt_override_fs"] = dt
+        state["dt_override_note"] = "overridden by user: $(round(Int, dt)) fs"
+        state["dt_override_reason"] = get(ENV, "VACANCY_CAMPAIGN_DT_REASON", "")
+        state["dt_override_date"] = string(now())
+    end
+    return state
+end
+
+override_record(state) = Dict{String, Any}(
+    "dt_fs" => state["dt_override_fs"], "note" => state["dt_override_note"], "reason" => state["dt_override_reason"],
+    "date" => state["dt_override_date"], "effect" => "the rule's result is recorded under decision; the production runs use dt_fs",
+)
+
 function campaign_main()
     root = campaign_dir()
     mkpath(joinpath(root, "logs"))
     state = load_state(root)
+    apply_dt_override!(state)
     state["status"] = "running"
+    push!(get!(state, "starts", Any[]), merge(provenance(), Dict{String, Any}("dt_override_fs" => get(state, "dt_override_fs", nothing))))
     save_state(root, state)
     clog("campaign at stage $(state["stage"]), $(round(state["gpu_hours"]; digits = 2)) h spent, limit $MAX_HOURS h")
     state["stage"] == "dt_check" && (stage_dt_check!(root, state) || return)
