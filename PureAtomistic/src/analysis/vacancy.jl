@@ -141,7 +141,7 @@ function wigner_seitz_occupancy!(
 end
 
 """
-    VacancyTracker(sites; cell, window, dwell, capacity = 10_000)
+    VacancyTracker(sites; cell, window, dwell, capacity = 10_000, max_transient = 25)
 
 Tracks the single vacancy of a lattice with the reference `sites` (3×M, M-1 atoms) in the fixed
 `cell`. [`update!`](@ref) feeds frames; `window` is the number of frames over which positions
@@ -149,9 +149,22 @@ are averaged before the assignment, `dwell` the number of consecutive frames a n
 site must persist before a hop counts, and `capacity` the number of frames the tracker can
 hold. After an error from `update!` the tracker must not be used again.
 
+While an atom crosses the saddle of a jump, or during a concerted move of two atoms, the
+Wigner-Seitz assignment can be ambiguous for a few frames: it then holds two empty sites and a
+doubly occupied one, or another occupancy that is not one vacancy. `max_transient` is the number
+of consecutive frames of such an occupancy that the tracker accepts (default 25, which is 500 fs
+at frames 20 fs apart). It skips them: their positions do not enter the window average of later
+frames, they are not stored, and the vacancy state does not change. The frame after them that
+holds one vacancy continues the track. The next frame beyond the limit throws, since an
+occupancy that lasts that long is a defect (a Frenkel pair, melting) rather than a jump in
+progress. The first frame must hold one vacancy.
+
 Read-only state: `nframes`, `nhops`, the frame times `t`, the unwrapped vacancy positions `R`
 (3×capacity; columns `1:nframes` are valid, the first at the initial vacancy site), the
-vacancy site `vsite` of each frame and the confirmation times `hop_t` of the hops.
+vacancy site `vsite` of each frame and the confirmation times `hop_t` of the hops; the number of
+skipped frames `ntransient`, the longest run of consecutive skipped frames `longest_transient`,
+the number of such runs `nepisodes` and the time `transient_t` of the first frame of each run
+(entries `1:nepisodes` are valid).
 """
 mutable struct VacancyTracker{T <: AbstractFloat}
     sites::Matrix{T}
@@ -172,9 +185,17 @@ mutable struct VacancyTracker{T <: AbstractFloat}
     R::Matrix{T}
     vsite::Vector{Int}
     hop_t::Vector{T}
+    max_transient::Int
+    ntransient::Int
+    transient_run::Int
+    longest_transient::Int
+    nepisodes::Int
+    transient_t::Vector{T}
+    tlast::T
 
     function VacancyTracker{T}(
-            sites::AbstractMatrix; cell::AbstractMatrix, window::Integer, dwell::Integer, capacity::Integer = 10_000
+            sites::AbstractMatrix; cell::AbstractMatrix, window::Integer, dwell::Integer, capacity::Integer = 10_000,
+            max_transient::Integer = 25,
         ) where {T}
         _check3(sites, "sites")
         nsites = size(sites, 2)
@@ -182,6 +203,8 @@ mutable struct VacancyTracker{T <: AbstractFloat}
         window >= 1 || throw(ArgumentError(lazy"pureatomistic: window must be at least 1, got $window"))
         dwell >= 1 || throw(ArgumentError(lazy"pureatomistic: dwell must be at least 1, got $dwell"))
         capacity >= 1 || throw(ArgumentError(lazy"pureatomistic: capacity must be at least 1, got $capacity"))
+        max_transient >= 0 ||
+            throw(ArgumentError(lazy"pureatomistic: max_transient must be at least 0, got $max_transient"))
         cm = _mat3(T, cell)
         ci = _inv3(cm)
         n = nsites - 1
@@ -190,6 +213,7 @@ mutable struct VacancyTracker{T <: AbstractFloat}
             zeros(T, 3, n, window), zeros(T, 3, n), zeros(Int, n), zeros(Int, nsites),
             0, 0, 0, 0, 0,
             zeros(T, capacity), zeros(T, 3, capacity), zeros(Int, capacity), zeros(T, capacity),
+            max_transient, 0, 0, 0, 0, zeros(T, capacity), T(-Inf),
         )
     end
 end
@@ -198,8 +222,8 @@ function VacancyTracker(sites::AbstractMatrix; kwargs...)
     return VacancyTracker{float(eltype(sites))}(sites; kwargs...)
 end
 
-# The one empty site of `occ`; throws unless exactly one site is empty and none is doubly occupied.
-function _single_vacancy(occ::AbstractVector{Int}, frame::Int)
+# The number of empty and of multiply occupied sites of `occ`, and the last empty site.
+function _occupancy(occ::AbstractVector{Int})
     nempty = 0
     nmulti = 0
     empty = 0
@@ -211,21 +235,17 @@ function _single_vacancy(occ::AbstractVector{Int}, frame::Int)
             nmulti += 1
         end
     end
-    (nempty == 1 && nmulti == 0) ||
-        throw(
-        ArgumentError(
-            lazy"pureatomistic: occupancy is not one vacancy at frame $frame: $nempty empty and $nmulti multiply occupied sites"
-        )
-    )
-    return empty
+    return nempty, nmulti, empty
 end
 
 """
     update!(tracker, positions, t)
 
 Adds the frame `positions` (3×N, N = number of sites - 1) taken at time `t`, which must exceed
-the previous frame's time. Throws `ArgumentError` if the frame's occupancy is not exactly one
-empty site and no doubly occupied site (a Frenkel pair, for example), naming the frame.
+the time of the previous frame, skipped or not. A frame whose occupancy is not exactly one empty
+site and no doubly occupied site is skipped while it is one of at most `max_transient`
+consecutive such frames (see [`VacancyTracker`](@ref)); the next one throws `ArgumentError`,
+naming the frame (counting skipped frames) and the time since the last frame with one vacancy.
 """
 function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) where {T}
     _check3(positions, "positions")
@@ -235,8 +255,8 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
     f = tr.nframes + 1
     f <= length(tr.t) ||
         throw(ArgumentError(lazy"pureatomistic: tracker capacity $(length(tr.t)) is exhausted"))
-    f == 1 || T(t) > tr.t[f - 1] ||
-        throw(ArgumentError(lazy"pureatomistic: frame times must increase, got $t after $(tr.t[f - 1]) at frame $f"))
+    T(t) > tr.tlast ||
+        throw(ArgumentError(lazy"pureatomistic: frame times must increase, got $t after $(tr.tlast) at frame $(f + tr.ntransient)"))
 
     slot = mod1(f, tr.window)
     j0 = firstindex(positions, 2)
@@ -273,7 +293,13 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
     end
     drift = (drift[1] / n, drift[2] / n, drift[3] / n)
     _assign!(tr.occ, tr.owner, tr.avg, drift, tr.sites, cm, ci)
-    v = _single_vacancy(tr.occ, f)
+    nempty, nmulti, v = _occupancy(tr.occ)
+    tr.tlast = T(t)
+    if nempty != 1 || nmulti != 0
+        _transient!(tr, f, T(t), nempty, nmulti)
+        return nothing
+    end
+    tr.transient_run = 0
 
     if f == 1
         tr.site = v
@@ -306,5 +332,34 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
     tr.R[3, f] = r[3]
     tr.vsite[f] = tr.site
     tr.nframes = f
+    return nothing
+end
+
+# Counts the frame `f` (the next frame to store) at time `t` as skipped, or throws when it is the
+# first frame or one more than `max_transient` consecutive skipped frames. The window slot that the
+# frame's positions went into is the one the next stored frame overwrites, so they never enter a
+# later average.
+function _transient!(tr::VacancyTracker{T}, f::Int, t::T, nempty::Int, nmulti::Int) where {T}
+    frame = f + tr.ntransient
+    f == 1 &&
+        throw(
+        ArgumentError(
+            lazy"pureatomistic: occupancy is not one vacancy at frame $frame: $nempty empty and $nmulti multiply occupied sites; the first frame must hold one vacancy"
+        )
+    )
+    run = tr.transient_run + 1
+    run <= tr.max_transient ||
+        throw(
+        ArgumentError(
+            lazy"pureatomistic: occupancy is not one vacancy at frame $frame: $nempty empty and $nmulti multiply occupied sites, for $run consecutive frames over $(t - tr.t[f - 1]) time units since the last frame with one vacancy (limit $(tr.max_transient) frames)"
+        )
+    )
+    if run == 1
+        tr.nepisodes += 1
+        tr.transient_t[tr.nepisodes] = t
+    end
+    tr.transient_run = run
+    tr.ntransient += 1
+    tr.longest_transient = max(tr.longest_transient, run)
     return nothing
 end

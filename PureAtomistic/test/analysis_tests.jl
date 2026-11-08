@@ -276,15 +276,151 @@ end
     sites = reference_sites(cell, a, nrep)
     n = size(sites, 2)
     P = sites[:, 2:n]
-    tr = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 4)
-    update!(tr, P, 1.0)
     # Atom 3 (site 4) moves onto site 5: site 4 and site 1 are empty, site 5 is doubly occupied.
     Q = copy(P)
     Q[:, 3] = sites[:, 5]
+    # With no transient allowed, the first such frame fails.
+    tr = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 4, max_transient = 0)
+    update!(tr, P, 1.0)
     @test_throws "pureatomistic: occupancy is not one vacancy at frame 2: 2 empty and 1 multiply occupied sites" update!(
         tr, Q, 2.0
     )
     @test tr.nframes == 1
+    # A pair that persists fails at the first frame beyond the default limit of 25 frames.
+    tr = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 4)
+    update!(tr, P, 1.0)
+    for i in 2:26
+        update!(tr, Q, Float64(i))
+    end
+    @test (tr.nframes, tr.ntransient) == (1, 25)
+    @test_throws "pureatomistic: occupancy is not one vacancy at frame 27: 2 empty and 1 multiply occupied sites, for 26 consecutive frames over 26.0 time units" update!(
+        tr, Q, 27.0
+    )
+end
+
+@testitem "a transient occupancy within the limit is skipped" tags = [:analysis] setup = [VacancyOracle] begin
+    using PureAtomistic.Analysis
+    a, nrep = 3.61, 2
+    for T in (Float64, Float32)
+        cell = fcc_cell(T, a, nrep)
+        sites = reference_sites(cell, a, nrep)
+        A, B, C = 1, 2, 5
+        # The vacancy sits on A for 5 frames and on B for 5 frames. Between them, for 4 frames, the
+        # atom on B stands on the occupied site C: A and B are empty and C is doubly occupied.
+        seq = sequence_frames(T, sites, [fill(A, 5); fill(B, 5)])
+        P = seq[5]
+        kB = findfirst(j -> P[:, j] == sites[:, B], axes(P, 2))
+        X = copy(P)
+        X[:, kB] = sites[:, C]
+        function track(frames; max_transient)
+            tr = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 20, max_transient)
+            for (i, Q) in enumerate(frames)
+                update!(tr, Q, T(i))
+            end
+            return tr
+        end
+        tr = track([seq[1:5]; fill(X, 4); seq[6:10]]; max_transient = 4)
+        # The transient frames are not stored: the 10 frames with one vacancy are, at their own times.
+        @test tr.nframes == 10
+        @test tr.t[1:10] == T[1:5; 10:14]
+        @test (tr.ntransient, tr.longest_transient, tr.nepisodes) == (4, 4, 1)
+        @test tr.transient_t[1] == T(6)
+        # One hop A -> B, confirmed at the first frame on B, displacing the track by the
+        # nearest-neighbor vector between the sites (8 eps(T) a, as in the dwell item).
+        @test tr.nhops == 1
+        @test tr.hop_t[1] == T(10)
+        @test tr.vsite[1:10] == [fill(A, 5); fill(B, 5)]
+        @test all(iszero, tr.R[:, 1:5])
+        @test Vector(tr.R[:, 10]) ≈ Vector(sites[:, B] - sites[:, A]) atol = 8 * eps(T) * a
+        # Two transients of 3 frames, separated by a frame with one vacancy, each stay within a
+        # limit of 3: the count of consecutive frames starts again after a good frame.
+        tr2 = track([seq[1:5]; fill(X, 3); seq[5:5]; fill(X, 3); seq[6:10]]; max_transient = 3)
+        @test (tr2.nframes, tr2.ntransient, tr2.longest_transient, tr2.nepisodes) == (11, 6, 3, 2)
+        @test tr2.transient_t[1:2] == T[6, 10]
+        @test tr2.nhops == 1
+    end
+end
+
+@testitem "a transient occupancy beyond the limit fails with its duration" tags = [:analysis] setup = [VacancyOracle] begin
+    using PureAtomistic.Analysis
+    a, nrep = 3.61, 2
+    cell = fcc_cell(Float64, a, nrep)
+    sites = reference_sites(cell, a, nrep)
+    seq = sequence_frames(Float64, sites, fill(1, 5))
+    P = seq[5]
+    X = copy(P)
+    k = findfirst(j -> P[:, j] == sites[:, 2], axes(P, 2))
+    X[:, k] = sites[:, 5]
+    tr = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 20, max_transient = 3)
+    for i in 1:5
+        update!(tr, seq[i], Float64(i))
+    end
+    for i in 6:8
+        update!(tr, X, Float64(i))
+    end
+    @test_throws "pureatomistic: occupancy is not one vacancy at frame 9: 2 empty and 1 multiply occupied sites, for 4 consecutive frames over 4.0 time units since the last frame with one vacancy (limit 3 frames)" update!(
+        tr, X, 9.0
+    )
+    # The first frame has no earlier frame with one vacancy, so it admits no transient.
+    tr0 = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 20)
+    @test_throws "pureatomistic: occupancy is not one vacancy at frame 1: 2 empty and 1 multiply occupied sites; the first frame must hold one vacancy" update!(
+        tr0, X, 1.0
+    )
+    # Frame times must increase across transient frames too.
+    tr1 = VacancyTracker(sites; cell, window = 1, dwell = 1, capacity = 20)
+    update!(tr1, P, 1.0)
+    update!(tr1, X, 2.0)
+    @test_throws "pureatomistic: frame times must increase, got 2.0 after 2.0" update!(tr1, P, 2.0)
+    @test_throws "pureatomistic: max_transient must be at least 0, got -1" VacancyTracker(
+        sites; cell, window = 1, dwell = 1, max_transient = -1
+    )
+end
+
+@testitem "the tracker passes a recorded transient occupancy" tags = [:analysis] setup = [VacancyOracle] begin
+    using PureAtomistic.Analysis
+    using PureAtomistic.IO: TrajectoryReader, read_frame
+    # 26 frames, 20 fs apart, of a 255-atom Cu cell with one vacancy at 1200 K (MACE-MPA-0,
+    # Float32, 4 fs steps, Bussi), around an 80 fs stretch in which the Wigner-Seitz assignment
+    # of the raw positions holds 2 empty sites and 1 doubly occupied one.
+    r = TrajectoryReader(joinpath(@__DIR__, "fixtures", "vacancy", "transient_jump_4fs.patraj"))
+    frames = [read_frame(r, k, Float32) for k in 1:length(r)]
+    close(r)
+    cell = frames[1].cell
+    nrep = 4
+    a = cell[1, 1] / nrep
+    sites = reference_sites(cell, a, nrep)
+    L = cell[1, 1]
+    # Oracle: each atom on its nearest site by plain minimum-image distances in the cubic cell.
+    function empty_sites(P)
+        occ = zeros(Int, size(sites, 2))
+        for j in axes(P, 2)
+            d2(s) = sum(abs2, (P[:, j] - sites[:, s]) .- L .* round.((P[:, j] - sites[:, s]) ./ L))
+            occ[argmin(d2, axes(sites, 2))] += 1
+        end
+        return findall(iszero, occ), count(>(1), occ)
+    end
+    oracle = [empty_sites(f.positions) for f in frames]
+    bad = findall(o -> length(o[1]) != 1 || o[2] != 0, oracle)
+    @test bad == 13:16
+    track(max_transient) = begin
+        tr = VacancyTracker(sites; cell, window = 5, dwell = 3, capacity = 40, max_transient)
+        for f in frames
+            update!(tr, f.positions, Float32(f.time))
+        end
+        tr
+    end
+    @test_throws "pureatomistic: occupancy is not one vacancy" track(0)
+    tr = track(25)
+    @test tr.nframes + tr.ntransient == length(frames)
+    # The window average leaves 2 of the 4 frames ambiguous (frames 15 and 16 of 26, measured).
+    @test tr.ntransient == 2
+    @test tr.longest_transient == 2
+    @test tr.transient_t[1] == frames[15].time
+    @test tr.nepisodes == 1
+    # The vacancy before and after the transient is the oracle's: the same site, so no hop.
+    @test tr.vsite[1] == only(oracle[1][1])
+    @test tr.vsite[tr.nframes] == only(oracle[end][1])
+    @test tr.nhops == 0
 end
 
 @testitem "update! and the analysis functions reject bad input" tags = [:analysis] setup = [VacancyOracle] begin
