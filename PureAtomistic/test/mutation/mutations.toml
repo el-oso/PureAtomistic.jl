@@ -360,8 +360,8 @@ expect = "msd_diffusion fits"
 [[mutation]]
 name = "analysis-arrhenius-sign"
 file = "src/analysis/arrhenius.jl"
-find = "return (E_m = -slope,"
-replace = "return (E_m = slope,"
+find = "E_m = -slope, σ"
+replace = "E_m = slope, σ"
 expect = "arrhenius_fit recovers"
 
 [[mutation]]
@@ -370,6 +370,27 @@ file = "src/analysis/arrhenius.jl"
 find = "sxx += w * dx^2"
 replace = "sxx += dx^2"
 expect = "arrhenius_fit recovers"
+
+[[mutation]]
+name = "analysis-arrhenius-prefactor-error"
+file = "src/analysis/arrhenius.jl"
+find = "σ_ln_prefactor = sqrt(1 / sw + xbar^2 / sxx)"
+replace = "σ_ln_prefactor = sqrt(1 / sw)"
+expect = "arrhenius_fit errors"
+
+[[mutation]]
+name = "analysis-arrhenius-covariance-sign"
+file = "src/analysis/arrhenius.jl"
+find = "cov_E_ln_prefactor = xbar / sxx"
+replace = "cov_E_ln_prefactor = -xbar / sxx"
+expect = "arrhenius_fit errors"
+
+[[mutation]]
+name = "analysis-arrhenius-chi2-weights"
+file = "src/analysis/arrhenius.jl"
+find = "chi2 += w * (log(T(rates[i])) - ybar - slope * dx)^2"
+replace = "chi2 += (log(T(rates[i])) - ybar - slope * dx)^2"
+expect = "arrhenius_fit errors"
 
 [[mutation]]
 name = "systems-kick-unit-factor"

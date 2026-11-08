@@ -390,6 +390,120 @@ end
     @test two.E_m ≈ E atol = 1.0e-12
 end
 
+@testitem "arrhenius_fit errors of the prefactor and the covariance" tags = [:analysis] begin
+    using PureAtomistic.Analysis
+    using LinearAlgebra
+    kB = PureAtomistic.Systems.KB_EV_PER_K
+    # Hop counts n in times t (ps) at four temperatures; rates n/t with the Poisson errors √n/t,
+    # so the weights (rate/error)² of the fit are the counts.
+    temps = [900.0, 980.0, 1080.0, 1200.0]
+    n = [100.0, 100.0, 100.0, 200.0]
+    t = [11780.0, 5650.0, 2630.0, 2460.0]
+    rates, errors = n ./ t, sqrt.(n) ./ t
+    fit = arrhenius_fit(temps, rates, errors)
+    # Oracle: the covariance matrix inv(XᵀWX) of the generalized least-squares estimate of
+    # (ln Γ₀, -E_m), from the design matrix X = [1 x] and W = Diagonal(n), and the estimate
+    # itself, (XᵀWX) \ XᵀWy, solved by LinearAlgebra instead of the centered sums of the fit.
+    x = 1 ./ (kB .* temps)
+    X = [ones(4) x]
+    W = Diagonal(n)
+    C = inv(X' * W * X)
+    β = (X' * W * X) \ (X' * W * log.(rates))
+    # Largest relative error observed against the oracle: 6.7e-15 (ln Γ₀; the normal matrix has
+    # condition number 9.6e3); tolerance 15 times that.
+    @test fit.E_m ≈ -β[2] rtol = 1.0e-13
+    @test log(fit.prefactor) ≈ β[1] rtol = 1.0e-13
+    @test fit.σ ≈ sqrt(C[2, 2]) rtol = 1.0e-13
+    @test fit.σ_ln_prefactor ≈ sqrt(C[1, 1]) rtol = 1.0e-13
+    # E_m = -slope, so its covariance with ln Γ₀ is the negative of the slope-intercept entry.
+    @test fit.cov_E_ln_prefactor ≈ -C[1, 2] rtol = 1.0e-13
+    r = log.(rates) .- X * β
+    # Observed relative error 1.8e-14; tolerance 11 times that.
+    @test fit.chi2 ≈ sum(n .* r .^ 2) rtol = 2.0e-13
+    # Data on an Arrhenius line give χ² = 0 up to rounding (observed 9.3e-25, tolerance 11 times
+    # that). Their weights equal the counts up to the rounding of one division and one square
+    # each, so the errors match those of the counts within 40 eps.
+    E, Γ0 = 0.7, 6.0e13
+    exact = Γ0 .* exp.(-E ./ (kB .* temps))
+    fe = arrhenius_fit(temps, exact, exact ./ sqrt.(n))
+    @test fe.chi2 <= 1.0e-23
+    @test fe.σ ≈ fit.σ rtol = 40 * eps()
+    @test fe.σ_ln_prefactor ≈ fit.σ_ln_prefactor rtol = 40 * eps()
+    # OffsetArray and view inputs visit the points in the same order, so the result is identical.
+    using OffsetArrays
+    o(v) = OffsetArray(v, -2:1)
+    @test arrhenius_fit(o(temps), o(rates), o(errors)) == fit
+    @test arrhenius_fit(view([temps; temps], 1:4), view(rates, :), view([errors errors], :, 2)) == fit
+    @test_throws DimensionMismatch arrhenius_fit(o(temps), rates, errors)
+    # Float32 inputs give Float32 results.
+    f32 = arrhenius_fit(Float32.(temps), Float32.(rates), Float32.(errors))
+    @test f32.σ_ln_prefactor isa Float32 && f32.cov_E_ln_prefactor isa Float32 && f32.chi2 isa Float32
+end
+
+@testitem "arrhenius_fit errors cover the true values" tags = [:analysis] begin
+    using PureAtomistic.Analysis
+    using Random, Statistics
+    kB = PureAtomistic.Systems.KB_EV_PER_K
+    E, lnΓ0 = 0.7, log(6.0e13 / 1.0e12)  # rates per ps
+    temps = [900.0, 980.0, 1080.0, 1200.0]
+    x = 1 ./ (kB .* temps)
+    Γ = exp.(lnΓ0 .- E .* x)
+    M = 20_000
+    # Known variance: ln rate is the line plus Gaussian noise of standard deviation s, and the errors
+    # passed are rate·s, so the weights are exactly 1/s². The estimates are then normal with the
+    # stated covariance, and an interval of ±1.96σ covers the true value with probability 0.95.
+    s = [0.1, 0.1, 0.1, 0.07]
+    rng = Xoshiro(20261108)
+    cover = zeros(Int, 2)
+    Es, As, chi = zeros(M), zeros(M), zeros(M)
+    # The weights do not depend on the noise, so neither do the stated errors.
+    f0 = arrhenius_fit(temps, Γ, Γ .* s)
+    for k in 1:M
+        r = Γ .* exp.(s .* randn(rng, 4))
+        f = arrhenius_fit(temps, r, r .* s)
+        Es[k], As[k], chi[k] = f.E_m, log(f.prefactor), f.chi2
+        cover[1] += abs(f.E_m - E) <= 1.96 * f.σ
+        cover[2] += abs(log(f.prefactor) - lnΓ0) <= 1.96 * f.σ_ln_prefactor
+    end
+    # Binomial standard error of a coverage fraction near 0.95 over M runs: 0.0015; bound 4 of them.
+    # Observed 0.9497 (E_m) and 0.9508 (ln Γ₀).
+    se = sqrt(0.95 * 0.05 / M)
+    @test all(abs.(cover ./ M .- 0.95) .<= 4se)
+    # The sample variances and covariance of the estimates against the stated ones. The relative
+    # standard error of a sample variance of M normal draws is sqrt(2/M) = 0.010; bound 4 of them.
+    # Observed deviations 0.0039, 0.0030 and 0.0035 (correlation 0.9935 stated); χ² has mean 2
+    # (observed 2.018, standard error sqrt(2·2/M) = 0.014).
+    @test var(Es) / f0.σ^2 ≈ 1 atol = 4 * sqrt(2 / M)
+    @test var(As) / f0.σ_ln_prefactor^2 ≈ 1 atol = 4 * sqrt(2 / M)
+    ρ = f0.cov_E_ln_prefactor / (f0.σ * f0.σ_ln_prefactor)
+    # Standard error of a sample covariance of normal pairs: sqrt((1 + ρ²)/M) relative to σσ.
+    @test cov(Es, As) / (f0.σ * f0.σ_ln_prefactor) ≈ ρ atol = 4 * sqrt((1 + ρ^2) / M)
+    @test mean(chi) ≈ 2 atol = 4 * sqrt(4 / M)
+
+    # Poisson hop counts at the campaign's targets (expected 100, 100, 100 and 200 hops): the weights
+    # are the observed counts, so the errors hold to first order in 1/n. Each count is the number
+    # of unit-rate exponential gaps that fit in the expected count. Observed coverage 0.9518 and
+    # 0.9498; bound as above.
+    λ = [100.0, 100.0, 100.0, 200.0]
+    t = λ ./ Γ
+    function poisson(rng, λ)
+        k, g = 0, randexp(rng)
+        while g <= λ
+            k += 1
+            g += randexp(rng)
+        end
+        return k
+    end
+    cover .= 0
+    for k in 1:M
+        c = [poisson(rng, λ[i]) for i in 1:4]
+        f = arrhenius_fit(temps, c ./ t, sqrt.(c) ./ t)
+        cover[1] += abs(f.E_m - E) <= 1.96 * f.σ
+        cover[2] += abs(log(f.prefactor) - lnΓ0) <= 1.96 * f.σ_ln_prefactor
+    end
+    @test all(abs.(cover ./ M .- 0.95) .<= 4se)
+end
+
 @testitem "arrhenius_fit rejects bad input" tags = [:analysis] begin
     using PureAtomistic.Analysis
     t, r, e = [900.0, 1000.0], [1.0, 2.0], [0.1, 0.1]
@@ -453,7 +567,7 @@ end
     for T in (Float64, Float32)
         @test Base.return_types(hop_rate, (VacancyTracker{T},)) == [@NamedTuple{rate::T, σ::T}]
         @test Base.return_types(arrhenius_fit, (Vector{T}, Vector{T}, Vector{T})) ==
-            [@NamedTuple{E_m::T, σ::T, prefactor::T}]
+            [@NamedTuple{E_m::T, σ::T, prefactor::T, σ_ln_prefactor::T, cov_E_ln_prefactor::T, chi2::T}]
         @test Base.return_types(update!, (VacancyTracker{T}, Matrix{T}, T)) == [Nothing]
         @test Base.return_types(reference_sites, (Matrix{T}, T, Int)) == [Matrix{T}]
     end
