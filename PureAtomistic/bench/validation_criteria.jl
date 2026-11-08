@@ -171,6 +171,7 @@ function write_device_verdicts(dir::AbstractString, suffix::AbstractString)
         return record
     end
     note = "The device and the CPU baseline draw their noise from different generators (Philox and Xoshiro), so the runs are statistically independent."
+    nve_note = "The NVE runs start from the same initial state as the baseline and draw no noise, so the comparison is near-deterministic: only rounding differs, not the random numbers."
     runs = load("md_nve_conservation$suffix.json")["runs"]
     base = Dict(r["dt_fs"] => r for r in load("md_nve_conservation_f32.json")["runs"])
     nve = Dict{String, Any}()
@@ -180,7 +181,7 @@ function write_device_verdicts(dir::AbstractString, suffix::AbstractString)
             "criteria" => criteria(r), "criteria_cpu_float32" => criteria(b), "versus_cpu_float32" => compare_to_baseline(r, b),
         )
     end
-    nve["note"] = note
+    nve["note"] = nve_note
     put("md_nve_conservation$suffix.json", nve)
     for name in ("md_thermostat_check", "md_vacancy_hop")
         r, b = load("$name$suffix.json"), load(name * "_f32.json")

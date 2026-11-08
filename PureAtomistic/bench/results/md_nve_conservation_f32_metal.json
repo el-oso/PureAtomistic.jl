@@ -5266,8 +5266,7 @@
  ],
  "settings": {
   "blas": "not used (device)",
-  "blas_threads": 1,
-  "commit": "cbc9480",
+  "commit": "cbc9480-dirty",
   "date": "2026-11-07",
   "device": "Metal",
   "duration_fs": 2000.0,
@@ -5284,7 +5283,13 @@
   "seed": 20261106,
   "stable_drift_eV_per_atom_per_ps": 0.001,
   "stable_if": "completes with finite energies, |drift| <= 0.001 eV/atom/ps and RMS residual about the line <= 0.0005 eV/atom",
-  "stable_rms_eV_per_atom": 0.0005
+  "stable_rms_eV_per_atom": 0.0005,
+  "harness_commit": "3916d67",
+  "harness_blobs": {
+   "bench/md_validation.jl": "bb470074621ebe75a0355ac565c1c75b8c17910e",
+   "bench/validation_criteria.jl": "216d1e1353995cf6dccad345d6b8a713f7a422d9"
+  },
+  "provenance_note": "Library code identical to cbc9480 (the docstring and comment edits to ext/ and src/ were made after the run's code was loaded); harness uncommitted at run time, committed in 3916d67 and byte-identical to it: no edit of md_validation.jl or validation_criteria.jl was made between the first run and the commit."
  },
  "md_float32_cpu_baseline": {
   "1.0": {
@@ -5427,6 +5432,6 @@
     "stable_where_baseline_stable": true
    }
   },
-  "note": "The device and the CPU baseline draw their noise from different generators (Philox and Xoshiro), so the runs are statistically independent."
+  "note": "The NVE runs start from the same initial state as the baseline and draw no noise, so the comparison is near-deterministic: only rounding differs, not the random numbers."
  }
 }

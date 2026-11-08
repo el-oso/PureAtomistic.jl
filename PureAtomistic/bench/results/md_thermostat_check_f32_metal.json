@@ -1094,10 +1094,9 @@
    2000.0
   ],
   "blas": "not used (device)",
-  "blas_threads": 1,
   "block_samples": 100,
   "blocks": 5,
-  "commit": "cbc9480",
+  "commit": "cbc9480-dirty",
   "date": "2026-11-07",
   "device": "Metal",
   "dof": 1497,
@@ -1116,7 +1115,13 @@
   "seed": 20261107,
   "target_temperature_K": 1200.0,
   "tau_fs": 20.0,
-  "wall_seconds": 73.52216100692749
+  "wall_seconds": 73.52216100692749,
+  "harness_commit": "3916d67",
+  "harness_blobs": {
+   "bench/md_validation.jl": "bb470074621ebe75a0355ac565c1c75b8c17910e",
+   "bench/validation_criteria.jl": "216d1e1353995cf6dccad345d6b8a713f7a422d9"
+  },
+  "provenance_note": "Library code identical to cbc9480 (the docstring and comment edits to ext/ and src/ were made after the run's code was loaded); harness uncommitted at run time, committed in 3916d67 and byte-identical to it: no edit of md_validation.jl or validation_criteria.jl was made between the first run and the commit."
  },
  "t_fs": [
   2.0,

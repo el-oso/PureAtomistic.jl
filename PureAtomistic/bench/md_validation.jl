@@ -70,13 +70,19 @@ const RESULTS = joinpath(@__DIR__, "results")
 const TRAJ_DIR = get(ENV, "PUREATOMISTIC_TRAJ_DIR", joinpath(tempdir(), "pureatomistic-md"))
 mkpath(TRAJ_DIR)
 
-git_commit() = strip(read(setenv(`git rev-parse --short HEAD`; dir = @__DIR__), String))
+# The short commit hash, with "-dirty" appended when `bench` (except its results), `src` or `ext` differ
+# from it, so that a record states whether the code that produced it is the commit's.
+function git_commit()
+    hash = strip(read(setenv(`git rev-parse --short HEAD`; dir = @__DIR__), String))
+    changed = read(setenv(`git status --porcelain -- bench src ext ":(exclude)bench/results"`; dir = dirname(@__DIR__)), String)
+    return isempty(strip(changed)) ? hash : hash * "-dirty"
+end
 
 function settings(extra)
     return merge(
         Dict{String, Any}(
             "commit" => git_commit(), "date" => string(Dates.today()), "julia" => string(VERSION),
-            "blas" => isempty(DEVICE) ? BLAS_NAME : "not used (device)", "blas_threads" => BLAS.get_num_threads(), "julia_threads" => Threads.nthreads(),
+            "blas" => isempty(DEVICE) ? BLAS_NAME : "not used (device)", "julia_threads" => Threads.nthreads(), (isempty(DEVICE) ? ("blas_threads" => BLAS.get_num_threads(),) : ())...,
             "device" => isempty(DEVICE) ? "CPU" : DEVICE, "noise" => isempty(DEVICE) ? "Xoshiro" : "Philox4x32-10, one key per step from Xoshiro",
             "potential" => "MACE-MPA-0 ($FT)", "precision" => PRECISION, "lattice_constant" => FT(A0), "element" => "Cu",
         ), extra,

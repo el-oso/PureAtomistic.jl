@@ -52,6 +52,8 @@ A step allocates host memory for its kernel launches and the status read, an exc
 rule that `!` functions do not allocate: 2,464 bytes on the KernelAbstractions CPU backend and
 about 457,000 bytes on Metal for the tiny test checkpoint, both gated by the GPU test suite, which
 also checks that the device memory in use stays the same over 1,000 steps. With MACE-MPA-0 on 32
+Cu atoms a step allocates 2,400 bytes on the CPU backend and about 2.02 MB on Metal, almost all of
+it the evaluation's matrix products.
 
 ## What stays on the device
 
@@ -77,6 +79,7 @@ statistically independent of the baseline.
 | NVE, dt 32 fs | unstable (RMS 1.2e-3 above the 5e-4 bound) | unstable (1.2e-3) | same boundary as the baseline |
 | NVT, Bussi 1200 K: mean temperature | 1205.5 K, mean z 1.15, variance z -0.51 | 1206.9 K, mean z 0.95, variance z -0.22 | mean difference within 3 combined SEs |
 | Vacancy at 1300 K, 440 ps: hops | 56 | 64 | exact conditional binomial test p = 0.52 (threshold 0.01) |
+| Vacancy: second-half mean temperature | 1298.9 K ± 2.0 K | 1301.3 K ± 1.8 K | difference 2.4 K, within 3 combined SEs (8.2 K) |
 
 The records hold every number: `bench/results/md_nve_conservation_f32_metal.json`,
 `md_thermostat_check_f32_metal.json` and `md_vacancy_hop_f32_metal.json`. The vacancy run has the
@@ -87,7 +90,7 @@ what is compared is that it fails where the baseline fails.
 The absence of regrowth under the barostat (0, 10 and 30 GPa, see above) is specific to the 6 Å
 cutoff of MACE-MPA-0 lying between the fifth and sixth fcc shells. At a lattice constant `a` those
 shells lie at `a √(5/2)` and `a √3`, so the cutoff stays between them for 3.464 Å < `a` < 3.795 Å,
-that is volumes from 0.88 to 1.15 times that of `a = 3.615 Å`. A larger change of the volume, or
+that is volumes from 0.88 to 1.16 times that of `a = 3.615 Å`. A larger change of the volume, or
 another cutoff, carries a shell across the cutoff and changes the edge count abruptly.
 
 ## Failures
