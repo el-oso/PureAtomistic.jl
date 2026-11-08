@@ -5,7 +5,7 @@
   "backend": "Metal",
   "machine": "Apple M6",
   "julia_version": "1.13.3",
-  "commit": "0133b560bca4",
+  "commit": "0133b56-dirty",
   "cpu_threads": 6,
   "cpu_threads_flags": "-t 6,0 --gcthreads=1,0",
   "blas_threads": 1,
@@ -26,7 +26,6 @@
       "cu_bench": 5,
       "arms": {
         "cpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 500,
             "edges": 39000,
@@ -49,7 +48,6 @@
           }
         },
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 500,
             "capacity": 40950
@@ -263,7 +261,6 @@
       "cu_bench": 14,
       "arms": {
         "cpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 10976,
             "edges": 856128,
@@ -286,7 +283,6 @@
           }
         },
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 10976,
             "capacity": 898935
@@ -496,5 +492,11 @@
       ],
       "discarded_rounds": []
     }
-  ]
+  ],
+  "harness_commit": "7b155eb",
+  "provenance_note": "Machine state at the time: the working tree was 0133b56 plus the then-untracked harness script. harness_commit 7b155eb is the commit that added the script; produced by the script of 7b155eb.",
+  "calibration_note": "Calibration: the discard tolerances are 10% within a child and 10% between children (looser than the 3%/1% of ab_compare.jl, because the machine showed 3.5-5% spreads in the single-thread child and the defaults discarded nearly every round). The multi-threaded cpu arm is excluded from the pair comparison and allowed 50% within its own child, because its single-thread calibration loop runs directly after the 6-thread burst and reads 15-130% off, which reflects where the scheduler places the loop and not the machine's speed.",
+  "swap_note": "Swap: the external program's memory guard run at cu_bench(9) in this campaign grew swap use by about 161 MB in the first full evaluation run and by 73 MB in the second (about 234 MB in total; a standalone probe at cu_bench(9) before the runs grew it by about 364 MB). Neither run produced a timed number: the guard run is the untimed pass that finds out whether the external arm fits, and both full runs were repeated afterwards. Swap use did not grow during any kept round of the records. The machine had about 16 GB of swap in use before the campaign.",
+  "pureblas_active": true,
+  "device_memory_method": "largest currentAllocatedSize sampled after timed calls; not a high-water mark"
 }

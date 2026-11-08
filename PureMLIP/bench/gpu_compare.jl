@@ -31,7 +31,8 @@
 #   PUREMLIP_GPU_EXTERNAL_CMD      command of the external arm
 #   PUREMLIP_GPU_COMPARE_LOCK      script with `acquire` (prints a token) and `release <token>`; held
 #                                  around each round
-#   PUREMLIP_GPU_COMPARE_CAL_TOLERANCE  calibration tolerances "<within>,<pair>" (default "0.03,0.05")
+#   PUREMLIP_GPU_COMPARE_CAL_TOLERANCE  calibration tolerances "<within>,<pair>" (default "0.03,0.01", the
+#                                  values of ab_compare.jl)
 #   PUREMLIP_GPU_COMPARE_CAL_THREADED  within-child tolerance of the multi-threaded cpu arm (default 0.5);
 #                                  its calibration is not compared with the other children
 #   PUREMLIP_GPU_COMPARE_OUT       JSON output path
@@ -52,7 +53,7 @@ const SAMPLES = 3
 const WARMUP_EVALS = 5
 const CAL_REPEATS = 30
 const MAX_DISCARDS = 20
-const CAL_WITHIN_TOLERANCE, CAL_PAIR_TOLERANCE = parse.(Float64, split(get(ENV, "PUREMLIP_GPU_COMPARE_CAL_TOLERANCE", "0.03,0.05"), ','))
+const CAL_WITHIN_TOLERANCE, CAL_PAIR_TOLERANCE = parse.(Float64, split(get(ENV, "PUREMLIP_GPU_COMPARE_CAL_TOLERANCE", "0.03,0.01"), ','))
 const CAL_THREADED_TOLERANCE = parse(Float64, get(ENV, "PUREMLIP_GPU_COMPARE_CAL_THREADED", "0.5"))
 const THREADS = parse(Int, get(ENV, "PUREMLIP_GPU_COMPARE_THREADS", "6"))
 const BACKEND_NAME = get(ENV, "GPU_BACKEND", "Metal")
@@ -431,7 +432,7 @@ function driver_main()
     arms_used = unique(reduce(vcat, last.(cells)))
     cpu_env = "cpu" in arms_used ? make_cpu_env(root, pureblas) : ""
     env_of(arm) = arm == "gpu" ? gpu_env : cpu_env
-    head = git(root, "rev-parse", "--short=12", "HEAD") * (isempty(git(root, "status", "--porcelain", "--untracked-files=no")) ? "" : "-dirty")
+    head = git(root, "rev-parse", "--short=12", "HEAD") * (isempty(git(root, "status", "--porcelain", "--untracked-files=normal")) ? "" : "-dirty")
     pb_commit = isempty(pureblas) ? nothing : git(pureblas, "rev-parse", "--short=12", "HEAD")
     doc_cells = Any[]
     sw_first = swap_used_mb()
@@ -440,7 +441,8 @@ function driver_main()
             schema = "puremlip-gpu-compare-v1", mode, precision = "Float32", backend = BACKEND_NAME,
             machine = Sys.isapple() ? strip(read(`sysctl -n machdep.cpu.brand_string`, String)) : string(Sys.CPU_NAME),
             julia_version = string(VERSION), commit = head, cpu_threads = threads, cpu_threads_flags = "-t $threads,0 --gcthreads=1,0",
-            blas_threads = 1, cpu_blas = isempty(pureblas) ? "OpenBLAS" : "PureBLAS", pureblas_commit = pb_commit,
+            blas_threads = 1, cpu_blas = isempty(pureblas) ? "OpenBLAS" : "PureBLAS", pureblas_commit = pb_commit, pureblas_active = !isempty(pureblas),
+            device_memory_method = "largest currentAllocatedSize sampled after timed calls; not a high-water mark",
             samples_per_measurement = SAMPLES, rounds, swap_first_start_mb = sw_first, swap_last_end_mb = swap_used_mb(),
             speed_up = "reference time / gpu time per round; above 1 the gpu arm is faster",
             calibration_tolerance = (; within = CAL_WITHIN_TOLERANCE, pair = CAL_PAIR_TOLERANCE, threaded_within = CAL_THREADED_TOLERANCE),
@@ -511,8 +513,8 @@ function summarize(N, mode, arms, fits, ext_result, kept, discarded)
     for a in arms
         rs = [r.arms[a] for r in kept]
         d = Dict{String, Any}("seconds" => stats(secs(a)))
-        for key in ("maxrss_bytes", "peak_device_bytes", "peak_bytes", "info", "blas", "query_check", "seconds_without_read")
-            haskey(rs[1], key) && (d[key] = key == "seconds_without_read" ? stats([r[key] for r in rs]) : key in ("info", "blas", "query_check") ? rs[1][key] : maximum(r[key] for r in rs))
+        for key in ("maxrss_bytes", "peak_device_bytes", "peak_bytes", "info", "query_check", "seconds_without_read")
+            haskey(rs[1], key) && (d[key] = key == "seconds_without_read" ? stats([r[key] for r in rs]) : key in ("info", "query_check") ? rs[1][key] : maximum(r[key] for r in rs))
         end
         per_arm[a] = d
     end

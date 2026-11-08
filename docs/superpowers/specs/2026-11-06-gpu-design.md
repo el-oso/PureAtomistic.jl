@@ -110,7 +110,7 @@ Run MACE molecular dynamics on GPUs, written once and portable across GPU vendor
 Apple M6 with Metal, MACE-MPA-0, Float32. Each figure is the median over 7 interleaved rounds (one
 process per arm per round, the arm order rotating); a speed-up is the reference time over the Metal
 time, quoted as median [min, max] over the rounds. The records are
-`PureMLIP/bench/results/gpu_compare_{eval,md,readback}_metal*.json`, produced by
+`PureMLIP/bench/results/gpu_compare_*metal*.json`, produced by
 `PureMLIP/bench/gpu_compare.jl`. The unit is one energy + forces + stress evaluation, or one
 velocity Verlet step of a `Simulation`; the device is synchronized before the clock stops.
 
@@ -131,9 +131,24 @@ PureBLAS, Float32, `ThreadedChunks()`); its maximum resident set is 1.7 GB at `c
 | `cu_bench(8)`, 2,048 atoms (largest that fits) | 1.994 s | 0.250 s | 7.96 [7.88, 8.38] | 22.8 GB |
 | `cu_bench(9)`, 2,916 atoms | does not fit | 0.352 s | not measured | 24.7 GB when stopped |
 
-fastatomstruct's XLA CPU backend ran unpinned on all cores. At `cu_bench(9)` a memory guard stopped
-it at 24.7 GB with swap use up by 73 MB.
+fastatomstruct's XLA CPU backend ran unpinned on all cores. It does not fit at `cu_bench(9)`: its
+memory guard (free memory under 6 GiB, or swap use growing by more than 1 MB) stopped it at 24.7 GB,
+and the 11.1 MB per atom measured at `cu_bench(8)` extrapolates to about 32.5 GB against 34.4 GB of
+physical memory. The guard runs at `cu_bench(9)` grew swap use by about 161 MB in the first full
+evaluation run and 73 MB in the second (about 234 MB in total; a probe before the runs, about
+364 MB), on a host that already held about 16 GB of swap. They are the untimed pass that finds out
+whether the program fits; no timed number came from them and no kept round saw swap growth. Single
+probes of XLA alone at `cu_bench(6)` (0.74 s, 9.9 GB) and `cu_bench(7)` (1.21 s, 15.4 GB) have no
+Metal counterpart, so no speed-up.
 
-The status read of a device step costs 0.20 ms at `cu_bench(5)` (0.29 % of the step; 49 µs to
-3.6 ms over the rounds, with the step that reads taking 3 ms longer in 3 of 7 processes) and is
+Rounds are discarded when swap use grows or the calibration loop disagrees: 10 % within a child and
+10 % between children, looser than the 3 % and 1 % of `ab_compare.jl` because the single-thread child
+showed 3.5 to 5 % spreads on this host. The multi-threaded CPU arm is left out of the pair
+comparison and allowed 50 % within its own child, because its single-thread calibration directly
+after the 6-thread burst reads 15 to 130 % off. The `cu_bench(5)`, 8 and 9 record came from an
+earlier version of the script that held the CPU arm to 10 % and compared it in the pair check.
+
+The status read of a device step costs a median 0.20 ms at `cu_bench(5)` (0.29 % of the step; the
+mean of the per-round differences is 1.4 ms, because the step that reads is about 3 ms slower in 3
+of 7 processes, and the reference step shows the same high mode, so it is process jitter) and is
 not measurable at `cu_bench(14)` (median -0.05 % of the step, within +-0.14 %).

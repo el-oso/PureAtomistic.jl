@@ -5,7 +5,7 @@
   "backend": "Metal",
   "machine": "Apple M6",
   "julia_version": "1.13.3",
-  "commit": "0133b560bca4",
+  "commit": "0133b56-dirty",
   "cpu_threads": 6,
   "cpu_threads_flags": "-t 6,0 --gcthreads=1,0",
   "blas_threads": 1,
@@ -26,7 +26,6 @@
       "cu_bench": 5,
       "arms": {
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 500,
             "block_steps": 20,
@@ -191,13 +190,14 @@
           }
         }
       ],
-      "discarded_rounds": []
+      "discarded_rounds": [],
+      "mean_difference_us": 1436.2059642857146,
+      "median_difference_us": 203.26880000000324
     },
     {
       "cu_bench": 14,
       "arms": {
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 10976,
             "block_steps": 20,
@@ -362,7 +362,16 @@
           }
         }
       ],
-      "discarded_rounds": []
+      "discarded_rounds": [],
+      "mean_difference_us": -304.55029999993627,
+      "median_difference_us": -707.9270999998944
     }
-  ]
+  ],
+  "harness_commit": "7b155eb",
+  "provenance_note": "Machine state at the time: the working tree was 0133b56 plus the then-untracked harness script. harness_commit 7b155eb is the commit that added the script; produced by the script of 7b155eb.",
+  "calibration_note": "Calibration: the discard tolerances are 10% within a child and 10% between children (looser than the 3%/1% of ab_compare.jl, because the machine showed 3.5-5% spreads in the single-thread child and the defaults discarded nearly every round). Only the gpu arm runs in this mode; the threaded rule does not apply.",
+  "swap_note": "Swap: the external program's memory guard run at cu_bench(9) in this campaign grew swap use by about 161 MB in the first full evaluation run and by 73 MB in the second (about 234 MB in total; a standalone probe at cu_bench(9) before the runs grew it by about 364 MB). Neither run produced a timed number: the guard run is the untimed pass that finds out whether the external arm fits, and both full runs were repeated afterwards. Swap use did not grow during any kept round of the records. The machine had about 16 GB of swap in use before the campaign.",
+  "pureblas_active": true,
+  "device_memory_method": "largest currentAllocatedSize sampled after timed calls; not a high-water mark",
+  "readback_note": "The step that reads is about 3 ms slower in 3 of 7 processes at cu_bench(5); the same high mode appears in the reference step (71.0, 80.6 and 70.2 ms in the first process), so it is process jitter and not the cost of the read. The mean of the per-round differences is larger than the median for this reason."
 }

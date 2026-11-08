@@ -5,7 +5,7 @@
   "backend": "Metal",
   "machine": "Apple M6",
   "julia_version": "1.13.3",
-  "commit": "0133b560bca4",
+  "commit": "0133b56-dirty",
   "cpu_threads": 6,
   "cpu_threads_flags": "-t 6,0 --gcthreads=1,0",
   "blas_threads": 1,
@@ -25,7 +25,6 @@
       "cu_bench": 5,
       "arms": {
         "cpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 500,
             "edge_chunk": 1024,
@@ -66,7 +65,6 @@
           }
         },
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 500,
             "capacity": 40950,
@@ -403,7 +401,6 @@
           }
         },
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 2048,
             "capacity": 167732,
@@ -596,7 +593,6 @@
       "cu_bench": 9,
       "arms": {
         "gpu": {
-          "blas": "libopenblas64_.0.3.30.dylib",
           "info": {
             "atoms": 2916,
             "capacity": 238821,
@@ -759,5 +755,27 @@
       ],
       "discarded_rounds": []
     }
-  ]
+  ],
+  "harness_commit": "7b155eb",
+  "provenance_note": "Machine state at the time: the working tree was 0133b56 plus the then-untracked harness script. harness_commit 7b155eb is the commit that added the script; this record was produced by an earlier version of the script than 7b155eb: before the rule that excludes the multi-threaded cpu arm from the calibration pair check and gives it 50% within its child (nothing else in the measurement path differed).",
+  "calibration_note": "Calibration: the discard tolerances are 10% within a child and 10% between children (looser than the 3%/1% of ab_compare.jl, because the machine showed 3.5-5% spreads in the single-thread child and the defaults discarded nearly every round). This record came from an earlier version of the script without the threaded rule: the cpu arm was held to 10% within its child and entered the pair comparison (there is no threaded_within field), which discarded 5 rounds at cu_bench(5).",
+  "swap_note": "Swap: the external program's memory guard run at cu_bench(9) in this campaign grew swap use by about 161 MB in the first full evaluation run and by 73 MB in the second (about 234 MB in total; a standalone probe at cu_bench(9) before the runs grew it by about 364 MB). Neither run produced a timed number: the guard run is the untimed pass that finds out whether the external arm fits, and both full runs were repeated afterwards. Swap use did not grow during any kept round of the records. The machine had about 16 GB of swap in use before the campaign.",
+  "pureblas_active": true,
+  "device_memory_method": "largest currentAllocatedSize sampled after timed calls; not a high-water mark",
+  "xla_only_probes": [
+    {
+      "atoms": 864,
+      "cu_bench": 6,
+      "peak_bytes": 9911369728,
+      "seconds_median_of_3": 0.740176
+    },
+    {
+      "atoms": 1372,
+      "cu_bench": 7,
+      "peak_bytes": 15430926336,
+      "seconds_median_of_3": 1.20731
+    }
+  ],
+  "xla_only_probes_note": "cu_bench(6) and cu_bench(7): single probes of fastatomstruct XLA while finding the largest size that fits, three samples each, run without the CPU lock and outside the rounds; no Metal counterpart was measured, so no speed-up is given.",
+  "external_does_not_fit_criterion": "The external arm does not fit when its memory guard stops it: free memory (free+inactive+speculative pages) under 6 GiB, or swap use growing by more than 1 MB. cu_bench(9) was stopped at about 24.7 GB resident; the per-atom peak measured at cu_bench(8) (11.1 MB/atom) extrapolates to about 32.5 GB at cu_bench(9) against 34.4 GB of physical memory."
 }
