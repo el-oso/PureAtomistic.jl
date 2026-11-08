@@ -339,9 +339,30 @@ expect = "dwell filter"
 [[mutation]]
 name = "analysis-frenkel-accepted"
 file = "src/analysis/vacancy.jl"
-find = "(nempty == 1 && nmulti == 0) ||"
-replace = "true ||"
+find = "if nempty != 1 || nmulti != 0"
+replace = "if false"
 expect = "Frenkel pair"
+
+[[mutation]]
+name = "analysis-transient-limit-off-by-one"
+file = "src/analysis/vacancy.jl"
+find = "run <= tr.max_transient ||"
+replace = "run <= tr.max_transient + 1 ||"
+expect = "transient occupancy beyond the limit"
+
+[[mutation]]
+name = "analysis-transient-run-not-reset"
+file = "src/analysis/vacancy.jl"
+find = "    tr.transient_run = 0\n"
+replace = "\n"
+expect = "transient occupancy within the limit"
+
+[[mutation]]
+name = "analysis-transient-frame-stored"
+file = "src/analysis/vacancy.jl"
+find = "        _transient!(tr, f, T(t), nempty, nmulti)\n        return nothing\n"
+replace = "        _transient!(tr, f, T(t), nempty, nmulti)\n"
+expect = "transient occupancy within the limit|recorded transient occupancy"
 
 [[mutation]]
 name = "analysis-poisson-error"
