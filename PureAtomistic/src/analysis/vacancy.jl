@@ -153,9 +153,13 @@ While an atom crosses the saddle of a jump, or during a concerted move of two at
 Wigner-Seitz assignment can be ambiguous for a few frames: it then holds two empty sites and a
 doubly occupied one, or another occupancy that is not one vacancy. `max_transient` is the number
 of consecutive frames of such an occupancy that the tracker accepts (default 25, which is 500 fs
-at frames 20 fs apart). It skips them: their positions do not enter the window average of later
-frames, they are not stored, and the vacancy state does not change. The frame after them that
-holds one vacancy continues the track. The next frame beyond the limit throws, since an
+at frames 20 fs apart). It skips them: they are not stored and the vacancy state does not change,
+but their positions enter the window average of the frames after them, as every frame's do, so
+the average follows the atoms through the jump. The positions themselves are never ambiguous,
+only their assignment to sites is: the average of an atom is the mean of its last `window`
+positions, minimum-image displaced to the newest, so it lies on the path the atom took and does
+not jump to a site the atom did not approach. The first frame after them that holds one vacancy
+continues the track. The next frame beyond the limit throws, since an
 occupancy that lasts that long is a defect (a Frenkel pair, melting) rather than a jump in
 progress. The first frame must hold one vacancy.
 
@@ -258,7 +262,9 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
     T(t) > tr.tlast ||
         throw(ArgumentError(lazy"pureatomistic: frame times must increase, got $t after $(tr.tlast) at frame $(f + tr.ntransient)"))
 
-    slot = mod1(f, tr.window)
+    # Every frame given, stored or skipped, takes the next slot of the window.
+    given = f + tr.ntransient
+    slot = mod1(given, tr.window)
     j0 = firstindex(positions, 2)
     for a in 1:n
         c = _col(T, positions, j0 + a - 1)
@@ -268,7 +274,7 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
     end
 
     cm, ci = tr.cm, tr.ci
-    nw = min(f, tr.window)
+    nw = min(given, tr.window)
     for a in 1:n
         ref = (tr.hist[1, a, slot], tr.hist[2, a, slot], tr.hist[3, a, slot])
         acc = (zero(T), zero(T), zero(T))
@@ -336,9 +342,8 @@ function update!(tr::VacancyTracker{T}, positions::AbstractMatrix, t::Real) wher
 end
 
 # Counts the frame `f` (the next frame to store) at time `t` as skipped, or throws when it is the
-# first frame or one more than `max_transient` consecutive skipped frames. The window slot that the
-# frame's positions went into is the one the next stored frame overwrites, so they never enter a
-# later average.
+# first frame or one more than `max_transient` consecutive skipped frames. Its positions stay in the
+# window slot they went into.
 function _transient!(tr::VacancyTracker{T}, f::Int, t::T, nempty::Int, nmulti::Int) where {T}
     frame = f + tr.ntransient
     f == 1 &&
