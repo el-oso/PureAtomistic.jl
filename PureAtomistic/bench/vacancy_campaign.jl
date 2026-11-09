@@ -75,6 +75,8 @@ end
 
 # VACANCY_CAMPAIGN_SMOKE=1 shrinks every length (segments of 2 ps, cycles of 1,000 steps, 2 ps of NPT,
 # hop targets of 1) and writes the records under VACANCY_CAMPAIGN_DIR, to try the harness end to end.
+# VACANCY_CAMPAIGN_SMOKE_FAIL (smoke only) names runs, comma-separated, whose workers throw at
+# their first production segment.
 const SMOKE = get(ENV, "VACANCY_CAMPAIGN_SMOKE", "0") == "1"
 const FT = Float32
 const FRAME_FS = 20.0
@@ -300,6 +302,8 @@ function equilibrate!(w::Worker)
 end
 
 function production_segment!(w::Worker, nsteps)
+    SMOKE && w.spec["name"] in split(get(ENV, "VACANCY_CAMPAIGN_SMOKE_FAIL", ""), ",") &&
+        error("smoke: injected failure of $(w.spec["name"])")
     T, dt = w.spec["T"], w.spec["dt_fs"]
     every = round(Int, FRAME_FS / dt)
     traj_every = round(Int, TRAJ_FS / dt)
@@ -340,6 +344,7 @@ function production_segment!(w::Worker, nsteps)
     checkpoint!(w)
     write_record(w)
     logln(@sprintf("segment %d done: %.1f ps, %d hops (%d in the segment), %.1f ms/step", k, sim.step_count * dt / 1000, tr.nhops, tr.nhops - h0, 1000 * wall / nsteps))
+    write(joinpath(w.dir, "LAST_SEGMENT"), @sprintf("%s segment %d: %.1f ps, %d hops\n", Dates.format(now(), "yyyy-mm-dd HH:MM:SS"), k, sim.step_count * dt / 1000, tr.nhops))
     return nothing
 end
 
@@ -377,7 +382,10 @@ function write_record(w::Worker)
                 "tracker_window_frames" => WINDOW, "tracker_dwell_frames" => DWELL, "initial_velocities" => "Maxwell-Boltzmann at T, Xoshiro(seed); thermostat generator Xoshiro(seed + 1)",
             ),
             "status" => st["status"], "message" => st["message"], "equilibration" => st["eq"], "regrowths" => st["regrowths"],
-            "production_steps" => st["prod_steps"], "duration_ps" => st["prod_steps"] * spec["dt_fs"] / 1000,
+            "production_steps" => st["prod_steps"],
+            # The time the tracker covers, which matches its hop count also when a run stops between
+            # segments: the production steps advance only at a segment end.
+            "duration_ps" => isnothing(tr) || tr.nframes < 1 ? 0.0 : Float64(tr.t[tr.nframes] - tr.t[1]) / 1000,
             "compute_seconds" => st["compute_s"], "segments" => st["segments"],
         )
     )
@@ -471,22 +479,37 @@ function run_spec(stage, T, dt, seed_index; nrep = 4, max_steps = 0)
     )
 end
 
+# A worker process of the campaign. A worker that replies with an error, or exits without a reply,
+# is stopped: its run keeps the record it wrote, the campaign lists it in the state under
+# `stopped_runs`, and the other workers go on. A run listed there is not started again; remove
+# its entry from the state to retry it.
 mutable struct Handle
     spec::Dict{String, Any}
-    proc::Base.Process
-    log::IOStream
+    proc::Union{Nothing, Base.Process}
+    log::Union{Nothing, IOStream}
     steps::Int
     hops::Int
     ps::Float64
+    stopped::Bool
+    reason::String
+end
+
+function mark_stopped!(h::Handle, reason)
+    h.stopped, h.reason = true, reason
+    isnothing(h.proc) || wait(h.proc)
+    isnothing(h.log) || close(h.log)
+    h.proc, h.log = nothing, nothing
+    return h
 end
 
 function read_reply(h::Handle)
+    h.stopped && return ""
     while true
-        eof(h.proc) && error("worker $(h.spec["name"]) exited without a reply; see its log")
+        eof(h.proc) && (mark_stopped!(h, "worker exited without a reply; see its log"); return "")
         line = readline(h.proc)
         startswith(line, "@@ ") || continue
         s = line[4:end]
-        startswith(s, "error") && error("worker $(h.spec["name"]): $s")
+        startswith(s, "error") && (mark_stopped!(h, s[7:end]); return s)
         if startswith(s, "ok")
             f = split(s)
             h.steps, h.hops, h.ps = parse(Int, f[2]), parse(Int, f[3]), parse(Float64, f[4])
@@ -496,7 +519,7 @@ function read_reply(h::Handle)
     return
 end
 
-function start_worker(root, spec)
+function start_worker(root, state, spec)
     dir = mkpath(joinpath(root, spec["name"]))
     sp = joinpath(dir, "spec.json")
     if isfile(sp)
@@ -506,13 +529,19 @@ function start_worker(root, spec)
         spec = old
     end
     save_json(sp, spec)
+    stopped = get(get(state, "stopped_runs", Dict{String, Any}()), spec["name"], nothing)
+    if !isnothing(stopped)
+        r = readjson(joinpath(RESULTS, spec["name"] * ".json"))
+        return Handle(spec, nothing, nothing, r["production_steps"], get(r, "hops", 0), r["duration_ps"], true, stopped["reason"])
+    end
     log = open(joinpath(root, "logs", spec["name"] * ".log"), "a")
     cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) $HARNESS worker $dir`
     proc = open(pipeline(cmd; stderr = log), "r+")
-    return Handle(spec, proc, log, 0, 0, 0.0)
+    return Handle(spec, proc, log, 0, 0, 0.0, false, "")
 end
 
 function stop_worker(h::Handle, status = "completed")
+    h.stopped && return nothing
     println(h.proc, "finish $status"); flush(h.proc)
     read_reply(h)
     wait(h.proc)
@@ -531,16 +560,33 @@ load_state(root) = isfile(state_path(root)) ? readjson(state_path(root)) :
     Dict{String, Any}("stage" => "dt_check", "gpu_hours" => 0.0, "cycles" => Any[], "dt_fs" => nothing, "status" => "running")
 save_state(root, s) = save_json(state_path(root), s)
 
-# One cycle: both workers advance to their targets under one lock token.
-function cycle!(root, state, hs, targets)
+# Records in the state each worker of `hs` that has stopped.
+function note_stopped!(root, state, hs)
+    d = get!(state, "stopped_runs", Dict{String, Any}())
+    for h in hs
+        (h.stopped && !haskey(d, h.spec["name"])) || continue
+        d[h.spec["name"]] = Dict{String, Any}("reason" => h.reason, "stage" => state["stage"], "date" => string(now()))
+        clog("worker $(h.spec["name"]) stopped: $(h.reason)")
+    end
+    save_state(root, state)
+    return nothing
+end
+
+# One cycle: the running workers advance to their targets under one lock token. Returns false
+# when the cycle would pass the hours limit.
+function cycle!(root, state, hs)
+    act = filter(h -> !h.stopped, hs)
+    targets = next_targets(act)
     state["gpu_hours"] + last_cycle_hours(state) > MAX_HOURS && return false
+    write_status(root, state, hs, "waiting for the lock since $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
     tok = lock_acquire()
     t0 = time()
+    write_status(root, state, hs, "cycle started $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
     try
-        for (h, t) in zip(hs, targets)
+        for (h, t) in zip(act, targets)
             println(h.proc, "advance_to $t"); flush(h.proc)
         end
-        foreach(read_reply, hs)
+        foreach(read_reply, act)
     finally
         lock_release(tok)
     end
@@ -548,13 +594,61 @@ function cycle!(root, state, hs, targets)
     state["gpu_hours"] += wall / 3600
     push!(
         state["cycles"], Dict{String, Any}(
-            "stage" => state["stage"], "runs" => [h.spec["name"] for h in hs], "targets" => targets, "wall_s" => wall,
-            "date" => string(now()), "hops" => [h.hops for h in hs], "ps" => [h.ps for h in hs],
+            "stage" => state["stage"], "runs" => [h.spec["name"] for h in act], "targets" => targets, "wall_s" => wall,
+            "date" => string(now()), "hops" => [h.hops for h in act], "ps" => [h.ps for h in act],
+            "stopped" => [h.spec["name"] for h in act if h.stopped],
         )
     )
-    save_state(root, state)
-    clog(@sprintf("%s: %s, %.0f s, %.2f h in all", state["stage"], join(["$(h.spec["name"]) $(h.ps) ps $(h.hops) hops" for h in hs], "; "), wall, state["gpu_hours"]))
+    note_stopped!(root, state, hs)
+    clog(@sprintf("%s: %s, %.0f s, %.2f h in all", state["stage"], join(["$(h.spec["name"]) $(h.ps) ps $(h.hops) hops" * (h.stopped ? " (stopped)" : "") for h in act], "; "), wall, state["gpu_hours"]))
+    write_status(root, state, hs, "cycle ended $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))")
     return true
+end
+
+# Runs the stage's workers in cycles until `done(hs)`. Halts, and returns false, when every worker
+# has stopped or the next cycle would pass the hours limit.
+function run_stage!(root, state, hs, done)
+    foreach(read_reply, hs)
+    note_stopped!(root, state, hs)
+    while true
+        if all(h -> h.stopped, hs)
+            halt(root, state, "every worker of stage $(state["stage"]) has stopped", hs)
+            return false
+        end
+        done(hs) && break
+        if !cycle!(root, state, hs)
+            foreach(h -> stop_worker(h, "paused"), hs)
+            halt(root, state, "the next cycle would pass $MAX_HOURS hours", hs)
+            return false
+        end
+        write_summary(root, state)
+    end
+    foreach(stop_worker, hs)
+    return true
+end
+
+# STATUS in the campaign directory: one small text file, rewritten at every start, lock wait,
+# cycle start and end, halt and crash, so that a stopped campaign is visible from its age and its
+# first line. Each run directory also holds LAST_SEGMENT, rewritten at every segment end.
+function write_status(root, state, hs, note)
+    io = IOBuffer()
+    println(io, "status: ", state["status"])
+    println(io, "updated: ", Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))
+    println(io, "note: ", note)
+    println(io, "stage: ", state["stage"], "   dt_fs: ", state["dt_fs"], "   hours: ", round(state["gpu_hours"]; digits = 2), " of ", MAX_HOURS)
+    println(io, "campaign pid: ", getpid())
+    for h in hs
+        last = joinpath(campaign_dir(), h.spec["name"], "LAST_SEGMENT")
+        println(
+            io, "run ", h.spec["name"], ": ", h.ps, " ps, ", h.hops, " hops, ", h.stopped ? "stopped: " * h.reason : "running",
+            isfile(last) ? "; last segment " * strip(read(last, String)) : ""
+        )
+    end
+    println(io, "A cycle takes about an hour; while the status is running, an update older than 2 hours")
+    println(io, "that is not a lock wait means the campaign process is gone.")
+    write(joinpath(root, "STATUS.tmp"), take!(io))
+    mv(joinpath(root, "STATUS.tmp"), joinpath(root, "STATUS"); force = true)
+    return nothing
 end
 
 last_cycle_hours(state) = isempty(state["cycles"]) ? 0.0 : state["cycles"][end]["wall_s"] / 3600
@@ -567,9 +661,10 @@ function next_targets(hs)
     return [h.spec["max_steps"] > 0 ? min(t, h.spec["max_steps"]) : t for h in hs]
 end
 
-function halt(root, state, why)
+function halt(root, state, why, hs = Handle[])
     state["status"] = "halted: " * why
     save_state(root, state)
+    write_status(root, state, hs, "halted")
     clog("halted: " * why)
     return nothing
 end
@@ -605,6 +700,14 @@ function dt_check_rule()
 end
 
 function dt_decision(h2, h4)
+    if h2.stopped || h4.stopped || h2.ps <= 0 || h4.ps <= 0 || h2.hops + h4.hops == 0
+        return Dict{String, Any}(
+            "complete" => false, "hops_2fs" => h2.hops, "ps_2fs" => h2.ps, "hops_4fs" => h4.hops, "ps_4fs" => h4.ps,
+            "stopped" => Dict(h.spec["name"] => h.reason for h in (h2, h4) if h.stopped), "chosen_dt_fs" => 2.0,
+            "run_2fs" => h2.spec["name"], "run_4fs" => h4.spec["name"],
+            "note" => "the rule needs both runs with hops; with a run stopped it does not apply, and 2 fs is used",
+        )
+    end
     n2, n4 = h2.hops, h4.hops
     t2, t4 = h2.ps, h4.ps
     n = n2 + n4
@@ -628,13 +731,9 @@ function stage_dt_check!(root, state)
     isfile(path) && (rec = merge(readjson(path), Dict("status" => "running")))
     haskey(state, "dt_override_fs") && (rec["override"] = override_record(state))
     save_json(path, rec)
-    hs = [start_worker(root, run_spec("dt_check", DT_CHECK_T, 2.0, 1)), start_worker(root, run_spec("dt_check", DT_CHECK_T, 4.0, 2))]
-    foreach(read_reply, hs)
-    while sum(h.hops for h in hs) < DT_CHECK_HOPS && count(c -> c["stage"] == "dt_check", state["cycles"]) < DT_CHECK_MAX_CYCLES
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
-        write_summary(root, state)
-    end
-    foreach(stop_worker, hs)
+    hs = [start_worker(root, state, run_spec("dt_check", DT_CHECK_T, 2.0, 1)), start_worker(root, state, run_spec("dt_check", DT_CHECK_T, 4.0, 2))]
+    done(hs) = sum(h.hops for h in hs) >= DT_CHECK_HOPS || count(c -> c["stage"] == "dt_check", state["cycles"]) >= DT_CHECK_MAX_CYCLES
+    run_stage!(root, state, hs, done) || return false
     d = dt_decision(hs[1], hs[2])
     rec["status"] = "decided"
     rec["decision"] = d
@@ -647,7 +746,7 @@ function stage_dt_check!(root, state)
     state["first_1200_run"] = dt == 2.0 ? d["run_2fs"] : d["run_4fs"]
     state["stage"] = "t1200_rest"
     save_state(root, state)
-    clog("dt check: $(d["hops_2fs"]) hops in $(d["ps_2fs"]) ps at 2 fs, $(d["hops_4fs"]) in $(d["ps_4fs"]) ps at 4 fs; ratio $(round(d["rate_ratio"]; digits = 3)) $(round.(d["ratio_ci95"]; digits = 3)), p $(round(d["binomial_p"]; digits = 3)); rule $(d["chosen_dt_fs"]) fs, used $dt fs")
+    clog("dt check: $(d["hops_2fs"]) hops in $(d["ps_2fs"]) ps at 2 fs, $(d["hops_4fs"]) in $(d["ps_4fs"]) ps at 4 fs; ratio $(round(get(d, "rate_ratio", NaN); digits = 3)) $(round.(get(d, "ratio_ci95", [NaN, NaN]); digits = 3)), p $(round(get(d, "binomial_p", NaN); digits = 3)); rule $(d["chosen_dt_fs"]) fs, used $dt fs")
     return true
 end
 
@@ -657,13 +756,8 @@ function stage_t1200_rest!(root, state)
     Γ = first["hops"] / first["duration_ps"]
     seg = round(Int, SEGMENT_PS * 1000 / dt)
     L = max(1, ceil(Int, SIZE_CHECK_HOPS / Γ / SEGMENT_PS)) * seg
-    hs = [start_worker(root, run_spec("t1200_rest", 1200.0, dt, 3; max_steps = L)), start_worker(root, run_spec("t1200_rest", 1200.0, dt, 4; nrep = 5, max_steps = L))]
-    foreach(read_reply, hs)
-    while any(h.steps < L for h in hs)
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
-        write_summary(root, state)
-    end
-    foreach(stop_worker, hs)
+    hs = [start_worker(root, state, run_spec("t1200_rest", 1200.0, dt, 3; max_steps = L)), start_worker(root, state, run_spec("t1200_rest", 1200.0, dt, 4; nrep = 5, max_steps = L))]
+    run_stage!(root, state, hs, hs -> all(h -> h.stopped || h.steps >= L, hs)) || return false
     state["stage"] = "t1080"
     save_state(root, state)
     write_summary(root, state)
@@ -680,14 +774,8 @@ end
 function stage_pair!(root, state, T, target, seeds)
     dt = state["dt_fs"]
     stage = state["stage"]
-    hs = [start_worker(root, run_spec(stage, T, dt, seeds[1])), start_worker(root, run_spec(stage, T, dt, seeds[2]))]
-    foreach(read_reply, hs)
-    while sum(h.hops for h in hs) < target
-        cycle!(root, state, hs, next_targets(hs)) || (foreach(h -> stop_worker(h, "paused"), hs); halt(root, state, "the next cycle would pass $MAX_HOURS hours"); return false)
-        write_summary(root, state)
-    end
-    foreach(stop_worker, hs)
-    return true
+    hs = [start_worker(root, state, run_spec(stage, T, dt, seeds[1])), start_worker(root, state, run_spec(stage, T, dt, seeds[2]))]
+    return run_stage!(root, state, hs, hs -> sum(h.hops for h in hs) >= target)
 end
 
 # Hours still to spend at each assumed E_m, from the zero-pressure rate measured at 1200 K and the
@@ -732,7 +820,7 @@ function write_summary(root, state)
     dt = state["dt_fs"]
     temps = Dict{String, Any}()
     for (T, target) in TARGETS
-        rs = filter(r -> r["temperature_K"] == T && r["cells"] == 4 && haskey(r, "hops") && (isnothing(dt) || r["dt_fs"] == dt), recs)
+        rs = filter(r -> r["temperature_K"] == T && r["cells"] == 4 && haskey(r, "hops") && r["duration_ps"] > 0 && (isnothing(dt) || r["dt_fs"] == dt), recs)
         isnothing(dt) && T == 1200 && filter!(r -> r["dt_fs"] == 2.0, rs)
         isempty(rs) && continue
         n = sum(r["hops"] for r in rs)
@@ -758,7 +846,7 @@ function write_summary(root, state)
     s = merge(provenance(), Dict{String, Any}("stage" => state["stage"], "dt_fs" => dt, "gpu_hours" => state["gpu_hours"], "temperatures" => temps))
     s["starts"] = get(state, "starts", Any[])
     haskey(state, "dt_override_fs") && (s["dt_override"] = override_record(state))
-    sz = filter(r -> r["cells"] == 5 && haskey(r, "hops"), recs)
+    sz = filter(r -> r["cells"] == 5 && haskey(r, "hops") && r["duration_ps"] > 0, recs)
     isempty(sz) || (s["size_check_499"] = Dict{String, Any}("run" => sz[1]["run"], "hops" => sz[1]["hops"], "duration_ps" => sz[1]["duration_ps"], "rate_per_ps" => sz[1]["hops"] / sz[1]["duration_ps"]))
     if !isempty(sz) && haskey(temps, "1200")
         s["size_check_499"]["hop_test_against_255"] = hop_test(sz[1], Dict("hops" => temps["1200"]["hops"], "duration_ps" => temps["1200"]["duration_ps"]))
@@ -800,6 +888,19 @@ override_record(state) = Dict{String, Any}(
 
 function campaign_main()
     root = campaign_dir()
+    try
+        campaign_stages(root)
+    catch err
+        state = load_state(root)
+        state["status"] = "crashed: " * first(sprint(showerror, err), 500)
+        save_state(root, state)
+        write_status(root, state, Handle[], "the campaign process threw; see campaign.log")
+        rethrow()
+    end
+    return nothing
+end
+
+function campaign_stages(root)
     mkpath(joinpath(root, "logs"))
     state = load_state(root)
     apply_dt_override!(state)
@@ -807,6 +908,7 @@ function campaign_main()
     push!(get!(state, "starts", Any[]), merge(provenance(), Dict{String, Any}("dt_override_fs" => get(state, "dt_override_fs", nothing))))
     save_state(root, state)
     clog("campaign at stage $(state["stage"]), $(round(state["gpu_hours"]; digits = 2)) h spent, limit $MAX_HOURS h")
+    write_status(root, state, Handle[], "started")
     state["stage"] == "dt_check" && (stage_dt_check!(root, state) || return)
     state["stage"] == "t1200_rest" && (stage_t1200_rest!(root, state) || return)
     for (stage, T, seeds, next) in (("t1080", 1080.0, (5, 6), "t980"), ("t980", 980.0, (7, 8), "t900"), ("t900", 900.0, (9, 10), "done"))
@@ -818,6 +920,7 @@ function campaign_main()
     end
     state["status"] = "completed"
     save_state(root, state)
+    write_status(root, state, Handle[], "completed")
     clog("campaign completed, $(round(state["gpu_hours"]; digits = 1)) h")
     return nothing
 end
