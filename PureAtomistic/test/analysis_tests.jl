@@ -412,15 +412,70 @@ end
     @test_throws "pureatomistic: occupancy is not one vacancy" track(0)
     tr = track(25)
     @test tr.nframes + tr.ntransient == length(frames)
-    # The window average leaves 2 of the 4 frames ambiguous (frames 15 and 16 of 26, measured).
-    @test tr.ntransient == 2
-    @test tr.longest_transient == 2
+    # The window average leaves 3 frames ambiguous (frames 15 to 17 of 26, measured).
+    @test tr.ntransient == 3
+    @test tr.longest_transient == 3
     @test tr.transient_t[1] == frames[15].time
     @test tr.nepisodes == 1
     # The vacancy before and after the transient is the oracle's: the same site, so no hop.
     @test tr.vsite[1] == only(oracle[1][1])
     @test tr.vsite[tr.nframes] == only(oracle[end][1])
     @test tr.nhops == 0
+end
+
+@testitem "skipped frames keep the window moving through a concerted jump" tags = [:analysis] begin
+    using PureAtomistic.Analysis
+    using PureAtomistic.IO: TrajectoryReader, read_frame
+    using LinearAlgebra
+    # 16 frames, 100 fs apart, of a 255-atom Cu cell with one vacancy at 1200 K (MACE-MPA-0,
+    # Float32, 4 fs steps, Bussi) around a concerted jump: the atom on one site moves into the
+    # vacancy while the atom on a neighbor of both moves into the site it leaves, so the vacancy
+    # ends on a third-neighbor site. The frames are interpolated linearly (minimum image) to the
+    # tracker's 20 fs.
+    r = TrajectoryReader(joinpath(@__DIR__, "fixtures", "vacancy", "concerted_jump_4fs_100fs.patraj"))
+    coarse = [read_frame(r, k, Float64) for k in 1:length(r)]
+    close(r)
+    cell = coarse[1].cell
+    L = cell[1, 1]
+    nrep = 4
+    a = L / nrep
+    sites = reference_sites(cell, a, nrep)
+    mic(d) = d .- L .* round.(d ./ L)
+    frames = Tuple{Matrix{Float64}, Float64}[]
+    for k in 1:(length(coarse) - 1), s in 0:4
+        A, B = coarse[k].positions, coarse[k + 1].positions
+        push!(frames, (A .+ (s / 5) .* mic(B .- A), coarse[k].time + 20s))
+    end
+    push!(frames, (coarse[end].positions, coarse[end].time))
+    # Oracle: each atom on its nearest site by plain minimum-image distances.
+    function occupancy(P)
+        occ = zeros(Int, size(sites, 2))
+        for j in axes(P, 2)
+            occ[argmin(s -> sum(abs2, mic(P[:, j] - sites[:, s])), axes(sites, 2))] += 1
+        end
+        return findall(iszero, occ), count(>(1), occ)
+    end
+    oracle = [occupancy(P) for (P, _) in frames]
+    bad = findall(o -> length(o[1]) != 1 || o[2] != 0, oracle)
+    v0, v1 = only(oracle[1][1]), only(oracle[end][1])
+    # The end site is a third neighbor of the start: √3 nearest-neighbor distances (a√(3/2)),
+    # exact up to the rounding of the site coordinates (8 eps a nrep).
+    jump = mic(sites[:, v1] - sites[:, v0])
+    @test norm(jump) ≈ a * sqrt(1.5) atol = 8 * eps() * a * nrep
+    tr = VacancyTracker(sites; cell, window = 5, dwell = 3, capacity = 100)
+    for (P, t) in frames
+        update!(tr, P, t)
+    end
+    # The raw assignment is ambiguous for interpolated frames 51 to 54; the window average for 4
+    # frames (measured), within the 4 to 6 frames of a window of 5 that follows the atoms.
+    @test bad == 51:54
+    @test 1 <= tr.longest_transient <= 6
+    @test tr.ntransient == 4
+    @test tr.nepisodes == 1
+    @test tr.transient_run == 0
+    @test tr.vsite[tr.nframes] == v1
+    @test tr.nhops == 1
+    @test Vector(tr.R[:, tr.nframes] - tr.R[:, 1]) ≈ jump atol = 8 * eps() * a * nrep
 end
 
 @testitem "update! and the analysis functions reject bad input" tags = [:analysis] setup = [VacancyOracle] begin

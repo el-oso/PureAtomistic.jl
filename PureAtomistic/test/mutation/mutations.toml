@@ -358,6 +358,13 @@ replace = "\n"
 expect = "transient occupancy within the limit"
 
 [[mutation]]
+name = "analysis-transient-window-frozen"
+file = "src/analysis/vacancy.jl"
+find = "    given = f + tr.ntransient\n"
+replace = "    given = f\n"
+expect = "concerted jump"
+
+[[mutation]]
 name = "analysis-transient-frame-stored"
 file = "src/analysis/vacancy.jl"
 find = "        _transient!(tr, f, T(t), nempty, nmulti)\n        return nothing\n"
