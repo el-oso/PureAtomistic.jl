@@ -73,6 +73,9 @@ end
                 _selected(species, b, sb) || continue
                 s = _mul3(ci, _sub3(_column(T, P, i, b), pa))
                 s = (s[1] - round(s[1]), s[2] - round(s[2]), s[3] - round(s[3]))
+                # An image within `r_max` has `|s_k + n_k| ≤ r_max / h_k` for each `k`. Rounding
+                # of these bounds can drop only an image within a few eps of `r_max`, which
+                # would fall in the last bin.
                 lo1, hi1 = ceil(Int, -r_max * ib[1] - s[1]), floor(Int, r_max * ib[1] - s[1])
                 lo2, hi2 = ceil(Int, -r_max * ib[2] - s[2]), floor(Int, r_max * ib[2] - s[2])
                 lo3, hi3 = ceil(Int, -r_max * ib[3] - s[3]), floor(Int, r_max * ib[3] - s[3])
@@ -132,8 +135,15 @@ function _count_species(species, s)
     return n
 end
 
-# `nothing` selects every atom, so a pair with `nothing` on both sides is a pair of one species.
-_same_species(a, b) = isnothing(a) ? isnothing(b) : (!isnothing(b) && a == b)
+# The number of atoms selected by both `sa` and `sb`, which the minimum image never pairs with
+# themselves.
+function _count_both(species, sa, sb)
+    n = 0
+    for a in eachindex(species)
+        n += _selected(species, a, sa) && _selected(species, a, sb)
+    end
+    return n
+end
 
 """
     rdf(frames, r_max, nbins; species_pair = nothing) -> (r, g, n)
@@ -143,14 +153,16 @@ element may be `nothing`) over `frames`, in `nbins` bins of width `Δ = r_max / 
 `r_max` (Å). `r` holds the bin centers. With `C_k` the ordered-pair count of bin `k` summed over
 the frames (see [`rdf_histogram!`](@ref), which also states when the minimum image is used),
 
-    g_k = C_k / (Σ_frames N_A (N_B - δ_AB) / V · 4π/3 (r_hi³ - r_lo³)),
+    g_k = C_k / (Σ_frames P / V · 4π/3 (r_hi³ - r_lo³)),
 
-the count divided by the count an ideal gas of the same composition would give: each `A` atom
-sees the other `N_B - δ_AB` atoms of `B` at the uniform density `(N_B - δ_AB) / V`, with
-`δ_AB = 1` when the two species are the same. An ideal gas therefore gives `g = 1` on average
-when `r_max` is at most half the shortest cell height. Beyond that an atom's own periodic images
-are counted as neighbors, as they are in the infinite periodic system, so a cell of few atoms
-gives `g` near `N_B / (N_B - 1)` at large `r`.
+the count divided by the count an ideal gas of the same composition would give, with `P` the
+number of ordered pairs the search can form in a frame. With the minimum image (`r_max` at most
+half the shortest cell height) an atom never pairs with itself, so `P = N_A N_B - N_AB`, where
+`N_AB` is the number of atoms selected by both `A` and `B` (`N_A` for one species twice, 0 for
+two distinct species): an ideal gas gives `g = 1` on average for every selection. Beyond that
+range every periodic image is counted, an atom's own images included, as in the infinite periodic
+system, so `P = N_A N_B`: the images of the `B` atoms fill space at the density `N_B / V`, `g`
+tends to 1 at large `r` in any cell, and a species of one atom works.
 
 `n` is the running coordination number, the integral `∫₀^{r_hi} ρ g 4πr² dr` in histogram form:
 `n_k = Σ_{j ≤ k} C_j / Σ_frames N_A`, the mean number of `B` neighbors of an `A` atom closer
@@ -166,7 +178,7 @@ function rdf(frames, r_max::Real, nbins::Integer; species_pair = nothing)
     f1 = frames[first(eachindex(frames))]
     T = float(promote_type(eltype(f1.positions), eltype(f1.cell)))
     sa, sb = _pair_species(species_pair)
-    δ = _same_species(sa, sb) ? 1 : 0
+    rm = T(r_max)
     hist = zeros(Int, nbins)
     weight = zero(T)
     na_total = 0
@@ -174,14 +186,17 @@ function rdf(frames, r_max::Real, nbins::Integer; species_pair = nothing)
         f = frames[k]
         na = _count_species(f.species, sa)
         nb = _count_species(f.species, sb)
-        (na >= 1 && nb - δ >= 1) ||
+        nab = _count_both(f.species, sa, sb)
+        mi = _minimum_image_ok(rm, _inv_heights(_inv3(_cell9(T, f.cell))))
+        pairs = mi ? T(na) * T(nb) - T(nab) : T(na) * T(nb)
+        pairs >= 1 ||
             throw(
             ArgumentError(
-                lazy"pureatomistic: rdf needs atoms of both species of the pair and at least two of one species; frame $k has $na and $nb"
+                lazy"pureatomistic: rdf finds no pairs to count: frame $k has $na and $nb atoms of the pair, $nab in both"
             )
         )
         rdf_histogram!(hist, f.positions, f.cell, f.species, r_max; species_pair)
-        weight += T(na) * T(nb - δ) / T(cell_volume(f.cell))
+        weight += pairs / T(cell_volume(f.cell))
         na_total += na
     end
     Δ = T(r_max) / nbins

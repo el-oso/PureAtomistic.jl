@@ -2,17 +2,22 @@
 #
 # Positions are unwrapped frame to frame: the displacement between consecutive frames is taken
 # under the minimum image of the later frame's cell and added to the running unwrapped position,
-# so atoms may be stored wrapped into the cell or not. This needs every atom to move less than
-# half the shortest cell height between frames, which `unwrap!` checks.
+# so atoms may be stored wrapped into the cell or not. The result is right only if every atom
+# moves less than half the shortest cell height between frames; choosing a frame interval short
+# enough for that is the caller's responsibility. `unwrap!` throws for a minimum-image
+# displacement in the ambiguous range, but a longer true move maps onto a shorter image and
+# passes unnoticed (in a cubic cell of side L, a move of 0.7 L along an axis reads as -0.3 L).
 
 """
     unwrap!(unwrapped, previous, positions, cell) -> unwrapped
 
 Advances the unwrapped positions by one frame: for each atom adds to `unwrapped` the minimum-image
 displacement from `previous` to `positions` in `cell` (lattice vectors in columns), then copies
-`positions` into `previous`. The three matrices are 3 × n with equal axes. Throws if a
-displacement is at least half the shortest cell height long, since the image it belongs to is
-then ambiguous. Allocates nothing.
+`positions` into `previous`. The three matrices are 3 × n with equal axes. Every atom must have
+moved less than half the shortest cell height since `previous`, which the caller ensures by the
+frame interval: a longer move maps onto a shorter image without notice. Throws if a minimum-image
+displacement is itself at least half the shortest cell height long, since its image is then
+ambiguous. Allocates nothing.
 """
 function unwrap!(unwrapped::AbstractMatrix, previous::AbstractMatrix, positions::AbstractMatrix, cell::AbstractMatrix)
     size(positions, 1) == 3 || throw(ArgumentError(lazy"pureatomistic: positions need 3 rows, got $(size(positions, 1))"))
@@ -62,9 +67,11 @@ the atoms and every time origin `t₀` of block `b` whose pair `(t₀, t₀ + τ
 so the columns use disjoint stretches of the trajectory. `lag_fs` holds `τ · Δt`.
 
 `frames` is any collection with `eachindex` and `getindex` whose elements have `positions`, `cell`
-and `species` (a vector of `System`s or `Frame`s, or a `TrajectoryReader`), with the same atoms
-in every frame. The frame times come from each frame's `time` (fs), which must be evenly spaced,
-or, when `dt` is given, are `dt` apart. Positions in Å give `msd_A2` in Å².
+and `species` (a vector of `System`s or `Frame`s, or a `TrajectoryReader`), with the same
+atoms and species in every frame (checked). The frame times come from each frame's `time` (fs),
+which must be evenly spaced, or, when `dt` is given, are `dt` apart. The frames must be close
+enough that no atom moves half the shortest cell height between two of them (see
+[`unwrap!`](@ref)); the caller is responsible for that. Positions in Å give `msd_A2` in Å².
 """
 function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, dt = nothing)
     L = Int(max_lag)
@@ -106,6 +113,7 @@ function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, 
         if c > 1
             axes(f.positions) == axes(u) ||
                 throw(DimensionMismatch(lazy"pureatomistic: frame $k has positions $(axes(f.positions)), frame 1 $(axes(u))"))
+            f.species == sp || throw(ArgumentError(lazy"pureatomistic: frame $k has other species than frame 1"))
             step = t - t_prev
             if c == 2
                 step > 0 || throw(ArgumentError(lazy"pureatomistic: frame times must increase, got $t after $t_prev"))
@@ -154,7 +162,8 @@ lags. `lag` holds the lags and `msd` one column per block, as returned by [`msd`
 each block, the least-squares line with intercept through the points with
 `fit_window[1] ≤ lag ≤ fit_window[2]` gives `D_b` as its slope over 6; the intercept absorbs the
 vibrational plateau. `D` is the mean of the `D_b` and `σ_D` its standard error,
-`std(D_b) / √nblocks`, which treats the blocks as independent. Needs at least two blocks and two
+`std(D_b) / √nblocks`, which treats the blocks as independent; `σ_D` is itself uncertain by a
+fraction of about `1/√(2(nblocks - 1))` (29 % for 7 blocks). Needs at least two blocks and two
 lags in the window. Units are those of `msd` per unit of `lag` (Å²/fs from `msd`; 1 Å²/fs is
 0.1 cm²/s).
 """

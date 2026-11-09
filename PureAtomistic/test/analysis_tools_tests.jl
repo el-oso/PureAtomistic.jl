@@ -25,8 +25,9 @@
         return frame(copy(s.positions), sp, copy(s.cell))
     end
 
-    # Minimum RMSD over proper rotations by Horn's quaternion method (J. Opt. Soc. Am. A 4, 629
-    # (1987)): an eigenvalue problem, independent of the SVD of Kabsch's method.
+    # Minimum RMSD over proper rotations by Horn's quaternion method: the largest eigenvalue of a
+    # symmetric 4 × 4 matrix built from the covariance, independent of the SVD of Kabsch's method.
+    # Re-derived here, not taken from the source.
     function horn_rmsd(X, Y)
         x = X .- sum(X; dims = 2) / size(X, 2)
         y = Y .- sum(Y; dims = 2) / size(Y, 2)
@@ -73,10 +74,23 @@ end
     @test res.r ≈ ((1:nb) .- 0.5) .* Δ rtol = 4 * eps()   # (b): three operations per center
     # Selecting all atoms by species gives the same pairs.
     @test rdf(frames, r_max, nb; species_pair = (29, 29)) == res
-    # Distinct species: the density is N/V in place of (N - 1)/V. Bound (b): the weight is a sum of
-    # 200 terms, 4·eps·200 relative.
-    @test rdf(frames, r_max, nb; species_pair = (nothing, 29)).g ≈ res.g .* (N - 1) / N rtol = 800 * eps()
-    @test rdf(frames, r_max, nb; species_pair = (29, nothing)).g ≈ res.g .* (N - 1) / N rtol = 800 * eps()
+    # `nothing` against a species that every atom has selects the same pairs.
+    @test rdf(frames, r_max, nb; species_pair = (nothing, 29)) == res
+    @test rdf(frames, r_max, nb; species_pair = (29, nothing)) == res
+    # Two species, half each: `(nothing, 29)` overlaps the selection in the 32 Cu atoms, so the
+    # ideal pair count is N·N_Cu - N_Cu. Each unordered pair is counted at most twice, so the
+    # variance of the ordered count is at most twice its mean: σ_pool ≤ √(2(1 - p)/μ). Power: the
+    # pair count N·N_Cu without the overlap is a bias of 1/N = 1.6 %, 5.4 times that bound.
+    two = [ToolOracles.frame(f.positions, [isodd(i) ? 29 : 79 for i in 1:N], C) for f in frames]
+    for pair in ((nothing, 29), (29, nothing), (79, 29))
+        nA = isnothing(pair[1]) ? N : N ÷ 2
+        nB = isnothing(pair[2]) ? N : N ÷ 2
+        nAB = pair[1] == pair[2] || isnothing(pair[1]) || isnothing(pair[2]) ? N ÷ 2 : 0
+        μp = M * (nA * nB - nAB) * p_tot
+        gp = rdf(two, r_max, nb; species_pair = pair)
+        pooled = sum(gp.g .* p) / p_tot
+        @test abs(pooled - 1) < 4 * sqrt(2 * (1 - p_tot) / μp)
+    end
 end
 
 # Perfect fcc Cu: shells of 12, 6, 24 and 12 neighbors at a/√2, a, a√(3/2) and a√2.
@@ -110,6 +124,14 @@ end
         sites = [R * (a / 2 * T[0 1 1; 1 0 1; 1 1 0]) * T[i, j, k] for i in 0:1, j in 0:1, k in 0:1]
         tri = ToolOracles.frame(reduce(hcat, vec(sites)), fill(29, 8), Cp)
         @test rdf([tri], r_max, nb).n == res.n
+        # With every image counted the density is N/V, so cells of 1, 4 and 32 atoms give one g:
+        # the one-atom primitive cell, the conventional cell and 2 × 2 × 2 of them. Bound (b):
+        # a cell volume and a shell volume, about ten operations, 64·eps.
+        prim = ToolOracles.frame(zeros(T, 3, 1), [29], a / 2 * T[0 1 1; 1 0 1; 1 1 0])
+        g1 = rdf([fcc_cell(a, 1, :Cu)], r_max, nb).g
+        @test rdf([prim], r_max, nb).g ≈ g1 rtol = 64 * eps(T)
+        @test rdf([fcc_cell(a, 2, :Cu)], r_max, nb).g ≈ g1 rtol = 64 * eps(T)
+        @test rdf([prim], r_max, nb).n == res.n
     end
 end
 
@@ -290,9 +312,9 @@ end
     @test_throws "pureatomistic: rdf needs at least one bin, got 0" rdf([s], 5.0, 0)
     @test_throws "pureatomistic: rdf needs at least one frame" rdf(typeof(s)[], 5.0, 10)
     @test_throws "pureatomistic: r_max must be positive and finite, got -1.0" rdf([s], -1.0, 10)
-    @test_throws "frame 1 has 32 and 0" rdf([s], 5.0, 10; species_pair = (29, 79))
+    @test_throws "pureatomistic: rdf finds no pairs to count: frame 1 has 32 and 0 atoms of the pair, 0 in both" rdf([s], 5.0, 10; species_pair = (29, 79))
     one = ToolOracles.frame(zeros(3, 1), [29], C)
-    @test_throws "at least two of one species; frame 1 has 1 and 1" rdf([one], 5.0, 10)
+    @test_throws "frame 1 has 1 and 1 atoms of the pair, 1 in both" rdf([one], 3.0, 10)
     @test_throws "pureatomistic: species_pair must be nothing or a 2-tuple, got Vector{Int64}" rdf([s], 5.0, 10; species_pair = [29, 29])
     @test_throws "pureatomistic: rdf needs at least one bin" rdf_histogram!(Int[], s.positions, C, s.species, 5.0)
     @test_throws "pureatomistic: the cell must be 3 × 3, got (2, 2)" rdf_histogram!(zeros(Int, 3), s.positions, C[1:2, 1:2], s.species, 5.0)
@@ -311,6 +333,8 @@ end
     @test_throws "pureatomistic: these frames carry no time; pass the frame interval as dt (fs)" msd(fs; max_lag = 1)
     s3 = fcc_cell(3.61, 1, :Cu)
     @test_throws "has positions (Base.OneTo(3), Base.OneTo(4)), frame 1 (Base.OneTo(3), Base.OneTo(32))" msd([fs; s3; fs]; max_lag = 1, nblocks = 1, dt = 1.0)
+    other = ToolOracles.frame(copy(s.positions), [i == 7 ? 79 : 29 for i in 1:32], C)
+    @test_throws "pureatomistic: frame 2 has other species than frame 1" msd([s, other, s]; max_lag = 1, nblocks = 1, dt = 1.0)
     using PureAtomistic.IO
     tf(t) = Frame{Float64}(fill("Cu", 32), s.positions; cell = C, time = t)
     @test_throws "pureatomistic: frame times must increase, got 1.0 after 1.0" msd([tf(1.0), tf(1.0), tf(2.0), tf(3.0)]; max_lag = 1, nblocks = 1)

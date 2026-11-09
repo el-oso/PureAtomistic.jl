@@ -1334,11 +1334,25 @@ replace = ""
 expect = "climbing image finds the Müller–Brown saddle point"
 
 [[mutation]]
-name = "rdf-same-species-density"
+name = "rdf-self-pairs-not-removed"
 file = "src/analysis/rdf.jl"
-find = 'δ = _same_species(sa, sb) ? 1 : 0'
-replace = 'δ = 0'
+find = 'pairs = mi ? T(na) * T(nb) - T(nab) : T(na) * T(nb)'
+replace = 'pairs = mi ? T(na) * T(nb) : T(na) * T(nb)'
 expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-overlap-only-same-species"
+file = "src/analysis/rdf.jl"
+find = 'n += _selected(species, a, sa) && _selected(species, a, sb)'
+replace = 'n += sa == sb && _selected(species, a, sa)'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-all-image-density"
+file = "src/analysis/rdf.jl"
+find = 'pairs = mi ? T(na) * T(nb) - T(nab) : T(na) * T(nb)'
+replace = 'pairs = T(na) * T(nb) - T(nab)'
+expect = "the fcc shells of Cu"
 
 [[mutation]]
 name = "rdf-shell-volume"

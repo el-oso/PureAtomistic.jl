@@ -26,15 +26,23 @@ A pair search to a distance `r_max` uses the minimum image when `r_max` is at mo
 shortest cell height: every pair closer than that is found once, at its true distance, in any
 cell shape. A longer `r_max` visits every periodic image within it, including an atom's own
 images, as in the infinite periodic crystal. `rdf` normalizes the pair count of each shell by
-the count of an ideal gas of the same composition, `N_A (N_B - δ_AB) / V` per unit volume, so an
-ideal gas gives `g = 1` on average within the minimum-image range.
+the count of an ideal gas of the same composition. Within the minimum-image range an atom never
+pairs with itself, so the ideal count per unit volume is `(N_A N_B - N_AB) / V`, with `N_AB` the
+atoms selected by both members of the pair, and an ideal gas gives `g = 1` on average for every
+selection, `nothing` included. Beyond it the count is `N_A N_B / V`, because the periodic images
+of the `B` atoms, an atom's own images included, fill space at the density `N_B / V`; `g` then
+tends to 1 at large `r` in any cell, and a species with a single atom works.
 
 The mean-square displacement unwraps the positions frame to frame: the displacement between
-consecutive frames is taken under the minimum image, which needs every atom to move less than
-half the shortest cell height between frames (`unwrap!` checks this). The frames are split into
+consecutive frames is taken under the minimum image. That is right only if every atom moves less
+than half the shortest cell height between frames, and choosing a frame interval short enough is
+the caller's responsibility. `unwrap!` throws for a displacement in the ambiguous range, but a
+longer move maps onto a shorter image and passes unnoticed: in a cubic cell of side `L`, a move
+of `0.7 L` along an axis reads as `-0.3 L`. The frames are split into
 blocks, and `msd` returns one column per block; `diffusion_coefficient` fits the Einstein
 relation `⟨|Δr|²⟩ = 6 D τ + c` to each column over the fit window and returns the mean and its
-standard error over the blocks.
+standard error over the blocks. With few blocks that error is itself uncertain, by a fraction of
+about `1/√(2(nblocks - 1))`.
 
 `rmsd` takes positions as given, with no periodic images, and with `align = true` removes the
 best translation and proper rotation (Kabsch's method) before measuring the deviation.
@@ -58,10 +66,16 @@ back; their long-time effect is the tracer correlation factor `f`. With
 D = f Γ λ² / (6 N) = f Γ a² / (12 N).
 ```
 
-For the infinite fcc lattice `f = 0.78145` (Compaan and Haven, 1956). The record also measures `f`
-for this periodic cell by a lattice random walk of one vacancy among 255 atoms in the same
-4 × 4 × 4 lattice, with the center-of-mass displacement removed as in the MD run, whose total
-momentum is zero.
+For the infinite fcc lattice `f = 0.78145` (Compaan and Haven, 1956; the value is not taken from
+the source). The record measures `f` for this periodic cell by a lattice random walk of one
+vacancy among 255 atoms in the same 4 × 4 × 4 lattice, with the center-of-mass displacement
+removed as in the MD run, whose total momentum is zero; it reproduces the infinite-lattice value
+within its error.
+
+A known limit: `Γ` counts the hops that the vacancy tracker confirms, and a jump that is undone
+within the tracker's dwell time counts as no hop. Such a pair moves no atom and leaves `D`
+unchanged, but the lattice walk's `f` includes it, so the prediction is low by the fraction of
+hops missed this way, which is not measured.
 
 This page does not read the trajectory. `bench/trajectory_diffusion.jl` computes the record
 `bench/results/trajectory_diffusion_T1200_dt2_s01.json` from the run's trajectory and its

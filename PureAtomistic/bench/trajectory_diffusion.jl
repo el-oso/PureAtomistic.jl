@@ -15,11 +15,15 @@
 # uncorrelated jumps the cross terms average to zero, and with n = Γ t and Σᵢ |Δrᵢ|² = 6 N D t,
 # D = Γ λ² / (6 N). An atom that has just exchanged with the vacancy is likely to exchange back,
 # so the cross terms are negative; their long-time effect is the tracer correlation factor f,
-# D = f Γ λ² / (6 N) = f Γ a² / (12 N). For the infinite fcc lattice f = 0.78145
-# (Compaan and Haven, Trans. Faraday Soc. 52, 786 (1956)). The cell here is small and periodic,
-# so f is measured for it by a lattice random walk of one vacancy among N atoms in the same
-# 4 × 4 × 4 periodic fcc lattice (`kmc_correlation_factor`), with the center-of-mass
-# displacement removed as in the MD run, whose total momentum is zero.
+# D = f Γ λ² / (6 N) = f Γ a² / (12 N). For the infinite fcc lattice f = 0.78145 (Compaan and
+# Haven, 1956; the value is not taken from the source, and the lattice walk below reproduces it
+# within its error). The cell here is small and periodic, so f is measured for it by a lattice
+# random walk of one vacancy among N atoms in the same 4 × 4 × 4 periodic fcc lattice
+# (`kmc_correlation_factor`), with the center-of-mass displacement removed as in the MD run,
+# whose total momentum is zero. Known limit: Γ counts the hops the vacancy tracker confirms, and a
+# jump undone within the tracker's dwell time counts as none. Such pairs move no atom, so they
+# leave D unchanged, but the walk's f counts them, so f Γ λ² / (6 N) is low by the fraction of
+# hops missed this way, which is not measured.
 using JSON, Printf, Random, Statistics
 using PureAtomistic
 using PureAtomistic.Analysis: msd, diffusion_coefficient, unwrap!

@@ -1,5 +1,6 @@
 # Root-mean-square deviation from a reference configuration, optionally after the best rigid
-# superposition (Kabsch, Acta Cryst. A 32, 922 (1976)).
+# superposition by Kabsch's method. The method is re-derived below, not taken from the source,
+# and the tests check it against the minimum over rotations from an independent eigenvalue method.
 
 # X and Y share their axes. The proper rotation `R` that minimizes `Σ |R (xᵢ - x̄) - (yᵢ - ȳ)|²`, with the centroids `x̄`
 # and `ȳ`. With the covariance `H = Σ (xᵢ - x̄)(yᵢ - ȳ)ᵀ = U S Vᵀ`, the optimal orthogonal map is
