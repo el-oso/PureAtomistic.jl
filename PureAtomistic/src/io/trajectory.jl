@@ -153,7 +153,7 @@ end
     TrajectoryReader(path)
 
 Open a binary trajectory for random access: `length(r)` frames, `r.species` element symbols,
-`read_frame(r, k)` the k-th frame. Close with `close`.
+`read_frame(r, k)` or `r[k]` the k-th frame (`eachindex(r)` is `1:length(r)`). Close with `close`.
 """
 struct TrajectoryReader
     io::IOStream
@@ -226,3 +226,10 @@ function read_frame(r::TrajectoryReader, k::Integer, ::Type{T} = Float64) where 
         convert(T, energy), convert(T, time), Pair{String, String}[]
     )
 end
+
+# A reader is an indexable collection of its frames, so code written against `eachindex` and
+# `getindex` (the trajectory analysis of `Analysis`) reads it like a vector of `Frame`s.
+Base.keys(r::TrajectoryReader) = Base.OneTo(r.nframes)
+Base.firstindex(r::TrajectoryReader) = first(keys(r))
+Base.lastindex(r::TrajectoryReader) = r.nframes
+Base.getindex(r::TrajectoryReader, k::Integer) = read_frame(r, k)

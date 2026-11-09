@@ -3,7 +3,11 @@
 "src/PureAtomistic.jl" = 1.00
 "src/analysis/Analysis.jl" = 1.00
 "src/analysis/arrhenius.jl" = 1.00
+"src/analysis/coordination.jl" = 1.00
 "src/analysis/diffusion.jl" = 1.00
+"src/analysis/msd.jl" = 1.00
+"src/analysis/rdf.jl" = 1.00
+"src/analysis/rmsd.jl" = 1.00
 "src/analysis/vacancy.jl" = 1.00
 "src/barostats/Barostats.jl" = 1.00
 "src/barostats/berendsen.jl" = 1.00

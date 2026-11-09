@@ -1332,3 +1332,80 @@ file = "src/optimize/neb.jl"
 find = "        fm < tol && return _neb_result(b, true, step, fm, ci)\n"
 replace = ""
 expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "rdf-same-species-density"
+file = "src/analysis/rdf.jl"
+find = 'δ = _same_species(sa, sb) ? 1 : 0'
+replace = 'δ = 0'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-shell-volume"
+file = "src/analysis/rdf.jl"
+find = '(hi^3 - lo^3)'
+replace = 'hi^3'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-minimum-image-rule"
+file = "src/analysis/rdf.jl"
+find = '2 * r_max * maximum(ib) <= 1'
+replace = 'r_max * maximum(ib) <= 1'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "rdf-image-range"
+file = "src/analysis/rdf.jl"
+find = 'lo1, hi1 = ceil(Int, -r_max * ib[1] - s[1]), floor(Int, r_max * ib[1] - s[1])'
+replace = 'lo1, hi1 = ceil(Int, -s[1]), floor(Int, -s[1])'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "rdf-self-image-excluded"
+file = "src/analysis/rdf.jl"
+find = '(b == a && iszero(n1) && iszero(n2) && iszero(n3)) && continue'
+replace = '(iszero(n1) && iszero(n2) && iszero(n3)) && continue'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "msd-unwrap-without-minimum-image"
+file = "src/analysis/msd.jl"
+find = 'd = _minimg(_sub3(x, _column(T, previous, i, a)), cm, ci)'
+replace = 'd = _sub3(x, _column(T, previous, i, a))'
+expect = "unwrapping a straight path"
+
+[[mutation]]
+name = "msd-origins-cross-blocks"
+file = "src/analysis/msd.jl"
+find = 'for τ in 1:min(L, p)'
+replace = 'for τ in 1:min(L, c - 1)'
+expect = "unwrapping a straight path"
+
+[[mutation]]
+name = "diffusion-einstein-factor"
+file = "src/analysis/msd.jl"
+find = 'x = sxy / sxx / 6'
+replace = 'x = sxy / sxx / 2'
+expect = "the Einstein slope and its block error"
+
+[[mutation]]
+name = "diffusion-block-error"
+file = "src/analysis/msd.jl"
+find = 'σ_D = sqrt(m2 / (n - 1) / n)'
+replace = 'σ_D = sqrt(m2 / n / n)'
+expect = "the Einstein slope and its block error"
+
+[[mutation]]
+name = "kabsch-reflection-sign"
+file = "src/analysis/rmsd.jl"
+find = 'T[1, 1, d]'
+replace = 'T[1, 1, 1]'
+expect = "a rigidly moved frame and a mirror image"
+
+[[mutation]]
+name = "kabsch-rotation-transposed"
+file = "src/analysis/rmsd.jl"
+find = 'R = F.V * LinearAlgebra.Diagonal(T[1, 1, d]) * F.U'
+replace = 'R = F.U * LinearAlgebra.Diagonal(T[1, 1, d]) * F.V'
+expect = "a rigidly moved frame and a mirror image"
