@@ -5,7 +5,7 @@ using Documenter, DocumenterVitepress, Literate, PureAtomistic
 # directory and writes its page there; the script writes its figures next to the page. An error in
 # a script stops the build. The animations in `src/assets/` are rendered ahead of time by
 # `render_animations.jl`.
-const EXAMPLES = ["nve_conservation", "thermostat_check", "vacancy_hop_md"]
+const EXAMPLES = ["nve_conservation", "thermostat_check", "vacancy_hop_md", "vacancy_diffusion"]
 const EXAMPLES_OUT = joinpath(@__DIR__, "src", "examples")
 mkpath(EXAMPLES_OUT)
 for name in EXAMPLES

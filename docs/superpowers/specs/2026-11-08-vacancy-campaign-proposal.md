@@ -1,6 +1,6 @@
 # Vacancy-diffusion campaign: proposal and cost
 
-Date: 2026-11-08. Status: proposal; nothing in it runs before the user approves it.
+Date: 2026-11-08. Status: approved and run (completed 2026-11-11, 59.5 GPU hours on the Apple M6); the results are at the end.
 
 Goal: the migration energy `E_m` and prefactor `Γ₀` of a vacancy in Cu with MACE-MPA-0, from an
 Arrhenius fit of hop rates at four temperatures, and `D_v(T)` at each, compared with published
@@ -143,3 +143,36 @@ exp(−PΔV_m/kT) at about 9 GPa.
 - **Code** (after approval): a campaign script, `PureAtomistic/bench/vacancy_campaign.jl`, built
   from the vacancy mode of `md_validation.jl`. It adds the temperature, the seed, the NPT stage
   and the paired runs.
+
+## Results
+
+Records: `PureAtomistic/bench/results/vacancy_campaign/` (runs), `vacancy_campaign_analysis.json`
+(this analysis, `bench/vacancy_analysis.jl`) and `trajectory_diffusion_<run>.json` (atomic MSD);
+page `PureAtomistic/docs/src/examples/vacancy_diffusion.md`. Production at 2 fs (user ruling); the
+4 fs run at 1200 K is kept as data and not used.
+
+| T (K) | mean T (K) | a (Å) | hops | time (ps) | Γ (ps⁻¹) | binomial p (two runs) |
+|---|---|---|---|---|---|---|
+| 900 | 899.5 | 3.7006 | 100 | 5800 | 0.0172 ± 0.0017 | 0.92 |
+| 980 | 979.9 | 3.7076 | 102 | 2600 | 0.0392 ± 0.0039 | 0.49 |
+| 1080 | 1079.6 | 3.7173 | 102 | 1200 | 0.0850 ± 0.0084 | 0.37 |
+| 1200 | 1199.8 | 3.7277 | 230 | 1200 | 0.1917 ± 0.0126 | 0.46 |
+
+- **Fit:** E_m = 0.742 ± 0.034 eV (the expected σ was 0.036 eV), Γ₀ = 250 ps⁻¹ (σ(ln Γ₀) = 0.38),
+  χ² = 0.10 on 2 degrees of freedom.
+- **NEB and expansion:** the NEB barrier at the campaign's lattice constants is 0.646 to 0.620 eV,
+  0.11 eV below the fit. With E_m(a) linear through the NEB points (dE_m/da = −0.965 eV/Å) and
+  da/dT = 9.1 × 10⁻⁵ Å/K, the expected Arrhenius slope is E_eff = E_m(a) − T (dE_m/da)(da/dT)
+  = 0.725 eV; the fit agrees within 0.5 σ. The 1300 K runs at the 0 K lattice constant agree with
+  the same line (barrier increase 0.100 ± 0.014 eV from the rates, 0.092 eV from NEB).
+- **Homogeneity:** every temperature passes the binomial test. `T1080_dt2_s06` has no hop in its
+  first 143 ps (gap p = 1.7 × 10⁻⁴, about 1.3 × 10⁻³ over eight runs; segment dispersion
+  p = 0.002); the stored trajectory shows the vacancy on one site for that whole stretch, and
+  fitting 1080 K without the run changes E_m by 0.001 eV.
+- **Size:** 499 atoms against 255 at 1200 K, rate ratio 1.10 (95 % interval 0.86 to 1.39),
+  p = 0.44; a barrier shift beyond about ±0.03 eV is excluded.
+- **Diffusion:** the atomic D from the MSD and f Γ a²/(12N) (f = 0.782 for the cell) agree at all
+  four temperatures (|z| ≤ 0.91), and so do the vacancy D_v = Γ a²/12 and the tracked vacancy's
+  MSD (|z| ≤ 0.82).
+- **Published values (checked):** 0.88 ± 0.13 eV (Simmons and Balluffi 1963), 0.77 eV and
+  0.76 ± 0.04 eV (Berger, Ockers and Siegel 1979). Ehrhart's 0.70 ± 0.02 eV remains unchecked.
