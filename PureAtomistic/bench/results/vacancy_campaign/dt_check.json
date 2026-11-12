@@ -1,0 +1,58 @@
+{
+ "commit": "7593158",
+ "date": "2026-11-08T08:17:49.853",
+ "decision": {
+  "binomial_p": 0.9169148438995167,
+  "complete": false,
+  "hops_2fs": 140,
+  "hops_4fs": 263,
+  "note": "dropped before the stop rule (403 of 800 hops); the statistics below are at the drop, for information",
+  "ps_2fs": 700.0,
+  "ps_4fs": 1295.9199553634817,
+  "rate_2fs_per_ps": 0.2,
+  "rate_4fs_per_ps": 0.20294463320169598,
+  "rate_ratio": 1.01472316600848,
+  "ratio_ci95": [
+   0.823490261835136,
+   1.2547569914988825
+  ],
+  "run_2fs": "T1200_dt2_s01",
+  "run_4fs": "T1200_dt4_s02",
+  "stop_event_4fs": "long saddle transient of a concerted two-atom jump, not a defect",
+  "stop_reason_4fs": "ArgumentError: pureatomistic: occupancy is not one vacancy at frame 64823: 2 empty and 1 multiply occupied sites, for 26 consecutive frames over 520.0 time units since the last frame with one vacancy (limit 25 frames)"
+ },
+ "device": "Metal",
+ "dropped": "dropped by user; production at 2 fs",
+ "dropped_date": "2026-11-09T09:33:03.196",
+ "dt_fs_used": 2.0,
+ "harness_blob": "7e0abb2278c2a5ad34baed5f31bc02026dc7f5b4",
+ "harness_commit": "7593158",
+ "harness_is_head": true,
+ "julia": "1.13.3",
+ "override": {
+  "date": "2026-11-08T15:05:01.667",
+  "dt_fs": 2.0,
+  "effect": "the rule's result is recorded under decision; the production runs use dt_fs",
+  "note": "overridden by user: 2 fs",
+  "reason": "±25 % equivalence is too loose against the ~7 % per-temperature precision"
+ },
+ "rule": {
+  "counts_toward_production": "the run at the chosen time step is the first 1200 K production run: same protocol, independent seed, and a stop that depends only on the total count",
+  "design": "both runs advance the same number of steps per cycle, so the 4 fs run covers twice the simulated time; with equal rates a 4 fs share q = 2/3 of 800 hops gives a 95 % interval of the ratio of about ×/÷ 1.158, and equal rates pass the rule with probability 0.79 (2,000 simulated checks of the exact rule at 800 hops; 0.67 for a true ratio of 0.9)",
+  "max_cycles": 50,
+  "p_min": 0.05,
+  "ratio_bounds": [
+   0.75,
+   1.25
+  ],
+  "rule": "use 4 fs if the exact conditional binomial test of the hop counts gives p >= 0.05 and the exact 95 % (Clopper-Pearson) interval of the rate ratio Γ(4 fs)/Γ(2 fs) lies within [0.75, 1.25]; otherwise 2 fs",
+  "stop": "at the end of the first cycle where the two runs hold at least 800 hops together, or after 50 cycles",
+  "stop_hops": 800,
+  "temperature_K": 1200.0,
+  "time_steps_fs": [
+   2.0,
+   4.0
+  ]
+ },
+ "status": "dropped"
+}

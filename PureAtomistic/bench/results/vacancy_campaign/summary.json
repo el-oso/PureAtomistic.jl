@@ -1,0 +1,253 @@
+{
+ "commit": "db39c6f",
+ "date": "2026-11-11T20:39:03.090",
+ "device": "Metal",
+ "dt_fs": 2.0,
+ "dt_override": {
+  "date": "2026-11-08T15:05:01.667",
+  "dt_fs": 2.0,
+  "effect": "the rule's result is recorded under decision; the production runs use dt_fs",
+  "note": "overridden by user: 2 fs",
+  "reason": "±25 % equivalence is too loose against the ~7 % per-temperature precision"
+ },
+ "fit": {
+  "E_m": 0.7428527614380837,
+  "chi2": 0.1128040097726832,
+  "cov_E_ln_prefactor": 0.012998294803005161,
+  "dof": 2,
+  "prefactor": 252.47165502725105,
+  "temperatures_K": [
+   "1080",
+   "1200",
+   "900",
+   "980"
+  ],
+  "σ": 0.03454217993741017,
+  "σ_ln_prefactor": 0.37878216515268237
+ },
+ "gpu_hours": 59.46150708496572,
+ "harness_blob": "51b001e32ef1c36297171b7753cd09fce4606d3f",
+ "harness_commit": "76dcd1c",
+ "harness_is_head": true,
+ "julia": "1.13.3",
+ "mean_step_ms": {
+  "T0900_dt2_s09": 68.82947317501595,
+  "T0900_dt2_s10": 68.80849641092892,
+  "T0980_dt2_s07": 68.43659350138444,
+  "T0980_dt2_s08": 68.32781390923721,
+  "T1080_dt2_s05": 68.2920464793841,
+  "T1080_dt2_s06": 68.33689433654149,
+  "T1200_dt2_s01": 63.17546200139182,
+  "T1200_dt2_s03": 70.77143270874024,
+  "T1200_dt2_s04_n499": 87.05060943698884,
+  "T1200_dt4_s02": 64.52850340922673
+ },
+ "size_check_499": {
+  "duration_ps": 500.0,
+  "hop_test_against_255": {
+   "baseline_duration_ps": 1200.0,
+   "baseline_hops": 230,
+   "duration_ps": 500.0,
+   "hops": 105,
+   "p": 0.4361213985240929,
+   "p_min": 9.006639724718224e-179,
+   "p_threshold": 0.01
+  },
+  "hops": 105,
+  "rate_per_ps": 0.21,
+  "run": "T1200_dt2_s04_n499"
+ },
+ "stage": "done",
+ "starts": [
+  {
+   "commit": "729a5fd",
+   "date": "2026-11-08T15:05:01.738",
+   "device": "Metal",
+   "dt_override_fs": 2.0,
+   "harness_blob": "99973489075a3b5f359dcff5811f7030e6b41a32",
+   "harness_commit": "729a5fd",
+   "harness_is_head": true,
+   "julia": "1.13.3"
+  },
+  {
+   "commit": "76dcd1c",
+   "date": "2026-11-09T10:37:28.785",
+   "device": "Metal",
+   "dt_override_fs": 2.0,
+   "harness_blob": "51b001e32ef1c36297171b7753cd09fce4606d3f",
+   "harness_commit": "76dcd1c",
+   "harness_is_head": true,
+   "julia": "1.13.3"
+  },
+  {
+   "commit": "db39c6f",
+   "date": "2026-11-09T13:52:20.424",
+   "device": "Metal",
+   "dt_override_fs": 2.0,
+   "harness_blob": "51b001e32ef1c36297171b7753cd09fce4606d3f",
+   "harness_commit": "76dcd1c",
+   "harness_is_head": true,
+   "julia": "1.13.3"
+  },
+  {
+   "commit": "db39c6f",
+   "date": "2026-11-09T19:00:50.183",
+   "device": "Metal",
+   "dt_override_fs": 2.0,
+   "harness_blob": "51b001e32ef1c36297171b7753cd09fce4606d3f",
+   "harness_commit": "76dcd1c",
+   "harness_is_head": true,
+   "julia": "1.13.3"
+  }
+ ],
+ "temperatures": {
+  "1080": {
+   "D_msd_A2_per_ps": [
+    0.0825574024929665,
+    0.08144685853039846
+   ],
+   "D_v_from_rate_A2_per_ps": 0.09787712929588133,
+   "dt_fs": 2.0,
+   "duration_ps": 1200.0,
+   "hop_test": {
+    "baseline_duration_ps": 600.0,
+    "baseline_hops": 46,
+    "duration_ps": 600.0,
+    "hops": 56,
+    "p": 0.3729436680836649,
+    "p_min": 3.944304526105094e-31,
+    "p_threshold": 0.01
+   },
+   "hops": 102,
+   "lattice_constant_A": 3.717250013827546,
+   "mean_pressure_GPa": [
+    -0.002553810213133668,
+    -0.04273664989955842
+   ],
+   "mean_temperature_K": [
+    1080.6817494775728,
+    1078.5653504726113
+   ],
+   "rate_per_ps": 0.085,
+   "rate_se_per_ps": 0.008416254115301731,
+   "runs": [
+    "T1080_dt2_s05",
+    "T1080_dt2_s06"
+   ],
+   "segment_dispersion_chi2": 22.705882352941178,
+   "segment_dispersion_dof": 11,
+   "target_hops": 100
+  },
+  "1200": {
+   "D_msd_A2_per_ps": [
+    0.30107685597613454,
+    0.15209117555059493
+   ],
+   "D_v_from_rate_A2_per_ps": 0.22195110605421486,
+   "dt_fs": 2.0,
+   "duration_ps": 1200.0,
+   "hop_test": {
+    "baseline_duration_ps": 500.0,
+    "baseline_hops": 90,
+    "duration_ps": 700.0,
+    "hops": 140,
+    "p": 0.46224619691068214,
+    "p_min": 3.559708260040201e-88,
+    "p_threshold": 0.01
+   },
+   "hops": 230,
+   "lattice_constant_A": 3.7277431843692925,
+   "mean_pressure_GPa": [
+    0.04465935975372649,
+    0.030704634900545785
+   ],
+   "mean_temperature_K": [
+    1200.895575631084,
+    1198.7733314031695
+   ],
+   "rate_per_ps": 0.19166666666666668,
+   "rate_se_per_ps": 0.012638125740085918,
+   "runs": [
+    "T1200_dt2_s01",
+    "T1200_dt2_s03"
+   ],
+   "segment_dispersion_chi2": 5.513043478260869,
+   "segment_dispersion_dof": 11,
+   "target_hops": 200
+  },
+  "900": {
+   "D_msd_A2_per_ps": [
+    0.020311466869316064,
+    0.021987734726280905
+   ],
+   "D_v_from_rate_A2_per_ps": 0.019676063969220794,
+   "dt_fs": 2.0,
+   "duration_ps": 5800.0,
+   "hop_test": {
+    "baseline_duration_ps": 2900.0,
+    "baseline_hops": 49,
+    "duration_ps": 2900.0,
+    "hops": 51,
+    "p": 0.9204107626128849,
+    "p_min": 1.577721810442021e-30,
+    "p_threshold": 0.01
+   },
+   "hops": 100,
+   "lattice_constant_A": 3.700613533264136,
+   "mean_pressure_GPa": [
+    0.09676513722763336,
+    0.03024372752665555
+   ],
+   "mean_temperature_K": [
+    899.5620579296213,
+    899.3956088515055
+   ],
+   "rate_per_ps": 0.017241379310344827,
+   "rate_se_per_ps": 0.0017241379310344827,
+   "runs": [
+    "T0900_dt2_s09",
+    "T0900_dt2_s10"
+   ],
+   "segment_dispersion_chi2": 51.96000000000001,
+   "segment_dispersion_dof": 57,
+   "target_hops": 100
+  },
+  "980": {
+   "D_msd_A2_per_ps": [
+    0.044548502046382055,
+    0.044390439143171534
+   ],
+   "D_v_from_rate_A2_per_ps": 0.044940790219838274,
+   "dt_fs": 2.0,
+   "duration_ps": 2600.0,
+   "hop_test": {
+    "baseline_duration_ps": 1300.0,
+    "baseline_hops": 55,
+    "duration_ps": 1300.0,
+    "hops": 47,
+    "p": 0.4884344645326758,
+    "p_min": 3.944304526105094e-31,
+    "p_threshold": 0.01
+   },
+   "hops": 102,
+   "lattice_constant_A": 3.7076400385528183,
+   "mean_pressure_GPa": [
+    0.06230168144865642,
+    0.01642434425231724
+   ],
+   "mean_temperature_K": [
+    979.9638666898364,
+    979.7979709210152
+   ],
+   "rate_per_ps": 0.03923076923076923,
+   "rate_se_per_ps": 0.0038844249762931067,
+   "runs": [
+    "T0980_dt2_s07",
+    "T0980_dt2_s08"
+   ],
+   "segment_dispersion_chi2": 30.03921568627451,
+   "segment_dispersion_dof": 25,
+   "target_hops": 100
+  }
+ }
+}
