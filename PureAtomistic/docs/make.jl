@@ -33,6 +33,7 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "GPU" => "gpu.md",
+        "Analysis" => "analysis.md",
         "Examples" => ["gallery.md"; ["examples/$name.md" for name in EXAMPLES]],
     ],
 )

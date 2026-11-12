@@ -1262,3 +1262,171 @@ file = "src/barostats/Barostats.jl"
 find = "    _scale!(sys.cell, μ)\n"
 replace = ""
 expect = "evaluates the potential once"
+
+[[mutation]]
+name = "neb-tangent-rising"
+file = "src/optimize/neb.jl"
+find = "Vp > V > Vm && return (one(T), zero(T))"
+replace = "Vp > V > Vm && return (zero(T), one(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-falling"
+file = "src/optimize/neb.jl"
+find = "Vp < V < Vm && return (zero(T), one(T))"
+replace = "Vp < V < Vm && return (one(T), zero(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-flat"
+file = "src/optimize/neb.jl"
+find = "iszero(dmax) && return (one(T), one(T))"
+replace = "iszero(dmax) && return (one(T), zero(T))"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-tangent-extremum-weights"
+file = "src/optimize/neb.jl"
+find = "return Vp > Vm ? (dmax, dmin) : (dmin, dmax)"
+replace = "return Vp > Vm ? (dmin, dmax) : (dmax, dmin)"
+expect = "neb tangent weights"
+
+[[mutation]]
+name = "neb-climbing-not-reversed"
+file = "src/optimize/neb.jl"
+find = "c = i + 1 == ci ? -2par :"
+replace = "c = i + 1 == ci ? -par :"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-climbing-lowest-image"
+file = "src/optimize/neb.jl"
+find = "E[j] > E[ci] && (ci = j)"
+replace = "E[j] < E[ci] && (ci = j)"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-spring-sign"
+file = "src/optimize/neb.jl"
+find = "b.spring * (sqrt(dp2) - sqrt(dm2)) - par"
+replace = "b.spring * (sqrt(dm2) - sqrt(dp2)) - par"
+expect = "spaces the images equally"
+
+[[mutation]]
+name = "neb-parallel-force-sign"
+file = "src/optimize/neb.jl"
+find = "F[d, a] = Ft[d, a] + c * τ"
+replace = "F[d, a] = Ft[d, a] - c * τ"
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "neb-constraints-ignored"
+file = "src/optimize/neb.jl"
+find = "        _project!(F, b.fixed, b.frozen_atoms, b.frozen_dirs)\n"
+replace = ""
+expect = "neb keeps fixed atoms and frozen directions"
+
+[[mutation]]
+name = "neb-fire2-stop-ignored"
+file = "src/optimize/neb.jl"
+find = "where {T} = fire2_step!(opt, X, F)"
+replace = "where {T} = (fire2_step!(opt, X, F); true)"
+expect = "neb limits and the FIRE2 uphill stop"
+
+[[mutation]]
+name = "neb-no-convergence-stop"
+file = "src/optimize/neb.jl"
+find = "        fm < tol && return _neb_result(b, true, step, fm, ci)\n"
+replace = ""
+expect = "climbing image finds the Müller–Brown saddle point"
+
+[[mutation]]
+name = "rdf-self-pairs-not-removed"
+file = "src/analysis/rdf.jl"
+find = 'pairs = mi ? T(na) * T(nb) - T(nab) : T(na) * T(nb)'
+replace = 'pairs = mi ? T(na) * T(nb) : T(na) * T(nb)'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-overlap-only-same-species"
+file = "src/analysis/rdf.jl"
+find = 'n += _selected(species, a, sa) && _selected(species, a, sb)'
+replace = 'n += sa == sb && _selected(species, a, sa)'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-all-image-density"
+file = "src/analysis/rdf.jl"
+find = 'pairs = mi ? T(na) * T(nb) - T(nab) : T(na) * T(nb)'
+replace = 'pairs = T(na) * T(nb) - T(nab)'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "rdf-shell-volume"
+file = "src/analysis/rdf.jl"
+find = '(hi^3 - lo^3)'
+replace = 'hi^3'
+expect = "an ideal gas gives g = 1"
+
+[[mutation]]
+name = "rdf-minimum-image-rule"
+file = "src/analysis/rdf.jl"
+find = '2 * r_max * maximum(ib) <= 1'
+replace = 'r_max * maximum(ib) <= 1'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "rdf-image-range"
+file = "src/analysis/rdf.jl"
+find = 'lo1, hi1 = ceil(Int, -r_max * ib[1] - s[1]), floor(Int, r_max * ib[1] - s[1])'
+replace = 'lo1, hi1 = ceil(Int, -s[1]), floor(Int, -s[1])'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "rdf-self-image-excluded"
+file = "src/analysis/rdf.jl"
+find = '(b == a && iszero(n1) && iszero(n2) && iszero(n3)) && continue'
+replace = '(iszero(n1) && iszero(n2) && iszero(n3)) && continue'
+expect = "the fcc shells of Cu"
+
+[[mutation]]
+name = "msd-unwrap-without-minimum-image"
+file = "src/analysis/msd.jl"
+find = 'd = _minimg(_sub3(x, _column(T, previous, i, a)), cm, ci)'
+replace = 'd = _sub3(x, _column(T, previous, i, a))'
+expect = "unwrapping a straight path"
+
+[[mutation]]
+name = "msd-origins-cross-blocks"
+file = "src/analysis/msd.jl"
+find = 'for τ in 1:min(L, p)'
+replace = 'for τ in 1:min(L, c - 1)'
+expect = "unwrapping a straight path"
+
+[[mutation]]
+name = "diffusion-einstein-factor"
+file = "src/analysis/msd.jl"
+find = 'x = sxy / sxx / 6'
+replace = 'x = sxy / sxx / 2'
+expect = "the Einstein slope and its block error"
+
+[[mutation]]
+name = "diffusion-block-error"
+file = "src/analysis/msd.jl"
+find = 'σ_D = sqrt(m2 / (n - 1) / n)'
+replace = 'σ_D = sqrt(m2 / n / n)'
+expect = "the Einstein slope and its block error"
+
+[[mutation]]
+name = "kabsch-reflection-sign"
+file = "src/analysis/rmsd.jl"
+find = 'T[1, 1, d]'
+replace = 'T[1, 1, 1]'
+expect = "a rigidly moved frame and a mirror image"
+
+[[mutation]]
+name = "kabsch-rotation-transposed"
+file = "src/analysis/rmsd.jl"
+find = 'R = F.V * LinearAlgebra.Diagonal(T[1, 1, d]) * F.U'
+replace = 'R = F.U * LinearAlgebra.Diagonal(T[1, 1, d]) * F.V'
+expect = "a rigidly moved frame and a mirror image"

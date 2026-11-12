@@ -185,14 +185,17 @@ end
 # Remove from the 3 × n matrix G the components the constraints hold: whole columns of fixed
 # atoms and the component along each frozen direction (orthonormal per atom, so one pass each).
 function _project!(G::AbstractMatrix{T}, opt::Union{TrustRegionBFGS{T}, TrustRegionLBFGS{T}}) where {T}
+    return _project!(G, opt.fixed, opt.frozen_atoms, opt.frozen_dirs)
+end
+
+function _project!(G::AbstractMatrix{T}, fixed::AbstractVector{Bool}, frozen_atoms::AbstractVector{Int}, D::AbstractMatrix{T}) where {T}
     for a in axes(G, 2)
-        if opt.fixed[a]
+        if fixed[a]
             G[1, a] = G[2, a] = G[3, a] = zero(T)
         end
     end
-    D = opt.frozen_dirs
-    for k in eachindex(opt.frozen_atoms)
-        a = opt.frozen_atoms[k]
+    for k in eachindex(frozen_atoms)
+        a = frozen_atoms[k]
         c = D[1, k] * G[1, a] + D[2, k] * G[2, a] + D[3, k] * G[3, a]
         G[1, a] -= c * D[1, k]
         G[2, a] -= c * D[2, k]
