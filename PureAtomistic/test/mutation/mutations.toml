@@ -1464,3 +1464,10 @@ file = "src/analysis/rmsd.jl"
 find = '    σ[order[2]] < σ[order[3]] && (order = (order[1], order[3], order[2]))'
 replace = ''
 expect = "3 × 3 singular value decomposition"
+
+[[mutation]]
+name = "strict-policy-unstable-step"
+file = "src/systems/motion.jl"
+find = '    c = T(AMU_IN_EV_FS2_PER_A2)'
+replace = '    c = Base.inferencebarrier(T(AMU_IN_EV_FS2_PER_A2))'
+expect = "StrictMode policy holds"
