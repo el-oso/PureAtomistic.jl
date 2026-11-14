@@ -1,0 +1,534 @@
+{
+  "schema": "pureatomistic-ab-analysis-v1",
+  "machine": "Apple M6",
+  "julia_version": "1.13.3",
+  "chairmarks_version": "1.3.1",
+  "base_ref": "9f0ca66",
+  "base_commit": "9f0ca6604f8d",
+  "head_commit": "4ef61b257d51",
+  "workload": "rmsd over 60 frames of fcc_cell(3.61, 4, :Cu) (256 atoms), rigidly moved with 0.05 Å Gaussian displacements",
+  "threads": 1,
+  "blas_threads": 1,
+  "samples": 15,
+  "warmup_evaluations": 5,
+  "speedup": "base time / head time per pair; above 1 means the head is faster",
+  "order": "odd pairs run base then head, even pairs head then base",
+  "calibration": "seconds of a fixed scalar loop before and after each measurement; pairs are discarded when base and head medians differ by more than 1.0% or one child varies by more than 3.0%",
+  "swap_first_start_mb": 15920.81,
+  "swap_last_end_mb": 15920.81,
+  "pairs": [
+    {
+      "pair": 1,
+      "order": "base,head",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 0.00010945800000000001,
+        "rmsd align=true Float64": 0.00011633300000000001
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.542000000000001e-6,
+        "rmsd align=true Float32": 5.8541e-5,
+        "rmsd align=true Float64": 6.7416e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727125,
+          0.000728083
+        ],
+        "rmsd align=false Float64": [
+          0.000721333,
+          0.000719542
+        ],
+        "rmsd align=true Float32": [
+          0.000718708,
+          0.000722458
+        ],
+        "rmsd align=true Float64": [
+          0.00071575,
+          0.000722416
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000725333,
+          0.000725292
+        ],
+        "rmsd align=false Float64": [
+          0.000724333,
+          0.000727166
+        ],
+        "rmsd align=true Float32": [
+          0.000727167,
+          0.000717666
+        ],
+        "rmsd align=true Float64": [
+          0.000720583,
+          0.000721458
+        ]
+      }
+    },
+    {
+      "pair": 2,
+      "order": "head,base",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 0.00011037500000000001,
+        "rmsd align=true Float64": 0.0001155
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.5840000000000006e-6,
+        "rmsd align=true Float32": 5.8459000000000004e-5,
+        "rmsd align=true Float64": 6.5542e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000718667,
+          0.000724292
+        ],
+        "rmsd align=false Float64": [
+          0.000721292,
+          0.000717708
+        ],
+        "rmsd align=true Float32": [
+          0.000726,
+          0.000724292
+        ],
+        "rmsd align=true Float64": [
+          0.000723416,
+          0.000721583
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.00072075,
+          0.000727166
+        ],
+        "rmsd align=false Float64": [
+          0.000718458,
+          0.000722417
+        ],
+        "rmsd align=true Float32": [
+          0.00072625,
+          0.00072525
+        ],
+        "rmsd align=true Float64": [
+          0.000727083,
+          0.000727167
+        ]
+      }
+    },
+    {
+      "pair": 3,
+      "order": "base,head",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 0.0001095,
+        "rmsd align=true Float64": 0.00011558400000000001
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.542000000000001e-6,
+        "rmsd align=true Float32": 5.841700000000001e-5,
+        "rmsd align=true Float64": 6.8625e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727166,
+          0.000725375
+        ],
+        "rmsd align=false Float64": [
+          0.000727125,
+          0.000727083
+        ],
+        "rmsd align=true Float32": [
+          0.000726292,
+          0.000726208
+        ],
+        "rmsd align=true Float64": [
+          0.000727166,
+          0.000724375
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727125,
+          0.000726583
+        ],
+        "rmsd align=false Float64": [
+          0.000725292,
+          0.00072525
+        ],
+        "rmsd align=true Float32": [
+          0.000727167,
+          0.000723375
+        ],
+        "rmsd align=true Float64": [
+          0.000727125,
+          0.000723375
+        ]
+      }
+    },
+    {
+      "pair": 4,
+      "order": "head,base",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.792e-6,
+        "rmsd align=false Float64": 7.625000000000001e-6,
+        "rmsd align=true Float32": 0.000110042,
+        "rmsd align=true Float64": 0.000115209
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 5.8625e-5,
+        "rmsd align=true Float64": 6.658300000000001e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727209,
+          0.000728083
+        ],
+        "rmsd align=false Float64": [
+          0.000724375,
+          0.000722459
+        ],
+        "rmsd align=true Float32": [
+          0.000727208,
+          0.000727125
+        ],
+        "rmsd align=true Float64": [
+          0.000727167,
+          0.000726083
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000718708,
+          0.000727125
+        ],
+        "rmsd align=false Float64": [
+          0.000727167,
+          0.000727125
+        ],
+        "rmsd align=true Float32": [
+          0.000723375,
+          0.000727167
+        ],
+        "rmsd align=true Float64": [
+          0.000723166,
+          0.000723583
+        ]
+      }
+    },
+    {
+      "pair": 5,
+      "order": "base,head",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 0.00011,
+        "rmsd align=true Float64": 0.000111291
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 5.8542e-5,
+        "rmsd align=true Float64": 6.85e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727084,
+          0.000727125
+        ],
+        "rmsd align=false Float64": [
+          0.000725291,
+          0.000713167
+        ],
+        "rmsd align=true Float32": [
+          0.000725292,
+          0.00072525
+        ],
+        "rmsd align=true Float64": [
+          0.000725291,
+          0.000727167
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000722291,
+          0.000723459
+        ],
+        "rmsd align=false Float64": [
+          0.000724334,
+          0.000727125
+        ],
+        "rmsd align=true Float32": [
+          0.000723416,
+          0.000724333
+        ],
+        "rmsd align=true Float64": [
+          0.000723375,
+          0.000725333
+        ]
+      }
+    },
+    {
+      "pair": 6,
+      "order": "head,base",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.583e-6,
+        "rmsd align=true Float32": 0.00010866700000000001,
+        "rmsd align=true Float64": 0.00011545900000000001
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.542000000000001e-6,
+        "rmsd align=true Float32": 5.841700000000001e-5,
+        "rmsd align=true Float64": 6.8458e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000718292,
+          0.000727083
+        ],
+        "rmsd align=false Float64": [
+          0.000722375,
+          0.000724333
+        ],
+        "rmsd align=true Float32": [
+          0.000723417,
+          0.000726
+        ],
+        "rmsd align=true Float64": [
+          0.000722333,
+          0.000726667
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000727125,
+          0.000727125
+        ],
+        "rmsd align=false Float64": [
+          0.000727125,
+          0.000727167
+        ],
+        "rmsd align=true Float32": [
+          0.000717625,
+          0.000727167
+        ],
+        "rmsd align=true Float64": [
+          0.000725291,
+          0.00072625
+        ]
+      }
+    },
+    {
+      "pair": 7,
+      "order": "base,head",
+      "swap_before_mb": 15920.81,
+      "swap_after_mb": 15920.81,
+      "base_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.542000000000001e-6,
+        "rmsd align=true Float32": 0.00011058400000000001,
+        "rmsd align=true Float64": 0.000108875
+      },
+      "head_s": {
+        "rmsd align=false Float32": 6.750000000000001e-6,
+        "rmsd align=false Float64": 7.541e-6,
+        "rmsd align=true Float32": 5.8500000000000006e-5,
+        "rmsd align=true Float64": 6.8541e-5
+      },
+      "base_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000714083,
+          0.000728167
+        ],
+        "rmsd align=false Float64": [
+          0.000724292,
+          0.000727125
+        ],
+        "rmsd align=true Float32": [
+          0.000722333,
+          0.000727166
+        ],
+        "rmsd align=true Float64": [
+          0.000721375,
+          0.000727166
+        ]
+      },
+      "head_calibration_s": {
+        "rmsd align=false Float32": [
+          0.000725292,
+          0.000726208
+        ],
+        "rmsd align=false Float64": [
+          0.0007205,
+          0.000727125
+        ],
+        "rmsd align=true Float32": [
+          0.000722459,
+          0.000726708
+        ],
+        "rmsd align=true Float64": [
+          0.000727125,
+          0.000727125
+        ]
+      }
+    }
+  ],
+  "discarded_pairs": [],
+  "cases": [
+    {
+      "case": "rmsd align=true Float64",
+      "speedup_per_pair": [
+        1.7255992642696096,
+        1.7622287998535289,
+        1.6842841530054646,
+        1.7303065347010496,
+        1.6246861313868615,
+        1.6865669461567678,
+        1.5884652981427174
+      ],
+      "median": 1.6865669461567678,
+      "min": 1.5884652981427174,
+      "max": 1.7622287998535289,
+      "base_s": [
+        0.00011633300000000001,
+        0.0001155,
+        0.00011558400000000001,
+        0.000115209,
+        0.000111291,
+        0.00011545900000000001,
+        0.000108875
+      ],
+      "head_s": [
+        6.7416e-5,
+        6.5542e-5,
+        6.8625e-5,
+        6.658300000000001e-5,
+        6.85e-5,
+        6.8458e-5,
+        6.8541e-5
+      ]
+    },
+    {
+      "case": "rmsd align=false Float64",
+      "speedup_per_pair": [
+        1.005436223813312,
+        0.9998681434599156,
+        1.005436223813312,
+        1.005538704998022,
+        1.0,
+        1.005436223813312,
+        1.0001326084073732
+      ],
+      "median": 1.005436223813312,
+      "min": 0.9998681434599156,
+      "max": 1.005538704998022,
+      "base_s": [
+        7.583e-6,
+        7.583e-6,
+        7.583e-6,
+        7.625000000000001e-6,
+        7.583e-6,
+        7.583e-6,
+        7.542000000000001e-6
+      ],
+      "head_s": [
+        7.542000000000001e-6,
+        7.5840000000000006e-6,
+        7.542000000000001e-6,
+        7.583e-6,
+        7.583e-6,
+        7.542000000000001e-6,
+        7.541e-6
+      ]
+    },
+    {
+      "case": "rmsd align=true Float32",
+      "speedup_per_pair": [
+        1.8697664884439966,
+        1.8880754032740896,
+        1.8744543540407756,
+        1.877049040511727,
+        1.8789928598271326,
+        1.8601948063063833,
+        1.8903247863247863
+      ],
+      "median": 1.877049040511727,
+      "min": 1.8601948063063833,
+      "max": 1.8903247863247863,
+      "base_s": [
+        0.00010945800000000001,
+        0.00011037500000000001,
+        0.0001095,
+        0.000110042,
+        0.00011,
+        0.00010866700000000001,
+        0.00011058400000000001
+      ],
+      "head_s": [
+        5.8541e-5,
+        5.8459000000000004e-5,
+        5.841700000000001e-5,
+        5.8625e-5,
+        5.8542e-5,
+        5.841700000000001e-5,
+        5.8500000000000006e-5
+      ]
+    },
+    {
+      "case": "rmsd align=false Float32",
+      "speedup_per_pair": [
+        1.0,
+        1.0,
+        1.0,
+        1.0062222222222221,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "median": 1.0,
+      "min": 1.0,
+      "max": 1.0062222222222221,
+      "base_s": [
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.792e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6
+      ],
+      "head_s": [
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6,
+        6.750000000000001e-6
+      ]
+    }
+  ]
+}
