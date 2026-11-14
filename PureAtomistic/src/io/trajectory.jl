@@ -221,7 +221,7 @@ function read_frame(r::TrajectoryReader, k::Integer, ::Type{T} = Float64) where 
     vel = Matrix{Float32}(undef, 3, r.flags & _FLAG_VELOCITIES != 0 ? r.n : 0)
     isempty(vel) || read!(r.io, vel)
     return Frame{T}(
-        r.species, _dense(T, pos), zeros(T, 3, 0), _dense(T, vel), _dense(T, cell),
+        r.species, _frame_matrix(T, pos), zeros(T, 3, 0), _frame_matrix(T, vel), _frame_matrix(T, cell),
         zeros(T, 0, 0), zeros(T, 0, 0), isempty(cell) ? (false, false, false) : (true, true, true),
         convert(T, energy), convert(T, time), Pair{String, String}[]
     )

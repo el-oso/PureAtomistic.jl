@@ -31,7 +31,7 @@ include("../optimize/neb.jl")
 @strict_exempt :noalloc :_ reason = "entry point: keyword body of a parametric constructor such as `FIRE{T}(n; kw…)`"
 @strict_exempt :noalloc _fixed_mask reason = "entry point: builds the fixed-atom mask of the trust-region constructors and `neb`"
 @strict_exempt :noalloc _frozen_rows reason = "entry point: builds the frozen-direction rows of the trust-region constructors and `neb`"
-@strict_exempt :noalloc relax! reason = "entry point: relaxation driver; `relax!(sys, potential)` builds its relaxer"
 @strict_exempt :noalloc neb reason = "entry point: builds the band of a nudged-elastic-band run"
+@strict_exempt :noalloc _default_relaxer reason = "workspace: builds the relaxer state of `relax!(sys, potential)`"
 
 end

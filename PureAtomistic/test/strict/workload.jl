@@ -57,6 +57,8 @@ function strict_workload(::Type{T}, dir) where {T}
         band[k][1, 2] += T(0.1) * k
     end
     neb(band, sys.cell, lj; maxsteps = 3)
+    neb(band, sys.cell, lj; maxsteps = 3, opt = FIRE2{T}(natoms(sys) * (length(band) - 2)))
+    neb(band, sys.cell, mace; maxsteps = 3)
     randgamma(Xoshiro(2), T(2.5))
 
     # Analysis
@@ -73,20 +75,31 @@ function strict_workload(::Type{T}, dir) where {T}
     msd_diffusion(tr; nblocks = 2)
     frames = [vac for _ in 1:8]
     rdf(frames, 2.5, 10)
+    pair = (29, 29)
+    rdf(frames, 2.5, 10; species_pair = pair)
     h = zeros(Int, 10)
     rdf_histogram!(h, vac.positions, vac.cell, vac.species, T(2.5))
+    rdf_histogram!(h, vac.positions, vac.cell, vac.species, T(2.5); species_pair = pair)
     coordination_numbers(vac, 3.0)
     coordination_numbers!(zeros(Int, natoms(vac)), vac.positions, vac.cell, vac.species, T(3))
+    coordination_numbers!(zeros(Int, natoms(vac)), vac.positions, vac.cell, vac.species, T(3); species_pair = pair)
+    coordination_numbers(vac, 3.0; species_pair = pair)
     u, prev = copy(vac.positions), copy(vac.positions)
     unwrap!(u, prev, vac.positions, vac.cell)
     lag, m = msd(frames; max_lag = 2, nblocks = 2, dt = 1.0)
+    msd(frames; species = 29, max_lag = 2, nblocks = 2, dt = 1.0)
     diffusion_coefficient(lag, m; fit_window = (0.5, 2.5))
     rmsd(frames, vac.positions)
     rmsd(frames, vac.positions; align = true)
     rmsd!(zeros(T, 8), frames, vac.positions; align = true)
     reference_sites!(similar(sites), sys.cell, a, nrep)
     rdf!(zeros(T, 10), zeros(T, 10), zeros(T, 10), zeros(Int, 10), frames, 2.5)
+    rdf!(zeros(T, 10), zeros(T, 10), zeros(T, 10), zeros(Int, 10), frames, 2.5; species_pair = pair)
     msd!(zeros(T, 3), zeros(T, 3, 2), similar(vac.positions), similar(vac.positions), zeros(T, 3, natoms(vac), 3), frames; dt = 1.0)
+    msd!(
+        zeros(T, 3), zeros(T, 3, 2), similar(vac.positions), similar(vac.positions), zeros(T, 3, natoms(vac), 3), frames;
+        species = 29, dt = 1.0
+    )
     arrhenius_fit([900.0, 1000.0], [1.0, 2.0], [0.1, 0.1])
 
     # IO
@@ -96,7 +109,28 @@ function strict_workload(::Type{T}, dir) where {T}
     close(w)
     r = TrajectoryReader(path)
     read_frame(r, 1, T)
+    r[1]; length(r); firstindex(r); lastindex(r); keys(r)
     close(r)
+    # Analysis over a trajectory file, whose frames carry their own times (`dt = nothing`).
+    tpath = joinpath(dir, "t$(T).traj")
+    tw = TrajectoryWriter(tpath, natoms(vac), fill("Cu", natoms(vac)))
+    for k in 1:8
+        write_frame(tw, Float64(k), vac.positions; velocities = vac.velocities, cell = vac.cell)
+    end
+    flush(tw)
+    close(tw)
+    traj = TrajectoryReader(tpath)
+    rdf(traj, 2.5, 10)
+    rdf!(zeros(10), zeros(10), zeros(10), zeros(Int, 10), traj, 2.5; species_pair = ("Cu", "Cu"))
+    msd(traj; max_lag = 2, nblocks = 2)
+    msd!(zeros(3), zeros(3, 2), zeros(3, natoms(vac)), zeros(3, natoms(vac)), zeros(3, natoms(vac), 3), traj; species = "Cu")
+    coordination_numbers(traj[1], 3.0; species_pair = ("Cu", "Cu"))
+    rmsd(traj, traj[1].positions; align = true)
+    close(traj)
+    # Frames that carry their time give `msd` with `dt = nothing` in memory as well.
+    fr = [Frame(fill("Cu", natoms(vac)), vac.positions; cell = vac.cell, time = T(k)) for k in 1:8]
+    msd(fr; max_lag = 2, nblocks = 2)
+    msd!(zeros(T, 3), zeros(T, 3, 2), zeros(T, 3, natoms(vac)), zeros(T, 3, natoms(vac)), zeros(T, 3, natoms(vac), 3), fr)
     f = Frame(fill("Cu", natoms(vac)), vac.positions; cell = vac.cell, energy = 1.0)
     xyz = joinpath(dir, "f$(T).extxyz")
     open(io -> write_extxyz(io, f), xyz, "w")

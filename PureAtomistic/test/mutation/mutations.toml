@@ -1471,3 +1471,38 @@ file = "src/systems/motion.jl"
 find = '    c = T(AMU_IN_EV_FS2_PER_A2)'
 replace = '    c = Base.inferencebarrier(T(AMU_IN_EV_FS2_PER_A2))'
 expect = "StrictMode policy holds"
+
+[[mutation]]
+name = "strict-policy-alloc-in-blocked-module"
+file = "src/thermostats/bussi.jl"
+find = '    K = kinetic_energy(sys)'
+replace = '    K = kinetic_energy(sys) + zero(T) * length(copy(sys.masses))'
+expect = "StrictMode policy holds"
+
+[[mutation]]
+name = "svd3-noise-columns-rotated"
+file = "src/analysis/rmsd.jl"
+find = '    noise = 8 * eps(T)'
+replace = '    noise = zero(T)'
+expect = "3 × 3 singular value decomposition"
+
+[[mutation]]
+name = "svd3-noise-u2-kept"
+file = "src/analysis/rmsd.jl"
+find = '    u2 = _maxabs3(a2) <= noise ? _perp3(u1) : _scale3(a2, inv(s2))'
+replace = '    u2 = iszero(s2) ? _perp3(u1) : _scale3(a2, inv(s2))'
+expect = "3 × 3 singular value decomposition"
+
+[[mutation]]
+name = "svd3-threshold-below-rounding"
+file = "src/analysis/rmsd.jl"
+find = '            abs(γ) > 4 * eps(T) * sqrt(α * β) || continue'
+replace = '            abs(γ) > eps(T) * sqrt(α * β) || continue'
+expect = "3 × 3 singular value decomposition"
+
+[[mutation]]
+name = "svd3-unscaled"
+file = "src/analysis/rmsd.jl"
+find = '    e = iszero(m) ? 0 : exponent(m)'
+replace = '    e = 0'
+expect = "3 × 3 singular value decomposition"

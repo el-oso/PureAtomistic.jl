@@ -507,17 +507,12 @@ end
     using LinearAlgebra, Random
     mat(t) = [t[1] t[4] t[7]; t[2] t[5] t[8]; t[3] t[6] t[9]]
     rng = Xoshiro(17)
-    for T in (Float64, Float32), trial in 1:300
-        kind = trial % 4
-        A = kind == 0 ? randn(rng, T, 3, 3) :
-            kind == 1 ? randn(rng, T, 3, 2) * randn(rng, T, 2, 3) :       # rank 2
-            kind == 2 ? randn(rng, T, 3, 1) * randn(rng, T, 1, 3) :       # rank 1
-            Matrix(T(2) * qr(randn(rng, T, 3, 3)).Q)                    # equal singular values
-        H = Tuple(A)
-        U, σ, V = _svd3(H)
+    function check(A::AbstractMatrix{T}) where {T}
+        U, σ, V = _svd3(Tuple(A))
         Um, Vm = mat(U), mat(V)
-        # Measured over 10⁵ matrices of these kinds in each precision: reconstruction within
-        # 7.7 eps·σ₁ and orthonormality within 11.5 eps; the bounds are about 8 and 6 times those.
+        # Measured over 10⁵ matrices of the kinds below in each precision: reconstruction within
+        # 12.5 eps·σ₁, orthonormality within 11.7 eps and the singular values within 8.7 eps·σ₁ of
+        # LAPACK's in Float64; the bounds are about 5 times those.
         tol = 64 * eps(T) * max(σ[1], floatmin(T))
         @test σ[1] >= σ[2] >= σ[3] >= 0
         @test norm(Um' * Um - I) <= 64 * eps(T)
@@ -525,8 +520,42 @@ end
         # u₃ is u₁ × u₂, which is the third left singular vector up to its sign.
         s = Um[:, 3]' * A * Vm[:, 3] < 0 ? -one(T) : one(T)
         @test norm(Um * Diagonal([σ[1], σ[2], s * σ[3]]) * Vm' - A) <= tol
-        @test isapprox(collect(σ), svdvals(A); atol = tol)
+        @test isapprox(collect(σ), svdvals(Float64.(A)); atol = tol)
+        return nothing
     end
+    for T in (Float64, Float32), trial in 1:300
+        kind = trial % 4
+        A = kind == 0 ? randn(rng, T, 3, 3) :
+            kind == 1 ? randn(rng, T, 3, 2) * randn(rng, T, 2, 3) :       # rank 2
+            kind == 2 ? randn(rng, T, 3, 1) * randn(rng, T, 1, 3) :       # rank 1
+            Matrix(T(2) * qr(randn(rng, T, 3, 3)).Q)                    # equal singular values
+        check(A)
+    end
+    # A rank-1 matrix whose noise columns, when rotated, shrink by eps per sweep without becoming
+    # orthogonal, and a matrix whose last pair alternates between two rounded states at a
+    # threshold of eps √(αβ): both end in a few sweeps.
+    rank1 = (
+        0.001662602696714211, 0.09364744662743704, -0.13296254444694275, 0.01543161509466058, 0.8691982479087641,
+        -1.234105304873455, 0.01939166765433551, 1.0922514231844382, -1.550800727970387,
+    )
+    alternating = (
+        0.0755284f0, -0.14163858f0, -0.81551665f0, 0.07855188f0, 0.755656f0, 0.21153207f0, 1.065779f0,
+        -0.12049221f0, -0.72299767f0,
+    )
+    for H in (rank1, alternating)
+        @test _svd3(H, 6) isa Tuple
+        check(mat(H))
+    end
+    # The sweeps are scale-free: entries near the ends of the exponent range give the same vectors and
+    # the singular values scaled exactly.
+    A = randn(rng, Float32, 3, 3)
+    U, σ, V = _svd3(Tuple(A))
+    for k in (-100, 100)
+        Uk, σk, Vk = _svd3(Tuple(ldexp.(A, k)))
+        @test Uk == U && Vk == V && σk == ldexp.(σ, k)
+    end
+    # `alternating` needs 4 sweeps.
+    @test_throws "pureatomistic: the 3 × 3 SVD did not converge in 3 sweeps" _svd3(alternating, 3)
     # The zero matrix: every singular value is zero, and U and V are still orthonormal.
     U, σ, V = _svd3(ntuple(_ -> 0.0, 9))
     @test σ == (0.0, 0.0, 0.0)
@@ -538,21 +567,24 @@ end
     rng = Xoshiro(23)
     R = ToolOracles.rotation([0.3, 1, -2], 0.7)
     t = [2.0, -1.0, 0.5]
-    for Y in (
-            [randn(rng, 2, 9); zeros(1, 9)],                       # planar
-            [1.0, -2.0, 0.5] * randn(rng, 1, 9),                   # collinear
-            [0.0 1.0 0.0 0.0; 0.0 0.0 1.0 0.0; 1.0 1.0 1.0 1.0],   # planar, off the origin, two atoms coincide
-            reshape([1.0, 2.0, 3.0], 3, 1),                        # one atom
-        )
+    for T in (Float64, Float32), Y in (
+                [randn(rng, 2, 9); zeros(1, 9)],                       # planar
+                [1.0, -2.0, 0.5] * randn(rng, 1, 9),                   # collinear
+                [0.0 1.0 0.0 0.0; 0.0 0.0 1.0 0.0; 1.0 1.0 1.0 1.0],   # planar, off the origin, two atoms coincide
+                reshape([1.0, 2.0, 3.0], 3, 1),                        # one atom
+            )
         n = size(Y, 2)
-        X = R * Y .+ t
-        Z = R * (Diagonal([1.0, -1.0, 1.0]) * Y) .+ t
-        fr = [ToolOracles.frame(P, fill(29, n), Matrix(10.0I, 3, 3)) for P in (X, Z)]
-        al = rmsd(fr, Y; align = true)
-        # A rigid motion of the frame is undone exactly up to rounding (coordinates up to 10 Å).
-        @test al[1] < 1.5e-13
-        # A planar or collinear mirror image is a proper rotation of itself, so it is superposed too.
-        @test al[2] < 1.5e-13
+        X = T.(R * Y .+ t)
+        Z = T.(R * (Diagonal([1.0, -1.0, 1.0]) * Y) .+ t)
+        fr = [ToolOracles.frame(P, fill(29, n), Matrix{T}(10I, 3, 3)) for P in (X, Z)]
+        al = rmsd(fr, T.(Y); align = true)
+        # A rigid motion of the frame is undone exactly up to rounding, and a planar or collinear
+        # mirror image is a proper rotation of itself, so it is superposed too. Measured over 5·10³
+        # random rotations, translations and sets of each kind: at most 3.4 eps (Float64) and
+        # 2.6 eps (Float32) times the largest coordinate; the bound is 14 and 18 times those.
+        bound = 48 * eps(T) * max(maximum(abs, X), maximum(abs, Z), maximum(abs, Y))
+        @test al[1] <= bound
+        @test al[2] <= bound
     end
 end
 
@@ -562,16 +594,19 @@ end
     using PureAtomistic.Analysis, LinearAlgebra, Random
     using PureAtomistic.Analysis: _kabsch
     rng = Xoshiro(31)
-    for trial in 1:200
+    for T in (Float64, Float32), trial in 1:200
         n = rand(rng, 3:10)
-        Y = 4 .* randn(rng, 3, n)
-        X = ToolOracles.rotation(randn(rng, 3), 2π * rand(rng)) * (Diagonal([1.0, 1.0, -1.0]) * Y) .+ randn(rng, 3)
-        R, _, _ = _kabsch(X, Y, Float64)
+        Y = T.(4 .* randn(rng, 3, n))
+        X = T.(ToolOracles.rotation(randn(rng, 3), 2π * rand(rng)) * (Diagonal([1.0, 1.0, -1.0]) * Y) .+ randn(rng, 3))
+        R, _, _ = _kabsch(X, Y, T)
         @test det([R[1] R[4] R[7]; R[2] R[5] R[8]; R[3] R[6] R[9]]) ≈ 1
-        fr = [ToolOracles.frame(X, fill(29, n), Matrix(10.0I, 3, 3))]
+        fr = [ToolOracles.frame(X, fill(29, n), Matrix{T}(10I, 3, 3))]
         # The squared deviations n·rmsd² = G - 2λ agree to the rounding of G, the summed squared
-        # centered coordinates of both frames.
-        G = sum(abs2, X .- sum(X; dims = 2) / n) + sum(abs2, Y .- sum(Y; dims = 2) / n)
-        @test n * abs(rmsd(fr, Y; align = true)[1]^2 - ToolOracles.horn_rmsd(X, Y)^2) <= 64 * eps() * G
+        # centered coordinates of both frames; the oracle runs in Float64 on the same coordinates.
+        # Measured over 2·10⁴ trials: at most 6.9 eps·G (Float64) and 1.5 eps·G (Float32); the
+        # bound is 9 and 42 times those.
+        Xd, Yd = Float64.(X), Float64.(Y)
+        G = sum(abs2, Xd .- sum(Xd; dims = 2) / n) + sum(abs2, Yd .- sum(Yd; dims = 2) / n)
+        @test n * abs(Float64(rmsd(fr, Y; align = true)[1])^2 - ToolOracles.horn_rmsd(Xd, Yd)^2) <= 64 * eps(T) * G
     end
 end

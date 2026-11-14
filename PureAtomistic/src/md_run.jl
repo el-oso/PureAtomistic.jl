@@ -18,105 +18,105 @@ end
 function _check_keys(tbl::Dict{String, Any}, where_::String, allowed)
     for k in keys(tbl)
         k in allowed ||
-            throw(ArgumentError(lazy"pureatomistic: unknown config key \"$(_key(where_, k))\""))
+            throw(ArgumentError(lazy"pureatomistic: unknown config key \"$(_config_key(where_, k))\""))
     end
     return nothing
 end
 
-_key(where_::String, k::String) = isempty(where_) ? k : string(where_, ".", k)
+_config_key(where_::String, k::String) = isempty(where_) ? k : string(where_, ".", k)
 
-function _require(tbl::Dict{String, Any}, where_::String, k::String)
-    haskey(tbl, k) || throw(ArgumentError(lazy"pureatomistic: missing config key \"$(_key(where_, k))\""))
+function _config_require(tbl::Dict{String, Any}, where_::String, k::String)
+    haskey(tbl, k) || throw(ArgumentError(lazy"pureatomistic: missing config key \"$(_config_key(where_, k))\""))
     return nothing
 end
 
 # The offending value as written in the file, for the scalars and arrays a config holds.
-_show(v)::String = v isa String ? string('"', v, '"') : v isa Union{Int, Float64, Bool} ? string(v) : "a value of another type"
-_show_value(v)::String = v isa Vector ? string("an array of ", length(v), " elements") : _show(v)
+_config_show(v)::String = v isa String ? string('"', v, '"') : v isa Union{Int, Float64, Bool} ? string(v) : "a value of another type"
+_config_show_value(v)::String = v isa Vector ? string("an array of ", length(v), " elements") : _config_show(v)
 
-function _wrong(where_::String, k::String, what::String, shown::String)
-    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be $what, got $shown"))
+function _config_wrong(where_::String, k::String, what::String, shown::String)
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_config_key(where_, k))\" must be $what, got $shown"))
 end
 
 # A `LazyString` message is flat: the pieces of a nested one are not printable in a trimmed program.
-function _wrong_min(where_::String, k::String, min::Int, shown::String)
-    throw(ArgumentError(lazy"pureatomistic: config key \"$(_key(where_, k))\" must be an integer of at least $min, got $shown"))
+function _config_wrong_min(where_::String, k::String, min::Int, shown::String)
+    throw(ArgumentError(lazy"pureatomistic: config key \"$(_config_key(where_, k))\" must be an integer of at least $min, got $shown"))
 end
 
-function _table(tbl::Dict{String, Any}, where_::String, k::String)::Dict{String, Any}
-    _require(tbl, where_, k)
+function _config_table(tbl::Dict{String, Any}, where_::String, k::String)::Dict{String, Any}
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    v isa Dict{String, Any} || _wrong(where_, k, "a table", _show_value(v))
+    v isa Dict{String, Any} || _config_wrong(where_, k, "a table", _config_show_value(v))
     return v
 end
 
-function _string(tbl::Dict{String, Any}, where_::String, k::String)::String
-    _require(tbl, where_, k)
+function _config_string(tbl::Dict{String, Any}, where_::String, k::String)::String
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    v isa String || _wrong(where_, k, "a string", _show_value(v))
+    v isa String || _config_wrong(where_, k, "a string", _config_show_value(v))
     return v
 end
 
-function _bool(tbl::Dict{String, Any}, where_::String, k::String)::Bool
-    _require(tbl, where_, k)
+function _config_bool(tbl::Dict{String, Any}, where_::String, k::String)::Bool
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    v isa Bool || _wrong(where_, k, "true or false", _show_value(v))
+    v isa Bool || _config_wrong(where_, k, "true or false", _config_show_value(v))
     return v
 end
 
-function _int(tbl::Dict{String, Any}, where_::String, k::String; min::Union{Int, Nothing} = nothing)::Int
-    _require(tbl, where_, k)
+function _config_int(tbl::Dict{String, Any}, where_::String, k::String; min::Union{Int, Nothing} = nothing)::Int
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    v isa Int || _wrong(where_, k, "an integer", _show_value(v))
-    min === nothing || v >= min || _wrong_min(where_, k, min, _show_value(v))
+    v isa Int || _config_wrong(where_, k, "an integer", _config_show_value(v))
+    min === nothing || v >= min || _config_wrong_min(where_, k, min, _config_show_value(v))
     return v
 end
 
 # A finite number; an integer is accepted for a float key.
-function _float(tbl::Dict{String, Any}, where_::String, k::String; positive::Bool = false, nonnegative::Bool = false)::Float64
-    _require(tbl, where_, k)
+function _config_float(tbl::Dict{String, Any}, where_::String, k::String; positive::Bool = false, nonnegative::Bool = false)::Float64
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    ((v isa Float64 || v isa Int) && isfinite(v)) || _wrong(where_, k, "a finite number", _show_value(v))
+    ((v isa Float64 || v isa Int) && isfinite(v)) || _config_wrong(where_, k, "a finite number", _config_show_value(v))
     x = Float64(v)
-    positive && !(x > 0) && _wrong(where_, k, "positive", _show_value(v))
-    nonnegative && !(x >= 0) && _wrong(where_, k, "non-negative", _show_value(v))
+    positive && !(x > 0) && _config_wrong(where_, k, "positive", _config_show_value(v))
+    nonnegative && !(x >= 0) && _config_wrong(where_, k, "non-negative", _config_show_value(v))
     return x
 end
 
-function _size(tbl::Dict{String, Any}, where_::String, k::String)::NTuple{3, Int}
-    _require(tbl, where_, k)
+function _config_size(tbl::Dict{String, Any}, where_::String, k::String)::NTuple{3, Int}
+    _config_require(tbl, where_, k)
     v = tbl[k]
-    v isa Vector{Int} || _wrong(where_, k, "an array of three positive integers", _show_value(v))
-    (length(v) == 3 && all(>=(1), v)) || _wrong(where_, k, "an array of three positive integers", _show_value(v))
+    v isa Vector{Int} || _config_wrong(where_, k, "an array of three positive integers", _config_show_value(v))
+    (length(v) == 3 && all(>=(1), v)) || _config_wrong(where_, k, "an array of three positive integers", _config_show_value(v))
     return (v[1], v[2], v[3])
 end
 
 function _read_thermostat(tbl::Dict{String, Any}, temperature::Float64)
-    th = _table(tbl, "", "thermostat")
-    kind = _string(th, "thermostat", "type")
+    th = _config_table(tbl, "", "thermostat")
+    kind = _config_string(th, "thermostat", "type")
     if kind == "none"
         _check_keys(th, "thermostat", ("type",))
         return nothing
     elseif kind == "langevin"
         _check_keys(th, "thermostat", ("type", "gamma"))
-        return LangevinBAOAB(temperature, _float(th, "thermostat", "gamma"; nonnegative = true))
+        return LangevinBAOAB(temperature, _config_float(th, "thermostat", "gamma"; nonnegative = true))
     elseif kind == "bussi"
-        temperature > 0 || _wrong("", "temperature", "positive with the bussi thermostat", _show_value(temperature))
+        temperature > 0 || _config_wrong("", "temperature", "positive with the bussi thermostat", _config_show_value(temperature))
         _check_keys(th, "thermostat", ("type", "tau"))
-        return BussiThermostat(temperature, _float(th, "thermostat", "tau"; positive = true))
+        return BussiThermostat(temperature, _config_float(th, "thermostat", "tau"; positive = true))
     end
-    return _wrong("thermostat", "type", "\"none\", \"langevin\" or \"bussi\"", _show_value(kind))
+    return _config_wrong("thermostat", "type", "\"none\", \"langevin\" or \"bussi\"", _config_show_value(kind))
 end
 
 function _read_barostat(tbl::Dict{String, Any})
     haskey(tbl, "barostat") || return nothing
-    b = _table(tbl, "", "barostat")
-    kind = _string(b, "barostat", "type")
-    kind == "berendsen" || _wrong("barostat", "type", "\"berendsen\"", _show_value(kind))
+    b = _config_table(tbl, "", "barostat")
+    kind = _config_string(b, "barostat", "type")
+    kind == "berendsen" || _config_wrong("barostat", "type", "\"berendsen\"", _config_show_value(kind))
     _check_keys(b, "barostat", ("type", "pressure", "tau", "compressibility"))
     return BerendsenBarostat(
-        _float(b, "barostat", "pressure"), _float(b, "barostat", "tau"; positive = true),
-        _float(b, "barostat", "compressibility"; positive = true)
+        _config_float(b, "barostat", "pressure"), _config_float(b, "barostat", "tau"; positive = true),
+        _config_float(b, "barostat", "compressibility"; positive = true)
     )
 end
 
@@ -124,24 +124,24 @@ function _read_config(tbl::Dict{String, Any})
     _check_keys(
         tbl, "", ("lattice", "vacancy", "temperature", "thermostat", "barostat", "steps", "dt", "seed", "output_every")
     )
-    lat = _table(tbl, "", "lattice")
+    lat = _config_table(tbl, "", "lattice")
     _check_keys(lat, "lattice", ("type", "element", "a", "size"))
-    kind = _string(lat, "lattice", "type")
-    kind == "fcc" || _wrong("lattice", "type", "\"fcc\"", _show_value(kind))
-    element = _string(lat, "lattice", "element")
+    kind = _config_string(lat, "lattice", "type")
+    kind == "fcc" || _config_wrong("lattice", "type", "\"fcc\"", _config_show_value(kind))
+    element = _config_string(lat, "lattice", "element")
     try
         Systems.atomic_number(Symbol(element))
     catch err
         err isa ArgumentError || rethrow()
-        _wrong("lattice", "element", "a built-in element symbol", _show_value(element))
+        _config_wrong("lattice", "element", "a built-in element symbol", _config_show_value(element))
     end
-    temperature = _float(tbl, "", "temperature"; nonnegative = true)
-    steps = _int(tbl, "", "steps"; min = 0)
-    every = haskey(tbl, "output_every") ? _int(tbl, "", "output_every"; min = 1) : 1
+    temperature = _config_float(tbl, "", "temperature"; nonnegative = true)
+    steps = _config_int(tbl, "", "steps"; min = 0)
+    every = haskey(tbl, "output_every") ? _config_int(tbl, "", "output_every"; min = 1) : 1
     return MDConfig(
-        element, _float(lat, "lattice", "a"; positive = true), _size(lat, "lattice", "size"),
-        _bool(tbl, "", "vacancy"), temperature, _read_thermostat(tbl, temperature), _read_barostat(tbl),
-        steps, _float(tbl, "", "dt"; positive = true), _int(tbl, "", "seed"), every,
+        element, _config_float(lat, "lattice", "a"; positive = true), _config_size(lat, "lattice", "size"),
+        _config_bool(tbl, "", "vacancy"), temperature, _read_thermostat(tbl, temperature), _read_barostat(tbl),
+        steps, _config_float(tbl, "", "dt"; positive = true), _config_int(tbl, "", "seed"), every,
     )
 end
 

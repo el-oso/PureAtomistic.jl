@@ -469,7 +469,8 @@ end
 
 # The subspace basis and problem take their column products and norms by loops over the column;
 # a loop and BLAS differ only in the order of the sum, so they agree within the bound
-# n·eps·Σ|mᵢ vᵢ| of a sum of n products (and its square root for the norm).
+# n·eps·Σ|mᵢ vᵢ| of a sum of n products. For the norm the sums of squares agree within n·eps of
+# their value, and the square root halves a relative error, so the norms agree within n·eps·|m|.
 @testitem "TrustRegionLBFGS column products agree with dot and norm" begin
     using PureAtomistic.Integrators: _col_dot, _col_norm
     using LinearAlgebra, Random

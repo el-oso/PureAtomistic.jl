@@ -10,6 +10,7 @@
 @inline _scale3(a::NTuple{3, T}, s::T) where {T} = (a[1] * s, a[2] * s, a[3] * s)
 @inline _cols3(a::NTuple{3, T}, b::NTuple{3, T}, c::NTuple{3, T}) where {T} =
     (a[1], a[2], a[3], b[1], b[2], b[3], c[1], c[2], c[3])
+@inline _maxabs3(a::NTuple{3, T}) where {T} = max(abs(a[1]), abs(a[2]), abs(a[3]))
 
 # A unit vector perpendicular to the unit vector `u`: `u` crossed with the coordinate axis it is
 # least aligned with.
@@ -26,20 +27,40 @@ end
 # they are `σₖ uₖ`. A pair of columns `(p, q)` with `α = |p|²`, `β = |q|²` and `γ = p·q` is
 # rotated by the angle that zeroes `γ`: `ζ = (β - α) / 2γ`, `t = sign(ζ) / (|ζ| + √(1 + ζ²))`,
 # `c = 1 / √(1 + t²)`, `s = c t`, `p ← c p - s q`, `q ← s p + c q`. Sweeps over the three pairs
-# stop when no pair has `|γ| > eps(T) √(αβ)`. The columns are returned with `σ` in decreasing order.
-# The third column of `U` is `u₁ × u₂`: that is `±u₃`, and the Kabsch rotation, which carries
-# `d u₃` with `d = sign det(V Uᵀ)`, is the same for either sign, while `u₃ = a₃ / σ₃` is rounding
-# noise for a planar configuration. A zero `σ₂` leaves `u₂` free, and a unit vector perpendicular to
-# `u₁` is taken.
-function _svd3(H::NTuple{9, T}) where {T}
-    a = (_col3(H, 1), _col3(H, 2), _col3(H, 3))
+# stop when no pair has `|γ| > 4 eps(T) √(αβ)`; more than `maxsweeps` sweeps throw. The computed `γ`
+# of two orthogonal columns carries up to about 1.5 eps(T) √(αβ) of rounding (three products, two
+# sums) and each rotation leaves its own, so a threshold of eps(T) √(αβ) lets the sweeps alternate
+# between two rounded states (a Float32 matrix alternated at 1.04 eps(T) √(αβ)). With 4 eps(T) the
+# sweeps end within 5 for 4·10⁵ random matrices of full rank, rank 2, rank 1 and equal singular
+# values in each precision.
+#
+# The sweeps run on `H` scaled by the power of two of its largest entry `m`, which is exact. A
+# column whose largest entry is at most `8 eps(T) m` is rounding noise, at the level of the rounding
+# of `H` itself, and is not rotated: the residual columns of 2·10⁵ random matrices of rank 1 and
+# 2 reach at most 0.99 eps(T) m in either precision. Rotating it would not converge, since each rotation
+# leaves a remainder of its own rounding that points anywhere, and the column shrinks by eps(T) per
+# sweep until it underflows. A rotated pair therefore has `β/α < (6 / 8 eps(T))²`, so `|ζ| < 3 / 32
+# eps(T)²` (7·10¹² in Float32) and `ζ²` cannot overflow.
+#
+# The columns are returned with `σ` in decreasing order. The third column of `U` is `u₁ × u₂`: that
+# is `±u₃`, and the Kabsch rotation, which carries `d u₃` with `d = sign det(V Uᵀ)`, is the same for
+# either sign, while `u₃ = a₃ / σ₃` is rounding noise for a planar configuration. A second column
+# that is noise leaves `u₂` free, and a unit vector perpendicular to `u₁` is taken.
+function _svd3(H::NTuple{9, T}, maxsweeps::Int = 60) where {T}
+    m = maximum(abs, H)
+    e = iszero(m) ? 0 : exponent(m)
+    S = map(h -> ldexp(h, -e), H)
+    noise = 8 * eps(T)
+    a = (_col3(S, 1), _col3(S, 2), _col3(S, 3))
     v = ((one(T), zero(T), zero(T)), (zero(T), one(T), zero(T)), (zero(T), zero(T), one(T)))
-    for _ in 1:60
+    converged = false
+    for _ in 1:maxsweeps
         rotated = false
         for (p, q) in ((1, 2), (1, 3), (2, 3))
             ap, aq = a[p], a[q]
+            (_maxabs3(ap) <= noise || _maxabs3(aq) <= noise) && continue
             α, β, γ = _dot3(ap, ap), _dot3(aq, aq), _dot3(ap, aq)
-            abs(γ) > eps(T) * sqrt(α * β) || continue
+            abs(γ) > 4 * eps(T) * sqrt(α * β) || continue
             rotated = true
             ζ = (β - α) / (2γ)
             t = (ζ >= 0 ? one(T) : -one(T)) / (abs(ζ) + sqrt(1 + ζ^2))
@@ -49,8 +70,10 @@ function _svd3(H::NTuple{9, T}) where {T}
             vp, vq = v[p], v[q]
             v = Base.setindex(Base.setindex(v, _sub3(_scale3(vp, c), _scale3(vq, s)), p), _add3(_scale3(vp, s), _scale3(vq, c)), q)
         end
-        rotated || break
+        converged = !rotated
+        converged && break
     end
+    converged || throw(ArgumentError(lazy"pureatomistic: the 3 × 3 SVD did not converge in $maxsweeps sweeps"))
     σ = (sqrt(_dot3(a[1], a[1])), sqrt(_dot3(a[2], a[2])), sqrt(_dot3(a[3], a[3])))
     # Decreasing σ: a three-element sort by exchanges.
     order = (1, 2, 3)
@@ -60,11 +83,11 @@ function _svd3(H::NTuple{9, T}) where {T}
     s1, s2, s3 = σ[order[1]], σ[order[2]], σ[order[3]]
     a1, a2 = a[order[1]], a[order[2]]
     u1 = iszero(s1) ? (one(T), zero(T), zero(T)) : _scale3(a1, inv(s1))
-    u2 = iszero(s2) ? _perp3(u1) : _scale3(a2, inv(s2))
+    u2 = _maxabs3(a2) <= noise ? _perp3(u1) : _scale3(a2, inv(s2))
     u3 = _cross3(u1, u2)
     U = _cols3(u1, u2, u3)
     V = _cols3(v[order[1]], v[order[2]], v[order[3]])
-    return U, (s1, s2, s3), V
+    return U, (ldexp(s1, e), ldexp(s2, e), ldexp(s3, e)), V
 end
 
 @inline _det3(m::NTuple{9, T}) where {T} =

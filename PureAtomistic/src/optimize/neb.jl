@@ -154,6 +154,8 @@ function _evaluate_image!(b::_NEBBand, potential::AbstractPotential, cell, j::In
 end
 
 function _copy_forces!(F::AbstractMatrix, G::AbstractMatrix)
+    axes(F) == axes(G) ||
+        throw(DimensionMismatch(lazy"pureatomistic: the forces $(axes(G)) do not match the image block $(axes(F))"))
     for a in axes(F, 2), d in axes(F, 1)
         F[d, a] = G[d, a]
     end

@@ -241,6 +241,10 @@ end
     @test_throws "pureatomistic: neb image 2 has a zero tangent: its neighbors coincide with it" neb(same, c, p)
     nanp = RelaxFixtures.NaNPotential(PotentialResult{Float64}(1))
     @test_throws "pureatomistic: neb met a non-finite energy or force at image 1 after 0 steps" neb(imgs, c, nanp)
+    # The forces of an image evaluation fill one image block of the band.
+    @test_throws "pureatomistic: the forces (Base.OneTo(3), Base.OneTo(3)) do not match the image block (Base.OneTo(3), Base.OneTo(2))" PureAtomistic.Integrators._copy_forces!(
+        zeros(3, 2), zeros(3, 3)
+    )
 end
 
 @testitem "neb on views and OffsetArrays" setup = [NEBFixtures] begin

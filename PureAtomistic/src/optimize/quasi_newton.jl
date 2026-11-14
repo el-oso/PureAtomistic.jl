@@ -433,12 +433,12 @@ end
 
 """
     relax!(sys, potential; fmax = 1e-3, maxsteps = 10_000, memory = 10, radius = 0.1,
-           max_radius = 0.5, alpha = 70.0, eta = 1e-4, fixed = Int[],
-           frozen = Pair{Int, NTuple{3, Float64}}[]) -> RelaxResult
+           max_radius = 0.5, alpha = 70.0, eta = 1e-4, fixed = (), frozen = ()) -> RelaxResult
 
 Minimize the energy of `potential` over the positions of `sys` at fixed cell with the default
 relaxer, [`TrustRegionLBFGS`](@ref), built from the keywords other than `fmax` and `maxsteps`;
-see `relax!(sys, potential, opt::TrustRegionLBFGS)`. It is the default because, of the relaxers
+see `relax!(sys, potential, opt::TrustRegionLBFGS)`. `fixed` lists atoms and `frozen` holds
+`atom => direction` pairs, as for [`TrustRegionLBFGS`](@ref). It is the default because, of the relaxers
 measured on 256- and 3,999-atom Cu cells with MACE-MPA-0, it needed no more force evaluations than
 any other and the least time, and its storage grows linearly with the number of atoms
 (`bench/results/relax_compare_mac.json`, `bench/results/relax_single_mac.json`). The 3,999-atom
@@ -449,10 +449,23 @@ rests on the evaluation counts. Pass a [`FIRE`](@ref), [`FIRE2`](@ref) or
 function relax!(
         sys::System{T}, potential::AbstractPotential; fmax::Real = 1.0e-3, maxsteps::Integer = 10_000,
         memory::Integer = 10, radius::Real = 0.1, max_radius::Real = 0.5, alpha::Real = 70.0,
-        eta::Real = 1.0e-4, fixed = Int[], frozen = Pair{Int, NTuple{3, Float64}}[]
+        eta::Real = 1.0e-4, fixed = (), frozen = ()
     ) where {T}
-    # A system without atoms is already at a minimum; TrustRegionLBFGS itself needs one atom.
-    natoms(sys) == 0 && return relax!(sys, potential, FIRE(sys); fmax, maxsteps)
-    opt = TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)
+    natoms(sys) == 0 && return _relax_without_atoms(sys, potential, fmax, maxsteps)
+    opt = _default_relaxer(sys, memory, radius, max_radius, alpha, eta, fixed, frozen)
     return relax!(sys, potential, opt; fmax, maxsteps)
+end
+
+# The relaxer state that `relax!(sys, potential)` builds. Kept out of line, so that the relaxation
+# itself is judged apart from the state it allocates.
+@noinline _default_relaxer(sys::System, memory, radius, max_radius, alpha, eta, fixed, frozen) =
+    TrustRegionLBFGS(sys; memory, radius, max_radius, alpha, eta, fixed, frozen)
+
+# A system without atoms is at its minimum: one evaluation gives the energy, and the largest force
+# of no atoms is zero. TrustRegionLBFGS needs at least one atom.
+function _relax_without_atoms(sys::System{T}, potential::AbstractPotential, fmax::Real, maxsteps::Integer) where {T}
+    _check_relax_arguments(sys, potential, fmax, maxsteps)
+    _evaluate!(potential, sys)
+    fm, E = _status(potential, 0)
+    return RelaxResult{T}(fm < T(fmax), 0, E, fm)
 end

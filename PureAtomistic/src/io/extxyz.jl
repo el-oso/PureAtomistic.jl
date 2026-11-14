@@ -47,8 +47,8 @@ struct Frame{T <: AbstractFloat}
 end
 
 # A dense copy of `A` in element type `T` whatever `A`'s axes; an existing `Matrix{T}` is kept.
-_dense(::Type{T}, A::Matrix{T}) where {T} = A
-function _dense(::Type{T}, A::AbstractMatrix) where {T}
+_frame_matrix(::Type{T}, A::Matrix{T}) where {T} = A
+function _frame_matrix(::Type{T}, A::AbstractMatrix) where {T}
     M = Matrix{T}(undef, size(A))
     _copy_dense!(M, A)
     return M
@@ -71,8 +71,8 @@ function Frame{T}(
         energy = NaN, time = NaN, extras = Pair{String, String}[]
     ) where {T}
     return Frame{T}(
-        species, _dense(T, positions), _dense(T, forces), _dense(T, velocities),
-        _dense(T, cell), _dense(T, stress), _dense(T, virial), NTuple{3, Bool}(pbc), convert(T, energy), convert(T, time), extras
+        species, _frame_matrix(T, positions), _frame_matrix(T, forces), _frame_matrix(T, velocities),
+        _frame_matrix(T, cell), _frame_matrix(T, stress), _frame_matrix(T, virial), NTuple{3, Bool}(pbc), convert(T, energy), convert(T, time), extras
     )
 end
 
