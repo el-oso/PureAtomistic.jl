@@ -296,3 +296,29 @@ end
         @test isconcretetype(NEBResult{T})
     end
 end
+
+# The band loop evaluates every interior image per step; after the band is built it allocates
+# nothing, the potential's evaluation included. The potential's neighbor-list rebuild is a
+# workspace path that a fixed band never takes (checked by `n_regrows`).
+@testitem "neb band loop allocates nothing" tags = [:checks] setup = [RelaxFixtures] begin
+    using StrictModeTest, StrictMode
+    using PureAtomistic.Integrators: FIRE, FIRE2, _NEBBand, _neb!, _fixed_mask, _frozen_rows
+    register_alloc_barrier!(PureAtomistic.Potentials._regrow!)
+    @noinline loop!(b, cell, p, opt, tol) = _neb!(b, cell, p, opt, tol, 3)
+    for T in (Float64, Float32)
+        sys, perfect, lj = RelaxFixtures.lj_crystal(T)
+        n, m = size(perfect, 2), 3
+        X = Matrix{T}(undef, 3, n * (m + 2))
+        for j in 0:(m + 1)
+            X[:, (j * n + 1):((j + 1) * n)] .= perfect .+ (T(j) / (m + 1)) .* (sys.positions .- perfect)
+        end
+        isfixed = _fixed_mask(n, Int[])
+        atoms, dirs = _frozen_rows(T, n, isfixed, Pair{Int, NTuple{3, Float64}}[])
+        for opt in (FIRE{T}(n * m), FIRE2{T}(n * m))
+            band = _NEBBand{T}(X, n, m, T(0.1), true, isfixed, atoms, dirs)
+            loop!(band, sys.cell, lj, opt, T(1.0e-6))
+            @test_noalloc loop!(band, sys.cell, lj, opt, T(1.0e-6))
+            @test lj.n_regrows == 0
+        end
+    end
+end

@@ -1193,8 +1193,8 @@ expect = "one-dimensional span"
 [[mutation]]
 name = "lbfgs-subspace-curvature"
 file = "src/optimize/lbfgs.jl"
-find = 'K[i, j] = dot(view(M, :, i), hv)'
-replace = 'K[i, j] = dot(view(M, :, i), view(M, :, j))'
+find = 'K[i, j] = _col_dot(M, i, hv)'
+replace = 'K[i, j] = _col_dot(M, i, view(M, :, j))'
 expect = "subspace problem|one-dimensional span"
 
 [[mutation]]
@@ -1336,7 +1336,7 @@ expect = "neb limits and the FIRE2 uphill stop"
 [[mutation]]
 name = "neb-no-convergence-stop"
 file = "src/optimize/neb.jl"
-find = "        fm < tol && return _neb_result(b, true, step, fm, ci)\n"
+find = "        fm < tol && return (true, step, fm, ci)\n"
 replace = ""
 expect = "climbing image finds the Müller–Brown saddle point"
 
@@ -1430,3 +1430,23 @@ file = "src/analysis/rmsd.jl"
 find = 'R = F.V * LinearAlgebra.Diagonal(T[1, 1, d]) * F.U'
 replace = 'R = F.U * LinearAlgebra.Diagonal(T[1, 1, d]) * F.V'
 expect = "a rigidly moved frame and a mirror image"
+
+[[mutation]]
+name = "lbfgs-column-dot"
+file = "src/optimize/lbfgs.jl"
+find = '        s += M[i, j] * v[i]'
+replace = '        s += M[i, j] * abs(v[i])'
+expect = "column products|subspace problem|one-dimensional span"
+
+[[mutation]]
+name = "lbfgs-column-norm"
+file = "src/optimize/lbfgs.jl"
+find = '''
+        s += M[i, j]^2
+    end
+    return sqrt(s)'''
+replace = '''
+        s += abs(M[i, j])
+    end
+    return sqrt(s)'''
+expect = "column products|subspace"

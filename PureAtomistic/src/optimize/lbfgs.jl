@@ -230,6 +230,25 @@ function _trust_step!(opt::TrustRegionLBFGS{T})::T where {T}
     return _subspace_step!(opt, qp.x)
 end
 
+# Column j of M dotted with v, and the Euclidean norm of column j, as loops over the column: a view
+# of the column handed to `dot` reads to the allocation scan as an escaping allocation. `v` has the
+# row axis of M.
+@inline function _col_dot(M::AbstractMatrix{T}, j::Int, v::AbstractVector{T}) where {T}
+    s = zero(T)
+    for i in eachindex(v)
+        s += M[i, j] * v[i]
+    end
+    return s
+end
+
+@inline function _col_norm(M::AbstractMatrix{T}, j::Int) where {T}
+    s = zero(T)
+    for i in axes(M, 1)
+        s += M[i, j]^2
+    end
+    return sqrt(s)
+end
+
 # Columns 1:rank of opt.M ← an orthonormal basis of span{g, sᵢ, yᵢ} by modified Gram-Schmidt,
 # applied twice to each vector; a vector whose norm falls below √eps(T) of its own is dropped.
 function _subspace_basis!(opt::TrustRegionLBFGS{T}) where {T}
@@ -249,15 +268,15 @@ function _subspace_basis!(opt::TrustRegionLBFGS{T}) where {T}
                 v[i] = src[i, jsrc]
             end
         end
-        nv0 = norm(v)
+        nv0 = _col_norm(M, col)
         iszero(nv0) && continue
         for _ in 1:2, j in 1:rank
-            c = dot(view(M, :, j), v)
+            c = _col_dot(M, j, v)
             for i in eachindex(v)
                 v[i] -= c * M[i, j]
             end
         end
-        nv = norm(v)
+        nv = _col_norm(M, col)
         nv > sqrt(eps(T)) * nv0 || continue
         for i in eachindex(v)
             v[i] /= nv
@@ -277,7 +296,7 @@ function _subspace_problem!(opt::TrustRegionLBFGS{T}) where {T}
     for j in 1:r
         _two_loop!(hv, opt, view(M, :, j))
         for i in 1:r
-            K[i, j] = dot(view(M, :, i), hv)
+            K[i, j] = _col_dot(M, i, hv)
         end
     end
     for j in 1:r, i in (j + 1):r
@@ -288,7 +307,7 @@ function _subspace_problem!(opt::TrustRegionLBFGS{T}) where {T}
     issuccess(C) || throw(ArgumentError("pureatomistic: the limited-memory inverse Hessian is not positive definite on the step subspace"))
     # c = Qᵀg, then q = Lᵀc
     for j in 1:r
-        c[j] = dot(view(M, :, j), opt.gradv)
+        c[j] = _col_dot(M, j, opt.gradv)
     end
     fill!(opt.q, zero(T))
     for j in 1:r

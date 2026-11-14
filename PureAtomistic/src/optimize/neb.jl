@@ -101,7 +101,9 @@ function neb(
         copyto!(view(X, :, ((j - 1) * n + 1):(j * n)), R)
     end
     band = _NEBBand{T}(X, n, m, T(spring), climb, isfixed, frozen_atoms, frozen_dirs)
-    return _neb!(band, cell, potential, state, T(fmax), Int(maxsteps))
+    converged, steps, fm, ci = _neb!(band, cell, potential, state, T(fmax), Int(maxsteps))
+    images_out = [Matrix(_image(band, j)) for j in 0:(m + 1)]
+    return NEBResult{T}(converged, steps, images_out, copy(band.energies), fm, ci)
 end
 
 # The stacked images (3 × n(M + 2), endpoints in the first and last n columns), the energies, the
@@ -132,17 +134,29 @@ end
 _image(b::_NEBBand, j::Int) = view(b.X, :, (j * b.n + 1):((j + 1) * b.n))
 _block(b::_NEBBand, F::AbstractMatrix, i::Int) = view(F, :, ((i - 1) * b.n + 1):(i * b.n))
 
-# Evaluate `potential` at image j, store its energy, and copy its forces into F when given.
+# Evaluate `potential` at image j, store its energy, and copy its forces into F when given. The
+# copies are loops: `copyto!` between a view and an array keeps an aliasing branch that allocates.
 function _evaluate_image!(b::_NEBBand, potential::AbstractPotential, cell, j::Int, step::Int, F)
     R = b.scratch
-    copyto!(R, _image(b, j))
+    X = b.X
+    off = j * b.n
+    for a in axes(R, 2), d in axes(R, 1)
+        R[d, a] = X[d, off + a]
+    end
     prepare!(potential, R, cell)
     energy_forces!(potential, R, cell)
     E = potential.result.energy
     (isfinite(E) && isfinite(_max_force(potential.result.forces))) ||
         throw(ArgumentError(lazy"pureatomistic: neb met a non-finite energy or force at image $(j + 1) after $step steps"))
     b.energies[j + 1] = E
-    isnothing(F) || copyto!(F, potential.result.forces)
+    isnothing(F) || _copy_forces!(F, potential.result.forces)
+    return nothing
+end
+
+function _copy_forces!(F::AbstractMatrix, G::AbstractMatrix)
+    for a in axes(F, 2), d in axes(F, 1)
+        F[d, a] = G[d, a]
+    end
     return nothing
 end
 
@@ -211,7 +225,8 @@ end
 _band_move!(opt::FIRE{T}, X::AbstractMatrix{T}, F::AbstractMatrix{T}) where {T} = (fire_step!(opt, X, F); true)
 _band_move!(opt::FIRE2{T}, X::AbstractMatrix{T}, F::AbstractMatrix{T}) where {T} = fire2_step!(opt, X, F)
 
-function _neb!(b::_NEBBand{T}, cell, potential, opt, tol::T, maxsteps::Int) where {T}
+# The band relaxation in place; returns (converged, steps, largest band force, climbing image).
+function _neb!(b::_NEBBand{T}, cell, potential, opt, tol::T, maxsteps::Int)::Tuple{Bool, Int, T, Int} where {T}
     _reset!(opt)
     interior = view(b.X, :, (b.n + 1):((b.m + 1) * b.n))
     _evaluate_image!(b, potential, cell, 0, 0, nothing)
@@ -220,16 +235,11 @@ function _neb!(b::_NEBBand{T}, cell, potential, opt, tol::T, maxsteps::Int) wher
     ci = _band_forces!(b)
     fm = _max_force(b.forces)
     for step in 0:(maxsteps - 1)
-        fm < tol && return _neb_result(b, true, step, fm, ci)
-        _band_move!(opt, interior, b.forces) || return _neb_result(b, false, step, fm, ci)
+        fm < tol && return (true, step, fm, ci)
+        _band_move!(opt, interior, b.forces) || return (false, step, fm, ci)
         _evaluate_interior!(b, potential, cell, step + 1)
         ci = _band_forces!(b)
         fm = _max_force(b.forces)
     end
-    return _neb_result(b, fm < tol, maxsteps, fm, ci)
-end
-
-function _neb_result(b::_NEBBand{T}, converged::Bool, steps::Int, fm::T, ci::Int) where {T}
-    images = [Matrix(_image(b, j)) for j in 0:(b.m + 1)]
-    return NEBResult{T}(converged, steps, images, copy(b.energies), fm, ci)
+    return (fm < tol, maxsteps, fm, ci)
 end

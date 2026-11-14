@@ -27,7 +27,7 @@ _key(where_::String, k::String) = isempty(where_) ? k : string(where_, ".", k)
 
 function _require(tbl::Dict{String, Any}, where_::String, k::String)
     haskey(tbl, k) || throw(ArgumentError(lazy"pureatomistic: missing config key \"$(_key(where_, k))\""))
-    return tbl[k]
+    return nothing
 end
 
 # The offending value as written in the file, for the scalars and arrays a config holds.
@@ -44,25 +44,29 @@ function _wrong_min(where_::String, k::String, min::Int, shown::String)
 end
 
 function _table(tbl::Dict{String, Any}, where_::String, k::String)::Dict{String, Any}
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     v isa Dict{String, Any} || _wrong(where_, k, "a table", _show_value(v))
     return v
 end
 
 function _string(tbl::Dict{String, Any}, where_::String, k::String)::String
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     v isa String || _wrong(where_, k, "a string", _show_value(v))
     return v
 end
 
 function _bool(tbl::Dict{String, Any}, where_::String, k::String)::Bool
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     v isa Bool || _wrong(where_, k, "true or false", _show_value(v))
     return v
 end
 
 function _int(tbl::Dict{String, Any}, where_::String, k::String; min::Union{Int, Nothing} = nothing)::Int
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     v isa Int || _wrong(where_, k, "an integer", _show_value(v))
     min === nothing || v >= min || _wrong_min(where_, k, min, _show_value(v))
     return v
@@ -70,7 +74,8 @@ end
 
 # A finite number; an integer is accepted for a float key.
 function _float(tbl::Dict{String, Any}, where_::String, k::String; positive::Bool = false, nonnegative::Bool = false)::Float64
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     ((v isa Float64 || v isa Int) && isfinite(v)) || _wrong(where_, k, "a finite number", _show_value(v))
     x = Float64(v)
     positive && !(x > 0) && _wrong(where_, k, "positive", _show_value(v))
@@ -79,7 +84,8 @@ function _float(tbl::Dict{String, Any}, where_::String, k::String; positive::Boo
 end
 
 function _size(tbl::Dict{String, Any}, where_::String, k::String)::NTuple{3, Int}
-    v = _require(tbl, where_, k)
+    _require(tbl, where_, k)
+    v = tbl[k]
     v isa Vector{Int} || _wrong(where_, k, "an array of three positive integers", _show_value(v))
     (length(v) == 3 && all(>=(1), v)) || _wrong(where_, k, "an array of three positive integers", _show_value(v))
     return (v[1], v[2], v[3])
@@ -146,8 +152,9 @@ function _read_config_file(path::AbstractString)
     return _read_config(parsed)
 end
 
-# Frame 0 and every `every`-th step of the run go to the trajectory.
-function _simulate(cfg::MDConfig, system, potential, thermostat, barostat, rng, traj::IO.TrajectoryWriter)
+# Frame 0 and every `every`-th step of the run go to the trajectory. Returns the number of steps
+# taken; `system` and `potential` hold the final state.
+function _simulate(cfg::MDConfig, system, potential, thermostat, barostat, rng, traj::IO.TrajectoryWriter)::Int
     dt = cfg.dt
     sim = Simulation(system, potential, VelocityVerlet(dt); thermostat, barostat, rng)
     emit = s -> IO.write_frame(
@@ -156,10 +163,10 @@ function _simulate(cfg::MDConfig, system, potential, thermostat, barostat, rng, 
     )
     emit(sim)
     run!(sim, cfg.steps; every = cfg.every, observer = emit)
-    return sim
+    return sim.step_count
 end
 
-function _simulate(cfg::MDConfig, system, potential, rng, traj::IO.TrajectoryWriter)
+function _simulate(cfg::MDConfig, system, potential, rng, traj::IO.TrajectoryWriter)::Int
     th = cfg.thermostat
     if th isa LangevinBAOAB
         return _simulate_b(cfg, system, potential, th, rng, traj)
@@ -169,7 +176,7 @@ function _simulate(cfg::MDConfig, system, potential, rng, traj::IO.TrajectoryWri
     return _simulate_b(cfg, system, potential, nothing, rng, traj)
 end
 
-function _simulate_b(cfg::MDConfig, system, potential, th, rng, traj::IO.TrajectoryWriter)
+function _simulate_b(cfg::MDConfig, system, potential, th, rng, traj::IO.TrajectoryWriter)::Int
     ba = cfg.barostat
     ba isa BerendsenBarostat && return _simulate(cfg, system, potential, th, ba, rng, traj)
     return _simulate(cfg, system, potential, th, nothing, rng, traj)
@@ -220,15 +227,15 @@ function run_md(model_path::AbstractString, config_path::AbstractString, traj_pa
     cfg.temperature > 0 && Systems.maxwell_boltzmann!(system, cfg.temperature, rng)
     potential = MACEPotential(model, system.positions, system.cell, system.species)
     traj = IO.TrajectoryWriter(traj_path, natoms(system), fill(cfg.element, natoms(system)))
-    sim = try
+    steps = try
         _simulate(cfg, system, potential, rng, traj)
     finally
         close(traj)
     end
     frame = IO.Frame(
-        fill(cfg.element, natoms(system)), sim.system.positions;
-        forces = sim.potential.result.forces, velocities = sim.system.velocities, cell = sim.system.cell,
-        energy = sim.potential.result.energy, time = sim.step_count * cfg.dt
+        fill(cfg.element, natoms(system)), system.positions;
+        forces = potential.result.forces, velocities = system.velocities, cell = system.cell,
+        energy = potential.result.energy, time = steps * cfg.dt
     )
     open(traj_path * ".extxyz", "w") do io
         IO.write_extxyz(io, frame)

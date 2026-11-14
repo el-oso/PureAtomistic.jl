@@ -466,3 +466,21 @@ end
         @test Base.return_types(_trust_step!, (typeof(opt),))[1] === T
     end
 end
+
+# The subspace basis and problem take their column products and norms by loops over the column;
+# a loop and BLAS differ only in the order of the sum, so they agree within the bound
+# n·eps·Σ|mᵢ vᵢ| of a sum of n products (and its square root for the norm).
+@testitem "TrustRegionLBFGS column products agree with dot and norm" begin
+    using PureAtomistic.Integrators: _col_dot, _col_norm
+    using LinearAlgebra, Random
+    rng = Xoshiro(29)
+    for T in (Float64, Float32), n in (3, 12, 300)
+        M = randn(rng, T, n, 4)
+        v = randn(rng, T, n)
+        for j in 1:4
+            bound = n * eps(T) * sum(abs.(M[:, j] .* v))
+            @test abs(_col_dot(M, j, v) - dot(view(M, :, j), v)) <= bound
+            @test abs(_col_norm(M, j) - norm(view(M, :, j))) <= n * eps(T) * norm(view(M, :, j))
+        end
+    end
+end
