@@ -148,10 +148,29 @@ end
 """
     rdf(frames, r_max, nbins; species_pair = nothing) -> (r, g, n)
 
+Radial distribution function of the pairs `species_pair` over `frames` in `nbins` bins up to
+`r_max` (Å), as new vectors over the bins; see [`rdf!`](@ref).
+"""
+function rdf(frames, r_max::Real, nbins::Integer; species_pair = nothing)
+    nbins >= 1 || throw(ArgumentError(lazy"pureatomistic: rdf needs at least one bin, got $nbins"))
+    isempty(eachindex(frames)) && throw(ArgumentError("pureatomistic: rdf needs at least one frame"))
+    f1 = frames[first(eachindex(frames))]
+    T = float(promote_type(eltype(f1.positions), eltype(f1.cell)))
+    return rdf!(
+        Vector{T}(undef, nbins), Vector{T}(undef, nbins), Vector{T}(undef, nbins), zeros(Int, nbins),
+        frames, r_max; species_pair
+    )
+end
+
+"""
+    rdf!(r, g, n, hist, frames, r_max; species_pair = nothing) -> (r, g, n)
+
 Radial distribution function of the pairs `(A, B) = species_pair` (`nothing`: all atoms, either
-element may be `nothing`) over `frames`, in `nbins` bins of width `Δ = r_max / nbins` up to
-`r_max` (Å). `r` holds the bin centers. With `C_k` the ordered-pair count of bin `k` summed over
-the frames (see [`rdf_histogram!`](@ref), which also states when the minimum image is used),
+element may be `nothing`) over `frames`, in `nbins = length(hist)` bins of width
+`Δ = r_max / nbins` up to `r_max` (Å), written into `r`, `g` and `n`; `hist` is the integer
+scratch of the pair counts. The four vectors share their axes. `r` holds the bin centers. With
+`C_k` the ordered-pair count of bin `k` summed over the frames (see [`rdf_histogram!`](@ref),
+which also states when the minimum image is used),
 
     g_k = C_k / (Σ_frames P / V · 4π/3 (r_hi³ - r_lo³)),
 
@@ -170,16 +189,22 @@ than the upper edge of bin `k`.
 
 `frames` is any collection with `eachindex` and `getindex` whose elements have `positions`,
 `cell` and `species` (a vector of `System`s or `Frame`s, or a `TrajectoryReader`). Views and
-`OffsetArray`s are accepted; `r`, `g` and `n` are plain vectors over the bins.
+`OffsetArray`s are accepted. Allocates nothing for frames that are already in memory.
 """
-function rdf(frames, r_max::Real, nbins::Integer; species_pair = nothing)
+function rdf!(
+        r::AbstractVector, g::AbstractVector, n::AbstractVector, hist::AbstractVector{<:Integer}, frames, r_max::Real;
+        species_pair = nothing
+    )
+    (axes(r) == axes(hist) && axes(g) == axes(hist) && axes(n) == axes(hist)) ||
+        throw(DimensionMismatch(lazy"pureatomistic: r $(axes(r)), g $(axes(g)), n $(axes(n)) and hist $(axes(hist)) must have equal axes"))
+    nbins = length(hist)
     nbins >= 1 || throw(ArgumentError(lazy"pureatomistic: rdf needs at least one bin, got $nbins"))
     isempty(eachindex(frames)) && throw(ArgumentError("pureatomistic: rdf needs at least one frame"))
     f1 = frames[first(eachindex(frames))]
     T = float(promote_type(eltype(f1.positions), eltype(f1.cell)))
     sa, sb = _pair_species(species_pair)
     rm = T(r_max)
-    hist = zeros(Int, nbins)
+    fill!(hist, 0)
     weight = zero(T)
     na_total = 0
     for k in eachindex(frames)
@@ -200,16 +225,13 @@ function rdf(frames, r_max::Real, nbins::Integer; species_pair = nothing)
         na_total += na
     end
     Δ = T(r_max) / nbins
-    r = Vector{T}(undef, nbins)
-    g = Vector{T}(undef, nbins)
-    n = Vector{T}(undef, nbins)
     cum = 0
-    for k in 1:nbins
+    for (k, b) in enumerate(eachindex(hist))
         lo, hi = (k - 1) * Δ, k * Δ
-        r[k] = (lo + hi) / 2
-        g[k] = hist[k] / (weight * T(4π) / 3 * (hi^3 - lo^3))
-        cum += hist[k]
-        n[k] = T(cum) / T(na_total)
+        r[b] = (lo + hi) / 2
+        g[b] = hist[b] / (weight * T(4π) / 3 * (hi^3 - lo^3))
+        cum += hist[b]
+        n[b] = T(cum) / T(na_total)
     end
     return (r = r, g = g, n = n)
 end

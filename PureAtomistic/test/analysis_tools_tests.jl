@@ -398,6 +398,8 @@ end
             cn_pair(f, r) = coordination_numbers(f, r; species_pair = (29, 29))
             rmsd_al(f, y) = rmsd(f, y; align = true)
             hist_pair(h, p, c, s, r) = rdf_histogram!(h, p, c, s, r; species_pair = ("Cu", "Cu"))
+            msd_in(l, m, u, p, g, f) = msd!(l, m, u, p, g, f; dt = 1.0)
+            rmsd_in_al(o, f, y) = rmsd!(o, f, y; align = true)
         end,
         rdf(Vector{S64}, Float64, Int),
         rdf(Vector{S32}, Float32, Int),
@@ -423,6 +425,13 @@ end
         rmsd(Vector{S64}, Matrix{Float64}),
         rmsd_al(Vector{S64}, Matrix{Float64}),
         rmsd_al(Vector{S32}, Matrix{Float32}),
+        rdf!(Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Int}, Vector{S64}, Float64),
+        rdf!(Vector{Float32}, Vector{Float32}, Vector{Float32}, Vector{Int}, Vector{S32}, Float32),
+        msd_in(Vector{Float64}, Matrix{Float64}, Matrix{Float64}, Matrix{Float64}, Array{Float64, 3}, Vector{S64}),
+        msd_in(Vector{Float32}, Matrix{Float32}, Matrix{Float32}, Matrix{Float32}, Array{Float32, 3}, Vector{S32}),
+        rmsd!(Vector{Float64}, Vector{S64}, Matrix{Float64}),
+        rmsd_in_al(Vector{Float64}, Vector{S64}, Matrix{Float64}),
+        rmsd_in_al(Vector{Float32}, Vector{S32}, Matrix{Float32}),
     )
 end
 
@@ -433,6 +442,12 @@ end
         @test Base.return_types(rdf, (Vector{S}, T, Int)) == [@NamedTuple{r::Vector{T}, g::Vector{T}, n::Vector{T}}]
         @test Base.return_types(coordination_numbers, (S, T)) == [Vector{Int}]
         @test Base.return_types(rmsd, (Vector{S}, Matrix{T})) == [Vector{T}]
+        @test Base.return_types(rmsd!, (Vector{T}, Vector{S}, Matrix{T})) == [Vector{T}]
+        @test Base.return_types(rdf!, (Vector{T}, Vector{T}, Vector{T}, Vector{Int}, Vector{S}, T)) ==
+            [@NamedTuple{r::Vector{T}, g::Vector{T}, n::Vector{T}}]
+        msd_in(l, m, u, p, g, f) = msd!(l, m, u, p, g, f; dt = 1.0)
+        @test Base.return_types(msd_in, (Vector{T}, Matrix{T}, Matrix{T}, Matrix{T}, Array{T, 3}, Vector{S})) ==
+            [@NamedTuple{lag_fs::Vector{T}, msd_A2::Matrix{T}}]
         @test Base.return_types(unwrap!, (Matrix{T}, Matrix{T}, Matrix{T}, Matrix{T})) == [Matrix{T}]
         @test Base.return_types(rdf_histogram!, (Vector{Int}, Matrix{T}, Matrix{T}, Vector{Int}, T)) == [Vector{Int}]
         msd_dt(f, dt) = msd(f; max_lag = 4, dt)
@@ -442,4 +457,121 @@ end
     end
     msd_t(f) = msd(f; max_lag = 4)
     @test Base.return_types(msd_t, (TrajectoryReader,)) == [@NamedTuple{lag_fs::Vector{Float64}, msd_A2::Matrix{Float64}}]
+end
+
+@testitem "in-place analysis kernels equal the allocating forms and allocate nothing" tags = [:analysis, :checks] setup = [ToolOracles] begin
+    using PureAtomistic.Analysis, PureAtomistic.Systems, Random
+    using StrictModeTest, StrictMode
+    @noinline rdf_in!(r, g, n, h, fs) = rdf!(r, g, n, h, fs, 4.0)
+    @noinline msd_in!(l, m, u, p, ring, fs) = msd!(l, m, u, p, ring, fs; dt = 2.0)
+    @noinline rmsd_in!(o, fs, y) = rmsd!(o, fs, y; align = true)
+    @noinline sites_in!(s, c, a) = reference_sites!(s, c, a, 2)
+    for T in (Float64, Float32)
+        rng = Xoshiro(5)
+        C = T[9 1 0.5; 0 8.5 -0.7; 0 0 8]
+        X0 = ToolOracles.uniform(rng, C, 12)
+        fs = [ToolOracles.frame(X0 .+ T(0.2) .* randn(rng, T, 3, 12), fill(29, 12), C) for _ in 1:9]
+        r, g, n, h = zeros(T, 10), zeros(T, 10), zeros(T, 10), zeros(Int, 10)
+        @test rdf_in!(r, g, n, h, fs) == rdf(fs, 4.0, 10)
+        @test_noalloc rdf_in!(r, g, n, h, fs)
+        l, m, ring = zeros(T, 3), zeros(T, 3, 3), zeros(T, 3, 12, 3)
+        u, p = similar(X0), similar(X0)
+        @test msd_in!(l, m, u, p, ring, fs) == msd(fs; max_lag = 2, nblocks = 3, dt = 2.0)
+        @test_noalloc msd_in!(l, m, u, p, ring, fs)
+        o = zeros(T, 9)
+        @test rmsd_in!(o, fs, X0) == rmsd(fs, X0; align = true)
+        @test rmsd!(zeros(T, 9), fs, X0) == rmsd(fs, X0)
+        @test_noalloc rmsd_in!(o, fs, X0)
+        a = T(3.61)
+        cell = Matrix{T}(2a * [1 0 0; 0 1 0; 0 0 1])
+        s = zeros(T, 3, 32)
+        @test sites_in!(s, cell, a) == reference_sites(cell, a, 2)
+        @test_noalloc sites_in!(s, cell, a)
+        @test_throws "pureatomistic: r (Base.OneTo(9),), g (Base.OneTo(10),), n (Base.OneTo(10),) and hist (Base.OneTo(10),) must have equal axes" rdf!(
+            zeros(T, 9), g, n, h, fs, 4.0
+        )
+        @test_throws "pureatomistic: msd_A2 has 4 rows for 3 lags" msd!(l, zeros(T, 4, 3), u, p, ring, fs; dt = 2.0)
+        @test_throws "pureatomistic: ring has size (3, 12, 2), expected (3, 12, 3)" msd!(l, m, u, p, zeros(T, 3, 12, 2), fs; dt = 2.0)
+        @test_throws "pureatomistic: unwrapped (Base.OneTo(3), Base.OneTo(11)) and previous (Base.OneTo(3), Base.OneTo(12)) must have the axes (Base.OneTo(3), Base.OneTo(12)) of the positions" msd!(
+            l, m, zeros(T, 3, 11), p, ring, fs; dt = 2.0
+        )
+        @test_throws "pureatomistic: out has 8 entries for 9 frames" rmsd!(zeros(T, 8), fs, X0)
+        @test_throws "pureatomistic: sites must have axes (Base.OneTo(3), Base.OneTo(32)), got (Base.OneTo(3), Base.OneTo(31))" reference_sites!(
+            zeros(T, 3, 31), cell, a, 2
+        )
+    end
+end
+
+@testitem "3 × 3 singular value decomposition" tags = [:analysis] begin
+    using PureAtomistic.Analysis: _svd3
+    using LinearAlgebra, Random
+    mat(t) = [t[1] t[4] t[7]; t[2] t[5] t[8]; t[3] t[6] t[9]]
+    rng = Xoshiro(17)
+    for T in (Float64, Float32), trial in 1:300
+        kind = trial % 4
+        A = kind == 0 ? randn(rng, T, 3, 3) :
+            kind == 1 ? randn(rng, T, 3, 2) * randn(rng, T, 2, 3) :       # rank 2
+            kind == 2 ? randn(rng, T, 3, 1) * randn(rng, T, 1, 3) :       # rank 1
+            Matrix(T(2) * qr(randn(rng, T, 3, 3)).Q)                    # equal singular values
+        H = Tuple(A)
+        U, σ, V = _svd3(H)
+        Um, Vm = mat(U), mat(V)
+        # Measured over 10⁵ matrices of these kinds in each precision: reconstruction within
+        # 7.7 eps·σ₁ and orthonormality within 11.5 eps; the bounds are about 8 and 6 times those.
+        tol = 64 * eps(T) * max(σ[1], floatmin(T))
+        @test σ[1] >= σ[2] >= σ[3] >= 0
+        @test norm(Um' * Um - I) <= 64 * eps(T)
+        @test norm(Vm' * Vm - I) <= 64 * eps(T)
+        # u₃ is u₁ × u₂, which is the third left singular vector up to its sign.
+        s = Um[:, 3]' * A * Vm[:, 3] < 0 ? -one(T) : one(T)
+        @test norm(Um * Diagonal([σ[1], σ[2], s * σ[3]]) * Vm' - A) <= tol
+        @test isapprox(collect(σ), svdvals(A); atol = tol)
+    end
+    # The zero matrix: every singular value is zero, and U and V are still orthonormal.
+    U, σ, V = _svd3(ntuple(_ -> 0.0, 9))
+    @test σ == (0.0, 0.0, 0.0)
+    @test mat(U)' * mat(U) ≈ I
+end
+
+@testitem "rmsd: planar and collinear frames" tags = [:analysis] setup = [ToolOracles] begin
+    using PureAtomistic.Analysis, LinearAlgebra, Random
+    rng = Xoshiro(23)
+    R = ToolOracles.rotation([0.3, 1, -2], 0.7)
+    t = [2.0, -1.0, 0.5]
+    for Y in (
+            [randn(rng, 2, 9); zeros(1, 9)],                       # planar
+            [1.0, -2.0, 0.5] * randn(rng, 1, 9),                   # collinear
+            [0.0 1.0 0.0 0.0; 0.0 0.0 1.0 0.0; 1.0 1.0 1.0 1.0],   # planar, off the origin, two atoms coincide
+            reshape([1.0, 2.0, 3.0], 3, 1),                        # one atom
+        )
+        n = size(Y, 2)
+        X = R * Y .+ t
+        Z = R * (Diagonal([1.0, -1.0, 1.0]) * Y) .+ t
+        fr = [ToolOracles.frame(P, fill(29, n), Matrix(10.0I, 3, 3)) for P in (X, Z)]
+        al = rmsd(fr, Y; align = true)
+        # A rigid motion of the frame is undone exactly up to rounding (coordinates up to 10 Å).
+        @test al[1] < 1.5e-13
+        # A planar or collinear mirror image is a proper rotation of itself, so it is superposed too.
+        @test al[2] < 1.5e-13
+    end
+end
+
+# The Kabsch rotation is proper whatever order the singular values come out of the Jacobi sweeps:
+# for a mirror image the best proper rotation leaves a residual, Horn's minimum over rotations.
+@testitem "rmsd: the superposition is a proper rotation" tags = [:analysis] setup = [ToolOracles] begin
+    using PureAtomistic.Analysis, LinearAlgebra, Random
+    using PureAtomistic.Analysis: _kabsch
+    rng = Xoshiro(31)
+    for trial in 1:200
+        n = rand(rng, 3:10)
+        Y = 4 .* randn(rng, 3, n)
+        X = ToolOracles.rotation(randn(rng, 3), 2π * rand(rng)) * (Diagonal([1.0, 1.0, -1.0]) * Y) .+ randn(rng, 3)
+        R, _, _ = _kabsch(X, Y, Float64)
+        @test det([R[1] R[4] R[7]; R[2] R[5] R[8]; R[3] R[6] R[9]]) ≈ 1
+        fr = [ToolOracles.frame(X, fill(29, n), Matrix(10.0I, 3, 3))]
+        # The squared deviations n·rmsd² = G - 2λ agree to the rounding of G, the summed squared
+        # centered coordinates of both frames.
+        G = sum(abs2, X .- sum(X; dims = 2) / n) + sum(abs2, Y .- sum(Y; dims = 2) / n)
+        @test n * abs(rmsd(fr, Y; align = true)[1]^2 - ToolOracles.horn_rmsd(X, Y)^2) <= 64 * eps() * G
+    end
 end

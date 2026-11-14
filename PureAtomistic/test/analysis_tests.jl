@@ -738,6 +738,8 @@ end
         end,
         reference_sites(Matrix{Float64}, Float64, Int),
         reference_sites(Matrix{Float32}, Float32, Int),
+        reference_sites!(Matrix{Float64}, Matrix{Float64}, Float64, Int),
+        reference_sites!(Matrix{Float32}, Matrix{Float32}, Float32, Int),
         wigner_seitz_occupancy!(Vector{Int}, Matrix{Float64}, Matrix{Float64}, Matrix{Float64}),
         wigner_seitz_occupancy!(Vector{Int}, Matrix{Float32}, Matrix{Float32}, Matrix{Float32}),
         new_tracker64(Matrix{Float64}, Matrix{Float64}),
@@ -761,5 +763,6 @@ end
             [@NamedTuple{E_m::T, σ::T, prefactor::T, σ_ln_prefactor::T, cov_E_ln_prefactor::T, chi2::T}]
         @test Base.return_types(update!, (VacancyTracker{T}, Matrix{T}, T)) == [Nothing]
         @test Base.return_types(reference_sites, (Matrix{T}, T, Int)) == [Matrix{T}]
+        @test Base.return_types(reference_sites!, (Matrix{T}, Matrix{T}, T, Int)) == [Matrix{T}]
     end
 end

@@ -93,12 +93,27 @@ end
     reference_sites(cell, a, nrep)
 
 Sites of the perfect fcc lattice with conventional lattice constant `a` (Å) in an
-`nrep`×`nrep`×`nrep` cubic supercell, as a `3 × 4nrep³` matrix. `cell` must be the supercell
-`nrep * a` times the identity; the check ties the sites to the cell they are tracked in.
+`nrep`×`nrep`×`nrep` cubic supercell, as a new `3 × 4nrep³` matrix; see
+[`reference_sites!`](@ref).
 """
 function reference_sites(cell::AbstractMatrix, a::Real, nrep::Integer)
+    nrep >= 1 || throw(ArgumentError(lazy"pureatomistic: nrep must be at least 1, got $nrep"))
+    return reference_sites!(Matrix{float(eltype(cell))}(undef, 3, 4 * nrep^3), cell, a, nrep)
+end
+
+"""
+    reference_sites!(sites, cell, a, nrep) -> sites
+
+Writes into the `3 × 4nrep³` matrix `sites` the sites of the perfect fcc lattice with
+conventional lattice constant `a` (Å) in an `nrep`×`nrep`×`nrep` cubic supercell. `cell` must be
+the supercell `nrep * a` times the identity; the check ties the sites to the cell they are tracked
+in. Allocates nothing.
+"""
+function reference_sites!(sites::AbstractMatrix, cell::AbstractMatrix, a::Real, nrep::Integer)
     T = float(eltype(cell))
     nrep >= 1 || throw(ArgumentError(lazy"pureatomistic: nrep must be at least 1, got $nrep"))
+    axes(sites) == (Base.OneTo(3), Base.OneTo(4 * nrep^3)) ||
+        throw(DimensionMismatch(lazy"pureatomistic: sites must have axes (Base.OneTo(3), Base.OneTo($(4 * nrep^3))), got $(axes(sites))"))
     cm = _mat3(T, cell)
     L = T(a) * T(nrep)
     tol = sqrt(eps(T)) * L
@@ -108,7 +123,6 @@ function reference_sites(cell::AbstractMatrix, a::Real, nrep::Integer)
             throw(ArgumentError(lazy"pureatomistic: reference_sites needs the cubic cell nrep*a = $L; cell entry $k is $(cm[k])"))
     end
     basis = ((0, 0, 0), (0, 1, 1), (1, 0, 1), (1, 1, 0))
-    sites = Matrix{T}(undef, 3, 4 * nrep^3)
     n = 0
     for i in 0:(nrep - 1), j in 0:(nrep - 1), k in 0:(nrep - 1), b in basis
         n += 1

@@ -1420,15 +1420,15 @@ expect = "the Einstein slope and its block error"
 [[mutation]]
 name = "kabsch-reflection-sign"
 file = "src/analysis/rmsd.jl"
-find = 'T[1, 1, d]'
-replace = 'T[1, 1, 1]'
-expect = "a rigidly moved frame and a mirror image"
+find = 'w = (one(T), one(T), d)'
+replace = 'w = (one(T), one(T), one(T))'
+expect = "a rigidly moved frame and a mirror image|superposition is a proper rotation"
 
 [[mutation]]
 name = "kabsch-rotation-transposed"
 file = "src/analysis/rmsd.jl"
-find = 'R = F.V * LinearAlgebra.Diagonal(T[1, 1, d]) * F.U'
-replace = 'R = F.U * LinearAlgebra.Diagonal(T[1, 1, d]) * F.V'
+find = 'V[p] * w[1] * U[q] + V[p + 3] * w[2] * U[q + 3] + V[p + 6] * w[3] * U[q + 6]'
+replace = 'U[p] * w[1] * V[q] + U[p + 3] * w[2] * V[q + 3] + U[p + 6] * w[3] * V[q + 6]'
 expect = "a rigidly moved frame and a mirror image"
 
 [[mutation]]
@@ -1450,3 +1450,17 @@ replace = '''
     end
     return sqrt(s)'''
 expect = "column products|subspace"
+
+[[mutation]]
+name = "svd3-rotation-sign"
+file = "src/analysis/rmsd.jl"
+find = 't = (ζ >= 0 ? one(T) : -one(T)) / (abs(ζ) + sqrt(1 + ζ^2))'
+replace = 't = (ζ >= 0 ? -one(T) : one(T)) / (abs(ζ) + sqrt(1 + ζ^2))'
+expect = "3 × 3 singular value decomposition"
+
+[[mutation]]
+name = "svd3-unsorted"
+file = "src/analysis/rmsd.jl"
+find = '    σ[order[2]] < σ[order[3]] && (order = (order[1], order[3], order[2]))'
+replace = ''
+expect = "3 × 3 singular value decomposition"

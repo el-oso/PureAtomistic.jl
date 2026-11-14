@@ -56,30 +56,11 @@ function _frame_time(f, c, ::Nothing)
     return f.time
 end
 
-"""
-    msd(frames; species = nothing, max_lag, nblocks = 5, dt = nothing) -> (lag_fs, msd_A2)
-
-Mean-square displacement `⟨|u(t₀ + τ) - u(t₀)|²⟩` of the atoms of `species` (`nothing`: all
-atoms) over the unwrapped positions `u` (see [`unwrap!`](@ref)), for lags `τ = 0, 1, …, max_lag`
-frames. The frames are split into `nblocks` consecutive blocks of `B = nframes ÷ nblocks` frames
-(the last `nframes - nblocks·B` frames are not used), and column `b` of `msd_A2` averages over
-the atoms and every time origin `t₀` of block `b` whose pair `(t₀, t₀ + τ)` lies inside the block,
-so the columns use disjoint stretches of the trajectory. `lag_fs` holds `τ · Δt`.
-
-`frames` is any collection with `eachindex` and `getindex` whose elements have `positions`, `cell`
-and `species` (a vector of `System`s or `Frame`s, or a `TrajectoryReader`), with the same
-atoms and species in every frame (checked). The frame times come from each frame's `time` (fs),
-which must be evenly spaced, or, when `dt` is given, are `dt` apart. The frames must be close
-enough that no atom moves half the shortest cell height between two of them (see
-[`unwrap!`](@ref)); the caller is responsible for that. Positions in Å give `msd_A2` in Å².
-"""
-function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, dt = nothing)
-    L = Int(max_lag)
-    L >= 1 || throw(ArgumentError(lazy"pureatomistic: max_lag must be at least 1, got $max_lag"))
+# The lag, block and frame-interval checks shared by `msd` and `msd!`.
+function _check_msd_blocks(L::Int, nblocks::Integer, dt, nf::Int)
+    L >= 1 || throw(ArgumentError(lazy"pureatomistic: max_lag must be at least 1, got $L"))
     nblocks >= 1 || throw(ArgumentError(lazy"pureatomistic: nblocks must be at least 1, got $nblocks"))
     isnothing(dt) || dt > 0 || throw(ArgumentError(lazy"pureatomistic: dt must be positive, got $dt"))
-    idx = eachindex(frames)
-    nf = length(idx)
     B = nf ÷ nblocks
     B > L ||
         throw(
@@ -87,20 +68,82 @@ function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, 
             lazy"pureatomistic: msd has $nf frames in $nblocks blocks of $B, too few for a lag of $L frames"
         )
     )
+    return nothing
+end
+
+"""
+    msd(frames; species = nothing, max_lag, nblocks = 5, dt = nothing) -> (lag_fs, msd_A2)
+
+Mean-square displacement of the atoms of `species` over `frames` for lags `0, 1, …, max_lag`
+frames in `nblocks` blocks, as a new vector of lags (fs) and a new `(max_lag + 1) × nblocks`
+matrix (Å²); see [`msd!`](@ref).
+"""
+function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, dt = nothing)
+    L = Int(max_lag)
+    _check_msd_blocks(L, nblocks, dt, length(eachindex(frames)))
+    f1 = frames[first(eachindex(frames))]
+    T = float(promote_type(eltype(f1.positions), eltype(f1.cell)))
+    ns = _count_species(f1.species, species)
+    return msd!(
+        Vector{T}(undef, L + 1), Matrix{T}(undef, L + 1, nblocks), similar(f1.positions, T),
+        similar(f1.positions, T), Array{T}(undef, 3, ns, L + 1), frames; species, dt
+    )
+end
+
+"""
+    msd!(lag_fs, msd_A2, unwrapped, previous, ring, frames; species = nothing, dt = nothing)
+        -> (lag_fs, msd_A2)
+
+Mean-square displacement `⟨|u(t₀ + τ) - u(t₀)|²⟩` of the atoms of `species` (`nothing`: all
+atoms) over the unwrapped positions `u` (see [`unwrap!`](@ref)), for lags `τ = 0, 1, …, L`
+frames with `L = length(lag_fs) - 1 ≥ 1`. The frames are split into `nblocks = size(msd_A2, 2)`
+consecutive blocks of `B = nframes ÷ nblocks` frames (the last `nframes - nblocks·B` frames are
+not used), and column `b` of `msd_A2` (`(L + 1) × nblocks`) averages over the atoms and every
+time origin `t₀` of block `b` whose pair `(t₀, t₀ + τ)` lies inside the block, so the columns use
+disjoint stretches of the trajectory. `lag_fs` receives `τ · Δt`. `lag_fs` and `msd_A2` are
+1-based. The scratch `unwrapped` and `previous` have the axes of the positions, and `ring` is
+`3 × nₛ × (L + 1)` with `nₛ` the number of selected atoms.
+
+`frames` is any collection with `eachindex` and `getindex` whose elements have `positions`, `cell`
+and `species` (a vector of `System`s or `Frame`s, or a `TrajectoryReader`), with the same
+atoms and species in every frame (checked). The frame times come from each frame's `time` (fs),
+which must be evenly spaced, or, when `dt` is given, are `dt` apart. The frames must be close
+enough that no atom moves half the shortest cell height between two of them (see
+[`unwrap!`](@ref)); the caller is responsible for that. Positions in Å give `msd_A2` in Å².
+Allocates nothing for frames that are already in memory.
+"""
+function msd!(
+        lag_fs::AbstractVector, msd_A2::AbstractMatrix, unwrapped::AbstractMatrix, previous::AbstractMatrix,
+        ring::AbstractArray{<:Any, 3}, frames; species = nothing, dt = nothing
+    )
+    Base.require_one_based_indexing(lag_fs, msd_A2, ring)
+    L = length(lag_fs) - 1
+    nblocks = size(msd_A2, 2)
+    idx = eachindex(frames)
+    _check_msd_blocks(L, nblocks, dt, length(idx))
+    size(msd_A2, 1) == L + 1 ||
+        throw(DimensionMismatch(lazy"pureatomistic: msd_A2 has $(size(msd_A2, 1)) rows for $(L + 1) lags"))
+    B = length(idx) ÷ nblocks
     f1 = frames[first(idx)]
     T = float(promote_type(eltype(f1.positions), eltype(f1.cell)))
     sp = f1.species
     _check_positions(f1.positions, sp)
-    sel = [a for a in eachindex(sp) if _selected(sp, a, species)]
-    isempty(sel) && throw(ArgumentError(lazy"pureatomistic: no atom has species $species"))
-    ns = length(sel)
-    u = similar(f1.positions, T)
-    prev = similar(f1.positions, T)
+    ns = _count_species(sp, species)
+    iszero(ns) && throw(ArgumentError(lazy"pureatomistic: no atom has species $species"))
+    size(ring) == (3, ns, L + 1) ||
+        throw(DimensionMismatch(lazy"pureatomistic: ring has size $(size(ring)), expected $((3, ns, L + 1))"))
+    u, prev = unwrapped, previous
+    (axes(u) == axes(f1.positions) && axes(prev) == axes(f1.positions)) ||
+        throw(
+        DimensionMismatch(
+            lazy"pureatomistic: unwrapped $(axes(u)) and previous $(axes(prev)) must have the axes $(axes(f1.positions)) of the positions"
+        )
+    )
     copyto!(u, f1.positions)
     copyto!(prev, f1.positions)
     i = first(axes(u, 1))
-    ring = zeros(T, 3, ns, L + 1)
-    acc = zeros(T, L + 1, nblocks)
+    acc = msd_A2
+    fill!(acc, zero(eltype(acc)))
     t_prev = zero(T)
     Δt = zero(T)
     used = nblocks * B
@@ -126,8 +169,13 @@ function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, 
         end
         t_prev = t
         slot = mod1(c, L + 1)
-        for j in eachindex(sel), r in 1:3
-            ring[r, j, slot] = u[i + r - 1, sel[j]]
+        j = 0
+        for a in eachindex(sp)
+            _selected(sp, a, species) || continue
+            j += 1
+            for r in 1:3
+                ring[r, j, slot] = u[i + r - 1, a]
+            end
         end
         p = (c - 1) % B
         b = (c - 1) ÷ B + 1
@@ -138,7 +186,10 @@ function msd(frames; species = nothing, max_lag::Integer, nblocks::Integer = 5, 
     for b in 1:nblocks, τ in 0:L
         acc[τ + 1, b] /= T(ns) * T(B - τ)
     end
-    return (lag_fs = T[τ * Δt for τ in 0:L], msd_A2 = acc)
+    for τ in 0:L
+        lag_fs[τ + 1] = τ * Δt
+    end
+    return (lag_fs = lag_fs, msd_A2 = msd_A2)
 end
 
 # Adds the summed squared displacement between the ring slots `s` and `s0` to `acc[row, b]`.

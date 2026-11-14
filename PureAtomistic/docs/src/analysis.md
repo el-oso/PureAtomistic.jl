@@ -47,6 +47,10 @@ about `1/√(2(nblocks - 1))`.
 `rmsd` takes positions as given, with no periodic images, and with `align = true` removes the
 best translation and proper rotation (Kabsch's method) before measuring the deviation.
 
+`rdf!`, `msd!`, `rmsd!` and `reference_sites!` are the in-place forms: they write into arrays the
+caller provides and allocate nothing for frames already in memory. `rdf`, `msd`, `rmsd` and
+`reference_sites` allocate those arrays and call them.
+
 ## Example: atomic diffusion by a vacancy at 1200 K
 
 The first 1200 K production run of the vacancy-diffusion campaign: one vacancy in 4 × 4 × 4
@@ -121,11 +125,14 @@ absorbs; the slope beyond it is the diffusion carried by the vacancy.
 
 ```@docs
 PureAtomistic.Analysis.rdf
+PureAtomistic.Analysis.rdf!
 PureAtomistic.Analysis.rdf_histogram!
 PureAtomistic.Analysis.coordination_numbers
 PureAtomistic.Analysis.coordination_numbers!
 PureAtomistic.Analysis.msd
+PureAtomistic.Analysis.msd!
 PureAtomistic.Analysis.unwrap!
 PureAtomistic.Analysis.diffusion_coefficient
 PureAtomistic.Analysis.rmsd
+PureAtomistic.Analysis.rmsd!
 ```
