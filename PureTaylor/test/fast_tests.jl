@@ -1,11 +1,10 @@
 @testmodule FastKernels begin
     using PureTaylor
 
-    # Each kernel with its Base reference and its documented domain, for Float32 and Float64:
-    # (name, kernel, reference, Float32 intervals, Float64 intervals). The intervals are closed and
-    # do not cross zero; together they cover the domain.
+    # Each kernel but fast_sqrt (checked for equality with Base's sqrt) with its Base reference and its
+    # documented domain: (name, kernel, reference, Float32 intervals, Float64 intervals). The intervals
+    # are closed and do not cross zero; together they cover the domain.
     const KERNELS = (
-        (:sqrt, fast_sqrt, sqrt, ((0.0f0, Inf32),), ((0.0, Inf),)),
         (:cbrt, fast_cbrt, cbrt, ((floatmin(Float32), floatmax(Float32)),), ((floatmin(Float64), floatmax(Float64)),)),
         (:invcbrt, fast_invcbrt, x -> inv(cbrt(x)), ((floatmin(Float32), floatmax(Float32)),), ((floatmin(Float64), floatmax(Float64)),)),
         (:log, fast_log, log, ((floatmin(Float32), floatmax(Float32)),), ((floatmin(Float64), floatmax(Float64)),)),
@@ -37,6 +36,13 @@
             end
         end
         return reduce((a, b) -> !(a[1] >= b[1]) ? b : a, fetch.(tasks))
+    end
+
+    # The number of points `decode.(xs)` where `f` and `g` differ, computed in `Threads.nthreads()` chunks.
+    function mismatches(f, g, xs; decode = identity)
+        chunks = collect(Iterators.partition(xs, cld(length(xs), Threads.nthreads())))
+        tasks = map(chunk -> Threads.@spawn(count(u -> f(decode(u)) != g(decode(u)), chunk)), chunks)
+        return sum(fetch.(tasks))
     end
 
     # The bit patterns of every Float32 in [lo, hi] (same sign).
@@ -99,13 +105,14 @@ end
 end
 
 # Exhaustive over every Float32 of each documented domain. Oracle: the Base function evaluated in
-# Float64 and rounded to Float32. Bound (c), measured margin: 4 ulps for every kernel.
+# Float64 and rounded to Float32. Bound (c), measured margin: 4 ulps for every kernel but fast_sqrt.
+# fast_sqrt is the IEEE square root, correctly rounded, so it equals Base's sqrt exactly.
 @testitem "fast kernels: Float32 accuracy, exhaustive" tags = [:exhaustive] setup = [FastKernels] begin
-    using .FastKernels: KERNELS, max_error, float32_bits, decode32, ref32
+    using .FastKernels: KERNELS, max_error, mismatches, float32_bits, decode32, ref32
+    @test mismatches(fast_sqrt, sqrt, float32_bits(0.0f0, Inf32); decode = decode32) == 0   # exact
     # Largest error measured over the whole domain (Apple M-series, Julia 1.13), in ulps of the rounded
-    # reference: sqrt 0, cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2. The tolerance, 4 ulps, is
-    # at most 4 times (≤ 100 times) each nonzero maximum. sqrt measured 0 (correctly rounded); for it
-    # 4 ulps is the cap on all kernels, not a multiple of its maximum.
+    # reference: cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2. The tolerance, 4 ulps, is at most
+    # 4 times (≤ 100 times) each of them.
     tol = 4.0
     for (name, f, g, iv32, _) in KERNELS
         worst = maximum(first(max_error(f, g, ref32, float32_bits(lo, hi); decode = decode32)) for (lo, hi) in iv32)
@@ -115,15 +122,17 @@ end
 
 # 10^7 log-uniform samples over each documented domain, its ends, the powers of two and their
 # neighbors, and for log, log1p and expm1 the region near the point where the function is zero.
-# Oracle: the Base function in 128-bit BigFloat. Bound (c), measured margin: 4 ulps for every kernel.
+# Oracle: the Base function in 128-bit BigFloat. Bound (c), measured margin: 4 ulps for every kernel
+# but fast_sqrt, which is correctly rounded and equals Base's sqrt exactly.
 @testitem "fast kernels: Float64 accuracy, sampled" setup = [FastKernels] begin
-    using .FastKernels: KERNELS, max_error, points64, ref64
+    using .FastKernels: KERNELS, max_error, mismatches, points64, ref64
     using Random: Xoshiro
-    # Largest error measured with this seed (Apple M-series, Julia 1.13), in ulps: sqrt 0.5000,
-    # cbrt 1.3249, invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.1782. The tolerance,
-    # 4 ulps, is at most 8 times (≤ 100 times) each of them.
-    tol = 4.0
     n = 10^7
+    @test mismatches(fast_sqrt, sqrt, points64(0.0, Inf, n, Xoshiro(20261120))) == 0               # exact
+    # Largest error measured with this seed (Apple M-series, Julia 1.13), in ulps: cbrt 1.3249,
+    # invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.1782. The tolerance, 4 ulps, is at
+    # most 5 times (≤ 100 times) each of them.
+    tol = 4.0
     for (name, f, g, _, iv64) in KERNELS
         rng = Xoshiro(20261120)
         xs = reduce(vcat, (points64(lo, hi, n ÷ length(iv64), rng) for (lo, hi) in iv64))
