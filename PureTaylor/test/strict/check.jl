@@ -1,15 +1,17 @@
-# Run in a fresh process by the item "StrictMode policy holds in PureTaylor": loads the package,
-# runs the workload of `workload.jl` (with the argument `control`, the failing control's workload
-# instead), then judges every compiled specialization of the package. Each guarantee is judged on
-# its own, by two engines: the proof (`test_compiled`, JET for `:typestable` and AllocCheck for
-# `:noalloc` and `:noboxing`) and the value-free scan that `@strict_policy` itself applies (`audit`
-# with `sweep = true`, for `:noalloc` and `:noboxing`).
+# Run in a fresh process by the items "StrictMode policy holds in PureTaylor" (no argument) and
+# "StrictMode gates reject the failing control" (argument `control`): loads the package, runs the
+# workload of `workload.jl` (with `control`, the failing control's workload instead, and a method
+# of an unlisted Base function), then judges every compiled specialization of the package. Each
+# guarantee is judged on its own, by two engines: the proof (`test_compiled`, JET for `:typestable`
+# and AllocCheck for `:noalloc` and `:noboxing`) and the value-free scan that `@strict_policy`
+# itself applies (`audit` with `sweep = true`, for `:noalloc` and `:noboxing`).
 #
 # The module sweeps judge the functions the package owns. The methods it adds to functions it does
 # not own are judged afterwards, each compiled specialization against the guarantees
 # `OTHER_METHODS` lists for it, with JET and AllocCheck (`test_signatures`).
 #
-# Prints one line per finding and a summary line per gate:
+# Prints one line per finding and a summary line per gate. Each finding's text carries the guarantee
+# and code the finding itself reports, as `[✗ <guarantee> <code>]`:
 #   POLICY <declared guarantees>
 #   FAIL <engine> <guarantee> <finding>
 #   CHECKED <engine> <guarantee> <judged signatures>
@@ -44,7 +46,7 @@ end
 for g in (:noalloc, :noboxing)
     fs = audit(P; sweep = true, guarantees = (g,), dispatch_suggest = false)
     for f in fs
-        f.status === :fail && println("FAIL scan ", g, " ", f.func, f.signature, " | ", f.reason)
+        f.status === :fail && println("FAIL scan ", g, " ", f.func, f.signature, " | [✗ ", f.guarantee, " ", f.code, "] ", f.reason)
     end
     println("CHECKED scan ", g, " ", count(f -> f.status === :pass, fs))
 end
@@ -66,6 +68,9 @@ function other_function(m::Method)
     f = ft.instance
     return Base.moduleroot(parentmodule(f)) === P ? :swept : f
 end
+
+# The failing control of the listing: a method of a Base function that `OTHER_METHODS` does not list.
+CONTROL && @eval P Base.abs2(a::Taylor) = a * a
 
 nother = Dict(g => 0 for g in GUARANTEES)
 judged = Set{Any}()

@@ -38,12 +38,13 @@ end
 end
 
 # Coefficients of the abstract type `Real` are type-unstable and boxed, so each gate must report a
-# finding of its own guarantee.
+# finding whose own guarantee is the gate's (`[✗ <guarantee> <code>]` in the finding's text). The
+# control's method of `abs2`, a Base function the listing does not name, must be reported unlisted.
 @testitem "StrictMode gates reject the failing control" tags = [:checks] setup = [StrictRun] begin
     using .StrictRun: run_check, GATES
     out = run_check("control")
     for (engine, g) in GATES
-        @test occursin(Regex("^FAIL $engine $g ", "m"), out)
+        @test occursin(Regex("^FAIL $engine $g .*\\[✗ $g SM\\d{4}\\]", "m"), out)
     end
-    @test !occursin(r"^FAIL unlisted"m, out)
+    @test occursin(r"^FAIL unlisted other Tuple\{typeof\(abs2\), "m, out)
 end

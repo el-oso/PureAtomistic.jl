@@ -73,6 +73,22 @@
         append!(xs, (lo, hi))
         return xs
     end
+
+    # Float32 test points in [lo, hi] (same sign): `n` log-uniform samples, the ends, every power of
+    # two in the interval and its two neighbors.
+    function points32(lo::Float32, hi::Float32, n::Int, rng)
+        s = signbit(lo) ? -1.0f0 : 1.0f0
+        a, b = minmax(abs(lo), abs(hi))
+        a = max(a, nextfloat(0.0f0))
+        b = min(b, floatmax(Float32))
+        la, lb = log(Float64(a)), log(Float64(b))
+        xs = [s * clamp(Float32(exp(la + (lb - la) * rand(rng))), a, b) for _ in 1:n]
+        for e in exponent(a):exponent(b), x in (prevfloat(2.0f0^e), 2.0f0^e, nextfloat(2.0f0^e))
+            a <= x <= b && push!(xs, s * x)
+        end
+        append!(xs, (lo, hi))
+        return xs
+    end
 end
 
 @testitem "fast kernels keep the precision of their argument" begin
@@ -121,6 +137,35 @@ end
         @testset "$name Float32" begin
             worst = maximum(first(max_error(f, g, ref32, float32_bits(lo, hi); decode = decode32)) for (lo, hi) in iv32)
             @test worst <= tol
+        end
+    end
+end
+
+# 10^7 log-uniform samples over each documented domain, its ends, the powers of two and their
+# neighbors, and for log the region near 1, where it is zero; the exhaustive item covers every point
+# but runs only on request. Oracle: the Base function evaluated in Float64 and rounded to Float32.
+# Bound (c), measured margin: 4 ulps for every kernel but fast_sqrt, which is correctly rounded and
+# equals Base's sqrt exactly. Largest error measured with this seed (Apple M-series, Julia 1.13), in
+# ulps of the rounded reference: cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2, the same as over
+# the whole domain. The tolerance, 4 ulps, is at most 4 times (≤ 100 times) each of them.
+@testitem "fast kernels: Float32 accuracy, sampled" setup = [FastKernels] begin
+    using .FastKernels: KERNELS, max_error, mismatches, points32, ref32
+    using Random: Xoshiro
+    n = 10^7
+    @testset "sqrt Float32, sampled" begin
+        @test mismatches(fast_sqrt, sqrt, points32(0.0f0, Inf32, n, Xoshiro(20261121))) == 0       # exact
+    end
+    tol = 4.0
+    for (name, f, g, iv32, _) in KERNELS
+        rng = Xoshiro(20261121)
+        xs = reduce(vcat, (points32(lo, hi, n ÷ length(iv32), rng) for (lo, hi) in iv32))
+        if name === :log
+            # log is zero at 1: points 1 ± d, d log-uniform in [eps/2, 1/4].
+            d = points32(eps(1.0f0) / 2, 0.25f0, n ÷ 10, rng)
+            append!(xs, 1 .+ d, 1 .- d)
+        end
+        @testset "$name Float32, sampled" begin
+            @test first(max_error(f, g, ref32, xs)) <= tol
         end
     end
 end

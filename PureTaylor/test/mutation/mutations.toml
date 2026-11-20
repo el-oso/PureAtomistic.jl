@@ -253,6 +253,40 @@ find = 'muladd(twok, p, twok - one(T))'
 replace = 'muladd(twok, p, twok)'
 expect = "expm1 Float64"
 
+# LN2_HI64 and LN2_HI32 have no entry: LN2_LO is computed from LN2_HI, so ln 2 = LN2_HI + LN2_LO
+# holds for any value, and the trailing zero bits only keep k·LN2_HI exact. Replacing either with ln 2
+# rounded to full precision (0x3fe62e42fefa39ef, 0x3f317218) gives, over 4·10^5 log-uniform Float64
+# and 4·10^6 Float32 points of each domain, at most 1.01 ulps (log, Float64; 0.81 unmutated) and
+# 1.0 ulp (Float32, as unmutated), inside the 4-ulp tolerance.
+
+[[mutation]]
+name = "ln2-low-part-32"
+file = "src/fast.jl"
+find = 'const LN2_LO32 = Float32(log(big(2)) - big(LN2_HI32))'
+replace = 'const LN2_LO32 = 0.0f0'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "exp-reduction-inverse-ln2-32"
+file = "src/fast.jl"
+find = 'const INV_LN2_32 = Float32(1 / log(big(2)))'
+replace = 'const INV_LN2_32 = Float32(1 / log(big(3)))'
+expect = "exp Float32, sampled|expm1 Float32, sampled"
+
+[[mutation]]
+name = "log-reduction-midpoint-32"
+file = "src/fast.jl"
+find = 'const SQRT_HALF32 = Float32(sqrt(big(0.5)))'
+replace = 'const SQRT_HALF32 = Float32(sqrt(big(0.25)))'
+expect = "log Float32, sampled|log1p Float32, sampled"
+
+[[mutation]]
+name = "exponent-bias-32"
+file = "src/fast.jl"
+find = '_exponent_bias(::Type{Float32}) = 127'
+replace = '_exponent_bias(::Type{Float32}) = 126'
+expect = "fast functions on Taylor numbers agree"
+
 # The scale handling of `derivatives`.
 
 [[mutation]]
