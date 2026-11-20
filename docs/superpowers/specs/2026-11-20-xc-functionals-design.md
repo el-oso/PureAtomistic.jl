@@ -14,7 +14,8 @@ The work starts now, on the CPU, without waiting for GPU phases B and C of plan 
 - Derivatives come from an own small Taylor/dual type with no dependencies.
   ForwardDiff is a test oracle only.
 - The library is `PureXC/`, a third package in this monorepo.
-- Below-threshold behavior is our own documented rule, not a copy of Libxc's. Agreement with
+- Thresholds are applied the same way as Libxc applies them, written down as PureXC's own
+  documented rule in each spec (see "Thresholds and edge cases"). Agreement with
   Libxc must be at least 6 significant digits at every grid point above the thresholds, for
   every output the test compares (relative error ≤ 1e-6 per point), in Float64. This is a
   floor; the tolerance policy's conditioning-based bounds are tighter where they apply.
@@ -186,14 +187,17 @@ Two kinds, kept apart:
   axes. The array layer checks before computing; the device path sets the status word and the
   host throws after the launch. Libxc returns 0 for ρ = −1 and a finite value for σ = −1
   (measured), so this is a deliberate difference, and the oracle tests feed it only valid inputs.
-- **Physical limits are documented behavior, per functional spec:** density below a threshold
-  gives zero energy and zero derivatives; σ below a threshold is raised to it; ζ is limited to
-  [−1 + ε_ζ, 1 − ε_ζ]; for meta-GGAs τ is raised to the von Weizsäcker bound. Thresholds are
-  parameters of the functional, typed in its number type, with defaults taken from Libxc's
-  public API values (density 1e-15 for PBE exchange and 1e-12 for PBE correlation; σ 1e-20 and
-  1e-16; ζ 2.2e-16 = eps(Float64), measured) and scaled for Float32. Exactly how Libxc applies
-  them (a `max`, a squared threshold, per spin channel) is not in its documentation; the spec
-  writer settles it per functional and marks it "checked against Libxc".
+- **Physical limits are documented behavior, per functional spec,** applied the same way as
+  Libxc applies them *(decided by the user)*, so the oracle comparison holds up to the
+  thresholds: total density below the density threshold gives zero energy and zero
+  derivatives; otherwise each spin channel is raised to the density threshold; σ is raised to
+  the square of the reported σ threshold; a factor (1 ± ζ)^p with 1 ± ζ ≤ ε_ζ becomes ε_ζ^p;
+  derivatives at a raised value are those at the floor; for meta-GGAs τ is raised to the von
+  Weizsäcker bound. Each spec's "PureXC rule" section gives the exact rule for its functional.
+  Thresholds are parameters of the functional, typed in its number type, with defaults taken
+  from Libxc's public API values (density 1e-15 for PBE exchange and 1e-12 for PBE
+  correlation; σ 1e-20 and 1e-16; ζ 2.2e-16 = eps(Float64), measured) and scaled for Float32.
+  Libxc's clamp of σαβ is not copied: PureXC throws for σαβ² > σαα σββ beyond a rounding bound.
 
 Measured reason this matters: at a fully polarized point (ρβ = 0) the spike's naive formulas
 give NaN for every derivative and for the exchange energy; Libxc returns finite values. At ρ = 0
