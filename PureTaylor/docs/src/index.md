@@ -42,7 +42,7 @@ coefficients that can be nonzero. `coefficient(a, α)` reads one coefficient and
 index that is not stored.
 
 **Scaled seeds.** `variable(Val(N), Val(K), Val(i), x, s)` is `x + s·uᵢ`: the series variable is
-`uᵢ`, and the derivative with respect to `x` is `s` times the derivative with respect to `uᵢ`. With
+`uᵢ`, and the derivative with respect to `uᵢ` is `s` times the derivative with respect to `x`. With
 `s = x` every coefficient stays of order 1 in size, whatever the magnitude of `x`. `derivatives(a, invscale)`
 undoes the scaling: `∂^α f = α! · c_α · Π invscale_i^α_i` with `invscale_i = 1/s_i`.
 `substitute` takes the same convention: a variable seeded with scale `s` is the increment divided
