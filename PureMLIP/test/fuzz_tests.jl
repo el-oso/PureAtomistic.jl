@@ -250,3 +250,34 @@ end
     @test e isa ArgumentError
     @test Fuzz.allowed(e, bt)
 end
+
+# A tensor dimension is untrusted: a BININT operand of 2147483646 in a shape tuple must be
+# rejected against the storage length, not allocated.
+@testitem "oversized tensor dimension is rejected before allocation" setup = [Fuzz, ZipFixtures] begin
+    a = PureMLIP.open_torch_archive(ZipFixtures.tiny_mace_zip())
+    pkl = collect(PureMLIP.entry_data(a, "data.pkl"))
+    storages = Pair{String, Vector{UInt8}}["0" => collect(PureMLIP.entry_data(a, "data/0")), "1" => collect(PureMLIP.entry_data(a, "data/1"))]
+    huge = collect(reinterpret(UInt8, [htol(Int32(2147483646))]))
+    # Every BININT operand, set to the huge value in turn, must load or fail cleanly.
+    ops = [i for i in eachindex(pkl) if pkl[i] == UInt8('J') && i + 4 <= length(pkl)]
+    @test !isempty(ops)
+    nshape = Ref(0)
+    for p in ops
+        bad = copy(pkl)
+        bad[(p + 1):(p + 4)] = huge
+        zip = ZipFixtures.zip_with_pickle(bad, storages)
+        r, _ = Fuzz.attempt(PureMLIP.load_mace_checkpoint, zip)
+        @test r === :loaded || r === :clean_error
+        try
+            PureMLIP.load_mace_checkpoint(zip)
+        catch e
+            nshape[] += e isa ErrorException && occursin("its storage holds", e.msg)
+        end
+    end
+    @test nshape[] > 0
+    # The tensor reader itself, without a pickle.
+    bytes = zeros(UInt8, 16)
+    @test_throws "checkpoint: tensor w: dimension 1 of 2147483646 makes more than the 2 elements its storage holds" PureMLIP.Checkpoint.gather(bytes, Float64, 0, [2147483646], [1], "w")
+    @test_throws "dimension 2 of 4611686018427387904" PureMLIP.Checkpoint.gather(bytes, Float64, 0, [2, 4611686018427387904], [1, 1], "w")
+    @test isempty(PureMLIP.Checkpoint.gather(bytes, Float64, 0, [0, 2147483646], [1, 1], "w"))
+end

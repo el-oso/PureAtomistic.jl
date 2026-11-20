@@ -94,7 +94,18 @@ end
 function gather(bytes::AbstractVector{UInt8}, ::Type{T}, offset::Int, shape::Vector{Int}, stride::Vector{Int}, name::String) where {T}
     nstorage = length(bytes) ÷ sizeof(T)
     all(>=(0), shape) || error(lazy"checkpoint: tensor $name has a negative dimension")
-    n = prod(shape; init = 1)
+    # Dimensions come from the archive and are untrusted: the element count is checked
+    # against the elements the storage holds before the output is allocated, one factor at
+    # a time so the product cannot overflow.
+    n = 0
+    if !any(iszero, shape)
+        n = 1
+        for (d, s) in pairs(shape)
+            n <= nstorage ÷ s ||
+                error(lazy"checkpoint: tensor $name: dimension $d of $s makes more than the $nstorage elements its storage holds")
+            n *= s
+        end
+    end
     data = Vector{T}(undef, n)
     nd = length(shape)
     counter = zeros(Int, nd)
