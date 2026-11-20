@@ -43,15 +43,39 @@ function _power_series(a::Taylor{N,K,M,T}, v::T, p::T) where {N,K,M,T}
     return compose(a, d, inv(value(a)))
 end
 
+"""
+    sqrt(a::Taylor)
+
+The series of `√a`, with its value from Base's `sqrt` (a negative value throws `DomainError`). At value
+0 the derivatives are singular: every coefficient but the value is `NaN`.
+"""
 sqrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, sqrt(value(a)), inv(T(2)))
+
+"""
+    cbrt(a::Taylor)
+
+The series of `∛a`, with its value from Base's `cbrt`. At value 0 the derivatives are singular: every
+coefficient but the value is `NaN`.
+"""
 cbrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, cbrt(value(a)), inv(T(3)))
 
 # Base defines `^(::Number, ::Rational)`; a `Rational` method of its own keeps the `Real` one
-# unambiguous.
+# unambiguous. An integer-valued exponent of magnitude at most 2^62 takes the integer-power path
+# (products only), which stays finite at value 0.
 function _real_power(a::Taylor{N,K,M,T}, p::Real) where {N,K,M,T}
     q = convert(T, p)
+    isinteger(q) && abs(q) <= T(2)^62 && return a^trunc(Int, q)
     return _power_series(a, value(a)^q, q)
 end
+
+"""
+    a^p
+
+The series of `aᵖ` for a real (or rational) `p`, converted to the coefficient type of `a`. An
+integer-valued `p` is the integer power. Otherwise the value comes from Base's `^` (a negative value
+throws `DomainError`), and at value 0 the derivatives are singular: every coefficient but the value is
+`NaN`.
+"""
 ^(a::Taylor, p::Real) = _real_power(a, p)
 ^(a::Taylor, p::Rational) = _real_power(a, p)
 

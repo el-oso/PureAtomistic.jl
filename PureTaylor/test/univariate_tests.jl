@@ -45,14 +45,15 @@ end
                 r = ref(x0, k)
                 # Rounding bound c·eps(BigFloat)·N relative to the reference, with eps = 1.7e-77 at
                 # 256 bits, c = 2 (one rounding per multiply and per add) and N = 100 (K = 4 Horner
-                # steps, the coefficient recurrence, the seed unscaling and Base's value) gives
-                # 3.5e-75; the tolerance 1e-70 lies above it (largest error measured: 1.8·eps).
-                @test abs(got[k + 1] - r) <= 1.0e-70 * abs(r)
+                # steps, the coefficient recurrence, the seed unscaling and Base's value);
+                # largest error measured: 1.8·eps.
+                @test abs(got[k + 1] - r) <= 2 * eps(BigFloat) * 100 * abs(r)
             end
         end
-        # sqrt(x)² recovers x through the series: a check independent of the closed forms.
+        # sqrt(x)² recovers x through the series: a check independent of the closed forms. Same
+        # bound as above, taken as absolute since every coefficient is at most 1 in magnitude.
         a = variable(Val(1), Val(4), Val(1), x0)
-        @test maximum(abs.((sqrt(a) * sqrt(a) - a).c)) <= 1.0e-70        # same bound as above
+        @test maximum(abs.((sqrt(a) * sqrt(a) - a).c)) <= 2 * eps(BigFloat) * 100
     end
 end
 
@@ -112,4 +113,15 @@ end
     for f in (sqrt, cbrt, exp, expm1, log, log1p, a -> a^0.3, a -> a^(1 // 3))
         @test f(x) isa Taylor{2,2,3,Float32,6}
     end
+end
+
+@testitem "powers at value 0" begin
+    a = variable(Val(2), Val(3), Val(1), 0.0) + variable(Val(2), Val(3), Val(2), 0.0)
+    @test (a^2.0).c == (a * a).c                                    # exact: the same products
+    @test (a^(3 // 1)).c == (a * a * a).c                           # exact: the same products
+    # √ is singular at 0: the value is 0 and every higher coefficient is NaN, as documented.
+    s = sqrt(a)
+    @test value(s) == 0.0
+    @test all(isnan, s.c[2:end])
+    @test all(isnan, cbrt(a).c[2:end]) && all(isnan, (a^0.5).c[2:end])
 end
