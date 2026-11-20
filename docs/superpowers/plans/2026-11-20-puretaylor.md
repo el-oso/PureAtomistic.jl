@@ -49,7 +49,7 @@
 **Interfaces:**
 - Produces:
   - `struct Taylor{N,K,M,T,L} <: Real; c::NTuple{L,T}; end` (exported). Inner constructor `Taylor{N,K,M,T,L}(c)` checks `L == binomial(count_ones(M) + K, K)` and `0 ≤ M < 2^N` (an `ArgumentError` with prefix `"PureTaylor: "`).
-  - `multi_indices(N::Int, K::Int)::Vector{NTuple{N,Int}}` (internal; used at generation time only).
+  - `multi_indices(::Val{N}, ::Val{K})::NTuple{binomial(N+K,K),NTuple{N,Int}}` (internal, generated, constant tuple; used at generation time only).
   - `variable(::Val{N}, ::Val{K}, ::Val{i}, x::T, s::T = one(T)) where {N,K,i,T}::Taylor{N,K,1<<(i-1),T,K+1}` (exported).
   - `constant(::Val{N}, ::Val{K}, x::T)::Taylor{N,K,0,T,1}` (exported).
   - `value(a::Taylor) = a.c[1]`, `value(x::Real) = x` (exported).
@@ -62,9 +62,9 @@
 ```julia
 @testitem "multi-index order" begin
     using PureTaylor: multi_indices
-    @test multi_indices(2, 2) == [(0,0), (1,0), (0,1), (2,0), (1,1), (0,2)]
-    @test multi_indices(3, 2)[5:10] == [(2,0,0), (1,1,0), (1,0,1), (0,2,0), (0,1,1), (0,0,2)]
-    @test length(multi_indices(5, 3)) == 56
+    @test multi_indices(Val(2), Val(2)) == ((0,0), (1,0), (0,1), (2,0), (1,1), (0,2))
+    @test multi_indices(Val(3), Val(2))[5:10] == ((2,0,0), (1,1,0), (1,0,1), (0,2,0), (0,1,1), (0,0,2))
+    @test length(multi_indices(Val(5), Val(3))) == 56
 end
 
 @testitem "seeds and read-out" begin
