@@ -3,8 +3,8 @@
 
 Truncated Taylor polynomial in `N` variables up to total degree `K`, with coefficients of type `T`.
 Only the variables in the bit mask `M` (bit `i-1` set means variable `i`) carry nonzero higher-order
-terms. `c` holds `c_α = (∂^α f)/α!` for every multi-index `α` of `multi_indices(N, K)` supported on
-those variables, in that order, so `c[1]` is the value and `L == binomial(count_ones(M) + K, K)`.
+terms. `c` holds `c_α = (∂^α f)/α!` for every multi-index `α` of `multi_indices(Val(N), Val(K))`
+supported on those variables, in that order, so `c[1]` is the value and `L == binomial(count_ones(M) + K, K)`.
 """
 struct Taylor{N,K,M,T,L} <: Real
     c::NTuple{L,T}
@@ -49,7 +49,7 @@ value(x::Real) = x
 The coefficient `c_α = (∂^α f)/α!` of `a` (in the seed variables `u`), or zero when `α` is not stored.
 """
 @generated function coefficient(a::Taylor{N,K,M,T,L}, α::NTuple{N,Int}) where {N,K,M,T,L}
-    idx = stored_indices(N, K, M)
+    idx = stored_indices(Val(N), Val(K), Val(M))
     body = :(return zero(T))
     for j in length(idx):-1:1
         body = :(α == $(idx[j]) ? (return a.c[$j]) : $body)
@@ -60,12 +60,12 @@ end
 """
     derivatives(a, invscale)
 
-All partial derivatives `∂^α f = α! · c_α · Π invscale_i^α_i` in `multi_indices(N, K)` order, with
-`invscale_i = 1/s_i` for the seed scales `s_i`; zero where `α` is not stored.
+All partial derivatives `∂^α f = α! · c_α · Π invscale_i^α_i` in `multi_indices(Val(N), Val(K))`
+order, with `invscale_i = 1/s_i` for the seed scales `s_i`; zero where `α` is not stored.
 """
 @generated function derivatives(a::Taylor{N,K,M,T,L}, invscale::NTuple{N,T}) where {N,K,M,T,L}
-    pos = Dict(α => j for (j, α) in enumerate(stored_indices(N, K, M)))
-    terms = map(multi_indices(N, K)) do α
+    pos = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M))))
+    terms = map(multi_indices(Val(N), Val(K))) do α
         haskey(pos, α) || return :(zero($T))
         scale = Expr(:call, :*, :($T($(prod(factorial, α)))), :(a.c[$(pos[α])]))
         for i in 1:N, _ in 1:α[i]

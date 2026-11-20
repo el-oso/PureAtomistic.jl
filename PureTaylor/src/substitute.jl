@@ -44,7 +44,7 @@ pass `u[i] / s`.
     end
     # The sum, one fresh name per partial sum so that each has a single type.
     acc = nothing
-    for (j, α) in enumerate(stored_indices(N, K, M))
+    for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M)))
         j == 1 && continue
         any(i -> α[i] > 0 && isnothing(h[i]), 1:N) && continue
         term = :($(monomial(α)) * E.c[$j])

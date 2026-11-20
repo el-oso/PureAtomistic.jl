@@ -1,0 +1,12 @@
+# Minimum line coverage per source file (covered / coverable lines), checked by check.jl.
+# A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
+# src/fast.jl: the methods that return a constant (`_mantissa_bits`, `_exponent_bias`) are folded into
+# their callers and the closures of the coefficient tables run at precompile time, so those lines
+# never record a count.
+"src/PureTaylor.jl" = 1.00
+"src/arith.jl" = 1.00
+"src/fast.jl" = 0.89
+"src/indices.jl" = 1.00
+"src/substitute.jl" = 1.00
+"src/type.jl" = 1.00
+"src/univariate.jl" = 1.00

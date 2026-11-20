@@ -18,6 +18,7 @@ jobs:
           - {package: PureAtomistic, shard: 2/4}
           - {package: PureAtomistic, shard: 3/4}
           - {package: PureAtomistic, shard: 4/4}
+          - {package: PureTaylor, shard: ''}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -32,7 +33,9 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
           MUTATION_SHARD: ${{ matrix.shard }}
         run: julia ${{ matrix.package }}/test/mutation/run.jl
+      # PureTaylor has no extension files.
       - name: Apply each extension mutation and run the :gpu items on the CPU backend
+        if: matrix.package != 'PureTaylor'
         env:
           MUTATION_SUITE: gpu
           MUTATION_SHARD: ${{ matrix.shard }}

@@ -1,0 +1,270 @@
+# Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureTaylor/;
+# `find` must occur exactly once in it; `expect` is a regex matched against
+# the names of the test items expected to fail.
+
+# The product: which pairs of stored indices contribute to each output coefficient.
+
+[[mutation]]
+name = "product-degree-limit"
+file = "src/arith.jl"
+find = 'sum(α) <= D || return :(zero(T))'
+replace = 'sum(α) < D || return :(zero(T))'
+expect = "product equals the dense product|degree-limited product"
+
+[[mutation]]
+name = "product-index-difference"
+file = "src/arith.jl"
+find = 'γ = α .- β'
+replace = 'γ = β .- α'
+expect = "product equals the dense product"
+
+[[mutation]]
+name = "product-skip-constant-term"
+file = "src/arith.jl"
+find = 'skip0 && i == 1 && continue'
+replace = 'skip0 && i == 2 && continue'
+expect = "degree-limited product"
+
+# Integer powers by repeated squaring.
+
+[[mutation]]
+name = "power-odd-bit"
+file = "src/arith.jl"
+find = 'isodd(n) && (r *= x)'
+replace = 'iseven(n) && (r *= x)'
+expect = "powers \\(exact\\)"
+
+[[mutation]]
+name = "literal-power-negative"
+file = "src/arith.jl"
+find = 'push!(body.args, n < 0 ? :(inv(r)) : :r)'
+replace = 'push!(body.args, :r)'
+expect = "powers \\(exact\\)"
+
+# The Horner composition.
+
+[[mutation]]
+name = "horner-degree-limit"
+file = "src/univariate.jl"
+find = 'Val(true), Val($(K - j))'
+replace = 'Val(true), Val($(K - j - 1))'
+expect = "compose equals the sum of powers"
+
+[[mutation]]
+name = "horner-coefficient-index"
+file = "src/univariate.jl"
+find = ') + d[$(j + 1)]'
+replace = ') + d[$(j + 2)]'
+expect = "compose equals the sum of powers"
+
+# The closed-form derivatives.
+
+[[mutation]]
+name = "inverse-series-sign"
+file = "src/arith.jl"
+find = 'isodd(k) ? r : -r'
+replace = 'isodd(k) ? r : r'
+expect = "inverse and division"
+
+[[mutation]]
+name = "power-series-binomial"
+file = "src/univariate.jl"
+find = 'b * (p - T(k - 1)) / T(k)'
+replace = 'b * (p - T(k)) / T(k)'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "sqrt-exponent"
+file = "src/univariate.jl"
+find = '_power_series(a, sqrt(value(a)), inv(T(2)))'
+replace = '_power_series(a, sqrt(value(a)), inv(T(3)))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "cbrt-exponent"
+file = "src/univariate.jl"
+find = '_power_series(a, cbrt(value(a)), inv(T(3)))'
+replace = '_power_series(a, cbrt(value(a)), inv(T(2)))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "real-power-exponent"
+file = "src/univariate.jl"
+find = '_power_series(a, value(a)^q, q)'
+replace = '_power_series(a, value(a)^q, q + 1)'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "exp-series-factorial"
+file = "src/univariate.jl"
+find = '_recurrence((b, k) -> b / T(k), e, Val(K))'
+replace = '_recurrence((b, k) -> b / T(k + 1), e, Val(K))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "expm1-series-value"
+file = "src/univariate.jl"
+find = 'expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), exp(value(a)))'
+replace = 'expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), expm1(value(a)))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "log-series-denominator"
+file = "src/univariate.jl"
+find = '/ T(i - 1), Val(K + 1))'
+replace = '/ T(i), Val(K + 1))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "log-series-sign"
+file = "src/univariate.jl"
+find = '(iseven(i) ? one(T) : -one(T))'
+replace = '(isodd(i) ? one(T) : -one(T))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "log1p-series-argument"
+file = "src/univariate.jl"
+find = '_log_series(a, log1p(value(a)), one(T) + value(a))'
+replace = '_log_series(a, log1p(value(a)), value(a))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "fast-invcbrt-exponent"
+file = "src/fast.jl"
+find = 'fast_invcbrt(value(a)), -inv(T(3)))'
+replace = 'fast_invcbrt(value(a)), inv(T(3)))'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "fast-log1p-series-argument"
+file = "src/fast.jl"
+find = '_log_series(a, fast_log1p(value(a)), one(T) + value(a))'
+replace = '_log_series(a, fast_log1p(value(a)), value(a))'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "fast-expm1-series-value"
+file = "src/fast.jl"
+find = '_exp_taylor(a, fast_expm1(value(a)), fast_exp(value(a)))'
+replace = '_exp_taylor(a, fast_expm1(value(a)), fast_expm1(value(a)))'
+expect = "fast functions on Taylor numbers agree"
+
+# The scalar kernels' constants.
+
+[[mutation]]
+name = "invcbrt-guess-magic-64"
+file = "src/fast.jl"
+find = 'Int64(round((4 / 3) * (1023 - 0.0450465) * 2.0^52))'
+replace = 'Int64(round((4 / 3) * (1022 - 0.0450465) * 2.0^52))'
+expect = "cbrt Float64|invcbrt Float64"
+
+[[mutation]]
+name = "invcbrt-guess-magic-32"
+file = "src/fast.jl"
+find = 'Int32(round((4 / 3) * (127 - 0.0450465) * 2.0^23))'
+replace = 'Int32(round((4 / 3) * (126 - 0.0450465) * 2.0^23))'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "invcbrt-step-second-order"
+file = "src/fast.jl"
+find = 'muladd(T(2 / 9), e, T(1 / 3))'
+replace = 'muladd(T(1 / 9), e, T(1 / 3))'
+expect = "cbrt Float64|invcbrt Float64"
+
+# The final Newton step of fast_cbrt corrects an error of about one ulp, so the tests see its factor
+# 1/3 only when it is far off: measured over 10^6 log-uniform Float64 points, the factor 1/2 gives
+# 3.1 ulps, inside the 4-ulp tolerance, and the sign flip -1/3 gives 8.4 ulps.
+[[mutation]]
+name = "cbrt-newton-step-sign"
+file = "src/fast.jl"
+find = '(x * y - c * c * (c * y)) * y, T(1 / 3), c)'
+replace = '(x * y - c * c * (c * y)) * y, T(-1 / 3), c)'
+expect = "cbrt Float64"
+
+[[mutation]]
+name = "log-coefficients-64"
+file = "src/fast.jl"
+find = 'const LOG_COEFFS64 = ntuple(j -> 2 / (2j + 1), 9)'
+replace = 'const LOG_COEFFS64 = ntuple(j -> 2 / (2j + 3), 9)'
+expect = "log Float64"
+
+[[mutation]]
+name = "log-coefficients-32"
+file = "src/fast.jl"
+find = 'const LOG_COEFFS32 = ntuple(j -> Float32(2 / (2j + 1)), 5)'
+replace = 'const LOG_COEFFS32 = ntuple(j -> Float32(2 / (2j + 3)), 5)'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "log-reduction-midpoint-64"
+file = "src/fast.jl"
+find = 'const SQRT_HALF64 = Float64(sqrt(big(0.5)))'
+replace = 'const SQRT_HALF64 = Float64(sqrt(big(0.25)))'
+expect = "log Float64"
+
+[[mutation]]
+name = "ln2-low-part-64"
+file = "src/fast.jl"
+find = 'const LN2_LO64 = Float64(log(big(2)) - big(LN2_HI64))'
+replace = 'const LN2_LO64 = 0.0'
+expect = "log Float64|exp Float64"
+
+[[mutation]]
+name = "log1p-rounding-correction"
+file = "src/fast.jl"
+find = 'fast_log(u) + (x - (u - one(T))) / u'
+replace = 'fast_log(u) + (x - (u - one(T)))'
+expect = "log1p Float64"
+
+[[mutation]]
+name = "expm1-coefficients-64"
+file = "src/fast.jl"
+find = 'const EXPM1_COEFFS64 = ntuple(j -> 1 / factorial(j), 13)'
+replace = 'const EXPM1_COEFFS64 = ntuple(j -> 1 / factorial(j + 1), 13)'
+expect = "exp Float64|expm1 Float64"
+
+[[mutation]]
+name = "expm1-coefficients-32"
+file = "src/fast.jl"
+find = 'const EXPM1_COEFFS32 = ntuple(j -> Float32(1 / factorial(j)), 8)'
+replace = 'const EXPM1_COEFFS32 = ntuple(j -> Float32(1 / factorial(j + 1)), 8)'
+expect = "fast functions on Taylor numbers agree"
+
+[[mutation]]
+name = "exp-reduction-inverse-ln2-64"
+file = "src/fast.jl"
+find = 'const INV_LN2_64 = Float64(1 / log(big(2)))'
+replace = 'const INV_LN2_64 = Float64(1 / log(big(3)))'
+expect = "exp Float64|expm1 Float64"
+
+[[mutation]]
+name = "exponent-bias-64"
+file = "src/fast.jl"
+find = '_exponent_bias(::Type{Float64}) = 1023'
+replace = '_exponent_bias(::Type{Float64}) = 1022'
+expect = "exp Float64|expm1 Float64"
+
+[[mutation]]
+name = "expm1-power-of-two-term"
+file = "src/fast.jl"
+find = 'muladd(twok, p, twok - one(T))'
+replace = 'muladd(twok, p, twok)'
+expect = "expm1 Float64"
+
+# The scale handling of `derivatives`.
+
+[[mutation]]
+name = "derivatives-factorial"
+file = "src/type.jl"
+find = ':($T($(prod(factorial, α))))'
+replace = ':($T($(prod(α))))'
+expect = "closed-form derivatives"
+
+[[mutation]]
+name = "derivatives-invscale-variable"
+file = "src/type.jl"
+find = 'push!(scale.args, :(invscale[$i]))'
+replace = 'push!(scale.args, :(invscale[1]))'
+expect = "seeds and read-out"

@@ -1,8 +1,8 @@
 @testitem "multi-index order" begin
     using PureTaylor: multi_indices
-    @test multi_indices(2, 2) == [(0, 0), (1, 0), (0, 1), (2, 0), (1, 1), (0, 2)]
-    @test multi_indices(3, 2)[5:10] == [(2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0), (0, 1, 1), (0, 0, 2)]
-    @test length(multi_indices(5, 3)) == 56
+    @test multi_indices(Val(2), Val(2)) == ((0, 0), (1, 0), (0, 1), (2, 0), (1, 1), (0, 2))
+    @test multi_indices(Val(3), Val(2))[5:10] == ((2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0), (0, 1, 1), (0, 0, 2))
+    @test length(multi_indices(Val(5), Val(3))) == 56
 end
 
 @testitem "seeds and read-out" begin

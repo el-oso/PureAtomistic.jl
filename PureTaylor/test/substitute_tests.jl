@@ -28,7 +28,7 @@ end
         @test S isa typeof(D)
         got = derivatives(S, (one(T), one(T)))
         ref = derivatives(D, (one(T), one(T)))
-        idx = multi_indices(2, 3)
+        idx = multi_indices(Val(2), Val(3))
         for j in eachindex(idx)
             scale = maximum(abs(ref[i]) for i in eachindex(idx) if sum(idx[i]) == sum(idx[j]))
             @test abs(got[j] - ref[j]) <= 2 * eps(T) * 300 * scale

@@ -1,7 +1,7 @@
 @testitem "compose equals the sum of powers (exact)" begin
     using PureTaylor: compose
     for (N, K, M) in ((1, 4, 1), (2, 3, 3), (3, 2, 5), (2, 0, 1), (2, 3, 0))
-        idx = PureTaylor.stored_indices(N, K, M)
+        idx = PureTaylor.stored_indices(Val(N), Val(K), Val(M))
         L = length(idx)
         a = Taylor{N,K,M,Rational{BigInt},L}(ntuple(j -> Rational{BigInt}(mod(5j + 2, 9) - 3, 1 + mod(3j, 4)), L))
         d = ntuple(k -> Rational{BigInt}(k^2 - 3, k + 1), K + 1)
@@ -76,7 +76,7 @@ end
         end
         return g(big(x0), big(y0))
     end
-    idx = multi_indices(2, 3)
+    idx = multi_indices(Val(2), Val(3))
     ref = map(partial, idx)
     for j in eachindex(idx)
         # Rounding bound c·eps(Float64)·N with c = 2 (one rounding per multiply and per add) and

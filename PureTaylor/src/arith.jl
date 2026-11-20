@@ -4,9 +4,9 @@ import Base: +, -, *, /, ^, inv, literal_pow, zero, one, isfinite, isnan
 # the coefficient tuples stay in registers.
 @generated function _addsub(a::Taylor{N,K,M1,T,L1}, b::Taylor{N,K,M2,T,L2}, ::Val{sgn}) where {N,K,M1,M2,T,L1,L2,sgn}
     M = M1 | M2
-    pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(N, K, M1)))
-    pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(N, K, M2)))
-    terms = map(stored_indices(N, K, M)) do α
+    pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M1))))
+    pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
+    terms = map(stored_indices(Val(N), Val(K), Val(M))) do α
         in1, in2 = haskey(pos1, α), haskey(pos2, α)
         x = in1 ? :(a.c[$(pos1[α])]) : nothing
         y = in2 ? :(b.c[$(pos2[α])]) : nothing
@@ -56,9 +56,9 @@ isnan(a::Taylor) = any(isnan, a.c)
         a::Taylor{N,K,M1,T,L1}, b::Taylor{N,K,M2,T,L2}, ::Val{skip0}, ::Val{D}
     ) where {N,K,M1,M2,T,L1,L2,skip0,D}
     M = M1 | M2
-    idx1 = stored_indices(N, K, M1)
-    pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(N, K, M2)))
-    terms = map(stored_indices(N, K, M)) do α
+    idx1 = stored_indices(Val(N), Val(K), Val(M1))
+    pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
+    terms = map(stored_indices(Val(N), Val(K), Val(M))) do α
         acc = nothing
         sum(α) <= D || return :(zero(T))
         for (i, β) in enumerate(idx1)

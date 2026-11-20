@@ -4,7 +4,7 @@
 
     # A Taylor{N,K,M} with random Rational{BigInt} coefficients (nonzero value, so it is invertible).
     function random_taylor(N, K, M, rng = 0)
-        idx = stored_indices(N, K, M)
+        idx = stored_indices(Val(N), Val(K), Val(M))
         c = ntuple(j -> Rational{BigInt}(mod(7j + 3rng + 1, 11) - 4 + (j == 1 ? 9 : 0), 1 + mod(5j + rng, 6)), length(idx))
         return Taylor{N,K,M,Rational{BigInt},length(idx)}(c)
     end
@@ -12,8 +12,8 @@
     # The truncated product by brute force over all pairs of multi-indices: every pair whose sum has
     # total degree ≤ D contributes, and `a`'s constant term is left out when `skip0`.
     function dense_product(a::Taylor{N,K}, b::Taylor{N,K}; D = K, skip0 = false) where {N,K}
-        out = Dict(α => zero(Rational{BigInt}) for α in multi_indices(N, K))
-        for β in multi_indices(N, K), γ in multi_indices(N, K)
+        out = Dict(α => zero(Rational{BigInt}) for α in multi_indices(Val(N), Val(K)))
+        for β in multi_indices(Val(N), Val(K)), γ in multi_indices(Val(N), Val(K))
             skip0 && sum(β) == 0 && continue
             α = β .+ γ
             sum(α) <= D || continue
@@ -22,7 +22,7 @@
         return out
     end
 
-    matches(c::Taylor{N,K}, ref) where {N,K} = all(coefficient(c, α) == ref[α] for α in multi_indices(N, K))
+    matches(c::Taylor{N,K}, ref) where {N,K} = all(coefficient(c, α) == ref[α] for α in multi_indices(Val(N), Val(K)))
 end
 
 @testitem "product equals the dense product (exact)" setup = [DenseOracle] begin
@@ -100,7 +100,7 @@ end
         for _ in 1:α[2]; g = ∂y(g); end
         return g(big(x0), big(y0))
     end
-    idx = multi_indices(2, 3)
+    idx = multi_indices(Val(2), Val(3))
     ref = map(partial, idx)
     for j in eachindex(idx)
         # Rounding bound c·eps(Float64)·N with c = 2 (one rounding per multiply and per add) and
