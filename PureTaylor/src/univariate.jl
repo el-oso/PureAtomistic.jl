@@ -79,16 +79,13 @@ throws `DomainError`), and at value 0 the derivatives are singular: every coeffi
 ^(a::Taylor, p::Real) = _real_power(a, p)
 ^(a::Taylor, p::Rational) = _real_power(a, p)
 
-# exp(x + h) = Σₖ exp(x)/k!·hᵏ; expm1 differs only in the value.
-function exp(a::Taylor{N,K,M,T}) where {N,K,M,T}
-    v = exp(value(a))
-    return compose(a, _recurrence((b, k) -> b / T(k), v, Val(K)), one(T))
+# exp(x + h) = Σₖ e/k!·hᵏ with e = exp(x); the series of expm1 differs only in its value `v`.
+function _exp_taylor(a::Taylor{N,K,M,T}, v::T, e::T) where {N,K,M,T}
+    d = _recurrence((b, k) -> b / T(k), e, Val(K))
+    return compose(a, ntuple(i -> i == 1 ? v : d[i], Val(K + 1)), one(T))
 end
-function expm1(a::Taylor{N,K,M,T}) where {N,K,M,T}
-    x = value(a)
-    d = _recurrence((b, k) -> b / T(k), exp(x), Val(K))
-    return compose(a, ntuple(i -> i == 1 ? expm1(x) : d[i], Val(K + 1)), one(T))
-end
+exp(a::Taylor) = (e = exp(value(a)); _exp_taylor(a, e, e))
+expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), exp(value(a)))
 
 # log(y + h) = log(y) + Σₖ₌₁ (-1)ᵏ⁻¹/k·(h/y)ᵏ, at y = x for log and y = 1 + x for log1p.
 function _log_series(a::Taylor{N,K,M,T}, v::T, y::T) where {N,K,M,T}

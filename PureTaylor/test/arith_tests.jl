@@ -129,20 +129,23 @@ end
     @test_throws MethodError x * variable(Val(2), Val(3), Val(1), 1.0f0)
 end
 
-@testitem "products and inverse allocate nothing at L = 56" begin
+@testitem "products, inverse and substitution allocate nothing at L = 56" begin
     using StrictModeTest, StrictMode
     @noinline mul(a, b) = a * b
     @noinline inverse(a) = inv(a)
     @noinline neg(a) = -a
     @noinline rsub(r, a) = r - a
+    @noinline subst(E, u) = substitute(E, u)
     for T in (Float64, Float32)
         v = ntuple(i -> variable(Val(5), Val(3), Val(i), T(i) / 4), 5)
         a = sum(v) + 1; b = a * v[1] + 2
         @test a isa Taylor{5,3,31,T,56}
-        mul(a, b); inverse(a); neg(a); rsub(T(1), a)
+        u = (a, b, v[2] * v[3], a - v[4], v[5] + 3)
+        mul(a, b); inverse(a); neg(a); rsub(T(1), a); subst(b, u)
         @test_noalloc mul(a, b)
         @test_noalloc inverse(a)
         @test_noalloc neg(a)
         @test_noalloc rsub(T(1), a)
+        @test_noalloc subst(b, u)
     end
 end
