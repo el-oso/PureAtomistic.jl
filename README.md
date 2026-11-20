@@ -6,6 +6,8 @@ A monorepo for pure-Julia atomistic simulation packages.
   reader for mace-torch `.model` checkpoints.
 - `PureAtomistic/` is the simulation layer built on PureMLIP: molecular dynamics with thermostats and
   barostats, structure relaxation, trajectory and structure I/O, and analysis.
+- `PureTaylor/` is a truncated multivariate Taylor number type, with StrictMode as its
+  only dependency, and vectorizable elementary-function kernels.
 
 Goals for every package here:
 
