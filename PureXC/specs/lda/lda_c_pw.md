@@ -5,7 +5,7 @@
 - Libxc identifier `lda_c_pw`, number 12.
 - Family LDA, kind correlation.
 - Spin cases: spin-restricted (input n) and spin-polarized (inputs n_α, n_β).
-- This spec uses the constants as printed in the paper. `lda/lda_c_pw_mod.md` is the same
+- This spec uses the constants as printed in [PW92] Table I. `lda/lda_c_pw_mod.md` is the same
   formula with the more precise constants that PBE uses.
 
 ## 2. References
@@ -13,16 +13,8 @@
 - [PW92] J. P. Perdew and Y. Wang, Phys. Rev. B 45, 13244 (1992),
   doi:10.1103/PhysRevB.45.13244. Erratum: Phys. Rev. B 98, 079904 (2018),
   doi:10.1103/PhysRevB.98.079904 (corrects Eq. (B3) only; see section 8).
-- [PBE-code] K. Burke, reference Fortran routine for PBE ("PBE alpha2.1", July 1996), distributed
-  by the PBE authors as `PBE.asc` (dft.uci.edu/pubs/PBE.asc; Libxc cites the same file at its
-  former address dft.rutgers.edu/pubs/PBE.asc). Only its comments and constant values were
-  used, never its code.
 
-**Access note.** The full text of [PW92] was not available to the spec writer. The equation
-numbers below ((3), (8), (9), (10), Table I) are those cited for these formulas by the
-comments in [PBE-code], and agree with the equation numbers in Libxc's source comments. The
-formulas and constants were checked numerically against Libxc's outputs (section 9). The
-coordinator should confirm the equation numbers and the Table I values against the paper.
+Equation and table numbers below are those of [PW92] itself (read for this spec).
 
 ## 3. Variables and units
 
@@ -31,8 +23,8 @@ Hartree atomic units.
 | symbol | meaning | unit |
 |---|---|---|
 | n_α, n_β, n = n_α + n_β | spin and total densities | bohr⁻³ |
-| r_s = (3 / (4π n))^{1/3} | Seitz radius | bohr |
-| ζ = (n_α − n_β) / n | relative spin polarization, in [−1, 1] | — |
+| r_s = (3 / (4π n))^{1/3} | Seitz radius, [PW92] Eq. (1) | bohr |
+| ζ = (n_α − n_β) / n | relative spin polarization, [PW92] Eq. (2); in [−1, 1] | — |
 | ε_c(r_s, ζ) | correlation energy per electron | hartree |
 | e = n ε_c | correlation energy per volume | hartree bohr⁻³ |
 
@@ -52,14 +44,16 @@ Outputs follow Libxc's layout: `zk` = e/n; `vrho` = ∂e/∂n or (∂e/∂n_α, 
     ε_c(r_s, 1) = G(r_s; set 1)          (fully polarized)
     −α_c(r_s)   = G(r_s; set 2)          (minus the spin stiffness)
 
-Set 2 parametrizes −α_c, not α_c ([PBE-code]: "ALFM = −spin stiffness, [c](3)", [c] being
-[PW92]). The spin stiffness is α_c(r_s) = ∂²ε_c(r_s, ζ)/∂ζ² at ζ = 0 ([PW92] Eq. (3)).
+Set 2 parametrizes −α_c, not α_c: the column of [PW92] Table I is headed −α_c(r_s). The
+spin stiffness α_c is defined by the small-ζ expansion ε_c(r_s, ζ) = ε_c(r_s, 0) + ½ α_c(r_s) ζ² + …
+([PW92] Eq. (3)), i.e. α_c = ∂²ε_c/∂ζ² at ζ = 0.
 
 (E3) Spin interpolation function, [PW92] Eq. (9):
 
     f(ζ) = [ (1 + ζ)^{4/3} + (1 − ζ)^{4/3} − 2 ] / (2^{4/3} − 2)
 
-so f(0) = 0, f(±1) = 1, and f''(0) = (8/9) / (2^{4/3} − 2) = 4 / (9 (2^{1/3} − 1)).
+so f(0) = 0, f(±1) = 1, and f''(0) = (8/9) / (2^{4/3} − 2) = 4 / (9 (2^{1/3} − 1)) = 1.70992093…
+[PW92] states f(0) = 0, f(1) = 1 and prints f''(0) = 1.709921 in the text after Eq. (9).
 
 (E4) Correlation energy per electron, [PW92] Eq. (8):
 
@@ -73,13 +67,16 @@ rounded value 1.709921, not the exact expression; see section 8).
 (E5) Energy density: e = n ε_c(r_s(n), ζ). Spin-restricted input is ζ = 0, where
 e(n) = n G(r_s; set 0).
 
+[PW92] Appendix A gives the corresponding potential, ∂(n ε_c)/∂n_σ, in Eqs. (A1)–(A8)
+(Eq. (A4) is f'(ζ); Eqs. (A5)–(A8) are ∂G/∂r_s). They are an independent check of `vrho`;
+nothing in this spec depends on them.
+
 ## 5. Constants
 
-The parameters of [PW92] Table I. Status: **checked against Libxc**, not against the paper
-(see the access note). Libxc 7.0.0 reports exactly these values as the default external
-parameters of `lda_c_pw`, whose only reference is [PW92]; the reference of `lda_c_pw_mod`
-states that it adds digits to "some constants" relative to them. The values of α₁ and β₁–β₄
-are the same in [PBE-code], whose comments attribute them to [PW92] Table I.
+The parameters of [PW92] Table I, beyond-RPA columns ε_c(r_s,0), ε_c(r_s,1), −α_c(r_s).
+Status: **paper**; every value below was compared with the table and matches as printed.
+Table I marks p and A = c₀ as constrained to exact values. Libxc 7.0.0 reports exactly these
+values as the default external parameters of `lda_c_pw`.
 
 | parameter | set 0: ε_c(r_s,0) | set 1: ε_c(r_s,1) | set 2: −α_c(r_s) |
 |---|---|---|---|
@@ -93,7 +90,7 @@ are the same in [PBE-code], whose comments attribute them to [PW92] Table I.
 
 | constant | value | source | status |
 |---|---|---|---|
-| f''(0) | 1.709921 | rounded value of 4/(9(2^{1/3} − 1)) = 1.7099209341613657…; Libxc API parameter `_fz20`; also the value in the older PW91 routine of [PBE-code]. Where [PW92] prints it is not checked. | checked against Libxc |
+| f''(0) | 1.709921 | [PW92] text after Eq. (9) (the exact value from Eq. (9) is 4/(9(2^{1/3} − 1)) = 1.7099209341613657…); also Libxc API `_fz20` | paper |
 | 2^{4/3} − 2 | 0.5198420997897464… | exact, from (E3) | paper |
 
 Measured: using the exact f''(0) instead of 1.709921 changes the polarized Libxc comparison
@@ -146,9 +143,10 @@ API. Applied as follows (application checked against Libxc, see below):
 
 - Erratum (2018): Eq. (B3) of [PW92] should read tan⁻¹(1/u) instead of tan⁻¹(u). (B3) is
   not used here; it does not affect (E1)–(E4).
-- f''(0): the rounded value 1.709921 is the one Libxc uses for `lda_c_pw` (where [PW92]
-  prints it is not checked). This spec, like Libxc's `lda_c_pw`, uses
-  the rounded value; `lda_c_pw_mod` uses the exact expression.
+- f''(0): [PW92] prints the rounded 1.709921 after Eq. (9), while Eq. (9) itself gives
+  1.7099209341613657…. This spec, like Libxc's `lda_c_pw`, uses the printed value;
+  `lda_c_pw_mod` uses the exact expression. Not a misprint: the printed value is the exact one
+  rounded to 7 digits.
 - The sign convention of set 2 (it fits −α_c) is a common source of error; (E2) states it.
 - p = 1 in all three sets, so the last term of (E1) is β₄ r_s².
 

@@ -59,7 +59,8 @@ with r_s, ζ, φ, k_s and t as defined in the text after [PBE] Eq. (3):
     A = (β/γ) [ exp{ −ε_c / (γ φ³) } − 1 ]⁻¹
 
 (E4) ε_c(r_s, ζ) is the PW92 correlation energy per electron **with the constants of
-`lda_c_pw_mod`** (see section 6 and section 8). [PBE] cites [PW92] for ε_c (its reference [12]).
+`lda_c_pw_mod`** (see section 6 and section 8). [PBE] cites [PW92] for ε_c (its reference
+[12]); the formula is [PW92] Eqs. (8)–(10) with Table I.
 
 (E5) Spin-restricted case: ζ = 0, φ = 1, σ_tot = σ.
 
@@ -77,7 +78,7 @@ so e → 0 there; E_c ≤ 0.
 | β | 0.06672455060314922 | [PBE] after Eq. (4) prints β ≃ 0.066725; the full value is [PBE-code]'s `bet` and Libxc API `_beta` | checked against Libxc |
 | γ | (1 − ln 2)/π² = 0.031090690869654895034940863712730… | [PBE] after Eq. (5) | paper |
 | A-coefficient multiplier | 1 | Libxc API `_B` ("Multiplies the A t² term. Used in the SPBE functional"); for PBE it is 1, which is (E2) as printed | checked against Libxc |
-| PW92 constants | see `lda/lda_c_pw_mod.md` | | checked against Libxc |
+| PW92 constants | see `lda/lda_c_pw_mod.md` | [PW92] Table I for p, α₁, β₁–β₄; f''(0) exact from [PW92] Eq. (9); A from [PBE-code] and Libxc | paper (p, α₁, β₁–β₄, form of f''(0)); checked against Libxc (A) |
 
 On γ: Libxc's API reports 0.031090690869654894, which is the double nearest the exact
 value; [PBE-code] writes the 32-digit decimal 0.03109069086965489503494086371273. A plain

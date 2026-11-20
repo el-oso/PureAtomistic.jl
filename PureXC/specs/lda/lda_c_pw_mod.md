@@ -9,8 +9,9 @@
 ## 2. References
 
 - [PW92] J. P. Perdew and Y. Wang, Phys. Rev. B 45, 13244 (1992),
-  doi:10.1103/PhysRevB.45.13244 (equations; see `lda/lda_c_pw.md` for the access note and
-  erratum).
+  doi:10.1103/PhysRevB.45.13244 (equations and Table I; erratum as in `lda/lda_c_pw.md`).
+- [PBE] J. P. Perdew, K. Burke, M. Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996),
+  doi:10.1103/PhysRevLett.77.3865 (only for γ = (1 − ln 2)/π², text after its Eq. (5)).
 - [PBE-code] K. Burke, reference Fortran routine for PBE ("PBE alpha2.1", July 1996),
   `PBE.asc` (dft.uci.edu/pubs/PBE.asc). Libxc's second reference for this functional reads
   "Added extra digits to some constants as in the PBE routine
@@ -46,11 +47,16 @@ All other parameters (p, α₁, β₁–β₄ of the three sets) are those of `l
 |---|---|---|---|
 | A (three sets) | 0.0310907, 0.01554535, 0.0168869 | [PBE-code] (the values it passes for the three sets); Libxc API `_a[0..2]` | checked against Libxc |
 | f''(0) | 4 / (9 (2^{1/3} − 1)) = 8 / (9 (2^{4/3} − 2)) = 1.7099209341613657… (Float64: 1.7099209341613657, printed by Libxc's API; the Float64 evaluation of either expression gives 1.7099209341613653, 2 ulp lower) | exact from [PW92] Eq. (9); [PBE-code] uses 8/(9(2^{4/3} − 2)); Libxc API `_fz20` | paper (form); checked against Libxc (value) |
-| α₁, β₁–β₄, p | as in `lda/lda_c_pw.md` | [PW92] Table I via Libxc API; same in [PBE-code] | checked against Libxc |
+| α₁, β₁–β₄, p | as in `lda/lda_c_pw.md` | [PW92] Table I (beyond-RPA columns); same in [PBE-code] and Libxc API | paper |
 
-The A values agree with A = (1 − ln 2)/π² = 0.0310906908696549… (set 0) and A/2 (set 1),
-the exact high-density coefficients, to the digits given; whether [PW92] or [PBE-code] gives
-this as their origin is not checked.
+On the A values: [PW92] Eq. (11) sets A = c₀, the coefficient of ln r_s in the high-density
+expansion (Eq. (4)), and Table I marks A as constrained to its exact value but prints it to 5
+significant digits (0.031091, 0.015545, 0.016887). For set 0 the exact value is
+c₀(0) = (1 − ln 2)/π² = 0.0310906908696549… ([PBE] text after its Eq. (5) calls it γ), and
+0.0310907 is that value to 6 digits. 0.01554535 equals c₀(0)/2 to the digits given, but
+[PW92] does not state c₀(1) = c₀(0)/2; the origin of 0.01554535 and of 0.0168869 (set 2) is
+**not checked** beyond their appearance in [PBE-code] and Libxc. Each agrees with the
+corresponding Table I value when rounded to 5 significant digits.
 
 ## 6. Building blocks
 
