@@ -14,9 +14,10 @@
     )
 
     # Error of `y` in units of the spacing `eps(r)` at the reference `r`; zero when they are equal,
-    # which covers infinite and zero references.
-    ulps(y::Float32, r::Float32) = y == r ? 0.0 : abs(Float64(y) - Float64(r)) / Float64(eps(r))
-    ulps(y::Float64, r::BigFloat) = y == r ? 0.0 : Float64(abs(big(y) - r) / eps(Float64(r)))
+    # which covers infinite and zero references. A NaN error counts as Inf, so that it is the largest.
+    _nan_as_inf(e::Float64) = isnan(e) ? Inf : e
+    ulps(y::Float32, r::Float32) = y == r ? 0.0 : _nan_as_inf(abs(Float64(y) - Float64(r)) / Float64(eps(r)))
+    ulps(y::Float64, r::BigFloat) = y == r ? 0.0 : _nan_as_inf(Float64(abs(big(y) - r) / eps(Float64(r))))
 
     # The largest error of `f` over the points `decode.(xs)` and the point where it occurs, against `g`
     # evaluated by `ref`, computed in `Threads.nthreads()` chunks.
@@ -28,14 +29,14 @@
                 for u in chunk
                     x = decode(u)
                     e = ulps(f(x), ref(g, x))
-                    if !(e <= worst)                                # NaN counts as worst
+                    if e > worst
                         worst, xworst = e, x
                     end
                 end
                 (worst, xworst)
             end
         end
-        return reduce((a, b) -> !(a[1] >= b[1]) ? b : a, fetch.(tasks))
+        return reduce((a, b) -> a[1] >= b[1] ? a : b, fetch.(tasks))
     end
 
     # The number of points `decode.(xs)` where `f` and `g` differ, computed in `Threads.nthreads()` chunks.
@@ -109,14 +110,18 @@ end
 # fast_sqrt is the IEEE square root, correctly rounded, so it equals Base's sqrt exactly.
 @testitem "fast kernels: Float32 accuracy, exhaustive" tags = [:exhaustive] setup = [FastKernels] begin
     using .FastKernels: KERNELS, max_error, mismatches, float32_bits, decode32, ref32
-    @test mismatches(fast_sqrt, sqrt, float32_bits(0.0f0, Inf32); decode = decode32) == 0   # exact
+    @testset "sqrt Float32" begin
+        @test mismatches(fast_sqrt, sqrt, float32_bits(0.0f0, Inf32); decode = decode32) == 0   # exact
+    end
     # Largest error measured over the whole domain (Apple M-series, Julia 1.13), in ulps of the rounded
     # reference: cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2. The tolerance, 4 ulps, is at most
     # 4 times (≤ 100 times) each of them.
     tol = 4.0
     for (name, f, g, iv32, _) in KERNELS
-        worst = maximum(first(max_error(f, g, ref32, float32_bits(lo, hi); decode = decode32)) for (lo, hi) in iv32)
-        @test worst <= tol
+        @testset "$name Float32" begin
+            worst = maximum(first(max_error(f, g, ref32, float32_bits(lo, hi); decode = decode32)) for (lo, hi) in iv32)
+            @test worst <= tol
+        end
     end
 end
 
@@ -128,7 +133,9 @@ end
     using .FastKernels: KERNELS, max_error, mismatches, points64, ref64
     using Random: Xoshiro
     n = 10^7
-    @test mismatches(fast_sqrt, sqrt, points64(0.0, Inf, n, Xoshiro(20261120))) == 0               # exact
+    @testset "sqrt Float64" begin
+        @test mismatches(fast_sqrt, sqrt, points64(0.0, Inf, n, Xoshiro(20261120))) == 0           # exact
+    end
     # Largest error measured with this seed (Apple M-series, Julia 1.13), in ulps: cbrt 1.3249,
     # invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.1782. The tolerance, 4 ulps, is at
     # most 5 times (≤ 100 times) each of them.
@@ -141,7 +148,23 @@ end
             d = points64(eps(1.0) / 2, 0.25, n ÷ 10, rng)
             append!(xs, 1 .+ d, 1 .- d)
         end
-        worst = first(max_error(f, g, ref64, xs))
-        @test worst <= tol
+        @testset "$name Float64" begin
+            @test first(max_error(f, g, ref64, xs)) <= tol
+        end
     end
+end
+
+# The accuracy checkers report a NaN result inside the domain as an infinite error, wherever it lies
+# among the points: a kernel that is wrong at one point by returning NaN is the worst case.
+@testitem "fast kernels: accuracy checkers report a NaN result" setup = [FastKernels] begin
+    using .FastKernels: max_error, mismatches, float32_bits, decode32, ref32, points64, ref64
+    using Random: Xoshiro
+    nan_at_2(x) = x == 2 ? oftype(x, NaN) : fast_log(x)
+    @test max_error(nan_at_2, log, ref32, float32_bits(1.5f0, 3.0f0); decode = decode32) == (Inf, 2.0f0)
+    xs = points64(1.5, 3.0, 1000, Xoshiro(1))
+    @test 2.0 in xs && last(xs) != 2.0
+    @test max_error(nan_at_2, log, ref64, xs) == (Inf, 2.0)
+    nan_sqrt(x) = x == 2 ? oftype(x, NaN) : fast_sqrt(x)
+    @test mismatches(nan_sqrt, sqrt, float32_bits(1.5f0, 3.0f0); decode = decode32) == 1
+    @test mismatches(nan_sqrt, sqrt, xs) == 1
 end
