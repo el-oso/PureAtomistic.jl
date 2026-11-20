@@ -71,8 +71,8 @@ fast_invcbrt(x::Real) = inv(cbrt(x))
 `∛x`. Domain for `Float32` and `Float64`: positive normal `x`. Other `Real`s use Base's `cbrt`.
 """
 @inline function fast_cbrt(x::T) where {T<:_FastFloat}
-    # c = x·y² with y = x^(-1/3), then one Newton step c ← c + (x - c³)·y²/3. The step is evaluated as
-    # (x·y - c²·(c·y))·y/3, whose intermediates stay near x^(2/3): c³ overflows for x near floatmax.
+    # c = x·y² with y = x^(-1/3), then one Newton step c ← c + (x - c³)·y²/3.
+    # The step is written as (x·y - c²·(c·y))·y/3 because c³ overflows for x near floatmax.
     y = fast_invcbrt(x)
     c = x * (y * y)
     return muladd((x * y - c * c * (c * y)) * y, T(1 / 3), c)

@@ -99,29 +99,30 @@ end
 end
 
 # Exhaustive over every Float32 of each documented domain. Oracle: the Base function evaluated in
-# Float64 and rounded to Float32. Bound (c), measured margin: the largest error found, in ulps, is
-# the bound asserted for each kernel.
+# Float64 and rounded to Float32. Bound (c), measured margin: 4 ulps for every kernel.
 @testitem "fast kernels: Float32 accuracy, exhaustive" tags = [:exhaustive] setup = [FastKernels] begin
     using .FastKernels: KERNELS, max_error, float32_bits, decode32, ref32
-    # Largest error found over the whole domain, in ulps of the rounded reference (whole numbers, since
-    # both values are Float32): sqrt 0, cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2.
-    bound = (sqrt = 0.0, cbrt = 1.0, invcbrt = 1.0, log = 1.0, log1p = 1.0, exp = 1.0, expm1 = 2.0)
+    # Largest error measured over the whole domain (Apple M-series, Julia 1.13), in ulps of the rounded
+    # reference: sqrt 0, cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2. The tolerance, 4 ulps, is
+    # at most 4 times (≤ 100 times) each nonzero maximum. sqrt measured 0 (correctly rounded); for it
+    # 4 ulps is the cap on all kernels, not a multiple of its maximum.
+    tol = 4.0
     for (name, f, g, iv32, _) in KERNELS
         worst = maximum(first(max_error(f, g, ref32, float32_bits(lo, hi); decode = decode32)) for (lo, hi) in iv32)
-        @test worst <= bound[name]
+        @test worst <= tol
     end
 end
 
 # 10^7 log-uniform samples over each documented domain, its ends, the powers of two and their
 # neighbors, and for log, log1p and expm1 the region near the point where the function is zero.
-# Oracle: the Base function in 128-bit BigFloat. Bound (c), measured margin: the largest error found
-# with this seed, in ulps, is the bound asserted for each kernel.
+# Oracle: the Base function in 128-bit BigFloat. Bound (c), measured margin: 4 ulps for every kernel.
 @testitem "fast kernels: Float64 accuracy, sampled" setup = [FastKernels] begin
     using .FastKernels: KERNELS, max_error, points64, ref64
     using Random: Xoshiro
-    # Largest error found, in ulps: sqrt 0.5000, cbrt 1.3249, invcbrt 1.5603, log 0.8489, log1p 1.4369,
-    # exp 1.0404, expm1 2.1782; each bound is that value rounded up to 0.01.
-    bound = (sqrt = 0.5, cbrt = 1.33, invcbrt = 1.57, log = 0.85, log1p = 1.44, exp = 1.05, expm1 = 2.19)
+    # Largest error measured with this seed (Apple M-series, Julia 1.13), in ulps: sqrt 0.5000,
+    # cbrt 1.3249, invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.1782. The tolerance,
+    # 4 ulps, is at most 8 times (≤ 100 times) each of them.
+    tol = 4.0
     n = 10^7
     for (name, f, g, _, iv64) in KERNELS
         rng = Xoshiro(20261120)
@@ -132,6 +133,6 @@ end
             append!(xs, 1 .+ d, 1 .- d)
         end
         worst = first(max_error(f, g, ref64, xs))
-        @test worst <= bound[name]
+        @test worst <= tol
     end
 end
