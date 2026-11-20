@@ -253,11 +253,30 @@ find = 'muladd(twok, p, twok - one(T))'
 replace = 'muladd(twok, p, twok)'
 expect = "expm1 Float64"
 
-# LN2_HI64 and LN2_HI32 have no entry: LN2_LO is computed from LN2_HI, so ln 2 = LN2_HI + LN2_LO
-# holds for any value, and the trailing zero bits only keep k·LN2_HI exact. Replacing either with ln 2
-# rounded to full precision (0x3fe62e42fefa39ef, 0x3f317218) gives, over 4·10^5 log-uniform Float64
-# and 4·10^6 Float32 points of each domain, at most 1.01 ulps (log, Float64; 0.81 unmutated) and
-# 1.0 ulp (Float32, as unmutated), inside the 4-ulp tolerance.
+# LN2_LO is computed from LN2_HI, so a change of LN2_HI alone keeps LN2_HI + LN2_LO = ln 2. The
+# LN2_HI entries therefore edit both lines: LN2_HI changes (keeping its trailing zero bits) and
+# LN2_LO stays the value derived from the correct LN2_HI, so the sum is no longer ln 2.
+[[mutation]]
+name = "ln2-high-part-64"
+file = "src/fast.jl"
+find = '''
+const LN2_HI64 = reinterpret(Float64, 0x3fe62e42fee00000)
+const LN2_LO64 = Float64(log(big(2)) - big(LN2_HI64))'''
+replace = '''
+const LN2_HI64 = reinterpret(Float64, 0x3fe62e42fef00000)
+const LN2_LO64 = Float64(log(big(2)) - big(reinterpret(Float64, 0x3fe62e42fee00000)))'''
+expect = "log Float64|exp Float64"
+
+[[mutation]]
+name = "ln2-high-part-32"
+file = "src/fast.jl"
+find = '''
+const LN2_HI32 = reinterpret(Float32, 0x3f317200)
+const LN2_LO32 = Float32(log(big(2)) - big(LN2_HI32))'''
+replace = '''
+const LN2_HI32 = reinterpret(Float32, 0x3f317300)
+const LN2_LO32 = Float32(log(big(2)) - big(reinterpret(Float32, 0x3f317200)))'''
+expect = "log Float32, sampled|exp Float32, sampled"
 
 [[mutation]]
 name = "ln2-low-part-32"
