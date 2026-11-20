@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic]
+        package: [PureMLIP, PureAtomistic, PureTaylor]
         version: ['1.12', '1.13']
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic]
+        package: [PureMLIP, PureAtomistic, PureTaylor]
         version: ['1.12', '1.13']
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic]
+        package: [PureMLIP, PureAtomistic, PureTaylor]
     steps:
       - uses: actions/checkout@v4
       - name: Set the checkpoint cache
