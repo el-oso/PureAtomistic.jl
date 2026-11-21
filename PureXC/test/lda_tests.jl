@@ -73,23 +73,23 @@ end
 # Oracle: the same functional built for BigFloat (256 bits), on the same Float64 inputs converted
 # exactly. Bound (b) c·eps·N, relative to the largest BigFloat entry of the same output. N counts
 # the roundings of eps/2 that reach one output coefficient on the longest path, polarized PW92:
-# - 63 series operations, each a coefficient that is a sum of at most L = 10 products, so at most
+# - 73 series operations, each a coefficient that is a sum of at most L = 10 products, so at most
 #   20 roundings: ζ and n_r (5: a − b, a + b, the inverse's product, the product, n_r/s), r_s (2),
 #   √r_s (1), the three fits (E1) (14 each: 7 for the Horner sum, 2A·q, 1 + α₁r_s, two scalings,
 #   the product, and the series parts of the inverse and the log1p counted below), f(ζ) (E3) (9),
 #   ζ⁴ and 1 − ζ⁴ (3), the combination (E4) (8), the change of variables, the product with n_r
-#   and the scaling of `derivatives` (3): 63·20 = 1260;
+#   and the scaling of `derivatives` (3), 5 + 2 + 1 + 42 + 9 + 3 + 8 + 3 = 73: 73·20 = 1460;
 # - 10 univariate functions (fast_invcbrt, fast_sqrt, three inverses and three fast_log1p in
-#   (E1), two fast_cbrt in (E3); the inverse for ζ is in the 63), each K = 3 Horner steps of a
+#   (E1), two fast_cbrt in (E3); the inverse for ζ is in the 73), each K = 3 Horner steps of a
 #   series product: 10·3·20 = 600;
 # - the scalar kernels of those 10 functions, within 2 ulps = 4 roundings each: 40.
-# N = 1900. c = 1: eps/2 per rounding, doubled for the propagation of an error through the later
-# operations to first order. lda_x takes the same bound, which covers its 5 operations widely.
+# N = 1460 + 600 + 40 = 2100. c = 1: eps/2 per rounding, doubled for the propagation of an error
+# through the later operations to first order. lda_x takes the same bound, which covers its 5 operations widely.
 # Largest measured: 44·eps relative to the largest entry (lda_c_pw, v3rho3, polarized); entry by
-# entry, each against itself, 1833·eps.
+# entry, each against itself, 1385·eps.
 @testitem "LDA functionals agree with BigFloat" setup = [LDAReference] begin
     using .LDAReference: FUNCTIONALS, GRID_N, GRID_POLARIZED, scaled_error
-    tol = 1900 * eps(Float64)
+    tol = 2100 * eps(Float64)
     worst = Ref(0.0)
     for (build, _) in FUNCTIONALS
         f, fbig = build(), build(BigFloat)
@@ -190,8 +190,8 @@ end
     # Bound (b) for the same derivatives at different raw inputs: the raised densities are the same,
     # so the computation differs only in the seed scales s, which follow the raw total density.
     # Each output is formed with s^k·(1/s)^k, k ≤ 2, through the operations counted in "LDA
-    # functionals agree with BigFloat": 1900·eps relative to the largest entry of the output.
-    close(g, w) = all(abs.(g .- w) .<= 1900 * eps() .* maximum(abs, w))
+    # functionals agree with BigFloat": 2100·eps relative to the largest entry of the output.
+    close(g, w) = all(abs.(g .- w) .<= 2100 * eps() .* maximum(abs, w))
     # Oracle: the spec's values. Tolerance (a): 1e-6 relative, the user's floor.
     for (f, zk, vβ, v2ββ) in (
             (lda_c_pw(), -0.020296494557675415, -0.15101284284991515, 1.740992732755484e9),
@@ -206,7 +206,7 @@ end
             isnothing(v2ββ) || @test abs(r.v2rho2[3] - v2ββ) <= 1.0e-6 * abs(v2ββ)
             # e = n·ε_c with the caller's n and the common ε_c: bound (b) of the derivatives,
             # plus one rounding of the product and one of the quotient.
-            @test abs(r.e / n - ref.e / 0.01) <= (1900 * eps() + 2 * eps()) * abs(zk)
+            @test abs(r.e / n - ref.e / 0.01) <= (2100 * eps() + 2 * eps()) * abs(zk)
             for name in keys(ref)[2:end]
                 @test close(getfield(r, name), getfield(ref, name))
             end
@@ -222,7 +222,7 @@ end
                 @test all(abs.(r.vrho .- v) .<= 1.0e-6 * abs(v))
             end
             # e is the caller's n times the common ε_c; bound (b) as above.
-            @test abs(r.e / 2x - ref.e / 2.0e-15) <= (1900 * eps() + 2 * eps()) * abs(ref.e / 2.0e-15)
+            @test abs(r.e / 2x - ref.e / 2.0e-15) <= (2100 * eps() + 2 * eps()) * abs(ref.e / 2.0e-15)
             for name in keys(ref)[2:end]
                 @test close(getfield(r, name), getfield(ref, name))
             end
@@ -251,12 +251,12 @@ end
         @test all(x -> all(isfinite, x), values(r))
         # Oracle: the channel at n_thr. Bound (b): the energy e = n·ε_c uses the caller's n, which
         # changes by n_thr/n ≤ 1e-9; the derivatives are those at the same raised densities, so
-        # they differ by the seed scales alone, the rounding bound 1900·eps.
+        # they differ by the seed scales alone, the rounding bound 2100·eps.
         floor = map(x -> iszero(x) ? 1.0e-15 : x, ρ)
         w = xc_derivatives(f, Val(K), floor)
         for name in keys(r)
             g, h = getfield(r, name), getfield(w, name)
-            @test all(abs.(g .- h) .<= (1.0e-9 + 1900 * eps()) .* maximum(abs, h))
+            @test all(abs.(g .- h) .<= (1.0e-9 + 2100 * eps()) .* maximum(abs, h))
         end
     end
 end
@@ -294,30 +294,6 @@ end
     end
 end
 
-# The largest densities: a finite valid input gives no NaN at any order, and an infinite output
-# only where the BigFloat value exceeds floatmax(T). Oracle: the same functional in BigFloat.
-# Bound (c), measured margins: entries of magnitude ≥ 1e4·floatmin(T) agree to 2.5e-5 (Float32)
-# and 4e-14 (Float64) relative, 100× the measured 2.6e-7 and 4.1e-16; smaller entries, whose
-# series pass through numbers near floatmin(T), to 3e4·floatmin(T) absolute, 100× the measured
-# 35·floatmin(Float32) and 280·floatmin(Float64).
-@testitem "LDA functionals at the largest densities" begin
-    for T in (Float32, Float64), build in (lda_x, lda_c_pw, lda_c_pw_mod), K in 0:3
-        x = floatmax(T) / 4
-        rel = T === Float32 ? 2.5e-5 : 4.0e-14
-        for ρ in (x, (x, zero(T)), (zero(T), x), (x, x))
-            r = xc_derivatives(build(T), Val(K), ρ)
-            b = xc_derivatives(build(BigFloat), Val(K), map(big, ρ))
-            for name in keys(r), (g, w) in zip(getfield(r, name), getfield(b, name))
-                @test !isnan(g)
-                @test isinf(g) == (abs(w) > floatmax(T))
-                if isfinite(g)
-                    @test abs(g - w) <= (abs(w) >= 1.0e4 * floatmin(T) ? rel * abs(w) : 3.0e4 * floatmin(T))
-                end
-            end
-        end
-    end
-end
-
 # _pw92_eps promotes the value types of r_s and ζ, so a plain ζ of another type is accepted.
 @testitem "_pw92_eps with a plain ζ" begin
     using PureTaylor
@@ -327,4 +303,38 @@ end
     @test PureXC._pw92_eps(pw, rs, 0) == PureXC._pw92_eps(pw, rs, 0.0)
     @test PureXC._pw92_eps(pw, 2.0, 0) == PureXC._pw92_eps(pw, 2.0, 0.0)
     @test PureXC._pw92_eps(pw, 2.0f0, 0.25) isa Float64
+end
+
+# The domain limit n_max of an LDA. Oracle: the same functional in BigFloat. Bound (b) of "LDA
+# functionals agree with BigFloat": 2100·eps(T) relative to the largest entry of each output, with
+# floatmin(T) as the smallest scale, so that an output whose exact entries all underflow may be zero.
+@testitem "LDA functionals at the domain limit" begin
+    function within(f, fbig, K, ρ, T)
+        r = xc_derivatives(f, Val(K), ρ)
+        b = xc_derivatives(fbig, Val(K), map(big, ρ))
+        return all(keys(r)) do name
+            g, w = getfield(r, name), getfield(b, name)
+            all(isfinite, g) && maximum(abs.(big.(g) .- w)) <= 2100 * eps(T) * max(maximum(abs, w), big(floatmin(T)))
+        end
+    end
+    for T in (Float32, Float64), K in 0:4
+        n = PureXC._lda_density_max(T, Val(K))
+        @test n == ldexp(one(T), fld(3 * exponent(floatmax(T)), 4) - (0, 0, 0, 1, 3)[K + 1])
+        for build in (lda_x, lda_c_pw, lda_c_pw_mod)
+            f, fbig = build(T), build(BigFloat)
+            for ρ in (n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4))
+                @test within(f, fbig, K, ρ, T)
+            end
+            for ρ in (2n, nextfloat(n), (nextfloat(n), zero(T)), (zero(T), nextfloat(n)), (n / 2, n), (floatmax(T), floatmax(T)))
+                @test_throws ArgumentError xc_derivatives(f, Val(K), ρ)
+                @test_throws "xc: total density" xc_derivatives(f, Val(K), ρ)
+            end
+        end
+    end
+    # The limit is that of the type the functional evaluates in.
+    @test_throws "xc: " xc_derivatives(lda_x(Float32), Val(1), 2.0f0^96)
+    @test isfinite(xc_derivatives(lda_x(Float32), Val(1), 2.0^96).e)
+    @test isfinite(xc_derivatives(lda_x(), Val(1), 2.0f0^96).e)
+    @test_throws "xc: " energy_density(lda_x(), 2.0^768)
+    @test isfinite(energy_density(lda_x(), 2.0^767))
 end

@@ -128,20 +128,16 @@ _energy_density(pw::PW92Correlation, ρ) = ρ * _pw92_eps(pw, _seitz_radius(_rai
 # (E5) with rule 2: r_s and ζ are formed from the channels raised to n_thr, and so is the total
 # density n_r that multiplies ε_c, so every derivative is that of n_r·ε_c at the raised densities.
 # The value is n·ε_c with the caller's n = n_α + n_β. ε_c is expanded in its own variables (n, ζ),
-# seeded at the driver's seed scale of n_r and at 1, composed with the series of n_r and ζ in the
-# density variables, and multiplied there by n_r, so that no coefficient in (n, ζ) carries the
-# factor n_r.
+# seeded at the scales n_r and 1, and composed with the series of n_r and ζ in the density
+# variables.
 function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}) where {N, K}
     a = _raise(ρ[1], pw.thresholds.density)
     b = _raise(ρ[2], pw.thresholds.density)
     nr = a + b
-    # ζ = (a − b)/n_r with both scaled by a power of two near 1/n_r, so that the series of the
-    # inverse does not underflow where n_r is near floatmax.
-    t = ldexp(one(typeof(value(nr))), -exponent(value(nr)))
-    ζ = ((a - b) * t) / (nr * t)
-    s = _seed_scale(value(nr), value(nr), Val(K))
-    n = variable(Val(2), Val(K), Val(1), value(nr), s)
+    ζ = (a - b) / nr
+    s = value(nr)
+    n = variable(Val(2), Val(K), Val(1), s, s)
     ε = _pw92_eps(pw, _seitz_radius(n), variable(Val(2), Val(K), Val(2), value(ζ)))
-    e = nr * substitute(ε, (nr / s, ζ))
+    e = substitute(n * ε, (nr / s, ζ))
     return _with_value(e, (value(ρ[1]) + value(ρ[2])) * value(ε))
 end

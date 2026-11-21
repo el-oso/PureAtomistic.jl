@@ -156,7 +156,7 @@ end
     @test_throws "xc: " energy_density(gga, (1.0, 1.0), (1.0, 0.0, -1.0e-300))
     # σαβ may be negative.
     @test xc_derivatives(gga, Val(0), (1.0, 1.0), (1.0, -1.0e-300, 1.0)).e isa Float64
-    @test PureXC._check_inputs(gga, (1.0, 1.0), (1.0, -1.0e-300, 1.0)) === nothing
+    @test PureXC._check_inputs(gga, Val(0), (1.0, 1.0), (1.0, -1.0e-300, 1.0)) === nothing
 end
 
 @testitem "the σαβ bound" setup = [TestFunctionals] begin
