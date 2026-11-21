@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic, PureTaylor]
+        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
         version: ['1.12', '1.13']
     steps:
       - uses: actions/checkout@v4
