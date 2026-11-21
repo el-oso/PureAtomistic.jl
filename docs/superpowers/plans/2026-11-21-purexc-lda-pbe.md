@@ -36,7 +36,7 @@
   - |σαβ| > √σαα·√σββ·(1 + 8·eps(S)), with S the type of the σ inputs (equivalent to σαβ² > σαα·σββ·(1 + 16·eps(S)), compared through square roots so that nothing underflows), a rounding bound of kind (b) for σ's formed as 3-term dot products: each σ carries at most 3 eps, a product of two σ's at most 6 eps, and a factor of 2 is margin;
   - mismatched axes (`DimensionMismatch` for axes).
   - Nothing clamps a caller error. ρ = −0.0 is not negative and is treated as 0.
-- **Thresholds.** Each functional follows its spec's "PureXC rule" exactly. Thresholds are fields of the functional, typed in its number type.
+- **Thresholds.** Each functional follows its spec's "PureXC rule" exactly. Thresholds are fields of the functional, typed in its number type; when a parameter is a PureTaylor `Taylor` (parameter gradients), the thresholds take that Taylor's value type.
   - Float64 defaults are the spec values.
   - Float32 defaults are the Float64 values converted, with ε_ζ = eps(Float32), and any floor below floatmin(Float32) raised to floatmin(Float32).
   - Where a rule raises a value to a floor, only the value is raised. The series part stays, so the derivatives are those at the floor.
