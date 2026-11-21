@@ -97,10 +97,12 @@ end
 ε_c(r_s, ζ) of (E4), the correlation energy per electron of `pw` at the Seitz radius `rs` and the
 spin polarization `ζ` ∈ [−1, 1], with the ζ-factor rule 3 applied in f(ζ). Without `ζ`, the
 unpolarized ε_c(r_s, 0) = G(r_s; set 0) of (E2). The arguments are numbers or `Taylor` numbers over
-the same variables, with value type `R`; ε_ζ is converted to `R`.
+the same variables; `R` is the promotion of their value types, and a plain `ζ` and ε_ζ are
+converted to `R`.
 """
 function _pw92_eps(pw::PW92Correlation, rs, ζ)
-    R = typeof(value(ζ))
+    R = promote_type(typeof(value(rs)), typeof(value(ζ)))
+    ζ = _in_value_type(R, ζ)
     r = fast_sqrt(rs)
     # (E2): the three instances of G; set 2 fits −α_c.
     ε0 = _pw92_G(rs, r, pw.params[1])
@@ -114,6 +116,9 @@ function _pw92_eps(pw::PW92Correlation, rs, ζ)
     return ε0 + αc * f / pw.fz20 * (1 - ζ4) + (ε1 - ε0) * f * ζ4
 end
 
+_in_value_type(::Type{R}, x::Real) where {R} = convert(R, x)
+_in_value_type(::Type, x::Taylor) = x
+
 _pw92_eps(pw::PW92Correlation, rs) = _pw92_G(rs, fast_sqrt(rs), pw.params[1])
 
 # (E5) at ζ = 0: e(n) = n G(r_s; set 0). The density is raised to n_thr only to keep fast_invcbrt in
@@ -123,16 +128,20 @@ _energy_density(pw::PW92Correlation, ρ) = ρ * _pw92_eps(pw, _seitz_radius(_rai
 # (E5) with rule 2: r_s and ζ are formed from the channels raised to n_thr, and so is the total
 # density n_r that multiplies ε_c, so every derivative is that of n_r·ε_c at the raised densities.
 # The value is n·ε_c with the caller's n = n_α + n_β. ε_c is expanded in its own variables (n, ζ),
-# seeded at the scales n_r and 1, and composed with the series of n_r and ζ in the density
-# variables.
+# seeded at the driver's seed scale of n_r and at 1, composed with the series of n_r and ζ in the
+# density variables, and multiplied there by n_r, so that no coefficient in (n, ζ) carries the
+# factor n_r.
 function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}) where {N, K}
     a = _raise(ρ[1], pw.thresholds.density)
     b = _raise(ρ[2], pw.thresholds.density)
     nr = a + b
-    ζ = (a - b) / nr
-    s = value(nr)
-    n = variable(Val(2), Val(K), Val(1), s, s)
+    # ζ = (a − b)/n_r with both scaled by a power of two near 1/n_r, so that the series of the
+    # inverse does not underflow where n_r is near floatmax.
+    t = ldexp(one(typeof(value(nr))), -exponent(value(nr)))
+    ζ = ((a - b) * t) / (nr * t)
+    s = _seed_scale(value(nr), value(nr), Val(K))
+    n = variable(Val(2), Val(K), Val(1), value(nr), s)
     ε = _pw92_eps(pw, _seitz_radius(n), variable(Val(2), Val(K), Val(2), value(ζ)))
-    e = substitute(n * ε, (nr / s, ζ))
+    e = nr * substitute(ε, (nr / s, ζ))
     return _with_value(e, (value(ρ[1]) + value(ρ[2])) * value(ε))
 end

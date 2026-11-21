@@ -69,11 +69,7 @@ end
 # density and nσ σ inputs, mapped to the output fields.
 function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, r::NTuple{N, Real}) where {K, N}
     R = eltype(x)
-    # Seed scales s = max(|x|, r, m): positive at x = 0, |x| covers a negative σαβ, and m keeps
-    # every s^k with k ≤ K a normal number. The scale changes only the representation of the
-    # series, not the derivatives.
-    m = _seed_minimum(R, Val(K))
-    s = map((xi, ri) -> max(abs(xi), ri, m), x, r)
+    s = map((xi, ri) -> _seed_scale(xi, ri, Val(K)), x, r)
     e = _energy_density(f, _group(gρ, gσ, _seed(Val(K), x, s))...)
     d = derivatives(e, map(inv, s))
     cut = _cutoff(f, _group(gρ, gσ, x)...)
@@ -82,6 +78,21 @@ end
 
 # A power of two m with m^k ≥ floatmin(R) for every k ≤ K, so every m^k is exact and normal.
 _seed_minimum(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), cld(exponent(floatmin(R)), max(K, 1)))
+
+# A power of two M with M^(K+1) ≤ floatmax(R), so the order-k coefficient v·s^k/k! of an output v
+# with |v| ≤ M stays finite for every k ≤ K, even where the value itself overflows.
+_seed_maximum(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), fld(exponent(floatmax(R)), K + 1))
+
+# The seed scale of an input x with natural size r at order K: max(min(max(|x|, r, m), M), |x|·m).
+# It is positive at x = 0, |x| covers a negative σαβ, and m keeps every s^k, k ≤ K, a normal
+# number. M keeps the coefficients of the outputs finite where their values overflow, and the
+# floor |x|·m keeps (s/|x|)^k normal so that the series of functions of x does not underflow;
+# where |x|·m exceeds M, the floor wins. The scale changes only the representation of the
+# series, not the derivatives.
+function _seed_scale(x::R, r::R, ::Val{K}) where {R, K}
+    m = _seed_minimum(R, Val(K))
+    return max(min(max(abs(x), r, m), _seed_maximum(R, Val(K))), abs(x) * m)
+end
 
 # The natural size of a σ component at total density n: 4(3π²)^(2/3)·n^(8/3), the σ at which the
 # reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
