@@ -79,7 +79,7 @@
     - The ρ part lists all multisets of size a over (α, β) in lexicographic order. The σ part lists all multisets of size b over (αα, αβ, ββ) in lexicographic order. The ρ part is the outer loop.
     - Example: `v2rhosigma` = (α·αα, α·αβ, α·ββ, β·αα, β·αβ, β·ββ).
     - The order-1 and order-2 fields are checked against Libxc's outputs in Task 6, so a layout error fails there.
-- **Seeds.** Every input is a PureTaylor variable with scale s = max(x, floor), so that s > 0 even when x = 0, using the floor that the functional's PureXC rule applies to that input. Derivatives are read with `derivatives(a, 1 ./ s)`.
+- **Seeds.** Every input is a PureTaylor variable with scale s = max(|x|, r, floatmin(T)^(1/K)), where K is the derivative order and r is the input's natural size at that point: the total density n for a density input, and 4(3π²)^(2/3)·n^(8/3) (the σ at which the reduced gradient is 1) for a σ component. The last term keeps every s^k, k ≤ K, a normal number. The scale changes only the representation; the derivatives are read with `derivatives(a, 1 ./ s)`.
 - **Polarized correlation** is computed in (ρ, ζ, σ) and converted to the density variables with `PureTaylor.substitute`. Polarized exchange uses the exact spin scaling, channel by channel.
 
 ## Review Focus
