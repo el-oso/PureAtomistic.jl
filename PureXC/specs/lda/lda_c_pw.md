@@ -150,6 +150,11 @@ API. Applied as follows (application checked against Libxc, see below):
 
 ## 8. Known misprints and ambiguities
 
+- 1 ± ζ is formed from ζ = (n_α − n_β)/n, as the ζ-factor rule of section 7 needs, so it
+  loses digits at nearly full polarization. Measured: at (0.01, 0), with n_β raised to n_thr,
+  v2rho2_ββ is 5.3e-4 relative from the value with 1 − ζ formed exactly as 2n_β/n (BigFloat),
+  and agrees with Libxc 7.0.0. Forming 1 ± ζ exactly would also move the points where the
+  ζ-factor rule applies, so this spec keeps the ζ form. Such points are below the thresholds.
 - Erratum (2018): Eq. (B3) of [PW92] should read tan⁻¹(1/u) instead of tan⁻¹(u). (B3) is
   not used here; it does not affect (E1)–(E4).
 - f''(0): [PW92] prints the rounded 1.709921 after Eq. (9), while Eq. (9) itself gives
