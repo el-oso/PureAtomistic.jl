@@ -149,10 +149,12 @@ _series_with_value(::Real, v) = v
 _energy_density(f::PBECorrelation, ρ, σ) = _pbe_c_energy(f, ρ, σ, +)
 
 # n·combine(ε_c, H): `+` for the energy; the terms alone serve to measure the cancellation in ε_c + H.
-function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine)
+# `adjust` is applied to the series of ε_c before H is formed: `identity` for the energy; a change of
+# its coefficients by one ulp measures the sensitivity of the outputs to the rounding of ε_c.
+function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
     n = _raise(ρ, f.thresholds.density)
     g = _raise(σ, f.thresholds.sigma_floor)
-    ε = _pw92_eps(f.pw, _seitz_radius(n))
+    ε = adjust(_pw92_eps(f.pw, _seitz_radius(n)))
     return n * combine(ε, _pbe_H(f, n, one(typeof(value(n))), g, ε))
 end
 
@@ -168,7 +170,7 @@ _pbe_t_scale(n::R, φ::R) where {R} = 16 * φ^2 * cbrt(3 * convert(R, π)^2) * f
 # the input variables.
 _energy_density(f::PBECorrelation, ρ::Tuple{Taylor, Taylor}, σ::NTuple{3, Taylor}) = _pbe_c_energy(f, ρ, σ, +)
 
-function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine) where {N, K}
+function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine, adjust = identity) where {N, K}
     thr = f.thresholds
     a = _raise(ρ[1], thr.density)
     b = _raise(ρ[2], thr.density)
@@ -182,7 +184,7 @@ function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}},
     n = variable(Val(3), Val(K), Val(1), sn, sn)
     z = variable(Val(3), Val(K), Val(2), value(ζ))
     g = variable(Val(3), Val(K), Val(3), value(gt), st)
-    ε = _pw92_eps(f.pw, _seitz_radius(n), z)
+    ε = adjust(_pw92_eps(f.pw, _seitz_radius(n), z))
     w = combine(ε, _pbe_H(f, n, _pbe_phi(z, εζ), g, ε))
     e = substitute(n * w, (nr / sn, ζ, gt / st))
     return _with_value(e, (value(ρ[1]) + value(ρ[2])) * value(w))
@@ -213,17 +215,20 @@ t²_max(R, K), the largest reduced gradient t² that `pbe_c` accepts at order `K
 power of two: `2^_PBE_C_T2_EXPONENT_FLOAT32[K + 1]` in Float32, `2^_PBE_C_T2_EXPONENT_FLOAT64[K + 1]`
 in Float64 and the other types. Each is measured as the largest power of two at which every output
 at order `K` is within its bound against BigFloat over the splits of `_lda_density_max` up to
-n_max, restricted and polarized at orders 0 to 7. At orders 8 to 10 only restricted input is
-measured (Float32 2^16, 2^14, 2^13; Float64 2^96, 2^88, 2^80), and the limit is the smaller of that
-and the order-7 limit. Above the limit outputs lose their accuracy: series coefficients of H that
-decrease like powers of 1/t² underflow, and near n_max the total σ overflows. Orders above 10 are
-not measured and take the order-10 value.
+n_max, at every power of two up to the limit (step 1 in the exponent), restricted and polarized at
+orders 0 to 8; the bounds are those of the tests, which for pbe_c include the change of the outputs
+from rounding ε_c by one ulp. At orders 9 and 10 only restricted input is measured (Float32 2^14,
+2^13; Float64 2^88, 2^0), and the limit is the smaller of that and the order-8 limit. In Float64 at
+order 10 the restricted v10rho9sigma changes sign near t² = 2 at n = 1.8e-12, and its error relative
+to its own size exceeds the bound there. Above the limit outputs lose their accuracy: series
+coefficients of H that decrease like powers of 1/t² underflow, and near n_max the total σ
+overflows. Orders above 10 are not measured and take the order-10 value.
 """
 _pbe_c_t2_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), _PBE_C_T2_EXPONENT_FLOAT64[min(K, 10) + 1])
 _pbe_c_t2_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, _PBE_C_T2_EXPONENT_FLOAT32[min(K, 10) + 1])
 
-const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 17, 127, 127, 127, 16, 14, 14, 14, 13)
-const _PBE_C_T2_EXPONENT_FLOAT64 = (131, 131, 131, 126, 126, 126, 118, 21, 21, 21, 21)
+const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 17, 127, 127, 127, 16, 14, 11, 11, 11)
+const _PBE_C_T2_EXPONENT_FLOAT64 = (131, 131, 131, 131, 131, 131, 120, 107, 96, 88, 0)
 
 function _check_gga_domain(f::PBECorrelation, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _domain_type(f, (ρ, σ))
