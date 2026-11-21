@@ -110,6 +110,8 @@ end
 ^(a::Taylor, n::Integer) = n < 0 ? inv(_pow_abs(a, n)) : _pow_abs(a, n)
 
 @generated function literal_pow(::typeof(^), a::Taylor, ::Val{n}) where {n}
+    # Julia lowers only integer literals to literal_pow; any other exponent is the general power.
+    n isa Integer || return :(a ^ $n)
     n == 0 && return :(one(a))
     m = abs(n)
     # Unrolled repeated squaring of the literal exponent.

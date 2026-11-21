@@ -25,6 +25,12 @@ _constant_like(a::Taylor{N,K,M,T,L}, x::T) where {N,K,M,T,L} = Taylor{N,K,M,T,L}
     return body
 end
 
+# Reached when the series coefficients `d` or the scale `s` are not of the coefficient type of `a`,
+# as for a Taylor with integer coefficients.
+compose(a::Taylor{N,K,M,T}, d::Tuple, s) where {N,K,M,T} = throw(
+    ArgumentError(lazy"PureTaylor: the series of a Taylor with coefficient type $T needs coefficients of type $(eltype(d)); seed the variables with floating-point or Rational values")
+)
+
 # (b₀, g(b₀, 1), g(g(b₀, 1), 2), …): the K + 1 terms of the recurrence bₖ = g(bₖ₋₁, k), unrolled.
 @generated function _recurrence(g, b0, ::Val{K}) where {K}
     b = [Symbol(:b, k) for k in 0:K]
@@ -38,7 +44,7 @@ end
 
 # (x + h)ᵖ = xᵖ·(1 + h/x)ᵖ = Σₖ xᵖ·binomial(p, k)·(h/x)ᵏ, with the generalized binomial
 # coefficient of real p built by its recurrence binomial(p, k) = binomial(p, k-1)·(p - k + 1)/k.
-function _power_series(a::Taylor{N,K,M,T}, v::T, p::T) where {N,K,M,T}
+function _power_series(a::Taylor{N,K,M,T}, v, p) where {N,K,M,T}
     d = _recurrence((b, k) -> b * (p - T(k - 1)) / T(k), v, Val(K))
     return compose(a, d, inv(value(a)))
 end
@@ -80,7 +86,7 @@ throws `DomainError`), and at value 0 the derivatives are singular: every coeffi
 ^(a::Taylor, p::Rational) = _real_power(a, p)
 
 # exp(x + h) = Σₖ e/k!·hᵏ with e = exp(x); the series of expm1 differs only in its value `v`.
-function _exp_taylor(a::Taylor{N,K,M,T}, v::T, e::T) where {N,K,M,T}
+function _exp_taylor(a::Taylor{N,K,M,T}, v, e) where {N,K,M,T}
     d = _recurrence((b, k) -> b / T(k), e, Val(K))
     return compose(a, ntuple(i -> i == 1 ? v : d[i], Val(K + 1)), one(T))
 end
@@ -88,7 +94,7 @@ exp(a::Taylor) = (e = exp(value(a)); _exp_taylor(a, e, e))
 expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), exp(value(a)))
 
 # log(y + h) = log(y) + Σₖ₌₁ (-1)ᵏ⁻¹/k·(h/y)ᵏ, at y = x for log and y = 1 + x for log1p.
-function _log_series(a::Taylor{N,K,M,T}, v::T, y::T) where {N,K,M,T}
+function _log_series(a::Taylor{N,K,M,T}, v, y) where {N,K,M,T}
     d = ntuple(i -> i == 1 ? v : (iseven(i) ? one(T) : -one(T)) / T(i - 1), Val(K + 1))
     return compose(a, d, inv(y))
 end

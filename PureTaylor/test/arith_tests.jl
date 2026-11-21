@@ -86,6 +86,22 @@ end
     end
 end
 
+# Julia lowers only integer literals to literal_pow; a hand-written call with another exponent is the
+# general power.
+@testitem "literal_pow with a non-integer exponent" begin
+    a = variable(Val(1), Val(3), Val(1), 2.0)
+    @test Base.literal_pow(^, a, Val(2.5)).c == (a^2.5).c           # exact: the same call
+end
+
+@testitem "series of a Taylor with integer coefficients" begin
+    a = variable(Val(1), Val(2), Val(1), 2)
+    msg = "PureTaylor: the series of a Taylor with coefficient type Int64 needs coefficients of type Float64"
+    @test_throws msg inv(a)
+    @test_throws msg sqrt(a)
+    @test_throws msg exp(a)
+    @test_throws msg log(a)
+end
+
 @testitem "inverse against nested ForwardDiff" begin
     using ForwardDiff
     using PureTaylor: multi_indices

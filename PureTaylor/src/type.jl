@@ -5,14 +5,18 @@ Truncated Taylor polynomial in `N` variables up to total degree `K`, with coeffi
 Only the variables in the bit mask `M` (bit `i-1` set means variable `i`) carry nonzero higher-order
 terms. `c` holds `c_α = (∂^α f)/α!` for every multi-index `α` of `multi_indices(Val(N), Val(K))`
 supported on those variables, in that order, so `c[1]` is the value and `L == binomial(count_ones(M) + K, K)`.
+`N`, `K` and `M` are `Int`s with `1 ≤ N ≤ 63` (the mask is an `Int`), `K ≥ 0` and `0 ≤ M < 2^N`.
 """
 struct Taylor{N,K,M,T,L} <: Real
     c::NTuple{L,T}
     function Taylor{N,K,M,T,L}(c::Tuple) where {N,K,M,T,L}
-        1 <= N <= 64 || throw(ArgumentError("PureTaylor: N = $N must satisfy 1 ≤ N ≤ 64"))
-        0 <= M < UInt128(1) << N || throw(ArgumentError("PureTaylor: mask M = $M must satisfy 0 ≤ M < 2^N for N = $N"))
+        N isa Int || throw(ArgumentError(lazy"PureTaylor: N = $N must be an Int, got $(typeof(N))"))
+        1 <= N <= 63 || throw(ArgumentError(lazy"PureTaylor: N = $N must satisfy 1 ≤ N ≤ 63 (the mask is an Int)"))
+        K isa Int && K >= 0 || throw(ArgumentError(lazy"PureTaylor: K = $K must be an Int ≥ 0"))
+        M isa Int || throw(ArgumentError(lazy"PureTaylor: mask M = $M must be an Int, got $(typeof(M))"))
+        0 <= M < UInt128(1) << N || throw(ArgumentError(lazy"PureTaylor: mask M = $M must satisfy 0 ≤ M < 2^N for N = $N"))
         L == binomial(count_ones(M) + K, K) ||
-            throw(ArgumentError("PureTaylor: L = $L must equal binomial(count_ones(M) + K, K) = $(binomial(count_ones(M) + K, K)) for M = $M, K = $K"))
+            throw(ArgumentError(lazy"PureTaylor: L = $L must equal binomial(count_ones(M) + K, K) = $(binomial(count_ones(M) + K, K)) for M = $M, K = $K"))
         return new{N,K,M,T,L}(c)
     end
 end
@@ -20,10 +24,11 @@ end
 """
     variable(Val(N), Val(K), Val(i), x, s = one(x))
 
-The number `x + s·uᵢ`, a series in `uᵢ`. With `s = x` every coefficient stays of order 1 in size;
-`derivatives` undoes the scaling.
+The number `x + s·uᵢ`, a series in `uᵢ`, for `1 ≤ i ≤ N`. With `s = x` every coefficient stays of
+order 1 in size; `derivatives` undoes the scaling.
 """
 function variable(::Val{N}, ::Val{K}, ::Val{i}, x::T, s::T = one(T)) where {N,K,i,T}
+    1 <= i <= N || throw(ArgumentError(lazy"PureTaylor: variable index i = $i must satisfy 1 ≤ i ≤ N = $N"))
     c = ntuple(j -> j == 1 ? x : j == 2 ? s : zero(T), Val(K + 1))
     return Taylor{N,K,1 << (i - 1),T,K + 1}(c)
 end
