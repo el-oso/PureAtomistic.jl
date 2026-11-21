@@ -194,6 +194,10 @@
     # exceeds the plain bound, so the term changes no result there.
     const SENSITIVITY_C = 8
 
+    # The kind (b) bound at orders 0 to 3, in eps of the order scale: N of the derivation in "PBE
+    # functionals agree with BigFloat", 7400 for pbe_c and 760 for pbe_x.
+    bound_b(f) = f isa PureXC.PBECorrelation ? 7400.0 : 760.0
+
     # The error of `f` at order K at (ρ, σ) against `exact_big(f)`, in eps(T) of the result type,
     # per entry against the scale of its order (`error_eps`). `allow` is the bound it will be
     # compared with. For pbe_c, where the plain error exceeds it, each entry's error is first reduced
@@ -569,28 +573,34 @@ end
 # Oracle: the same functional built for BigFloat (256 bits), on the same Float64 inputs converted
 # exactly (`exact_big`). Each entry's error is in normalized Taylor coefficients, against the largest
 # coefficient of its order (`scales`, `error_eps`): for pbe_c the size of the terms n·ε_c and n·H,
-# whose sum cancels at large t (spec gga_c_pbe, section 7). Bound
-# (b) c·eps·N, with N the roundings of eps/2 that reach one output coefficient on the longest path,
-# polarized pbe_c, counted as in "LDA functionals agree with BigFloat":
-# - its PW92 part, 2100;
-# - H: 30 series operations (φ: 2 + 3; φ², φ³: 2; q and t²: 4; −ε_c/(γφ³) and A: 4; y: 2; the two
-#   forms of the argument: 8; γφ³·log1p: 2; the sum with ε_c and the product with n: 2; the change
-#   of variables in three variables: 1), each a coefficient that is a sum of at most 20 products,
-#   so at most 40 roundings: 1200;
-# - 6 univariate functions (two (1 ± ζ)^(2/3), x^(−7/6), fast_expm1, two inverses, fast_log1p),
-#   each K = 3 Horner steps of a series product, 6·3·40 = 720, and their scalar kernels within
-#   2 ulps, 28;
-# N = 2100 + 1200 + 720 + 28 ≈ 4100 and c = 1. pbe_x takes the same bound. Where pbe_c keeps the
-# factors (1 ± ζ)^p of the smaller channel the bound adds 8κ_ζ, κ_ζ = 2/(1 − |ζ|), the conditioning
-# of 1 ± ζ formed from ζ (spec lda_c_pw, section 8), as for PW92. Largest measured at the points
-# without the 8κ_ζ term: pbe_x 13, pbe_c 12.
+# whose sum cancels at large t (spec gga_c_pbe, section 7). Bound (b) c·eps·N (`bound_b`), with N the
+# roundings of eps/2 that reach one output coefficient, counted as in "LDA functionals agree with
+# BigFloat": a series operation whose coefficients are sums of at most L products rounds at most 2L
+# times; a univariate function costs K = 3 Horner steps of a series product, plus 4 roundings of its
+# scalar kernel (within 2 ulps). Every operation is counted, whichever form `ifelse` selects, which
+# bounds the longest path.
+# - pbe_c, polarized: its PW92 part, 2100 (series in n and ζ). `_pbe_H` in three variables, L = 20,
+#   40 roundings: 55 series operations (φ: 3; φ², φ³: 2; q and t²: 4; z: 2; 1/E and log E: 2; y: 2;
+#   1/t² and 1/y: 7; w: 5; v: 4; X: 5; 1/X: 6; log X: 6; log(1 − v) and the split: 2; γφ³·L: 2;
+#   the sum with ε_c, the product with n and the change of variables: 3), 2200; 25 univariate
+#   functions (two (1 ± ζ)^(2/3), x^(−7/6), x^(7/6), nine inverses, fast_expm1(z), fast_exp(−z),
+#   fast_expm1(−z), four fast_log, five fast_log1p), 25·3·40 = 3000, and their kernels, 100.
+#   N = 2100 + 2200 + 3000 + 100 = 7400.
+# - pbe_x: each channel a series in at most two variables, L = 10, 20 roundings: 22 series
+#   operations (s²: 3; μs² and x: 2; the x ≤ 1 form: 2; w: 3; P: 5; the x > 1 form: 3; the channel
+#   sum, the constant factor and the scaling of `derivatives`: 4), 440; 5 univariate functions
+#   (x^(4/3), x^(−4/3), the inverses of 1 + x, σ and 1 + w), 5·3·20 = 300, and their kernels, 20.
+#   N = 760.
+# c = 1. Where pbe_c keeps the factors (1 ± ζ)^p of the smaller channel the bound adds 8κ_ζ,
+# κ_ζ = 2/(1 − |ζ|), the conditioning of 1 ± ζ formed from ζ (spec lda_c_pw, section 8), as for PW92.
+# Largest measured at the points without the 8κ_ζ term: pbe_x 13, pbe_c 12.
 @testitem "PBE functionals agree with BigFloat" setup = [PBEReference] begin
-    using .PBEReference: GRID_RESTRICTED, GRID_POLARIZED, point_error, zeta_conditioning
+    using .PBEReference: GRID_RESTRICTED, GRID_POLARIZED, point_error, zeta_conditioning, bound_b
     worst = Dict(pbe_x => Ref(0.0), pbe_c => Ref(0.0))
     for build in (pbe_x, pbe_c)
         f = build()
         for (ρ, σ) in Iterators.flatten((GRID_RESTRICTED, GRID_POLARIZED))
-            b = 4100 + 8 * zeta_conditioning(f, ρ)
+            b = bound_b(f) + 8 * zeta_conditioning(f, ρ)
             err = point_error(f, 3, ρ, σ; allow = b)
             worst[build][] = max(worst[build][], err)
             @test err <= b
@@ -604,7 +614,7 @@ end
 # outputs are within the bound of "PBE functionals agree with BigFloat" (orders 0 to 3; higher orders
 # are in "PBE functionals at orders 0 to 10"); above it the input is a caller error.
 @testitem "PBE domain limits" setup = [PBEReference] begin
-    using .PBEReference: point_error, zeta_conditioning
+    using .PBEReference: point_error, zeta_conditioning, bound_b
     @test PureXC._gga_density_max(Float64, Val(3)) == 2.0^381
     @test PureXC._gga_density_max(Float32, Val(3)) == 2.0f0^45
     @test PureXC._gga_density_max(BigFloat, Val(7)) == big(2.0)^381
@@ -618,9 +628,19 @@ end
         nmax = PureXC._gga_density_max(T, Val(K))
         for build in (pbe_x, pbe_c)
             f = build(T)
-            # n_max, restricted and split, at σ = 0 and at s² = t² = 1.
-            for (ρ, σ) in ((nmax, zero(T)), ((nmax / 2, nmax / 2), (zero(T), zero(T), zero(T))), ((nmax, zero(T)), (T(1), zero(T), zero(T))))
-                b = 4100 + 8 * zeta_conditioning(f, ρ)
+            # n_max, restricted and split, at σ = 0 and at s² = 1 (pbe_x, each channel) or t² = 1 (pbe_c).
+            h = nmax / 2
+            g1, g2 = if build === pbe_x
+                T(c3 * big(nmax)^(8 // 3)), T(4 * cbrt(6 * big(π)^2)^2 * big(h)^(8 // 3))
+            else
+                T(tscale(nmax)), T(tscale(nmax) / 4)
+            end
+            cases = (
+                (nmax, zero(T)), ((h, h), (zero(T), zero(T), zero(T))),
+                (nmax, g1), ((h, h), (g2, g2, g2)),
+            )
+            for (ρ, σ) in cases
+                b = bound_b(f) + 8 * zeta_conditioning(f, ρ)
                 @test point_error(f, K, ρ, σ; allow = b) <= b
             end
             for (ρ, σ) in ((nextfloat(nmax), zero(T)), ((nmax, nmax), (zero(T), zero(T), zero(T))), (floatmax(T), zero(T)))
@@ -632,7 +652,7 @@ end
                 big(PureXC._pbe_c_t2_max(T, Val(K))) * tscale(n)
             inside = T(m * (1 - big(2.0)^-10))
             if isfinite(inside)
-                @test point_error(f, K, n, inside; allow = 4100) <= 4100
+                @test point_error(f, K, n, inside; allow = bound_b(f)) <= bound_b(f)
                 @test_throws "xc: reduced gradient" xc_derivatives(f, Val(K), n, T(2 * m))
             end
         end
@@ -658,20 +678,20 @@ end
 # exceeds floatmax(T) must be infinite, with its sign where it is above the bound, and no NaN
 # passes:
 # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.47;
-# - K ≤ 3: 4100, bound (b) of "PBE functionals agree with BigFloat", measured at most 898;
+# - K ≤ 3: `bound_b`, bound (b) of "PBE functionals agree with BigFloat" (pbe_c 7400, pbe_x 760), measured at most 898 and 7.7;
 # - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 898;
 # - K ≥ 8: 7100, bound (c), measured at most 71;
 # - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
 # Polarized pbe_c is checked here to order 6 (`kmax_polarized_c`); see the comment there.
 @testitem "PBE functionals at orders 0 to 10" setup = [PBEReference] begin
-    using .PBEReference: point_error, zeta_conditioning
+    using .PBEReference: point_error, zeta_conditioning, bound_b
     # Polarized pbe_c is a series in five coupled variables whose compilation grows quickly with the
     # order (measured at order 8: 153 s in Float64 and 26 min in BigFloat), so order 7 is measured
     # outside the suite; orders 9 and 10 overflow the stack.
     kmax_polarized_c = 6
     function point_bound(f, ρ, T, K)
         T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 45.0
-        return (K <= 3 ? 4100.0 : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
+        return (K <= 3 ? bound_b(f) : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
     end
     c3, c6 = 4 * cbrt(3 * big(π)^2)^2, 4 * cbrt(6 * big(π)^2)^2
     # σ at the reduced gradient g (s² or t²), from the exact values, rounded to T.
@@ -749,4 +769,127 @@ end
         @test abs(r.e - e) <= 8 * eps() * abs(nε)
         @test abs(r.vsigma - vσ) <= 32 * eps() * abs(vσ)
     end
+end
+
+# The forms of src against the formulas of the specs as they stand: gga_x_pbe (E2)–(E4) and
+# gga_c_pbe (E1)–(E3) with the bracket (1 + B·A·t²)/(1 + A·t² + B·A²t⁴), written here as BigFloat
+# functionals on Taylor numbers, with the section-7 rules (raised densities and σ's, the channel and
+# total cut-offs, the ζ-factor rule) and the seeds of the functional under test. Oracle: these
+# functionals, independent of `_pbe_x_term` and `_pbe_H`; ε_c comes from the PW92 code, which is
+# the spec formula as written. Compared with `exact_big(f)` at order 3, restricted and polarized, at
+# points in every region of the forms: x = μs²/κ below and above 1 (pbe_x); y = A·t² and X below and
+# above 1 and z = −ε_c/(γφ³) below and above 1, every reachable combination (pbe_c; z > 1, y > 1,
+# X ≤ 1 cannot occur, since X = E(1 − v) ≥ (e − 1)·2/3 there), at B = 0.5, 1 and 2. Errors per
+# entry against the largest normalized coefficient of its order (`error_eps`), in eps of 256-bit
+# BigFloat. Bound (c): 1e4, measured at most 975.
+@testitem "PBE forms against the plain spec formulas" setup = [PBEReference] begin
+    using PureTaylor
+    using .PBEReference: exact_big, layout, normalizers, scales, error_eps, U
+    struct PlainX <: PureXC.AbstractGGA{BigFloat}
+        f::PureXC.PBEExchange{BigFloat, BigFloat}
+        thresholds::PureXC.Thresholds{BigFloat}
+    end
+    struct PlainC <: PureXC.AbstractGGA{BigFloat}
+        f::PureXC.PBECorrelation{BigFloat}
+        thresholds::PureXC.Thresholds{BigFloat}
+    end
+    for P in (PlainX, PlainC)
+        @eval PureXC._seed_scales(p::$P, k::Val, ρ::NTuple{2, T}, σ::NTuple{3, T}) where {T} = PureXC._seed_scales(p.f, k, ρ, σ)
+        @eval PureXC._seed_scales(p::$P, k::Val, ρ::T, σ::T) where {T} = PureXC._seed_scales(p.f, k, ρ, σ)
+        @eval PureXC._cutoff(p::$P, ρ, σ) = PureXC._cutoff(p.f, ρ, σ)
+    end
+    # gga_x_pbe (E2)–(E4).
+    Fx(f, s2) = 1 + f.κ - f.κ / (1 + f.μ * s2 / f.κ)
+    function PureXC._energy_density(p::PlainX, ρ, σ)
+        t = p.f.thresholds
+        n, g = PureXC._raise(ρ, t.density), PureXC._raise(σ, t.sigma_floor)
+        s2 = g / (4 * cbrt(3 * big(π)^2)^2 * n^(8 // 3))
+        return -(3 / big(4)) * cbrt(3 / big(π)) * n^(4 // 3) * Fx(p.f, s2)
+    end
+    function channel(p, ρσ, σσ)
+        t = p.f.thresholds
+        n, g = PureXC._raise(ρσ, t.density), PureXC._raise(σσ, t.sigma_floor)
+        e = n^(4 // 3) * Fx(p.f, g / (4 * cbrt(6 * big(π)^2)^2 * n^(8 // 3)))
+        return ifelse(value(ρσ) <= t.density, zero(e), e)
+    end
+    PureXC._energy_density(p::PlainX, ρ::Tuple, σ::Tuple) =
+        -(3 / big(4)) * cbrt(6 / big(π)) * (channel(p, ρ[1], σ[1]) + channel(p, ρ[2], σ[3]))
+    # gga_c_pbe (E1)–(E3), with rule 4 for φ.
+    function H(f, n, φ, g, ε)
+        β, γ, B = f.β, f.γ, f.B
+        t2 = big(π) * g / (16 * φ^2 * (3 * big(π)^2 * n)^(1 // 3) * n^2)
+        A = β / γ / expm1(-ε / (γ * φ^3))
+        return γ * φ^3 * log1p(β / γ * t2 * (1 + B * A * t2) / (1 + A * t2 + B * A^2 * t2^2))
+    end
+    rs(n) = (3 / (4 * big(π) * n))^(1 // 3)
+    function PureXC._energy_density(p::PlainC, ρ, σ)
+        t = p.f.thresholds
+        n, g = PureXC._raise(ρ, t.density), PureXC._raise(σ, t.sigma_floor)
+        ε = PureXC._pw92_eps(p.f.pw, rs(n))
+        return n * (ε + H(p.f, n, one(BigFloat), g, ε))
+    end
+    pow23(x, εζ) = ifelse(value(x) <= εζ, zero(x) + εζ^(2 // 3), PureXC._raise(x, εζ)^(2 // 3))
+    function PureXC._energy_density(p::PlainC, ρ::Tuple, σ::Tuple)
+        t = p.f.thresholds
+        a, b = PureXC._raise(ρ[1], t.density), PureXC._raise(ρ[2], t.density)
+        g = PureXC._raise(PureXC._raise(σ[1], t.sigma_floor) + 2 * σ[2] + PureXC._raise(σ[3], t.sigma_floor), t.sigma_floor)
+        n = a + b
+        ζ = (a - b) / n
+        φ = (pow23(1 + ζ, t.zeta) + pow23(1 - ζ, t.zeta)) / 2
+        ε = PureXC._pw92_eps(p.f.pw, rs(n), ζ, t.zeta)
+        w = ε + H(p.f, n, φ, g, ε)
+        return PureXC._with_value(n * w, (value(ρ[1]) + value(ρ[2])) * value(w))
+    end
+    K = 3
+    worst = Ref(0.0)
+    function compare(f, plain, ρ, σ)
+        want = U(plain, Val(K), map(big, ρ), map(big, σ))
+        got = U(exact_big(f), Val(K), map(big, ρ), map(big, σ))
+        lay = layout(ρ isa Tuple ? 2 : 1, ρ isa Tuple ? 3 : 1, K)
+        nrm = normalizers(f, K, ρ, σ, Float64, lay)
+        err = error_eps(got, want, nrm, lay, scales(f, K, ρ, σ, want, BigFloat, nrm, lay), BigFloat)
+        worst[] = max(worst[], err)
+        return err
+    end
+    # pbe_x: s² at x = 0.3 and 3 and at 0, 1e-3 and 1e3.
+    f = pbe_x()
+    plain = PlainX(exact_big(f), exact_big(f).thresholds)
+    c3, c6 = 4 * cbrt(3 * big(π)^2)^2, 4 * cbrt(6 * big(π)^2)^2
+    for s2 in big.((0, 1.0e-3, 0.3 * f.κ / f.μ, 3 * f.κ / f.μ, 1.0e3)), n in (1.0e-3, 1.0)
+        @test compare(f, plain, n, Float64(s2 * c3 * big(n)^(8 // 3))) <= 1.0e4
+        ρ = (0.75n, 0.25n)
+        a, b = s2 * c6 * big(ρ[1])^(8 // 3), s2 * c6 * big(ρ[2])^(8 // 3)
+        @test compare(f, plain, ρ, (Float64(a), Float64(sqrt(a * b) / 2), Float64(b))) <= 1.0e4
+    end
+    # pbe_c: (n, t²) points in the reachable regions of (z > 1, y > 1, X > 1).
+    f0 = pbe_c()
+    points = ((1.0e-6, 1.0e-3), (1.0e-6, 1.0e2), (3.0e-3, 0.75), (3.0e-3, 1.0e2), (1.0, 1.0e-2), (1.0e3, 10.0), (1.0, 1.0e3))
+    regions = Set{NTuple{3, Bool}}()
+    for B in (0.5, 1.0, 2.0)
+        f = PureXC.PBECorrelation{Float64}(f0.β, f0.γ, B, f0.pw, f0.thresholds)
+        fb = exact_big(f)
+        plain = PlainC(fb, fb.thresholds)
+        for (n, t2) in points
+            nb = big(n)
+            ε = PureXC._pw92_eps(fb.pw, rs(nb))
+            z = -ε / fb.γ
+            A = fb.β / fb.γ / expm1(z)
+            y = A * t2
+            X = fb.β / fb.γ * t2 * (1 + B * y) / (1 + y + B * y^2)
+            push!(regions, (z > 1, y > 1, X > 1))
+            st = PureXC._pbe_t_scale(nb, big(1.0))
+            @test compare(f, plain, n, Float64(big(t2) * st)) <= 1.0e4
+            # Polarized at ζ = 0.3 and −0.9, σ_αα = σ_αβ = σ_ββ with the total at the same t².
+            for ζ in (0.3, -0.9)
+                ρ = (n * (1 + ζ) / 2, n * (1 - ζ) / 2)
+                a, b = big.(ρ)
+                φ = PureXC._pbe_phi((a - b) / (a + b), fb.thresholds.zeta)
+                s = Float64(big(t2) * PureXC._pbe_t_scale(a + b, φ) / 4)
+                @test compare(f, plain, ρ, (s, s, s)) <= 1.0e4
+            end
+        end
+    end
+    # Every reachable combination of the three regions is covered.
+    @test regions == Set([(false, false, false), (false, false, true), (false, true, false), (false, true, true), (true, false, false), (true, false, true), (true, true, true)])
+    @test 0 < worst[] <= 1.0e4
 end

@@ -7,7 +7,8 @@
 Perdew–Burke–Ernzerhof correlation, Libxc's `gga_c_pbe`, in the number type `T`: the gradient
 coefficient `β`, `γ`, the multiplier `B` of the A·t² term of the numerator and the A²t⁴ term of the
 denominator of the bracket of H, and the uniform-gas correlation `pw`
-(a [`PW92Correlation`](@ref)). Built by [`pbe_c`](@ref).
+(a [`PW92Correlation`](@ref)). The ε_ζ of rule 4, in f(ζ) and in φ(ζ), is `thresholds.zeta`; the
+thresholds of `pw` are not used. Built by [`pbe_c`](@ref).
 """
 struct PBECorrelation{T} <: AbstractGGA{T}
     β::T
@@ -184,7 +185,7 @@ function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}},
     n = variable(Val(3), Val(K), Val(1), sn, sn)
     z = variable(Val(3), Val(K), Val(2), value(ζ))
     g = variable(Val(3), Val(K), Val(3), value(gt), st)
-    ε = adjust(_pw92_eps(f.pw, _seitz_radius(n), z))
+    ε = adjust(_pw92_eps(f.pw, _seitz_radius(n), z, εζ))
     w = combine(ε, _pbe_H(f, n, _pbe_phi(z, εζ), g, ε))
     e = substitute(n * w, (nr / sn, ζ, gt / st))
     return _with_value(e, (value(ρ[1]) + value(ρ[2])) * value(w))
@@ -216,7 +217,8 @@ power of two: `2^_PBE_C_T2_EXPONENT_FLOAT32[K + 1]` in Float32, `2^_PBE_C_T2_EXP
 in Float64 and the other types. Each is measured as the largest power of two at which every output
 at order `K` is within its bound against BigFloat over the splits of `_lda_density_max` up to
 n_max, at every power of two up to the limit (step 1 in the exponent), restricted and polarized at
-orders 0 to 8, with the errors and bounds of the tests: per entry against the largest normalized
+orders 0 to 8 (at orders 7 and 8 over 12 of the 21 splits, including the ratios near ε_ζ), with the
+errors and bounds of the tests: per entry against the largest normalized
 Taylor coefficient of its order, plus for pbe_c the change of the outputs from rounding ε_c by one
 ulp. At orders 9 and 10 only restricted input is measured (Float32 2^14, 2^13; Float64 no failure up
 to 2^140, the end of the scan), and the limit is the smaller of that and the order-8 limit. Float32

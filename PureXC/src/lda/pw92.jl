@@ -109,16 +109,17 @@ function _pw92_pow43(y, εζ)
 end
 
 """
-    _pw92_eps(pw, rs, ζ)
+    _pw92_eps(pw, rs, ζ[, εζ])
     _pw92_eps(pw, rs)
 
 ε_c(r_s, ζ) of (E4), the correlation energy per electron of `pw` at the Seitz radius `rs` and the
-spin polarization `ζ` ∈ [−1, 1], with the ζ-factor rule 3 applied in f(ζ). Without `ζ`, the
+spin polarization `ζ` ∈ [−1, 1], with the ζ-factor rule 3 applied in f(ζ) at the threshold `εζ`
+(by default that of `pw`; a functional built on PW92 passes its own). Without `ζ`, the
 unpolarized ε_c(r_s, 0) = G(r_s; set 0) of (E2). The arguments are numbers or `Taylor` numbers over
 the same variables; `R` is the promotion of their value types, and a plain `ζ` and ε_ζ are
 converted to `R`.
 """
-function _pw92_eps(pw::PW92Correlation, rs, ζ)
+function _pw92_eps(pw::PW92Correlation, rs, ζ, εζ = pw.thresholds.zeta)
     R = promote_type(typeof(value(rs)), typeof(value(ζ)))
     ζ = _in_value_type(R, ζ)
     r = fast_sqrt(rs)
@@ -127,7 +128,7 @@ function _pw92_eps(pw::PW92Correlation, rs, ζ)
     ε1 = _pw92_G(rs, r, pw.params[2])
     αc = -_pw92_G(rs, r, pw.params[3])
     # (E3): f(ζ) = [(1 + ζ)^(4/3) + (1 − ζ)^(4/3) − 2]/(2^(4/3) − 2).
-    εζ = convert(R, pw.thresholds.zeta)
+    εζ = convert(R, εζ)
     f = (_pw92_pow43(1 + ζ, εζ) + _pw92_pow43(1 - ζ, εζ) - 2) / (cbrt(convert(R, 16)) - 2)
     # (E4)
     ζ4 = ζ^4

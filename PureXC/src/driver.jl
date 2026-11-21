@@ -176,7 +176,9 @@ _functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
 _functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
 
 _outputs_in(::Type, ::Type, r) = r
-# Field by field in generated code: on Julia 1.12 `map` over a NamedTuple of 15 fields allocates.
+# Field by field in generated code, for Julia 1.12: there AllocCheck finds a possible allocation in
+# `map` over a NamedTuple of 15 fields (namedtuple.jl), so the call cannot be proven allocation-free;
+# on Julia 1.13 `map` is proven free as well.
 @generated function _outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple{names}) where {names}
     return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in32(r.$n)) for n in names)...))))
 end
