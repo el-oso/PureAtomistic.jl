@@ -118,6 +118,8 @@ end
         @test !occursin(r"\bbr i1\b", ir)
         calls = [m.match for m in eachmatch(r"\bcall\b[^\n]*", ir)]
         @test all(c -> occursin(r"@llvm\.", c), calls)
+        @test !occursin(r"\bswitch\b", ir)
+        T === Float32 && @test !occursin(r"\bdouble\b", ir)             # Float32 stays Float32
     end
 end
 
@@ -142,8 +144,9 @@ end
 end
 
 # 10^7 log-uniform samples over each documented domain, its ends, the powers of two and their
-# neighbors, and for log the region near 1, where it is zero; the exhaustive item covers every point
-# but runs only on request. Oracle: the Base function evaluated in Float64 and rounded to Float32.
+# neighbors, and for log, log1p and expm1 the region near the point where the function is zero; the
+# exhaustive item covers every point but runs only on request. Oracle: the Base function evaluated
+# in Float64 and rounded to Float32.
 # Bound (c), measured margin: 4 ulps for every kernel but fast_sqrt, which is correctly rounded and
 # equals Base's sqrt exactly. Largest error measured with this seed (Apple M-series, Julia 1.13), in
 # ulps of the rounded reference: cbrt 1, invcbrt 1, log 1, log1p 1, exp 1, expm1 2, the same as over
@@ -163,6 +166,10 @@ end
             # log is zero at 1: points 1 ± d, d log-uniform in [eps/2, 1/4].
             d = points32(eps(1.0f0) / 2, 0.25f0, n ÷ 10, rng)
             append!(xs, 1 .+ d, 1 .- d)
+        elseif name in (:log1p, :expm1)
+            # zero at 0: n/10 uniform points in [-0.35, 0.35], which contains expm1's reduction
+            # boundary ln2/2.
+            append!(xs, 0.35f0 .* (2 .* rand(rng, Float32, n ÷ 10) .- 1))
         end
         @testset "$name Float32, sampled" begin
             @test first(max_error(f, g, ref32, xs)) <= tol
@@ -182,7 +189,7 @@ end
         @test mismatches(fast_sqrt, sqrt, points64(0.0, Inf, n, Xoshiro(20261120))) == 0           # exact
     end
     # Largest error measured with this seed (Apple M-series, Julia 1.13), in ulps: cbrt 1.3249,
-    # invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.1782. The tolerance, 4 ulps, is at
+    # invcbrt 1.5603, log 0.8489, log1p 1.4369, exp 1.0404, expm1 2.2245. The tolerance, 4 ulps, is at
     # most 5 times (≤ 100 times) each of them.
     tol = 4.0
     for (name, f, g, _, iv64) in KERNELS
@@ -192,6 +199,10 @@ end
             # log is zero at 1: points 1 ± d, d log-uniform in [eps/2, 1/4].
             d = points64(eps(1.0) / 2, 0.25, n ÷ 10, rng)
             append!(xs, 1 .+ d, 1 .- d)
+        elseif name in (:log1p, :expm1)
+            # zero at 0: n/10 uniform points in [-0.35, 0.35], which contains expm1's reduction
+            # boundary ln2/2.
+            append!(xs, 0.35 .* (2 .* rand(rng, Float64, n ÷ 10) .- 1))
         end
         @testset "$name Float64" begin
             @test first(max_error(f, g, ref64, xs)) <= tol

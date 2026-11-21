@@ -78,3 +78,25 @@ end
         E, (variable(Val(3), Val(2), Val(1), 1.0), variable(Val(2), Val(2), Val(1), 1.0))
     )
 end
+
+# u elements of different masks; E does not depend on variable 3, whose u element is a Taylor.
+# Polynomial E, so the result is exact in Rational{BigInt}.
+@testitem "substitute with u of different masks and an unused variable (exact)" begin
+    R = Rational{BigInt}
+    x = variable(Val(3), Val(3), Val(1), R(2), R(1, 2)); y = variable(Val(3), Val(3), Val(2), R(3))
+    z = variable(Val(3), Val(3), Val(3), R(4))
+    a = variable(Val(4), Val(3), Val(1), R(1)); b = variable(Val(4), Val(3), Val(2), R(5))
+    c = variable(Val(4), Val(3), Val(4), R(7))
+    E = x^2 * y - 3x + y^3 + x * y                                  # mask 0b011
+    u = (a^2 / R(1, 2), b - b^3 / 7, c * c + c)                     # masks 0b0001, 0b0010, 0b1000
+    S = substitute(E, u)
+    X = (u[1] - value(u[1])) / 2 + 2; Y = u[2] - value(u[2]) + 3    # x has scale 1/2
+    @test S isa Taylor{4,3,3,R}                                      # c's variable is absent
+    @test S.c == (X^2 * Y - 3X + Y^3 + X * Y).c                      # exact: Rational{BigInt}
+    E2 = x * z^2 + y * z + x^3                                       # mask 0b111
+    u2 = (a * c, R(9), b + a)                                        # masks 0b1001, plain, 0b0011
+    S2 = substitute(E2, u2)
+    X2 = (u2[1] - value(u2[1])) / 2 + 2; Z2 = u2[3] - value(u2[3]) + 4
+    @test S2 isa Taylor{4,3,11,R}
+    @test S2.c == (X2 * Z2^2 + 3 * Z2 + X2^3).c                       # exact: Rational{BigInt}
+end

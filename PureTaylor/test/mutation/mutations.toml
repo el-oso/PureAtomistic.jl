@@ -344,3 +344,12 @@ file = "src/type.jl"
 find = 'push!(scale.args, :(invscale[$i]))'
 replace = 'push!(scale.args, :(invscale[1]))'
 expect = "seeds and read-out"
+
+# The change of variables: which elements of u carry an increment.
+
+[[mutation]]
+name = "substitute-mask-bit"
+file = "src/substitute.jl"
+find = 'isodd(M >> (i - 1)) || return nothing'
+replace = 'isodd(M >> i) || return nothing'
+expect = "substitute with u of different masks and an unused variable"

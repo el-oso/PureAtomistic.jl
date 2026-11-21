@@ -69,6 +69,6 @@ methods.
 The tests bound the other kernels at 4 ulps. Largest error measured over every `Float32` of each
 domain (Julia 1.13, Apple M-series), in ulps of the correctly rounded result: `cbrt` 1, `invcbrt` 1,
 `log` 1, `log1p` 1, `exp` 1, `expm1` 2. For `Float64`, over 10⁷ log-uniform samples per domain
-plus the ends, the powers of two and, for `log`, the region near 1, against a 128-bit `BigFloat`
-reference, in ulps: `cbrt` 1.3249, `invcbrt` 1.5603, `log` 0.8489, `log1p` 1.4369, `exp` 1.0404,
-`expm1` 2.1782. The `Float64` figures are sampled, not exhaustive.
+plus the ends, the powers of two and the region near the zero of `log`, `log1p` and `expm1`, against a
+128-bit `BigFloat` reference, in ulps: `cbrt` 1.3249, `invcbrt` 1.5603, `log` 0.8489, `log1p` 1.4369,
+`exp` 1.0404, `expm1` 2.2245. The `Float64` figures are sampled, not exhaustive.

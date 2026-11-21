@@ -11,6 +11,8 @@ end
     @test value(a) == 3.0 && PureTaylor.coefficient(a, (0, 1)) == 0.5 && PureTaylor.coefficient(a, (1, 0)) == 0.0
     # ∂/∂x₂ of x₂ is 1 after unscaling by 1/s
     @test derivatives(a, (1.0, 2.0)) == (3.0, 0.0, 1.0, 0.0, 0.0, 0.0)
+    # Float32: the same products, exact; === also pins the element type.
+    @test derivatives(variable(Val(2), Val(2), Val(2), 3.0f0, 0.5f0), (1.0f0, 2.0f0)) === (3.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 0.0f0)
     @test constant(Val(2), Val(2), 4.0f0) isa Taylor{2,2,0,Float32,1}
     @test value(2.5) == 2.5
 end
@@ -32,9 +34,9 @@ end
 @testitem "scalar arithmetic, unary minus, zero and one" begin
     x = variable(Val(2), Val(2), Val(1), 1.0, 2.0)
     @test (x - 3).c == (-2.0, 2.0, 0.0)
-    @test (3 - x).c == (2.0, -2.0, -0.0)
+    @test (3 - x).c === (2.0, -2.0, -0.0)                          # exact; === sees the sign of zero
     @test (3 + x).c == (4.0, 2.0, 0.0)
-    @test (-x).c == (-1.0, -2.0, -0.0)
+    @test (-x).c === (-1.0, -2.0, -0.0)                           # exact; === sees the sign of zero
     @test zero(x).c == (0.0, 0.0, 0.0) && zero(typeof(x)) isa typeof(x)
     @test one(x).c == (1.0, 0.0, 0.0) && one(typeof(x)) isa typeof(x)
     @test isfinite(x) && !isnan(x)

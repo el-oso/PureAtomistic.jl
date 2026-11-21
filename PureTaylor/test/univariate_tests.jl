@@ -44,16 +44,23 @@ end
             for k in 0:4
                 r = ref(x0, k)
                 # Rounding bound c·eps(BigFloat)·N relative to the reference, with eps = 1.7e-77 at
-                # 256 bits, c = 2 (one rounding per multiply and per add) and N = 100 (K = 4 Horner
-                # steps, the coefficient recurrence, the seed unscaling and Base's value);
-                # largest error measured: 1.8·eps.
-                @test abs(got[k + 1] - r) <= 2 * eps(BigFloat) * 100 * abs(r)
+                # 256 bits, c = 2 (one rounding per multiply and per add) and N = 45 roundings: Base's
+                # value (1); the series scale 1/x and, for log1p, 1 + x (2); the K = 4 terms of the
+                # coefficient recurrence, at most a subtract, a multiply and a divide each (12); s·h
+                # (1); 4 Horner steps of at most 4 products and 1 add each (20); the unscaling, α!
+                # and at most 4 invscale factors (5); and the test's own invscale 1/s, raised to at
+                # most the 4th power (4). Largest error measured: 1.8·eps.
+                @test abs(got[k + 1] - r) <= 2 * eps(BigFloat) * 45 * abs(r)
             end
         end
-        # sqrt(x)² recovers x through the series: a check independent of the closed forms. Same
-        # bound as above, taken as absolute since every coefficient is at most 1 in magnitude.
+        # sqrt(x)² recovers x through the series: a check independent of the closed forms. Rounding
+        # bound c·eps(BigFloat)·N with c = 2 and N = 80: two square-root series of at most 35
+        # roundings each (the count above without log1p's 1 + x, the unscaling and invscale), the
+        # product (at most 5 products and 4 adds per coefficient: 9) and the subtraction (1); taken
+        # as absolute since every coefficient is at most 1 in magnitude. Largest error measured:
+        # 0.29·eps.
         a = variable(Val(1), Val(4), Val(1), x0)
-        @test maximum(abs.((sqrt(a) * sqrt(a) - a).c)) <= 2 * eps(BigFloat) * 100
+        @test maximum(abs.((sqrt(a) * sqrt(a) - a).c)) <= 2 * eps(BigFloat) * 80
     end
 end
 
