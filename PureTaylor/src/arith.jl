@@ -99,12 +99,12 @@ end
 # negative `n` (including `typemin`) is handled without negating it.
 function _pow_abs(a::Taylor, n::Integer)
     r, x = one(a), a
-    while true
+    while !iszero(n)
         isodd(n) && (r *= x)
         n = n ÷ 2
-        n == 0 && return r
-        x *= x
+        iszero(n) || (x *= x)
     end
+    return r
 end
 
 ^(a::Taylor, n::Integer) = n < 0 ? inv(_pow_abs(a, n)) : _pow_abs(a, n)
