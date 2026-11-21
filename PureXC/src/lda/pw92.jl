@@ -67,6 +67,15 @@ lda_c_pw_mod(::Type{T} = Float64) where {T} = PW92Correlation{T}(
 _cutoff(pw::PW92Correlation, ρ::Real) = ρ < pw.thresholds.density
 _cutoff(pw::PW92Correlation, ρ::Tuple) = ρ[1] + ρ[2] < pw.thresholds.density
 
+# ε_c is a function of the total density and ζ, smooth in each channel on the scale of the total,
+# so both densities are seeded at max(n_r, m), with n_r the total of the channels raised to n_thr.
+# Restricted, the default max(n, n_thr, m) is the same rule.
+function _seed_scales(pw::PW92Correlation, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
+    t = convert(R, pw.thresholds.density)
+    s = max(max(ρ[1], t) + max(ρ[2], t), _seed_minimum(R, Val(K)))
+    return (s, s)
+end
+
 """
     _seitz_radius(n)
 
@@ -128,14 +137,14 @@ _energy_density(pw::PW92Correlation, ρ) = ρ * _pw92_eps(pw, _seitz_radius(_rai
 # (E5) with rule 2: r_s and ζ are formed from the channels raised to n_thr, and so is the total
 # density n_r that multiplies ε_c, so every derivative is that of n_r·ε_c at the raised densities.
 # The value is n·ε_c with the caller's n = n_α + n_β. ε_c is expanded in its own variables (n, ζ),
-# seeded at the scales n_r and 1, and composed with the series of n_r and ζ in the density
-# variables.
+# seeded at the scales max(n_r, m) and 1, with m of `_seed_minimum`, and composed with the series
+# of n_r and ζ in the density variables.
 function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}) where {N, K}
     a = _raise(ρ[1], pw.thresholds.density)
     b = _raise(ρ[2], pw.thresholds.density)
     nr = a + b
     ζ = (a - b) / nr
-    s = value(nr)
+    s = max(value(nr), _seed_minimum(typeof(value(nr)), Val(K)))
     n = variable(Val(2), Val(K), Val(1), s, s)
     ε = _pw92_eps(pw, _seitz_radius(n), variable(Val(2), Val(K), Val(2), value(ζ)))
     e = substitute(n * ε, (nr / s, ζ))

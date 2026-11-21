@@ -48,9 +48,12 @@ n_max(R, K), the largest total density an LDA accepts at derivative order `K` in
 `2^(e − ⌈e/4⌉ − g(K))` = `2^(⌊3e/4⌋ − g(K))`, with `e = exponent(floatmax(R))` and the loss `g(K)` of
 `_LDA_DENSITY_LOSS`. It is the largest power of two at which every output of `lda_x`, `lda_c_pw`
 and `lda_c_pw_mod` at order `K`, restricted and polarized at the splits (n, 0), (0, n),
-(n/2, n/2) and (3n/4, n/4), stays within 2100·eps(R) of the same functional in BigFloat,
-relative to the largest entry of each output. `lda_x` sets it: e(n) ∝ n^(4/3) overflows above
-about 2^(3e/4).
+(n/2, n/2), (3n/4, n/4), (n, x) and (x, n) for x ∈ {2e-15, 1e-6, 1}, stays within 2100·eps(R) of the
+same functional in BigFloat, relative to the largest entry of each output. For PW92 the bound
+adds 8κ·eps(R), κ = 2/(1 − |ζ|): the conditioning of 1 ± ζ formed from ζ (spec `lda_c_pw`,
+section 8). In Float32 at orders K ≥ 6 the splits (n, x) and (x, n) are not within the bound at
+every n, so for those orders n_max is measured over the other splits only. `lda_x` sets it:
+e(n) ∝ n^(4/3) overflows above about 2^(3e/4).
 """
 _lda_density_max(::Type{R}, ::Val{K}) where {R, K} =
     ldexp(one(R), exponent(floatmax(R)) - cld(exponent(floatmax(R)), 4) - _lda_density_loss(K))

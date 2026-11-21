@@ -65,15 +65,10 @@ _group(::Val{2}, ::Val{3}, t) = ((t[1], t[2]), (t[3], t[4], t[5]))
     return :(NamedTuple{$(Tuple(names))}($(Expr(:tuple, vals...))))
 end
 
-# The derivatives to order K at the input values x, seeded with the natural sizes r, grouped as nρ
-# density and nσ σ inputs, mapped to the output fields.
-function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, r::NTuple{N, Real}) where {K, N}
-    R = eltype(x)
-    # Seed scales s = max(|x|, r, m): positive at x = 0, |x| covers a negative σαβ, and m keeps
-    # every s^k with k ≤ K a normal number. The scale changes only the representation of the
-    # series, not the derivatives.
-    m = _seed_minimum(R, Val(K))
-    s = map((xi, ri) -> max(abs(xi), ri, m), x, r)
+# The derivatives to order K at the input values x, seeded with the scales s, grouped as nρ density
+# and nσ σ inputs, mapped to the output fields. The scale changes only the representation of the
+# series, not the derivatives.
+function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, s::NTuple{N, Real}) where {K, N}
     e = _energy_density(f, _group(gρ, gσ, _seed(Val(K), x, s))...)
     d = derivatives(e, map(inv, s))
     cut = _cutoff(f, _group(gρ, gσ, x)...)
@@ -87,6 +82,49 @@ _seed_minimum(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), cld(exponent(flo
 # reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
 _sigma_size(n::R) where {R <: Real} = 4 * cbrt(3 * convert(R, π)^2)^2 * fast_cbrt(max(n, floatmin(R)))^8
 
+# The seed scale of a density x evaluated as itself: max(|x|, n_thr, m).
+_density_seed(f::AbstractFunctional, x::R, m::R) where {R} = max(abs(x), convert(R, f.thresholds.density), m)
+
+# The seed scale of a σ component x at total density n: max(|x|, r, m), with r = `_sigma_size(n)`;
+# |x| covers a negative σαβ.
+_sigma_seed(x::R, n::R, m::R) where {R} = max(abs(x), _sigma_size(n), m)
+
+"""
+    _seed_scales(f, Val(K), ρ[, σ])
+
+The seed scales of the inputs of `f` at derivative order `K`, one per input in input order:
+restricted, a tuple for (ρ[, σ]); polarized, for (ρα, ρβ[, σαα, σαβ, σββ]). The inputs are given
+in the result type R, and m = `_seed_minimum(R, Val(K))`, the smallest power of two with
+m^K ≥ floatmin(R). Every scale is at least m, so every s^k with k ≤ K is a normal number.
+
+The default suits a functional that is a sum of per-channel powers of the densities: each density
+x has the scale max(|x|, n_thr, m), the value at which it is evaluated, and each σ component x has
+max(|x|, r, m), with r = 4(3π²)^(2/3)·n^(8/3) at the total density n. A functional of the total
+density and ζ defines a method that seeds each density at the total of the raised channels.
+"""
+function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
+    return (_density_seed(f, ρ, _seed_minimum(typeof(ρ), Val(K))),)
+end
+
+function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
+    m = _seed_minimum(R, Val(K))
+    return (_density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m))
+end
+
+function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::R, σ::R) where {K, R}
+    m = _seed_minimum(R, Val(K))
+    return (_density_seed(f, ρ, m), _sigma_seed(σ, ρ, m))
+end
+
+function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
+    m = _seed_minimum(R, Val(K))
+    n = ρ[1] + ρ[2]
+    return (
+        _density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m),
+        _sigma_seed(σ[1], n, m), _sigma_seed(σ[2], n, m), _sigma_seed(σ[3], n, m),
+    )
+end
+
 """
     _xc_derivatives_unchecked(f, Val(k), ρ[, σ])
 
@@ -94,28 +132,26 @@ _sigma_size(n::R) where {R <: Real} = 4 * cbrt(3 * convert(R, π)^2)^2 * fast_cb
 """
 function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
     n = convert(_result_type(f, ρ), ρ)
-    return _derive(f, Val(K), Val(1), Val(0), (n,), (n,))
+    return _derive(f, Val(K), Val(1), Val(0), (n,), _seed_scales(f, Val(K), n))
 end
 
 function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
     R = _result_type(f, ρ)
     x = (convert(R, ρ[1]), convert(R, ρ[2]))
-    n = x[1] + x[2]
-    return _derive(f, Val(K), Val(2), Val(0), x, (n, n))
+    return _derive(f, Val(K), Val(2), Val(0), x, _seed_scales(f, Val(K), x))
 end
 
 function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _result_type(f, ρ, σ)
-    n = convert(R, ρ)
-    return _derive(f, Val(K), Val(1), Val(1), (n, convert(R, σ)), (n, _sigma_size(n)))
+    n, g = convert(R, ρ), convert(R, σ)
+    return _derive(f, Val(K), Val(1), Val(1), (n, g), _seed_scales(f, Val(K), n, g))
 end
 
 function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
     R = _result_type(f, ρ, σ)
-    x = (convert(R, ρ[1]), convert(R, ρ[2]), convert(R, σ[1]), convert(R, σ[2]), convert(R, σ[3]))
-    n = x[1] + x[2]
-    g = _sigma_size(n)
-    return _derive(f, Val(K), Val(2), Val(3), x, (n, n, g, g, g))
+    r = (convert(R, ρ[1]), convert(R, ρ[2]))
+    g = (convert(R, σ[1]), convert(R, σ[2]), convert(R, σ[3]))
+    return _derive(f, Val(K), Val(2), Val(3), (r..., g...), _seed_scales(f, Val(K), r, g))
 end
 
 """
