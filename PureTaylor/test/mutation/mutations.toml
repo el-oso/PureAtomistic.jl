@@ -157,6 +157,22 @@ find = '_exp_taylor(a, fast_expm1(value(a)), fast_exp(value(a)))'
 replace = '_exp_taylor(a, fast_expm1(value(a)), fast_expm1(value(a)))'
 expect = "fast functions on Taylor numbers agree"
 
+# Powers with a Taylor exponent.
+
+[[mutation]]
+name = "taylor-exponent-order"
+file = "src/univariate.jl"
+find = '^(a::Taylor, b::Taylor) = exp(b * log(a))'
+replace = '^(a::Taylor, b::Taylor) = exp(a * log(b))'
+expect = "powers with a Taylor exponent against nested ForwardDiff"
+
+[[mutation]]
+name = "real-base-log"
+file = "src/univariate.jl"
+find = 'exp(b * log(convert(T, r)))'
+replace = 'exp(b * convert(T, r))'
+expect = "powers with a Taylor exponent: real and ℯ bases"
+
 # The scalar kernels' constants.
 
 [[mutation]]
@@ -318,8 +334,8 @@ expect = "fast functions on Taylor numbers agree"
 [[mutation]]
 name = "derivatives-factorial"
 file = "src/type.jl"
-find = ':($T($(prod(factorial, α))))'
-replace = ':($T($(prod(α))))'
+find = 'T(prod(k -> factorial(big(k)), α; init = big(1)))'
+replace = 'T(prod(k -> big(k), α; init = big(1)))'
 expect = "closed-form derivatives"
 
 [[mutation]]

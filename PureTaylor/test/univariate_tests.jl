@@ -88,12 +88,63 @@ end
     end
 end
 
+@testitem "powers with a Taylor exponent against nested ForwardDiff" begin
+    using ForwardDiff
+    using PureTaylor: multi_indices
+    x0, y0 = 0.7, 1.3
+    x = variable(Val(2), Val(3), Val(1), x0); y = variable(Val(2), Val(3), Val(2), y0)
+    got = derivatives(x^y, (1.0, 1.0))
+    ∂x(g) = (x, y) -> ForwardDiff.derivative(t -> g(t, y), x)
+    ∂y(g) = (x, y) -> ForwardDiff.derivative(t -> g(x, t), y)
+    function partial(α)
+        g = (x, y) -> x^y
+        for _ in 1:α[1]
+            g = ∂x(g)
+        end
+        for _ in 1:α[2]
+            g = ∂y(g)
+        end
+        return g(big(x0), big(y0))
+    end
+    idx = multi_indices(Val(2), Val(3))
+    ref = map(partial, idx)
+    for j in eachindex(idx)
+        # Rounding bound c·eps(Float64)·N with c = 2 (one rounding per multiply and per add) and
+        # N = 62 roundings per coefficient: log(x) (Base's value 1, the scale 1/x 1, the
+        # coefficients ±1/k 3, s·h 1 and K = 3 Horner steps of at most 3 products and 1 add 12:
+        # 18), the product y·log(x) (at most 2 products and 1 add: 3), exp (Base's value 1, the
+        # recurrence e/k 3 and 3 Horner steps of at most 10 products and 1 add 33: 37) and the
+        # unscaling (α! and at most 3 invscale factors: 4); relative to the largest reference
+        # derivative of the same total degree. Largest measured: 2.25·eps·scale.
+        scale = maximum(abs(ref[i]) for i in eachindex(idx) if sum(idx[i]) == sum(idx[j]))
+        @test abs(got[j] - ref[j]) <= 2 * eps(Float64) * 62 * scale
+    end
+end
+
+@testitem "powers with a Taylor exponent: real and ℯ bases" begin
+    y = variable(Val(2), Val(3), Val(2), 1.3) + variable(Val(2), Val(3), Val(1), 0.0)
+    @test (2.0^y).c == exp(y * log(2.0)).c                          # exact: the same calls
+    @test (2^y).c == exp(y * log(2.0)).c                            # exact: 2 converts to 2.0
+    @test (ℯ^y).c == exp(y).c                                       # exact: the same call
+    yf = variable(Val(1), Val(2), Val(1), 1.5f0)
+    @test (2^yf) isa Taylor{1,2,1,Float32,3}
+    @test (yf^yf) isa Taylor{1,2,1,Float32,3}
+end
+
+@testitem "log at value 0 and log1p at value -1 are -Inf" begin
+    l = log(variable(Val(1), Val(3), Val(1), 0.0))
+    @test value(l) == -Inf && !isfinite(l)                          # exact: Base's log(0.0)
+    l1 = log1p(variable(Val(1), Val(3), Val(1), -1.0))
+    @test value(l1) == -Inf && !isfinite(l1)                        # exact: Base's log1p(-1.0)
+end
+
 @testitem "elementary functions keep Base's domain errors" begin
     a = variable(Val(1), Val(2), Val(1), -1.0)
     @test_throws DomainError log(a)
     @test_throws DomainError sqrt(a)
     @test_throws DomainError a^0.5
     @test_throws DomainError log1p(a - 1)
+    @test_throws DomainError a^variable(Val(1), Val(2), Val(1), 0.5)
 end
 
 @testitem "order 0: elementary functions give the value" begin

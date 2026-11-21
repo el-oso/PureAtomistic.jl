@@ -66,13 +66,19 @@ end
     derivatives(a, invscale)
 
 All partial derivatives `∂^α f = α! · c_α · Π invscale_i^α_i` in `multi_indices(Val(N), Val(K))`
-order, with `invscale_i = 1/s_i` for the seed scales `s_i`; zero where `α` is not stored.
+order, with `invscale_i = 1/s_i` for the seed scales `s_i`; zero where `α` is not stored. The entries
+of `invscale` are converted to the coefficient type of `a`.
 """
-@generated function derivatives(a::Taylor{N,K,M,T,L}, invscale::NTuple{N,T}) where {N,K,M,T,L}
+derivatives(a::Taylor{N,K,M,T}, invscale::NTuple{N,Real}) where {N,K,M,T} =
+    _derivatives(a, ntuple(i -> convert(T, invscale[i]), Val(N)))
+
+# α! is computed exactly when the method is generated and spliced in as a constant of type T, so
+# it does not overflow an Int at high order.
+@generated function _derivatives(a::Taylor{N,K,M,T,L}, invscale::NTuple{N,T}) where {N,K,M,T,L}
     pos = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M))))
     terms = map(multi_indices(Val(N), Val(K))) do α
         haskey(pos, α) || return :(zero($T))
-        scale = Expr(:call, :*, :($T($(prod(factorial, α)))), :(a.c[$(pos[α])]))
+        scale = Expr(:call, :*, T(prod(k -> factorial(big(k)), α; init = big(1))), :(a.c[$(pos[α])]))
         for i in 1:N, _ in 1:α[i]
             push!(scale.args, :(invscale[$i]))
         end

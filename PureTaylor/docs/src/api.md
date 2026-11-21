@@ -18,6 +18,11 @@ substitute
 Base.sqrt(::Taylor)
 Base.cbrt(::Taylor)
 Base.:^(::Taylor, ::Real)
+Base.:^(::Taylor, ::Taylor)
+Base.exp(::Taylor)
+Base.expm1(::Taylor)
+Base.log(::Taylor)
+Base.log1p(::Taylor)
 ```
 
 ## Fast functions

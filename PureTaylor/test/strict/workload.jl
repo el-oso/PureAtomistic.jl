@@ -24,11 +24,13 @@ function exercise_one(a::Taylor{N, K}, x::T) where {N, K, T}
     a^0; a^1; a^2; a^3; a^-1; a^-2
     pow(a, 3); pow(a, -2)
     a^T(0.5); a^T(2); a^(1 // 3)
+    a^a; x^a; 2^a; ℯ^a
     sqrt(a); cbrt(a); exp(a); expm1(a); log(a); log1p(a)
     fast_sqrt(a); fast_cbrt(a); fast_invcbrt(a); fast_log(a); fast_log1p(a); fast_exp(a); fast_expm1(a)
     zero(a); one(a); zero(typeof(a)); one(typeof(a)); isfinite(a); isnan(a)
     value(a)
     derivatives(a, ntuple(_ -> inv(x), Val(N)))
+    derivatives(a, ntuple(_ -> 1, Val(N)))
     coefficient(a, ntuple(_ -> 0, Val(N))); coefficient(a, ntuple(i -> i == 1 ? 1 : 0, Val(N)))
     substitute(a, ntuple(_ -> a, Val(N)))
     substitute(a, ntuple(i -> isodd(i) ? a : x, Val(N)))

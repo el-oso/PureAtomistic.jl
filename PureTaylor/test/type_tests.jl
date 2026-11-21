@@ -67,3 +67,15 @@ end
     @test_throws "PureTaylor: variable index i = 3 must satisfy 1 ≤ i ≤ N = 2" variable(Val(2), Val(0), Val(3), 1.0)
     @test_throws "PureTaylor: variable index i = 0 must satisfy 1 ≤ i ≤ N = 2" variable(Val(2), Val(2), Val(0), 1.0)
 end
+
+@testitem "derivatives at high order and with any Real invscale" begin
+    # The coefficient of u²² of u²² is exactly 1, and 22! = 2^19 · 2143861251406875 fits in 53 bits,
+    # so the derivative of order 22 is exact.
+    @test derivatives(variable(Val(1), Val(22), Val(1), 0.0)^22, (1.0,))[end] == Float64(factorial(big(22)))
+    # invscale is converted to the coefficient type: exact, since 1 and 2 are exact in both types.
+    a = variable(Val(2), Val(2), Val(2), 3.0, 0.5)
+    @test derivatives(a, (1, 2)) === derivatives(a, (1.0, 2.0))
+    @test derivatives(a, (1.0f0, 2)) === derivatives(a, (1.0, 2.0))
+    xf = variable(Val(2), Val(2), Val(2), 3.0f0, 0.5f0)
+    @test derivatives(xf, (1.0, 2.0)) === derivatives(xf, (1.0f0, 2.0f0))   # Float32 stays Float32
+end

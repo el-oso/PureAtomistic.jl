@@ -18,6 +18,8 @@
         value(Float32),
         derivatives(T64, NTuple{2, Float64}),
         derivatives(T32, NTuple{2, Float32}),
+        derivatives(T64, NTuple{2, Int}),
+        derivatives(T32, NTuple{2, Float64}),
         PureTaylor.coefficient(T64, NTuple{2, Int}),
         PureTaylor.coefficient(T32, NTuple{2, Int}),
         substitute(T64, Tuple{T64, T64}),

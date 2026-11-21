@@ -90,7 +90,19 @@ function _exp_taylor(a::Taylor{N,K,M,T}, v, e) where {N,K,M,T}
     d = _recurrence((b, k) -> b / T(k), e, Val(K))
     return compose(a, ntuple(i -> i == 1 ? v : d[i], Val(K + 1)), one(T))
 end
+
+"""
+    exp(a::Taylor)
+
+The series of `exp(a)`, with its value from Base's `exp`.
+"""
 exp(a::Taylor) = (e = exp(value(a)); _exp_taylor(a, e, e))
+
+"""
+    expm1(a::Taylor)
+
+The series of `exp(a) - 1`, with its value from Base's `expm1`.
+"""
 expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), exp(value(a)))
 
 # log(y + h) = log(y) + Σₖ₌₁ (-1)ᵏ⁻¹/k·(h/y)ᵏ, at y = x for log and y = 1 + x for log1p.
@@ -98,5 +110,32 @@ function _log_series(a::Taylor{N,K,M,T}, v, y) where {N,K,M,T}
     d = ntuple(i -> i == 1 ? v : (iseven(i) ? one(T) : -one(T)) / T(i - 1), Val(K + 1))
     return compose(a, d, inv(y))
 end
+
+"""
+    log(a::Taylor)
+
+The series of `log(a)`, with its value from Base's `log` (a negative value throws `DomainError`). At
+value 0 the value is Base's `-Inf`, without an error, and the higher coefficients are non-finite.
+"""
 log(a::Taylor) = _log_series(a, log(value(a)), value(a))
+
+"""
+    log1p(a::Taylor)
+
+The series of `log(1 + a)`, with its value from Base's `log1p` (a value below -1 throws
+`DomainError`). At value -1 the value is Base's `-Inf`, without an error, and the higher
+coefficients are non-finite.
+"""
 log1p(a::Taylor{N,K,M,T}) where {N,K,M,T} = _log_series(a, log1p(value(a)), one(T) + value(a))
+
+"""
+    a^b
+    r^b
+
+The series of `aᵇ` for a `Taylor` exponent `b`, as `exp(b·log(a))`; a real base `r` is converted to
+the coefficient type of `b`, and `ℯ^b` is `exp(b)`. The base's value goes through `log`: a negative
+value throws `DomainError`, and at value 0 the result has non-finite coefficients.
+"""
+^(a::Taylor, b::Taylor) = exp(b * log(a))
+^(r::Real, b::Taylor{N,K,M,T}) where {N,K,M,T} = exp(b * log(convert(T, r)))
+^(::Irrational{:ℯ}, b::Taylor) = exp(b)
