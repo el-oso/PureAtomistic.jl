@@ -37,8 +37,8 @@ expect = "powers \\(exact\\)"
 [[mutation]]
 name = "literal-power-non-integer"
 file = "src/arith.jl"
-find = 'n isa Integer || return :(a ^ $n)'
-replace = 'n isa Real || return :(a ^ $n)'
+find = 'n isa Integer || return :(a^$n)'
+replace = 'n isa Real || return :(a^$n)'
 expect = "literal_pow with a non-integer exponent"
 
 [[mutation]]

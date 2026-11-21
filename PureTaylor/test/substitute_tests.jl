@@ -61,13 +61,13 @@ end
     # E in x and y, with x - 2 = a·b - 5 and y - 3 = a - b + 4.
     X = a * b - 5 + 2; Y = a - b + 4 + 3
     @test S.c == (X^2 * Y - 3X + Y^3).c                            # exact: Rational{BigInt}
-    @test S isa Taylor{3,3,5,R}
+    @test S isa Taylor{3, 3, 5, R}
 end
 
 @testitem "substitute at order 0 gives the value" begin
     E = exp(constant(Val(2), Val(0), 1.0))
     S = substitute(E, (variable(Val(3), Val(0), Val(1), 2.0), 3.0))
-    @test S isa Taylor{3,0,0,Float64,1}
+    @test S isa Taylor{3, 0, 0, Float64, 1}
     @test value(S) == exp(1.0)                                      # exact: copied
 end
 
@@ -91,12 +91,12 @@ end
     u = (a^2 / R(1, 2), b - b^3 / 7, c * c + c)                     # masks 0b0001, 0b0010, 0b1000
     S = substitute(E, u)
     X = (u[1] - value(u[1])) / 2 + 2; Y = u[2] - value(u[2]) + 3    # x has scale 1/2
-    @test S isa Taylor{4,3,3,R}                                      # c's variable is absent
+    @test S isa Taylor{4, 3, 3, R}                                      # c's variable is absent
     @test S.c == (X^2 * Y - 3X + Y^3 + X * Y).c                      # exact: Rational{BigInt}
     E2 = x * z^2 + y * z + x^3                                       # mask 0b111
     u2 = (a * c, R(9), b + a)                                        # masks 0b1001, plain, 0b0011
     S2 = substitute(E2, u2)
     X2 = (u2[1] - value(u2[1])) / 2 + 2; Z2 = u2[3] - value(u2[3]) + 4
-    @test S2 isa Taylor{4,3,11,R}
+    @test S2 isa Taylor{4, 3, 11, R}
     @test S2.c == (X2 * Z2^2 + 3 * Z2 + X2^3).c                       # exact: Rational{BigInt}
 end

@@ -10,8 +10,8 @@ the new variables. The values of `u` are not used: `E` is taken to be expanded a
 pass `u[i] / s`.
 """
 @generated function substitute(
-        E::Taylor{N,K,M,T,L}, u::Tuple{Vararg{Union{Taylor{<:Any,K,<:Any,T},T},N}}
-    ) where {N,K,M,T,L}
+        E::Taylor{N, K, M, T, L}, u::Tuple{Vararg{Union{Taylor{<:Any, K, <:Any, T}, T}, N}}
+    ) where {N, K, M, T, L}
     # The number of new variables, from the Taylor elements of `u`; they must agree.
     news = unique(P.parameters[1] for P in u.parameters if P <: Taylor)
     length(news) == 1 ||
@@ -27,7 +27,7 @@ pass `u[i] / s`.
     end
     # Each monomial Π hᵢ^αᵢ is built once: a power of one variable from the next lower power, any
     # other monomial as the monomial without its last variable times that variable's power.
-    monomials = Dict{NTuple{N,Int},Symbol}()
+    monomials = Dict{NTuple{N, Int}, Symbol}()
     function monomial(α)
         haskey(monomials, α) && return monomials[α]
         i = findlast(>(0), α)

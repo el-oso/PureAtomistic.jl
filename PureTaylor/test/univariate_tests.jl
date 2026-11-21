@@ -3,7 +3,7 @@
     for (N, K, M) in ((1, 4, 1), (2, 3, 3), (3, 2, 5), (2, 0, 1), (2, 3, 0))
         idx = PureTaylor.stored_indices(Val(N), Val(K), Val(M))
         L = length(idx)
-        a = Taylor{N,K,M,Rational{BigInt},L}(ntuple(j -> Rational{BigInt}(mod(5j + 2, 9) - 3, 1 + mod(3j, 4)), L))
+        a = Taylor{N, K, M, Rational{BigInt}, L}(ntuple(j -> Rational{BigInt}(mod(5j + 2, 9) - 3, 1 + mod(3j, 4)), L))
         d = ntuple(k -> Rational{BigInt}(k^2 - 3, k + 1), K + 1)
         s = Rational{BigInt}(-2, 3)
         t = s * (a - value(a))
@@ -134,8 +134,8 @@ end
     @test (2^y).c == exp(y * log(2.0)).c                            # exact: 2 converts to 2.0
     @test (ℯ^y).c == exp(y).c                                       # exact: the same call
     yf = variable(Val(1), Val(2), Val(1), 1.5f0)
-    @test (2^yf) isa Taylor{1,2,1,Float32,3}
-    @test (yf^yf) isa Taylor{1,2,1,Float32,3}
+    @test (2^yf) isa Taylor{1, 2, 1, Float32, 3}
+    @test (yf^yf) isa Taylor{1, 2, 1, Float32, 3}
 end
 
 @testitem "log at value 0 and log1p at value -1 are -Inf" begin
@@ -156,7 +156,7 @@ end
 
 @testitem "order 0: elementary functions give the value" begin
     a = exp(constant(Val(1), Val(0), 1.0))
-    @test a isa Taylor{1,0,0,Float64,1}
+    @test a isa Taylor{1, 0, 0, Float64, 1}
     @test value(a) == exp(1.0)                                      # exact: the value is Base's exp
 end
 
@@ -169,7 +169,7 @@ end
 @testitem "Float32 stays Float32 through the elementary functions" begin
     x = variable(Val(2), Val(2), Val(1), 1.5f0) + variable(Val(2), Val(2), Val(2), 0.25f0)
     for f in (sqrt, cbrt, exp, expm1, log, log1p, a -> a^0.3, a -> a^(1 // 3))
-        @test f(x) isa Taylor{2,2,3,Float32,6}
+        @test f(x) isa Taylor{2, 2, 3, Float32, 6}
     end
 end
 

@@ -2,7 +2,7 @@ import Base: +, -, *, /, ^, inv, literal_pow, zero, one, isfinite, isnan
 
 # Coefficient-wise sum or difference over the union mask. The generated body is marked inline so
 # the coefficient tuples stay in registers.
-@generated function _addsub(a::Taylor{N,K,M1,T,L1}, b::Taylor{N,K,M2,T,L2}, ::Val{sgn}) where {N,K,M1,M2,T,L1,L2,sgn}
+@generated function _addsub(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{sgn}) where {N, K, M1, M2, T, L1, L2, sgn}
     M = M1 | M2
     pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M1))))
     pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
@@ -16,34 +16,34 @@ import Base: +, -, *, /, ^, inv, literal_pow, zero, one, isfinite, isnan
     L = length(terms)
     return quote
         $(Expr(:meta, :inline))
-        Taylor{N,K,$M,T,$L}($(Expr(:tuple, terms...)))
+        Taylor{N, K, $M, T, $L}($(Expr(:tuple, terms...)))
     end
 end
 
 +(a::Taylor, b::Taylor) = _addsub(a, b, Val(1))
 -(a::Taylor, b::Taylor) = _addsub(a, b, Val(-1))
--(a::Taylor{N,K,M,T,L}) where {N,K,M,T,L} = Taylor{N,K,M,T,L}(ntuple(i -> -a.c[i], Val(L)))
+-(a::Taylor{N, K, M, T, L}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(ntuple(i -> -a.c[i], Val(L)))
 
 # Scalar sums change only the value. The tuples are built with `ntuple(f, Val(L))`: `map` over a
 # tuple longer than 32 allocates, and AllocCheck cannot prove that splatting one does not.
-function +(a::Taylor{N,K,M,T,L}, r::Real) where {N,K,M,T,L}
+function +(a::Taylor{N, K, M, T, L}, r::Real) where {N, K, M, T, L}
     s = convert(T, r)
-    return Taylor{N,K,M,T,L}(ntuple(i -> i == 1 ? a.c[1] + s : a.c[i], Val(L)))
+    return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? a.c[1] + s : a.c[i], Val(L)))
 end
 +(r::Real, a::Taylor) = a + r
-function -(a::Taylor{N,K,M,T,L}, r::Real) where {N,K,M,T,L}
+function -(a::Taylor{N, K, M, T, L}, r::Real) where {N, K, M, T, L}
     s = convert(T, r)
-    return Taylor{N,K,M,T,L}(ntuple(i -> i == 1 ? a.c[1] - s : a.c[i], Val(L)))
+    return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? a.c[1] - s : a.c[i], Val(L)))
 end
-function -(r::Real, a::Taylor{N,K,M,T,L}) where {N,K,M,T,L}
+function -(r::Real, a::Taylor{N, K, M, T, L}) where {N, K, M, T, L}
     s = convert(T, r)
-    return Taylor{N,K,M,T,L}(ntuple(i -> i == 1 ? s - a.c[1] : -a.c[i], Val(L)))
+    return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? s - a.c[1] : -a.c[i], Val(L)))
 end
 
 zero(a::Taylor) = zero(typeof(a))
-zero(::Type{Taylor{N,K,M,T,L}}) where {N,K,M,T,L} = Taylor{N,K,M,T,L}(ntuple(_ -> zero(T), Val(L)))
+zero(::Type{Taylor{N, K, M, T, L}}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(ntuple(_ -> zero(T), Val(L)))
 one(a::Taylor) = one(typeof(a))
-one(::Type{Taylor{N,K,M,T,L}}) where {N,K,M,T,L} = Taylor{N,K,M,T,L}(ntuple(i -> i == 1 ? one(T) : zero(T), Val(L)))
+one(::Type{Taylor{N, K, M, T, L}}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? one(T) : zero(T), Val(L)))
 
 isfinite(a::Taylor) = all(isfinite, a.c)
 isnan(a::Taylor) = any(isnan, a.c)
@@ -53,8 +53,8 @@ isnan(a::Taylor) = any(isnan, a.c)
 # `muladd` chain over the pairs of stored indices that sum to it, inlined so the tuples stay in
 # registers.
 @generated function mul_truncated(
-        a::Taylor{N,K,M1,T,L1}, b::Taylor{N,K,M2,T,L2}, ::Val{skip0}, ::Val{D}
-    ) where {N,K,M1,M2,T,L1,L2,skip0,D}
+        a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{skip0}, ::Val{D}
+    ) where {N, K, M1, M2, T, L1, L2, skip0, D}
     M = M1 | M2
     idx1 = stored_indices(Val(N), Val(K), Val(M1))
     pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
@@ -74,25 +74,25 @@ isnan(a::Taylor) = any(isnan, a.c)
     L = length(terms)
     return quote
         $(Expr(:meta, :inline))
-        Taylor{N,K,$M,T,$L}($(Expr(:tuple, terms...)))
+        Taylor{N, K, $M, T, $L}($(Expr(:tuple, terms...)))
     end
 end
 
-*(a::Taylor{N,K}, b::Taylor) where {N,K} = mul_truncated(a, b, Val(false), Val(K))
-function *(a::Taylor{N,K,M,T,L}, r::Real) where {N,K,M,T,L}
+*(a::Taylor{N, K}, b::Taylor) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
+function *(a::Taylor{N, K, M, T, L}, r::Real) where {N, K, M, T, L}
     s = convert(T, r)
-    return Taylor{N,K,M,T,L}(ntuple(i -> a.c[i] * s, Val(L)))
+    return Taylor{N, K, M, T, L}(ntuple(i -> a.c[i] * s, Val(L)))
 end
 *(r::Real, a::Taylor) = a * r
 
 # 1/(x + h) = Σₖ (-1)ᵏ (h/x)ᵏ / x: the series in t = h/x has coefficients ±1/x.
-function inv(a::Taylor{N,K,M,T,L}) where {N,K,M,T,L}
+function inv(a::Taylor{N, K, M, T, L}) where {N, K, M, T, L}
     r = inv(value(a))
     return compose(a, ntuple(k -> isodd(k) ? r : -r, Val(K + 1)), r)
 end
 
 /(a::Taylor, b::Taylor) = a * inv(b)
-/(a::Taylor{N,K,M,T}, r::Real) where {N,K,M,T} = a * inv(convert(T, r))
+/(a::Taylor{N, K, M, T}, r::Real) where {N, K, M, T} = a * inv(convert(T, r))
 /(r::Real, a::Taylor) = r * inv(a)
 
 # Product of `|n|` copies of `a` by repeated squaring; `isodd` and `÷ 2` act on the magnitude, so a
@@ -111,7 +111,7 @@ end
 
 @generated function literal_pow(::typeof(^), a::Taylor, ::Val{n}) where {n}
     # Julia lowers only integer literals to literal_pow; any other exponent is the general power.
-    n isa Integer || return :(a ^ $n)
+    n isa Integer || return :(a^$n)
     n == 0 && return :(one(a))
     m = abs(n)
     # Unrolled repeated squaring of the literal exponent.

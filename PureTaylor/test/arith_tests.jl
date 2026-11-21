@@ -6,12 +6,12 @@
     function random_taylor(N, K, M, rng = 0)
         idx = stored_indices(Val(N), Val(K), Val(M))
         c = ntuple(j -> Rational{BigInt}(mod(7j + 3rng + 1, 11) - 4 + (j == 1 ? 9 : 0), 1 + mod(5j + rng, 6)), length(idx))
-        return Taylor{N,K,M,Rational{BigInt},length(idx)}(c)
+        return Taylor{N, K, M, Rational{BigInt}, length(idx)}(c)
     end
 
     # The truncated product by brute force over all pairs of multi-indices: every pair whose sum has
     # total degree ≤ D contributes, and `a`'s constant term is left out when `skip0`.
-    function dense_product(a::Taylor{N,K}, b::Taylor{N,K}; D = K, skip0 = false) where {N,K}
+    function dense_product(a::Taylor{N, K}, b::Taylor{N, K}; D = K, skip0 = false) where {N, K}
         out = Dict(α => zero(Rational{BigInt}) for α in multi_indices(Val(N), Val(K)))
         for β in multi_indices(Val(N), Val(K)), γ in multi_indices(Val(N), Val(K))
             skip0 && sum(β) == 0 && continue
@@ -22,7 +22,7 @@
         return out
     end
 
-    matches(c::Taylor{N,K}, ref) where {N,K} = all(coefficient(c, α) == ref[α] for α in multi_indices(Val(N), Val(K)))
+    matches(c::Taylor{N, K}, ref) where {N, K} = all(coefficient(c, α) == ref[α] for α in multi_indices(Val(N), Val(K)))
 end
 
 @testitem "product equals the dense product (exact)" setup = [DenseOracle] begin
@@ -30,7 +30,7 @@ end
     for (N, K, M1, M2) in ((1, 4, 1, 1), (2, 3, 1, 2), (3, 3, 3, 6), (3, 2, 7, 0), (2, 0, 1, 2))
         a = random_taylor(N, K, M1, 1); b = random_taylor(N, K, M2, 2)
         c = a * b
-        @test c isa Taylor{N,K,M1 | M2}
+        @test c isa Taylor{N, K, M1 | M2}
         @test matches(c, dense_product(a, b))                     # exact: Rational{BigInt}
     end
 end
@@ -41,7 +41,7 @@ end
     a = random_taylor(3, 3, 3, 1); b = random_taylor(3, 3, 6, 2)
     for D in 0:3, skip0 in (false, true)
         c = mul_truncated(a, b, Val(skip0), Val(D))
-        @test c isa Taylor{3,3,7}
+        @test c isa Taylor{3, 3, 7}
         @test matches(c, dense_product(a, b; D, skip0))         # exact: Rational{BigInt}
     end
 end
@@ -112,8 +112,12 @@ end
     ∂y(g) = (x, y) -> ForwardDiff.derivative(t -> g(x, t), y)
     function partial(α)
         g = (x, y) -> inv(x * y + 2)
-        for _ in 1:α[1]; g = ∂x(g); end
-        for _ in 1:α[2]; g = ∂y(g); end
+        for _ in 1:α[1]
+            g = ∂x(g)
+        end
+        for _ in 1:α[2]
+            g = ∂y(g)
+        end
         return g(big(x0), big(y0))
     end
     idx = multi_indices(Val(2), Val(3))
@@ -130,18 +134,18 @@ end
 
 @testitem "order 0: power and division keep only the value" begin
     a = variable(Val(1), Val(0), Val(1), 2.0)^3 / 4
-    @test a isa Taylor{1,0,1,Float64,1}
+    @test a isa Taylor{1, 0, 1, Float64, 1}
     @test a.c == (2.0,)                                            # exact: 8/4 in binary
 end
 
 @testitem "Float32 stays Float32 through products, inverse and division" begin
     x = variable(Val(2), Val(2), Val(1), 1.5f0); y = variable(Val(2), Val(2), Val(2), 2.0f0)
-    @test (x * y) isa Taylor{2,2,3,Float32}
-    @test inv(x) isa Taylor{2,2,1,Float32}
-    @test (x / 0.1) isa Taylor{2,2,1,Float32}
-    @test (0.1 / x) isa Taylor{2,2,1,Float32}
-    @test (x * 0.1) isa Taylor{2,2,1,Float32}
-    @test x^-2 isa Taylor{2,2,1,Float32}
+    @test (x * y) isa Taylor{2, 2, 3, Float32}
+    @test inv(x) isa Taylor{2, 2, 1, Float32}
+    @test (x / 0.1) isa Taylor{2, 2, 1, Float32}
+    @test (0.1 / x) isa Taylor{2, 2, 1, Float32}
+    @test (x * 0.1) isa Taylor{2, 2, 1, Float32}
+    @test x^-2 isa Taylor{2, 2, 1, Float32}
     @test_throws MethodError x * variable(Val(2), Val(2), Val(1), 1.0)
     @test_throws MethodError x * variable(Val(2), Val(3), Val(1), 1.0f0)
 end
@@ -156,7 +160,7 @@ end
     for T in (Float64, Float32)
         v = ntuple(i -> variable(Val(5), Val(3), Val(i), T(i) / 4), 5)
         a = sum(v) + 1; b = a * v[1] + 2
-        @test a isa Taylor{5,3,31,T,56}
+        @test a isa Taylor{5, 3, 31, T, 56}
         u = (a, b, v[2] * v[3], a - v[4], v[5] + 3)
         mul(a, b); inverse(a); neg(a); rsub(T(1), a); subst(b, u)
         @test_noalloc mul(a, b)

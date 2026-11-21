@@ -25,7 +25,7 @@ end
 @testitem "fast functions on Taylor numbers skip the domain check" begin
     a = variable(Val(1), Val(2), Val(1), -1.0)
     for f in (fast_sqrt, fast_log, fast_log1p ∘ (b -> b - 1))
-        @test f(a) isa Taylor{1,2,1,Float64,3}
+        @test f(a) isa Taylor{1, 2, 1, Float64, 3}
     end
 end
 

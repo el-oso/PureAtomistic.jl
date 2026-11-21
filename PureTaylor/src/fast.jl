@@ -3,7 +3,7 @@
 # vectorized. Domains are documented and not checked; outside them the result is unspecified. Every
 # other `Real` falls back to the Base function.
 
-const _FastFloat = Union{Float32,Float64}
+const _FastFloat = Union{Float32, Float64}
 
 _int(::Type{Float64}) = Int64
 _int(::Type{Float32}) = Int32
@@ -70,7 +70,7 @@ fast_invcbrt(x::Real) = inv(cbrt(x))
 
 `∛x`. Domain for `Float32` and `Float64`: positive normal `x`. Other `Real`s use Base's `cbrt`.
 """
-@inline function fast_cbrt(x::T) where {T<:_FastFloat}
+@inline function fast_cbrt(x::T) where {T <: _FastFloat}
     # c = x·y² with y = x^(-1/3), then one Newton step c ← c + (x - c³)·y²/3.
     # The step is written as (x·y - c²·(c·y))·y/3 because c³ overflows for x near floatmax.
     y = fast_invcbrt(x)
@@ -91,7 +91,7 @@ const LOG_COEFFS32 = ntuple(j -> Float32(2 / (2j + 1)), 5)
 Natural logarithm. Domain for `Float32` and `Float64`: positive normal `x`. Other `Real`s use Base's
 `log`.
 """
-@inline function fast_log(x::T) where {T<:_FastFloat}
+@inline function fast_log(x::T) where {T <: _FastFloat}
     # x = 2ᵏ·m with m ∈ [√½, √2); f = m - 1, s = f/(2 + f), log m = 2·atanh(s) = f - s·(f - R(s²)).
     I = _int(T)
     p = _mantissa_bits(T)
@@ -112,7 +112,7 @@ fast_log(x::Real) = log(x)
 `log(1 + x)`, accurate for small `x`. Domain for `Float32` and `Float64`: `x > -1` with `1 + x`
 normal. Other `Real`s use Base's `log1p`.
 """
-@inline function fast_log1p(x::T) where {T<:_FastFloat}
+@inline function fast_log1p(x::T) where {T <: _FastFloat}
     # u = 1 + x rounded; (x - (u - 1))/u is the first-order correction for that rounding.
     u = one(T) + x
     return fast_log(u) + (x - (u - one(T))) / u
@@ -127,7 +127,7 @@ const EXPM1_COEFFS32 = ntuple(j -> Float32(1 / factorial(j)), 8)
 
 # x = k·ln2 + r with k = round(x/ln2), |r| ≤ ln2/2; returns (expm1(r), 2ᵏ). 2ᵏ is built from its
 # exponent bits, so k + bias must be a normal exponent: |x| ≤ 700 (Float64), |x| ≤ 85 (Float32).
-@inline function _exp_reduce(x::T) where {T<:_FastFloat}
+@inline function _exp_reduce(x::T) where {T <: _FastFloat}
     k = round(x * _inv_ln2(T))
     r = muladd(-k, _ln2_lo(T), muladd(-k, _ln2_hi(T), x))
     I = _int(T)
@@ -152,7 +152,7 @@ fast_exp(x::Real) = exp(x)
 `eˣ - 1`, accurate for small `x`. Domain: `|x| ≤ 700` for `Float64`, `|x| ≤ 85` for `Float32`. Other
 `Real`s use Base's `expm1`.
 """
-@inline function fast_expm1(x::T) where {T<:_FastFloat}
+@inline function fast_expm1(x::T) where {T <: _FastFloat}
     # eˣ - 1 = 2ᵏ·expm1(r) + (2ᵏ - 1).
     p, twok = _exp_reduce(x)
     return muladd(twok, p, twok - one(T))
@@ -168,7 +168,7 @@ fast_expm1(x::Real) = expm1(x)
 The series of `√a`, with its value from the scalar `fast_sqrt`. Domain: `value(a) ≥ 0`, unchecked; at
 value 0 the derivatives are singular.
 """
-fast_sqrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, fast_sqrt(value(a)), inv(T(2)))
+fast_sqrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_sqrt(value(a)), inv(T(2)))
 
 """
     fast_cbrt(a::Taylor)
@@ -176,7 +176,7 @@ fast_sqrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, fast_sqrt(value
 The series of `∛a`, with its value from the scalar `fast_cbrt`. Domain: positive normal `value(a)`
 for `Float32` and `Float64`, unchecked.
 """
-fast_cbrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, fast_cbrt(value(a)), inv(T(3)))
+fast_cbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_cbrt(value(a)), inv(T(3)))
 
 """
     fast_invcbrt(a::Taylor)
@@ -184,7 +184,7 @@ fast_cbrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, fast_cbrt(value
 The series of `a^(-1/3)`, with its value from the scalar `fast_invcbrt`. Domain: positive normal
 `value(a)` for `Float32` and `Float64`, unchecked.
 """
-fast_invcbrt(a::Taylor{N,K,M,T}) where {N,K,M,T} = _power_series(a, fast_invcbrt(value(a)), -inv(T(3)))
+fast_invcbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_invcbrt(value(a)), -inv(T(3)))
 
 """
     fast_log(a::Taylor)
@@ -200,7 +200,7 @@ fast_log(a::Taylor) = _log_series(a, fast_log(value(a)), value(a))
 The series of `log(1 + a)`, with its value from the scalar `fast_log1p`. Domain: `value(a) > -1`
 with `1 + value(a)` normal for `Float32` and `Float64`, unchecked.
 """
-fast_log1p(a::Taylor{N,K,M,T}) where {N,K,M,T} = _log_series(a, fast_log1p(value(a)), one(T) + value(a))
+fast_log1p(a::Taylor{N, K, M, T}) where {N, K, M, T} = _log_series(a, fast_log1p(value(a)), one(T) + value(a))
 
 """
     fast_exp(a::Taylor)
