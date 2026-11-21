@@ -5,7 +5,8 @@
     PBECorrelation{T}(β, γ, B, pw, thresholds)
 
 Perdew–Burke–Ernzerhof correlation, Libxc's `gga_c_pbe`, in the number type `T`: the gradient
-coefficient `β`, `γ`, the multiplier `B` of every A·t² in H, and the uniform-gas correlation `pw`
+coefficient `β`, `γ`, the multiplier `B` of the A·t² term of the numerator and the A²t⁴ term of the
+denominator of the bracket of H, and the uniform-gas correlation `pw`
 (a [`PW92Correlation`](@ref)). Built by [`pbe_c`](@ref).
 """
 struct PBECorrelation{T} <: AbstractGGA{T}
@@ -78,19 +79,19 @@ end
 
 # H of (E2) at the density n, the spin factor φ, the total σ and ε_c, with A of (E3), as
 # γφ³·log(1 + X). t² = (σ·q)·q/φ² with q = n^(−7/6)·√c, so that no power of n beyond n^(±7/6) is
-# formed. B multiplies every A·t², so with y = B·A·t² the argument is
-#     X = (β/γ)·t²·(1 + y)/(1 + y + y²) = (E/B)·(1 − 1/(1 + y(1 + y))),   E = exp(−ε_c/(γφ³)) − 1.
-# Each form below is chosen by the values of y and X so that no series coefficient is a difference
-# of nearly equal terms:
-# - X is formed as (β/γ)·t²/(1 + y·(y/(1 + y))) for y ≤ 1 and as the second form above: at large y,
-#   t² times the ratio cancels to relative order 1/y², and at small y, 1 − 1/(1 + y + y²) cancels in
-#   its second-order coefficients.
+# formed. With y = A·t² and the multiplier B of the numerator's A·t² and the denominator's A²t⁴,
+#     X = (β/γ)·t²·(1 + By)/(1 + y + By²) = E·(1 − 1/(1 + y(1 + By))),   E = exp(−ε_c/(γφ³)) − 1,
+# since y(1 + By) = (1 + y + By²) − 1. Each form below is chosen by the values of y and X so that
+# no series coefficient is a difference of nearly equal terms:
+# - X is formed as (β/γ)·t²/(1 + w), w = y(1 − B + By)/(1 + By) (y²/(1 + y) at B = 1), for y ≤ 1
+#   and as the second form above: at large y, t² times the ratio cancels to relative order 1/y²,
+#   and at small y, 1 − 1/(1 + y + By²) cancels in its second-order coefficients.
 # - log(1 + X) is fast_log1p(X) for X ≤ 1. Above, it is log X + log(1 + 1/X) with log X a sum of
-#   the logarithms of its factors, log(β/γ) + log σ − (7/3)·log n + log c − 2·log φ − log(1 + y²/(1 + y))
-#   for y ≤ 1 and log E − log B + log(1 − 1/(1 + y(1 + y))) above. The logarithm of a product
-#   separates its variables, so its mixed coefficients in n and σ come from the small corrections
-#   alone; composed with the series of X they would be differences of terms larger by the factor
-#   1/y² or X. The value is fast_log1p of the value of X.
+#   the logarithms of its factors, log(β/γ) + log σ − (7/3)·log n + log c − 2·log φ − log(1 + w)
+#   for y ≤ 1 and log E + log(1 − 1/(1 + y(1 + By))) above. The logarithm of a product separates
+#   its variables, so its mixed coefficients in n and σ come from the small corrections alone;
+#   composed with the series of X they would be differences of terms larger by the factor 1/y² or
+#   X. The value is fast_log1p of the value of X.
 # - For z = −ε_c/(γφ³) > 1, 1/E = e^(−z)/(1 − e^(−z)) and log E = z + log(1 − e^(−z)): the series of
 #   1/E or log E composed with that of E would be differences of terms of the size of the powers
 #   of its first coefficient.
@@ -102,31 +103,33 @@ function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
     q = _powm76(n) * sqrt(c)
     t2 = (σ * q) * q / φ2
     βγ = f.β / f.γ
+    B = f.B
     z = -ε / (f.γ * φ3)
     E = fast_expm1(z)
     em = fast_exp(-z)
     zlarge = value(z) > 1
     rE = ifelse(zlarge, em / (-fast_expm1(-z)), inv(E))
     logE = ifelse(zlarge, z + fast_log1p(-em), fast_log(E))
-    y = f.B * (βγ * rE) * t2
-    # 1/t² and 1/y from their factors, φ²·n^(7/3)/(c·σ) and E/(B·(β/γ))·(1/t²): the inverse of the
+    y = (βγ * rE) * t2
+    # 1/t² and 1/y from their factors, φ²·n^(7/3)/(c·σ) and (E/(β/γ))·(1/t²): the inverse of the
     # series of t² or y would be a difference of terms larger by the ratio of the coefficients of
     # n^(−7/3) and n^(7/3). 1/σ is formed as (1/σ₀)·(σ₀/σ) with σ₀ the value of σ, the factor 1/σ₀
     # applied to n^(7/3) first: the coefficients of the series 1/σ itself are smaller than 1/σ₀ by
     # the factor 1/t², and underflow at large t².
     qi = _pow76(n) * inv(sqrt(c))
     rt2 = φ2 * (((qi * qi) * inv(value(σ))) * inv(σ / value(σ)))
-    iy = E / (f.B * βγ) * rt2
-    w = y * (y / (1 + y))
-    v = iy * iy / (1 + iy * (1 + iy))
+    iy = E / βγ * rt2
+    w = y * ((1 - B + B * y) / (1 + B * y))
+    # v = 1/(1 + y(1 + By)) = (1/y)²/(B + (1/y)(1 + 1/y)).
+    v = iy * iy / (B + iy * (1 + iy))
     small = βγ * t2 / (1 + w)
-    large = E / f.B * (1 - v)
+    large = E * (1 - v)
     X = ifelse(value(y) <= 1, small, large)
-    # 1/X: (1 + w)/(β/γ·t²), or (B/E)·(1 + 1/(y(1 + y))).
+    # 1/X: (1 + w)/(β/γ·t²), or (1/E)·(1 + 1/(y(1 + By))) with 1/(y(1 + By)) = (1/y)²/(B + 1/y).
     rsmall = (1 + w) * rt2 / βγ
-    rlarge = f.B * rE * (1 + iy * (iy / (1 + iy)))
+    rlarge = rE * (1 + iy * (iy / (B + iy)))
     logsmall = log(βγ * c) + fast_log(σ) - convert(R, 7) / 3 * fast_log(n) - 2 * fast_log(φ) - fast_log1p(w)
-    loglarge = logE - log(f.B) + fast_log1p(-v)
+    loglarge = logE + fast_log1p(-v)
     split = ifelse(value(y) <= 1, logsmall, loglarge) + fast_log1p(ifelse(value(y) <= 1, rsmall, rlarge))
     L = ifelse(value(X) <= 1, fast_log1p(X), _series_with_value(split, fast_log1p(value(X))))
     return f.γ * φ3 * L

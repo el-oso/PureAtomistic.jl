@@ -622,3 +622,40 @@ end
         end
     end
 end
+
+# The multiplier B of spec gga_c_pbe (E2): the bracket of H is (1 + B·A·t²)/(1 + A·t² + B·A²t⁴).
+# Oracle: the spec's Libxc 7.0.0 zk at B = 0, 0.5 and 2. Tolerance (a): 1e-6 relative, the user's
+# floor; measured at most 5.6e-15.
+@testitem "pbe_c with the multiplier B" begin
+    f0 = pbe_c()
+    with_B(B) = PureXC.PBECorrelation{Float64}(f0.β, f0.γ, B, f0.pw, f0.thresholds)
+    rows = (
+        (0.1, 0.05, -0.030048344929995998, -0.028185598834314613, -0.0238211968403012),
+        (1.0, 3.0, -0.06094730572071168, -0.060755891958294214, -0.060190890487385275),
+        (0.01, 0.001, -0.006592785715365489, -0.0031645952863285365, -0.001237283120988128),
+    )
+    for (n, σ, z0, zh, z2) in rows, (B, zk) in ((0.0, z0), (0.5, zh), (2.0, z2))
+        @test abs(xc_derivatives(with_B(B), Val(0), n, σ).e / n - zk) <= 1.0e-6 * abs(zk)
+    end
+    # Large y = A·t², where the forms of H differ from those at small y. Oracle: (E1)–(E3) written
+    # out in BigFloat (256 bits), and their central difference in σ with step 1e-25·σ (truncation
+    # of order 1e-50). Bound (b): 8·eps relative to n·|ε_c| for e (whose value cancels to order
+    # 1/y); bound (c) for vsigma: 32·eps relative; measured at most 1.6·eps and 8.7·eps.
+    bt(t) = PureXC.Thresholds{BigFloat}(big(t.density), big(t.sigma), big(t.zeta), big(t.sigma_floor))
+    pw = PureXC.PW92Correlation{BigFloat}(map(p -> big.(p), f0.pw.params), big(f0.pw.fz20), bt(f0.pw.thresholds))
+    β, γ = big(f0.β), big(f0.γ)
+    function direct(B, n, σ)
+        ε = PureXC._pw92_eps(pw, PureXC._seitz_radius(n))
+        t2 = big(π) * σ / (16 * cbrt(3 * big(π)^2 * n) * n^2)
+        A = β / γ / expm1(-ε / γ)
+        return n * (ε + γ * log1p(β / γ * t2 * (1 + B * A * t2) / (1 + A * t2 + B * A^2 * t2^2))), n * ε
+    end
+    for B in (0.0, 0.5, 2.0), (n, σ) in ((1.0, 3.0), (1.0, 3.0e4), (1.0e-6, 1.0e-8), (0.01, 1.0e6), (100.0, 1.0e10))
+        r = xc_derivatives(with_B(B), Val(1), n, σ)
+        e, nε = direct(B, big(n), big(σ))
+        h = big(σ) * big(1.0e-25)
+        vσ = (first(direct(B, big(n), big(σ) + h)) - first(direct(B, big(n), big(σ) - h))) / 2h
+        @test abs(r.e - e) <= 8 * eps() * abs(nε)
+        @test abs(r.vsigma - vσ) <= 32 * eps() * abs(vσ)
+    end
+end
