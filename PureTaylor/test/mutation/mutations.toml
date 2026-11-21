@@ -361,6 +361,13 @@ find = '_power_series(a, convert(T, v), convert(T, p))'
 replace = '_power_series(a, convert(T, p), convert(T, p))'
 expect = "closed-form derivatives|power_series holds"
 
+[[mutation]]
+name = "power-series-ignores-v"
+file = "src/univariate.jl"
+find = '_power_series(a, convert(T, v), convert(T, p))'
+replace = '_power_series(a, value(a)^convert(T, p), convert(T, p))'
+expect = "scales the series by the caller's value"
+
 # The change of variables: which elements of u carry an increment.
 
 [[mutation]]

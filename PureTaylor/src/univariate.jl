@@ -57,6 +57,10 @@ by the caller as `value(a)^p` (for example `x * fast_cbrt(x)` for `p = 4/3`). Th
 `v·binomial(p, k)·(h/x)ᵏ` with `x = value(a)` and `h = a - x`, formed in one series, so no factor
 series has to be representable: in a product such as `a * fast_cbrt(a)` a coefficient of the factor
 can overflow where the product's fits. Domain: positive `value(a)`, unchecked.
+
+`v` is not checked against `value(a)^p`: every coefficient is proportional to `v`, so the result is
+`(v / value(a)^p)·aᵖ`. `p` is converted to the coefficient type, so a `Float64` exponent with a
+`Rational` coefficient type is its binary fraction (4/3 becomes 6004799503160661//4503599627370496).
 """
 power_series(a::Taylor{N, K, M, T}, p::Real, v::Real) where {N, K, M, T} =
     _power_series(a, convert(T, v), convert(T, p))

@@ -194,13 +194,22 @@ end
     @test fast_cbrt(x).c[7] == -Inf32
     @test (x * fast_cbrt(x)).c[7] == -Inf32
     got = PureTaylor.power_series(x, 4.0f0 / 3, x0 * fast_cbrt(x0))
-    # Oracle: x₀^(4/3)·binomial(4/3, k)·(s/x₀)^k in BigFloat at the Float32 inputs, with the
-    # exponent rounded to Float32 as in `got`. Rounding bound c·eps·N with c = 2 and N = 40: the
-    # value (3), s/x₀ (1), the K = 6 terms of the recurrence (18), and 6 Horner steps of one
-    # product and one add each (12), with 6 more for the power of s/x₀ in the last coefficient.
-    # Largest error measured: 2.3·eps.
-    p = big(4.0f0 / 3)
+    # Oracle: x₀^(4/3)·binomial(4/3, k)·(s/x₀)^k in BigFloat at the Float32 inputs, with the exact
+    # exponent 4/3; `got` rounds it to Float32 in the binomials only, about one eps each. Rounding
+    # bound c·eps·N with c = 2 and N = 40: the value (3), s/x₀ (1), the K = 6 terms of the
+    # recurrence (18), and 6 Horner steps of one product and one add each (12), with 6 more for the
+    # power of s/x₀ in the last coefficient. Largest error measured: 2.0·eps.
+    p = big(4) / 3
     want = [big(x0)^p * prod((p - j for j in 0:(k - 1)); init = big(1)) / factorial(big(k)) * (big(s) / big(x0))^k for k in 0:6]
     @test all(abs.(big.(got.c) .- want) .<= 2 * eps(Float32) * 40 .* abs.(want))
     @test PureTaylor.power_series(x, 1 // 3, fast_cbrt(x0)).c == fast_cbrt(x).c
+end
+
+# The value is the caller's and is not checked: with v = 1 for √a at value(a) = 4, where √4 = 2,
+# every coefficient is half that of the square root.
+@testitem "power_series scales the series by the caller's value" begin
+    a = variable(Val(1), Val(3), Val(1), 4.0)
+    # Exact: the coefficients differ by the factor 1/2, a power of two.
+    @test PureTaylor.power_series(a, 0.5, 1.0).c == fast_sqrt(a).c ./ 2
+    @test all(iszero, PureTaylor.power_series(a, 0.5, 0.0).c)
 end
