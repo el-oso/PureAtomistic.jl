@@ -100,3 +100,16 @@ end
     @test S2 isa Taylor{4, 3, 11, R}
     @test S2.c == (X2 * Z2^2 + 3 * Z2 + X2^3).c                       # exact: Rational{BigInt}
 end
+
+# A coefficient of degree d of the result depends only on coefficients of E of degree ≤ d, so an
+# infinite coefficient of E (a value beyond the range of T) stays at its own degree and above.
+@testitem "substitute keeps an infinite coefficient at its degree" begin
+    # E = 1 + 2w + Inf·w², with w = 3x + y over the new variables (x, y).
+    E = Taylor{1, 2, 1, Float32, 3}((1.0f0, 2.0f0, Inf32))
+    u = 3 * variable(Val(2), Val(2), Val(1), 0.0f0) + variable(Val(2), Val(2), Val(2), 0.0f0)
+    r = substitute(E, (u,))
+    # Exact: the value and the degree-1 coefficients are 1 and 2·(3, 1); every degree-2 coefficient
+    # is Inf times a positive number.
+    @test r.c[1:3] == (1.0f0, 6.0f0, 2.0f0)
+    @test all(==(Inf32), r.c[4:6])
+end

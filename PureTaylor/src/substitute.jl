@@ -47,11 +47,24 @@ pass `u[i] / s`.
     for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M)))
         j == 1 && continue
         any(i -> α[i] > 0 && isnothing(h[i]), 1:N) && continue
-        term = :($(monomial(α)) * E.c[$j])
+        term = :(_scale_from($(monomial(α)), E.c[$j], Val($(sum(α)))))
         s = Symbol(:s_, j)
         push!(body.args, :($s = $(isnothing(acc) ? term : :($acc + $term))))
         acc = s
     end
     push!(body.args, isnothing(acc) ? :(constant(Val($N2), Val(K), E.c[1])) : :($acc + E.c[1]))
     return body
+end
+
+# r·m for a series m with no terms below degree D, such as a monomial of degree D in increments:
+# the coefficients below degree D are zero without a product, so an infinite r (a coefficient whose
+# value is beyond the range of T) does not reach them as 0·Inf.
+@generated function _scale_from(m::Taylor{N, K, M, T, L}, r::T, ::Val{D}) where {N, K, M, T, L, D}
+    terms = map(enumerate(stored_indices(Val(N), Val(K), Val(M)))) do (j, α)
+        sum(α) < D ? :(zero(T)) : :(m.c[$j] * r)
+    end
+    return quote
+        $(Expr(:meta, :inline))
+        Taylor{N, K, M, T, L}($(Expr(:tuple, terms...)))
+    end
 end

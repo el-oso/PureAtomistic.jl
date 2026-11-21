@@ -369,3 +369,19 @@ file = "src/substitute.jl"
 find = 'isodd(M >> (i - 1)) || return nothing'
 replace = 'isodd(M >> i) || return nothing'
 expect = "substitute with u of different masks and an unused variable"
+
+# The scaling of a monomial in `substitute`, which skips its zeros below its degree.
+
+[[mutation]]
+name = "substitute-scale-all-degrees"
+file = "src/substitute.jl"
+find = 'sum(α) < D ? :(zero(T)) : :(m.c[$j] * r)'
+replace = 'sum(α) < 0 ? :(zero(T)) : :(m.c[$j] * r)'
+expect = "substitute keeps an infinite coefficient at its degree"
+
+[[mutation]]
+name = "substitute-scale-degree-bound"
+file = "src/substitute.jl"
+find = 'sum(α) < D ? :(zero(T)) : :(m.c[$j] * r)'
+replace = 'sum(α) <= D ? :(zero(T)) : :(m.c[$j] * r)'
+expect = "substitute"
