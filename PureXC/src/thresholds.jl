@@ -55,3 +55,14 @@ end
 
 # The thresholds `t` converted to the type S, value by value.
 _thresholds_in(::Type{S}, t::Thresholds) where {S} = Thresholds{S}(t.density, t.sigma, t.zeta, t.sigma_floor)
+
+"""
+    _to_number_type(T, x)
+
+`x` in the number type `T` of a functional: `convert(T, x)`, or for a `Taylor` type `T` a plain
+number as the constant series of that type.
+"""
+_to_number_type(::Type{T}, x) where {T} = convert(T, x)
+_to_number_type(::Type{T}, x::Real) where {T <: Taylor} = x isa Taylor ? convert(T, x) : _constant_series(T, x)
+_constant_series(::Type{Taylor{N, K, M, V, L}}, x) where {N, K, M, V, L} =
+    Taylor{N, K, M, V, L}(ntuple(i -> i == 1 ? convert(V, x) : zero(V), Val(L)))

@@ -163,8 +163,10 @@ _float32_max_order(::Type{<:AbstractFunctional}) = 2
 
 # The derivatives of `f` at the inputs `x`, evaluated in S = `_evaluation_type(f, R, k)` with the
 # functional converted to S, and returned in the result type R. Converting an output beyond
-# floatmax(R) gives the infinity of its sign.
-function _evaluate(f, k::Val, x...)
+# floatmax(R) gives the infinity of its sign. `Vararg{Any, N}` makes the method specialize on the
+# inputs: Julia does not specialize a bare `x...` that is only passed on to other calls, and the
+# unspecialized call boxes its arguments.
+function _evaluate(f, k::Val, x::Vararg{Any, N}) where {N}
     R = _result_type(f, x...)
     S = _evaluation_type(f, R, k)
     return _outputs_in(R, S, _derivatives_at(_functional_in(f, R, S), k, x...))
@@ -174,7 +176,10 @@ _functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
 _functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
 
 _outputs_in(::Type, ::Type, r) = r
-_outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple) = map(_output_in32, r)
+# Field by field in generated code: on Julia 1.12 `map` over a NamedTuple of 15 fields allocates.
+@generated function _outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple{names}) where {names}
+    return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in32(r.$n)) for n in names)...))))
+end
 _output_in32(x::Real) = convert(Float32, x)
 _output_in32(t::Tuple) = ntuple(i -> convert(Float32, t[i]), Val(length(t)))
 

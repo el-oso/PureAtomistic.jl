@@ -17,7 +17,8 @@ end
 
 Throw an `ArgumentError` with the prefix `"xc: "` for an input the functional `f` does not accept
 at derivative order `k`: a NaN or infinite input, a negative density or σ, a total density above
-the domain limit of an LDA (see `_lda_density_max`), or a polarized `σαβ` with
+the domain limit of an LDA (see `_lda_density_max`), an input outside the domain limits of a GGA
+(see `_check_gga_domain`), or a polarized `σαβ` with
 `|σαβ| > √σαα·√σββ·(1 + 8·eps(S))` in the type `S` of the σ inputs. Otherwise return `nothing`.
 """
 function _check_inputs(f::AbstractLDA, k::Val, ρ::Real)
@@ -81,16 +82,17 @@ function _check_density_max(::Val{K}, n::R) where {K, R}
     return nothing
 end
 
-function _check_inputs(::AbstractGGA, ::Val, ρ::Real, σ::Real)
+function _check_inputs(f::AbstractGGA, k::Val, ρ::Real, σ::Real)
     _check_nonnegative(ρ, :ρ)
     _check_nonnegative(σ, :σ)
+    _check_gga_domain(f, k, ρ, σ)
     return nothing
 end
 
 # The σαβ bound |σαβ| ≤ √σαα·√σββ·(1 + 8 eps) is a rounding bound for σ's formed as 3-term dot
 # products in their own type S: each σ carries at most 3 eps, a product of two at most 6 eps, and a
 # factor of 2 is margin. It is compared through square roots so that nothing underflows.
-function _check_inputs(::AbstractGGA, ::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real})
+function _check_inputs(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real})
     _check_nonnegative(ρ[1], :ρα)
     _check_nonnegative(ρ[2], :ρβ)
     _check_nonnegative(σ[1], :σαα)
@@ -100,5 +102,43 @@ function _check_inputs(::AbstractGGA, ::Val, ρ::NTuple{2, Real}, σ::NTuple{3, 
     aa, ab, bb = convert(S, σ[1]), convert(S, σ[2]), convert(S, σ[3])
     abs(ab) > sqrt(aa) * sqrt(bb) * (1 + 8 * eps(S)) &&
         _throw_input(lazy"xc: σαβ = $(σ[2]) exceeds √(σαα·σββ) for σαα = $(σ[1]), σββ = $(σ[3])")
+    _check_gga_domain(f, k, ρ, σ)
+    return nothing
+end
+
+"""
+    _check_gga_domain(f, Val(K), ρ, σ)
+
+Throw an `ArgumentError` with the prefix `"xc: "` for inputs outside the domain limits of the GGA
+`f` at order `K` (a total density above n_max or a reduced gradient above its limit), given inputs
+that pass the sign, finiteness and σαβ checks. A GGA without limits accepts every such input.
+"""
+_check_gga_domain(::AbstractGGA, ::Val, ρ, σ) = nothing
+
+"""
+    _gga_density_max(R, Val(K))
+
+n_max(R, K) of the GGA family, the largest total density a PBE functional accepts at order `K` in
+the type `R`: `2^p` with p = 381 in Float64 and 45 in Float32, above which the σ scale
+4(6π²)^(2/3)·n^(8/3) of `pbe_x`, or σ itself at s² = 1, is beyond floatmax(R). The exponent is
+⌊3(e − 6)/8⌋ with e = exponent(floatmax(R)), measured to be the largest power of two at which every
+output is within its bound against BigFloat over the splits of `_lda_density_max` and the
+reduced gradients up to their limits: `pbe_x` at orders 0 to 10, `pbe_c` restricted at orders 0 to
+10 and polarized at orders 0 to 7. BigFloat and the other types use the Float64 value.
+"""
+_gga_density_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), 381)
+_gga_density_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, 45)
+
+function _check_gga_density_max(::Val{K}, n::R) where {K, R}
+    m = _gga_density_max(R, Val(K))
+    n > m && _throw_input(lazy"xc: total density n = $n exceeds $m, the largest a GGA accepts at order $K in $R")
+    return nothing
+end
+
+# The reduced gradient s² = σ/(c·n^(8/3)) (or t² of `pbe_c`, with its own c and power) is formed as
+# (√σ/(√c·n^p))², with n^p no smaller than n_thr^(4/3), so that no subnormal power is formed; an
+# overflow gives Inf, which is above every limit.
+function _check_reduced_gradient(name::Symbol, x::R, m::R, ::Val{K}) where {R, K}
+    x > m && _throw_input(lazy"xc: reduced gradient $name = $x exceeds $m, the largest accepted at order $K in $R")
     return nothing
 end
