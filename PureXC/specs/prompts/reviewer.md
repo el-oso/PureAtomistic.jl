@@ -27,7 +27,10 @@ Write your report to: `<report-file>`.
 - the C or Maple source of Libxc, in any form, wherever it is found;
 - any file under the package directories of the Julia packages `Libxc` and `Libxc_jll`
   (including their `src/`, `deps/` and artifacts);
-- any web page or search result that shows Libxc source.
+- any web page or search result that shows Libxc source;
+- the source of a Libxc or Libxc_jll function through Julia tools such as `@edit`, `@less`, `@which` followed by opening the file, or `methods` output followed by opening the file.
+
+If any file you are allowed to read turns out to quote Libxc source, stop reading it and report the file and line.
 
 ## How Libxc may be used
 
