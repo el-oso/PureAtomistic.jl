@@ -54,6 +54,18 @@ with r_s, ζ, φ, k_s and t as defined in the text after [PBE] Eq. (3):
 
     H = γ φ³ ln{ 1 + (β/γ) t² [ (1 + A t²) / (1 + A t² + A² t⁴) ] }
 
+With the multiplier B (`_B`, B = 1 for PBE) the bracket is (1 + B A t²) / (1 + A t² + B A² t⁴):
+B multiplies the A t² term of the numerator and the A² t⁴ term of the denominator, not the
+A t² term of the denominator. Found from Libxc 7.0.0 outputs (restricted, `_B` set through
+`xc_func_set_ext_params_name`): with ε_c from `lda_c_pw_mod`, the form reproduces the Libxc zk below to ≤ 5.7e-15 relative
+(B = 0, 0.5, 1 and 2). Libxc zk:
+
+| n | σ | B = 0 | B = 0.5 | B = 2 |
+|---|---|---|---|---|
+| 0.1 | 0.05 | −0.030048344929995998 | −0.028185598834314613 | −0.0238211968403012 |
+| 1.0 | 3.0 | −0.06094730572071168 | −0.060755891958294214 | −0.060190890487385275 |
+| 0.01 | 0.001 | −0.006592785715365489 | −0.0031645952863285365 | −0.001237283120988128 |
+
 (E3) [PBE] Eq. (8):
 
     A = (β/γ) [ exp{ −ε_c / (γ φ³) } − 1 ]⁻¹
