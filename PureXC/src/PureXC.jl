@@ -1,6 +1,6 @@
 module PureXC
 
-import PureTaylor
+using PureTaylor: PureTaylor, Taylor, derivatives, value, variable
 using StrictMode: @strict_policy
 
 """
@@ -41,7 +41,13 @@ defines its own method.
 """
 function kind end
 
+include("thresholds.jl")
+include("validate.jl")
+include("driver.jl")
+
 export AbstractFunctional, AbstractLDA, AbstractGGA, family, kind
+export xc_derivatives, energy_density
+public Thresholds, default_thresholds
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)
