@@ -115,12 +115,21 @@ API. Applied as follows (application checked against Libxc, see below):
 1. If the total density n < n_thr (strict), the energy and every derivative are zero.
 2. Otherwise, in the spin-polarized case each channel density is raised to max(n_σ, n_thr)
    before r_s and ζ are formed.
+   The raised channels also give the total density n_r = max(n_α, n_thr) + max(n_β, n_thr).
+   Every derivative is that of n_r·ε_c at the raised densities. The energy output is
+   e = n·ε_c with the caller's n, so that e/n equals Libxc's zk (checked against Libxc, below).
 3. In (E3), a factor (1 ± ζ)^{4/3} with 1 ± ζ ≤ ε_ζ is replaced by the constant ε_ζ^{4/3}.
 
 ### Libxc behavior (information; checked against Libxc 7.0.0 outputs)
 
 - Rule 1: unpolarized n = 0.999e-15 gives zk = 0; n = 1.0e-15 gives zk = −6.8960e-6 (so
   equality is not cut off). Polarized: the test is on n_α + n_β.
+- Which density multiplies ε_c (checked against Libxc 7.0.0 outputs): zk and vrho are
+  bit-identical at (0.01, 0), (0.01, 0.5e-15) and (0.01, 1e-15), and at n_α = n_β = 0.5005e-15,
+  0.9995e-15 and 1e-15 (`lda_c_pw`: zk = −8.674368563248956e-6, vrho = −1.1544342326421484e-5 for
+  each channel). So zk is ε_c at the raised densities, and vrho is the derivative of n_r·ε_c
+  there; a product with the caller's n would change vrho at the 1e-13 level at the first three
+  points and by a factor near 2 in its second term at the symmetric points.
 - Rule 2: polarized (n_α, n_β) = (0.01, 0), (0.01, 0.5e-15) and (0.01, 1e-15) give identical
   outputs (zk = −0.020296494557675415, vrho_β = −0.15101284284991515,
   v2rho2_ββ = 1.740992732755484e9). The derivative with respect to a raised channel is the

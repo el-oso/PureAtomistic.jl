@@ -112,6 +112,11 @@ checked against Libxc, see below):
    There is no per-channel cutoff: restricted input is cut off at n < n_thr, not 2 n_thr.
 2. Otherwise, in the polarized case each channel density is raised to max(n_σ, n_thr)
    before r_s, ζ and φ are formed.
+   As in `lda/lda_c_pw.md` rule 2: every derivative is that of n_r·ε at the raised densities,
+   with n_r the sum of the raised channels, and the energy output is e = n·ε with the caller's n.
+   Checked against Libxc 7.0.0 outputs: with σ = (1e-4, 0, 0), zk, vrho and vsigma are
+   bit-identical at (0.01, 0), (0.01, 0.5e-12) and (0.01, 1e-12) (zk = −0.010227071671042167,
+   vrho_β = 16.23626753063028), and at n_α = n_β = 0.5005e-12 and 0.9995e-12.
 3. σ_σσ (restricted: σ) is raised to max(σ_σσ, σ_thr²); the floor is the **square** of the
    reported threshold, 1.0000000000000042e-32.
 4. In f(ζ) (`lda_c_pw_mod`) and in φ(ζ), a factor (1 ± ζ)^p with 1 ± ζ ≤ ε_ζ is replaced by
