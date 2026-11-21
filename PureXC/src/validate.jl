@@ -45,25 +45,32 @@ _value_type(::Type{<:Taylor{N, K, M, T}}) where {N, K, M, T} = T
     _lda_density_max(R, Val(K))
 
 n_max(R, K), the largest total density an LDA accepts at derivative order `K` in the type `R`:
-`2^(e − ⌈e/4⌉ − g(K))` = `2^(⌊3e/4⌋ − g(K))`, with `e = exponent(floatmax(R))` and the loss `g(K)` of
-`_LDA_DENSITY_LOSS`. It is the largest power of two at which every output of `lda_x`, `lda_c_pw`
-and `lda_c_pw_mod` at order `K`, restricted and polarized at the splits (n, 0), (0, n),
-(n/2, n/2), (3n/4, n/4), (n, x) and (x, n) for x ∈ {2e-15, 1e-6, 1}, stays within 2100·eps(R) of the
-same functional in BigFloat, relative to the largest entry of each output. For PW92 the bound
-adds 8κ·eps(R), κ = 2/(1 − |ζ|): the conditioning of 1 ± ζ formed from ζ (spec `lda_c_pw`,
-section 8). A Float32 call at K ≥ 8 is evaluated in Float64 and rounded, and keeps the Float32
-limit. `lda_x` sets it: e(n) ∝ n^(4/3) overflows above about 2^(3e/4).
+`2^min(⌊3e/4⌋, p(K))`, with `e = exponent(floatmax(R))` and p(K) of `_pw92_density_exponent`.
+
+- ⌊3e/4⌋ is set by `lda_x`: e(n) ∝ n^(4/3) overflows above about 2^(3e/4).
+- p(K) is set by PW92 near full polarization, where 1 − |ζ| is just above ε_ζ: there a coefficient
+  of its (n, ζ) series grows like n·(1 − |ζ|)^(4/3 − K).
+
+For Float32 and Float64 this is the measured largest power of two at which every output of
+`lda_x`, `lda_c_pw` and `lda_c_pw_mod` at order `K` is within its bound against the same
+functional in BigFloat (or the infinity of its sign where the exact value exceeds floatmax(R)). The
+splits are n, (n, 0), (0, n), (n/2, n/2), (3n/4, n/4), (n, x) and (x, n) for x ∈ {2e-15, 1e-6, 1},
+and (n, r·n) for r log-spaced over [1e-9, 1] (Float32) or [1e-17, 1] (Float64). The bound is 2100
+eps(R) at K ≤ 3 and 1000 eps(R) above; for PW92 where the factor (1 ± ζ)^(4/3) of the smaller
+channel is kept it adds 8κ·eps(R), κ = 2/(1 − |ζ|), the conditioning of 1 ± ζ formed from ζ (spec
+`lda_c_pw`, section 8); a Float32 call evaluated in Float64 has the bound 50 eps(Float32).
+Measured: Float64 2^767 for K = 0 to 6, then 2^733, 682, 630, 579 for K = 7 to 10; Float32 2^95 for
+K = 0 to 10. For other types and above K = 10 it is not measured.
 """
 _lda_density_max(::Type{R}, ::Val{K}) where {R, K} =
-    ldexp(one(R), exponent(floatmax(R)) - cld(exponent(floatmax(R)), 4) - _lda_density_loss(K))
+    ldexp(one(R), min(exponent(floatmax(R)) - cld(exponent(floatmax(R)), 4), _pw92_density_exponent(K)))
 
-# g(K) for K = 0, 1, …, 10. Measured largest accurate power of two, the same as the formula, for
-# K = 0…10: Float64 2^767, 767, 767, 766, 764, 762, 759, 756, 752, 749, 745; Float32 2^95, 95, 95,
-# 94, 92, 90, 87, 84, 80, 77, 73. Above K = 10 the loss is extended by 4 per order, the largest
-# step measured; those orders are not measured.
-const _LDA_DENSITY_LOSS = (0, 0, 0, 1, 3, 5, 8, 11, 15, 18, 22)
-_lda_density_loss(K::Int) = K < length(_LDA_DENSITY_LOSS) ? _LDA_DENSITY_LOSS[K + 1] :
-    _LDA_DENSITY_LOSS[end] + 4 * (K + 1 - length(_LDA_DENSITY_LOSS))
+# p(K) for K = 0, 1, …, 10: the largest power of two at which PW92 is accurate in Float64 over the
+# splits of `_lda_density_max` (measured). Above K = 10 it decreases by 53 per order, more than the
+# measured step of 51 or 52 (log2 of 2/ε_ζ is 53); those orders are not measured.
+const _PW92_DENSITY_EXPONENT = (1023, 1023, 987, 937, 886, 835, 784, 733, 682, 630, 579)
+_pw92_density_exponent(K::Int) = K < length(_PW92_DENSITY_EXPONENT) ? _PW92_DENSITY_EXPONENT[K + 1] :
+    _PW92_DENSITY_EXPONENT[end] - 53 * (K + 1 - length(_PW92_DENSITY_EXPONENT))
 
 function _check_density_max(::Val{K}, n::R) where {K, R}
     m = _lda_density_max(R, Val(K))

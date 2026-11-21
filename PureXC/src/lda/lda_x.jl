@@ -22,6 +22,11 @@ kind(::LDAExchange) = :exchange
 
 _with_number_type(f::LDAExchange, ::Type{S}) where {S} = LDAExchange{S}(_thresholds_in(S, f.thresholds))
 
+# Measured: in pure Float32 every output of orders 0 to 10 stays within its bound at the n_max
+# splits, the uneven splits and the ratios ρβ/ρα ∈ [1e-9, 1] up to n_max. Orders above 10 are not
+# measured, so they are evaluated in Float64.
+_float32_max_order(::Type{<:LDAExchange}) = 10
+
 # x^(4/3), with the value x·∛x. For a `Taylor` it is one power series: in the product x·∛x a
 # coefficient of the factor ∛x can overflow where the coefficient of x^(4/3) fits.
 _pow43(x::Real) = x * fast_cbrt(x)

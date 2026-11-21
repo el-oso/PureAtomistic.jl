@@ -22,6 +22,11 @@ _with_number_type(pw::PW92Correlation, ::Type{S}) where {S} = PW92Correlation{S}
     map(p -> map(x -> convert(S, x), p), pw.params), convert(S, pw.fz20), _thresholds_in(S, pw.thresholds)
 )
 
+# Measured: in pure Float32 order 3 already fails near full polarization, where 1 − ζ is just above
+# ε_ζ: at (2^94, 2^94·1e-7) the exact v3rho3_βββ is −6.2e-46 and pure Float32 gives −Inf. Orders 0
+# to 2 stay within their bounds over the splits of `_lda_density_max`.
+_float32_max_order(::Type{<:PW92Correlation}) = 2
+
 # α₁, β₁, β₂, β₃, β₄ of the sets ε_c(r_s, 0), ε_c(r_s, 1), −α_c(r_s): [PW92] Table I, the same for
 # both variants.
 const _PW92_ALPHA_BETA = (
@@ -76,7 +81,7 @@ _cutoff(pw::PW92Correlation, ρ::Tuple) = ρ[1] + ρ[2] < pw.thresholds.density
 # Restricted, the default max(n, n_thr, m) is the same rule.
 function _seed_scales(pw::PW92Correlation, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
     t = convert(R, pw.thresholds.density)
-    s = max(max(ρ[1], t) + max(ρ[2], t), _seed_minimum(R, Val(K)))
+    s = max(max(ρ[1], t) + max(ρ[2], t), _seed_minimum(R))
     return (s, s)
 end
 
@@ -148,7 +153,7 @@ function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, 
     b = _raise(ρ[2], pw.thresholds.density)
     nr = a + b
     ζ = (a - b) / nr
-    s = max(value(nr), _seed_minimum(typeof(value(nr)), Val(K)))
+    s = max(value(nr), _seed_minimum(typeof(value(nr))))
     n = variable(Val(2), Val(K), Val(1), s, s)
     ε = _pw92_eps(pw, _seitz_radius(n), variable(Val(2), Val(K), Val(2), value(ζ)))
     e = substitute(n * ε, (nr / s, ζ))

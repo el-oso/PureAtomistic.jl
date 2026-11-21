@@ -75,8 +75,10 @@ function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, s::NTuple{
     return _outputs(Val(K), gρ, gσ, ntuple(i -> ifelse(cut, zero(d[i]), d[i]), Val(length(d))))
 end
 
-# A power of two m with m^k ≥ floatmin(R) for every k ≤ K, so every m^k is exact and normal.
-_seed_minimum(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), cld(exponent(floatmin(R)), max(K, 1)))
+# The smallest seed scale m = floatmin(R): a scale is positive and normal, so 1/s is finite.
+# `derivatives` multiplies the coefficients by the factors j/s in turn, so s^k itself need not be
+# representable.
+_seed_minimum(::Type{R}) where {R} = floatmin(R)
 
 # The natural size of a σ component at total density n: 4(3π²)^(2/3)·n^(8/3), the σ at which the
 # reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
@@ -94,8 +96,8 @@ _sigma_seed(x::R, n::R, m::R) where {R} = max(abs(x), _sigma_size(n), m)
 
 The seed scales of the inputs of `f` at derivative order `K`, one per input in input order:
 restricted, a tuple for (ρ[, σ]); polarized, for (ρα, ρβ[, σαα, σαβ, σββ]). The inputs are given
-in the result type R, and m = `_seed_minimum(R, Val(K))`, the smallest power of two with
-m^K ≥ floatmin(R). Every scale is at least m, so every s^k with k ≤ K is a normal number.
+in the result type R, and m = `_seed_minimum(R)` = floatmin(R). Every scale is at least m, so
+1/s is finite.
 
 The default suits a functional that is a sum of per-channel powers of the densities: each density
 x has the scale max(|x|, n_thr, m), the value at which it is evaluated, and each σ component x has
@@ -103,21 +105,21 @@ max(|x|, r, m), with r = 4(3π²)^(2/3)·n^(8/3) at the total density n. A funct
 density and ζ defines a method that seeds each density at the total of the raised channels.
 """
 function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
-    return (_density_seed(f, ρ, _seed_minimum(typeof(ρ), Val(K))),)
+    return (_density_seed(f, ρ, _seed_minimum(typeof(ρ))),)
 end
 
 function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
-    m = _seed_minimum(R, Val(K))
+    m = _seed_minimum(R)
     return (_density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m))
 end
 
 function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::R, σ::R) where {K, R}
-    m = _seed_minimum(R, Val(K))
+    m = _seed_minimum(R)
     return (_density_seed(f, ρ, m), _sigma_seed(σ, ρ, m))
 end
 
 function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
-    m = _seed_minimum(R, Val(K))
+    m = _seed_minimum(R)
     n = ρ[1] + ρ[2]
     return (
         _density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m),
@@ -129,7 +131,7 @@ end
     _xc_derivatives_unchecked(f, Val(k), ρ[, σ])
 
 `xc_derivatives` without the input check. The outputs are in the result type R; they are
-evaluated in `_evaluation_type(R, Val(k))`.
+evaluated in `_evaluation_type(f, R, Val(k))`.
 """
 _xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::Real) = _evaluate(f, k, ρ)
 _xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::NTuple{2, Real}) = _evaluate(f, k, ρ)
@@ -137,23 +139,34 @@ _xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::Real, σ::Real) = _evaluat
 _xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) = _evaluate(f, k, ρ, σ)
 
 """
-    _evaluation_type(R, Val(K))
+    _evaluation_type(f, R, Val(K))
 
-The type in which derivatives to order `K` with result type `R` are evaluated: `R`, except
-Float64 for Float32 at K ≥ 8. At those orders the mixed partials of a polarized point spread like
-(ρα/ρβ)^K, so that series coefficients on the path of an output that fits in Float32 do not (at
-(1, 1e-6), K = 9, the order-9 partials of lda_c_pw range from 19.8 to 1.4e48). It is a function of
-the types alone, so the choice is made when the method is compiled.
+The type in which the derivatives of `f` to order `K` with result type `R` are evaluated: `R`,
+except Float64 for Float32 above the order `_float32_max_order(typeof(f))`. Above it the mixed
+partials of a polarized point spread like (ρα/ρβ)^K, so that series coefficients on the path of an
+output that fits in Float32 do not (at (1, 1e-6), K = 9, the order-9 partials of lda_c_pw range
+from 19.8 to 1.4e48). It is a function of the types alone, so the choice is made when the method
+is compiled.
 """
-_evaluation_type(::Type{R}, ::Val{K}) where {R, K} = R
-_evaluation_type(::Type{Float32}, ::Val{K}) where {K} = K >= 8 ? Float64 : Float32
+_evaluation_type(f, ::Type{R}, ::Val{K}) where {R, K} = R
+_evaluation_type(f, ::Type{Float32}, ::Val{K}) where {K} = K > _float32_max_order(typeof(f)) ? Float64 : Float32
 
-# The derivatives of `f` at the inputs `x`, evaluated in S = `_evaluation_type(R, k)` with the
+"""
+    _float32_max_order(F)
+
+The largest derivative order at which the functional type `F`, built for Float32 and given Float32
+inputs, is evaluated in Float32: the largest order, measured, at which every output stays within
+its bound in pure Float32. It is at least 2. The default, 2, holds for any functional; a functional
+measured to stay accurate at higher orders defines a method.
+"""
+_float32_max_order(::Type{<:AbstractFunctional}) = 2
+
+# The derivatives of `f` at the inputs `x`, evaluated in S = `_evaluation_type(f, R, k)` with the
 # functional converted to S, and returned in the result type R. Converting an output beyond
 # floatmax(R) gives the infinity of its sign.
 function _evaluate(f, k::Val, x...)
     R = _result_type(f, x...)
-    S = _evaluation_type(R, k)
+    S = _evaluation_type(f, R, k)
     return _outputs_in(R, S, _derivatives_at(_functional_in(f, R, S), k, x...))
 end
 

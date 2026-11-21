@@ -22,6 +22,18 @@
     _gga(ρ, σ) = ρ^2 * σ^3 + ρ * σ
     PureXC._energy_density(::_TestGGA, ρ, σ) = _gga(ρ, σ)
     PureXC._energy_density(::_TestGGA, ρ::Tuple, σ::Tuple) = _gga(ρ[1] + ρ[2], σ[1] + 2 * σ[2] + σ[3])
+    # Polynomials with small integer coefficients, accurate in Float32 at every order the tests use.
+    PureXC._float32_max_order(::Type{<:_TestLDA}) = 10
+    PureXC._float32_max_order(::Type{<:_TestGGA}) = 10
+    # e is a function of the total density, so, as for PW92, both densities are seeded at the total
+    # of the raised channels: at the channel's own value, n_thr^k underflows and the higher
+    # coefficients of an empty channel are lost.
+    function PureXC._seed_scales(f::_TestGGA, k::Val, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {R}
+        s = invoke(PureXC._seed_scales, Tuple{PureXC.AbstractGGA, Val, NTuple{2, R}, NTuple{3, R}}, f, k, ρ, σ)
+        t = convert(R, f.thresholds.density)
+        n = max(max(ρ[1], t) + max(ρ[2], t), floatmin(R))
+        return (n, n, s[3], s[4], s[5])
+    end
 
     # Layout probes: e = Σ_α w(α) Π (x_i - c_i)^α_i over every multi-index α up to degree 3, so at
     # x = c = LAYOUT the partial ∂^α e is D(α) = α!·w(α). The variables are (ρα, ρβ) for the LDA
@@ -379,14 +391,11 @@ end
     end
 end
 
-@testitem "the seed minimum is a power of two whose powers are normal" begin
-    for R in (Float32, Float64), K in 0:12
-        m = PureXC._seed_minimum(R, Val(K))
-        @test m isa R
-        # Exact: powers of two in the normal range.
-        @test significand(m^K) == 1
-        @test m^K >= floatmin(R)
-        @test m^max(K, 1) >= floatmin(R)
+@testitem "the seed minimum is floatmin, whose inverse is finite" begin
+    for R in (Float32, Float64)
+        # Exact: floatmin and its inverse, a power of two, are representable.
+        @test PureXC._seed_minimum(R) === floatmin(R)
+        @test isfinite(inv(floatmin(R)))
     end
 end
 
