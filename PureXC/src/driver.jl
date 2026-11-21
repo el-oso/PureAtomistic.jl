@@ -128,32 +128,75 @@ end
 """
     _xc_derivatives_unchecked(f, Val(k), ρ[, σ])
 
-`xc_derivatives` without the input check.
+`xc_derivatives` without the input check. The outputs are in the result type R; they are
+evaluated in `_evaluation_type(R, Val(k))`.
 """
-function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
+_xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::Real) = _evaluate(f, k, ρ)
+_xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::NTuple{2, Real}) = _evaluate(f, k, ρ)
+_xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::Real, σ::Real) = _evaluate(f, k, ρ, σ)
+_xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) = _evaluate(f, k, ρ, σ)
+
+"""
+    _evaluation_type(R, Val(K))
+
+The type in which derivatives to order `K` with result type `R` are evaluated: `R`, except
+Float64 for Float32 at K ≥ 8. At those orders the mixed partials of a polarized point spread like
+(ρα/ρβ)^K, so that series coefficients on the path of an output that fits in Float32 do not (at
+(1, 1e-6), K = 9, the order-9 partials of lda_c_pw range from 19.8 to 1.4e48). It is a function of
+the types alone, so the choice is made when the method is compiled.
+"""
+_evaluation_type(::Type{R}, ::Val{K}) where {R, K} = R
+_evaluation_type(::Type{Float32}, ::Val{K}) where {K} = K >= 8 ? Float64 : Float32
+
+# The derivatives of `f` at the inputs `x`, evaluated in S = `_evaluation_type(R, k)` with the
+# functional converted to S, and returned in the result type R. Converting an output beyond
+# floatmax(R) gives the infinity of its sign.
+function _evaluate(f, k::Val, x...)
+    R = _result_type(f, x...)
+    S = _evaluation_type(R, k)
+    return _outputs_in(R, S, _derivatives_at(_functional_in(f, R, S), k, x...))
+end
+
+_functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
+_functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
+
+_outputs_in(::Type, ::Type, r) = r
+_outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple) = map(_output_in32, r)
+_output_in32(x::Real) = convert(Float32, x)
+_output_in32(t::Tuple) = ntuple(i -> convert(Float32, t[i]), Val(length(t)))
+
+"""
+    _with_number_type(f, S)
+
+The functional `f` with its parameters and thresholds converted to the number type `S`. Each
+concrete functional defines a method.
+"""
+function _with_number_type end
+
+# The derivatives of `f` at the inputs, in the result type of `f` and the inputs.
+function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
     n = convert(_result_type(f, ρ), ρ)
     return _derive(f, Val(K), Val(1), Val(0), (n,), _seed_scales(f, Val(K), n))
 end
 
-function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
+function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
     R = _result_type(f, ρ)
     x = (convert(R, ρ[1]), convert(R, ρ[2]))
     return _derive(f, Val(K), Val(2), Val(0), x, _seed_scales(f, Val(K), x))
 end
 
-function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
+function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _result_type(f, ρ, σ)
     n, g = convert(R, ρ), convert(R, σ)
     return _derive(f, Val(K), Val(1), Val(1), (n, g), _seed_scales(f, Val(K), n, g))
 end
 
-function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
+function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
     R = _result_type(f, ρ, σ)
     r = (convert(R, ρ[1]), convert(R, ρ[2]))
     g = (convert(R, σ[1]), convert(R, σ[2]), convert(R, σ[3]))
     return _derive(f, Val(K), Val(2), Val(3), (r..., g...), _seed_scales(f, Val(K), r, g))
 end
-
 """
     xc_derivatives(f, Val(k), ρ)
     xc_derivatives(f, Val(k), ρ, σ)

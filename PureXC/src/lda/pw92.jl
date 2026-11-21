@@ -18,6 +18,10 @@ end
 
 kind(::PW92Correlation) = :correlation
 
+_with_number_type(pw::PW92Correlation, ::Type{S}) where {S} = PW92Correlation{S}(
+    map(p -> map(x -> convert(S, x), p), pw.params), convert(S, pw.fz20), _thresholds_in(S, pw.thresholds)
+)
+
 # α₁, β₁, β₂, β₃, β₄ of the sets ε_c(r_s, 0), ε_c(r_s, 1), −α_c(r_s): [PW92] Table I, the same for
 # both variants.
 const _PW92_ALPHA_BETA = (

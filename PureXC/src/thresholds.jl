@@ -52,3 +52,6 @@ function _with_value(x::Taylor{N, K, M, T, L}, v) where {N, K, M, T, L}
     w = convert(T, v)
     return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? w : x.c[i], Val(L)))
 end
+
+# The thresholds `t` converted to the type S, value by value.
+_thresholds_in(::Type{S}, t::Thresholds) where {S} = Thresholds{S}(t.density, t.sigma, t.zeta, t.sigma_floor)

@@ -322,6 +322,12 @@ end
         @test (@test_noalloc xc_derivatives(f, Val(2), ρ)) isa NamedTuple
         @test (@test_noalloc xc_derivatives(f, Val(2), ρp)) isa NamedTuple
     end
+    # Float32 at the last order evaluated in Float32 and the first evaluated in Float64.
+    for build in (lda_x, lda_c_pw, lda_c_pw_mod), K in (7, 8)
+        f = build(Float32)
+        xc_derivatives(f, Val(K), (0.3f0, 0.1f0))
+        @test (@test_noalloc xc_derivatives(f, Val(K), (0.3f0, 0.1f0))) isa NamedTuple
+    end
 end
 
 # _pw92_eps promotes the value types of r_s and ζ, so a plain ζ of another type is accepted.
@@ -440,5 +446,86 @@ end
         g = build(Float32)
         ρ = (2.0f0^23, 1.0f0)
         @test error_eps(xc_derivatives(g, Val(6), ρ), xc_derivatives(exact_big(g), Val(6), big.(ρ)), Float32) <= 2100
+    end
+end
+
+# Orders 0 to 10 at the n_max splits and the uneven splits, for 2^p ≤ n_max with p ∈ 0:16:P,
+# p = 5 and p = P. A Float32 call evaluates in Float64 at K ≥ 8 and rounds each output. Oracle:
+# `exact_big`. Bounds, in eps(T) relative to the largest entry of each output, with an infinity of
+# the right sign required exactly where the BigFloat entry exceeds floatmax(T), so that no NaN
+# passes:
+# - where nothing is ill-conditioned (lda_x; PW92 where the factor (1 ± ζ)^(4/3) of the smaller
+#   channel is the constant of rule 3, or at the symmetric split): 2100. Bound (b) of "LDA
+#   functionals agree with BigFloat" at K ≤ 3; above, bound (c): measured at most 51 (Float64)
+#   and 32 (Float32).
+# - PW92 otherwise: 2100 + 8κ, κ = 2/(1 − |ζ|), the 1 ± ζ conditioning of spec lda_c_pw,
+#   section 8 (bound (c), as in "LDA functionals at uneven splits"). Measured: at most 3.1·κ.
+@testitem "LDA functionals at orders 0 to 10" setup = [LDAReference] begin
+    using .LDAReference: exact_big, error_eps, zeta_conditioning
+    function bound(g, x, T)
+        g isa PureXC.PW92Correlation && x isa Tuple || return 2100.0
+        t = g.thresholds.density
+        a, b = max(x[1], t), max(x[2], t)
+        ζ = (a - b) / (a + b)
+        κ = zeta_conditioning(g, x)
+        return min(1 + ζ, 1 - ζ) <= g.thresholds.zeta || κ <= 2 ? 2100.0 : 2100 + 8κ
+    end
+    for T in (Float32, Float64), K in 0:10, build in (lda_x, lda_c_pw, lda_c_pw_mod)
+        g = build(T)
+        gb = exact_big(g)
+        P = exponent(PureXC._lda_density_max(T, Val(K)))
+        for p in unique([0:16:P; 5; P])
+            n = ldexp(one(T), p)
+            splits = Any[n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4)]
+            for x in (T(2.0e-15), T(1.0e-6), one(T))
+                push!(splits, (n, x), (x, n))
+            end
+            for x in splits
+                err = error_eps(xc_derivatives(g, Val(K), x), xc_derivatives(gb, Val(K), map(big, x)), T)
+                @test err <= bound(g, x, T)
+            end
+        end
+    end
+end
+
+# Float32 at orders 8 and 9, evaluated in Float64. lda_x at (1, 2e-15), K = 8: the ββ entries of
+# orders 6 to 8 are −1.8e69, 4.1e84 and −1.2e100, beyond floatmax(Float32). lda_c_pw at (1, 1e-6),
+# K = 9: the order-9 entries range from 19.8 to −1.4e48. Oracle and bounds as in "LDA functionals
+# at orders 0 to 10".
+@testitem "Float32 LDA derivatives at orders 8 and 9" setup = [LDAReference] begin
+    using .LDAReference: exact_big, error_eps, zeta_conditioning
+    f = lda_x(Float32)
+    r = @inferred xc_derivatives(f, Val(8), (1.0f0, 2.0f-15))
+    b = xc_derivatives(exact_big(f), Val(8), (big(1.0f0), big(2.0f-15)))
+    # Exact: infinities where the exact entries exceed floatmax(Float32).
+    @test (r.v6rho6[7], r.v7rho7[8], r.v8rho8[9]) == (-Inf32, Inf32, -Inf32)
+    @test b.v8rho8[9] < -floatmax(Float32)
+    @test error_eps(r, b, Float32) <= 2100
+    g = lda_c_pw(Float32)
+    ρ = (1.0f0, 1.0f-6)
+    r = @inferred xc_derivatives(g, Val(9), ρ)
+    b = xc_derivatives(exact_big(g), Val(9), big.(ρ))
+    @test all(x -> !any(isnan, x), values(r))
+    @test r.v9rho9[end] == -Inf32 && b.v9rho9[end] < -floatmax(Float32)
+    @test isfinite(r.v9rho9[1]) && abs(r.v9rho9[1] - b.v9rho9[1]) <= 2100 * eps(Float32) * abs(b.v9rho9[1])
+    @test error_eps(r, b, Float32) <= 2100 + 8 * zeta_conditioning(g, ρ)
+end
+
+# BigFloat at order 12: 256 bits against 512 bits. Bounds in eps of 256 bits, relative to the
+# largest entry of each output: lda_x, 2100, bound (c), measured at most 5.3; PW92, 2100 + 8κ, the
+# 1 ± ζ conditioning above (ε_ζ = eps(Float64) keeps the factor at these points), measured at most
+# 2.6·κ.
+@testitem "BigFloat LDA derivatives at order 12" setup = [LDAReference] begin
+    using .LDAReference: zeta_conditioning
+    for build in (lda_x, lda_c_pw, lda_c_pw_mod), ρ in (1.0, (1.0, 2.0e-15), (1.0, 1.0e-6), (0.3, 0.1), (1.0e-6, 0.0))
+        lo = setprecision(() -> xc_derivatives(build(BigFloat), Val(12), map(big, ρ)), BigFloat, 256)
+        hi = setprecision(() -> xc_derivatives(build(BigFloat), Val(12), map(big, ρ)), BigFloat, 512)
+        tol = build === lda_x || ρ isa Real ? 2100.0 : 2100 + 8 * zeta_conditioning(build(), ρ)
+        for name in keys(hi)
+            g, w = [getfield(lo, name)...], [getfield(hi, name)...]
+            @test all(isfinite, g)
+            scale = maximum(abs, w)
+            @test maximum(abs.(g .- w)) <= tol * eps(BigFloat(1; precision = 256)) * scale
+        end
     end
 end

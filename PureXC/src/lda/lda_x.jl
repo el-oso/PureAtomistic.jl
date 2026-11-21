@@ -20,6 +20,8 @@ lda_x(::Type{T} = Float64) where {T} =
 
 kind(::LDAExchange) = :exchange
 
+_with_number_type(f::LDAExchange, ::Type{S}) where {S} = LDAExchange{S}(_thresholds_in(S, f.thresholds))
+
 # x^(4/3), with the value x·∛x. For a `Taylor` it is one power series: in the product x·∛x a
 # coefficient of the factor ∛x can overflow where the coefficient of x^(4/3) fits.
 _pow43(x::Real) = x * fast_cbrt(x)
