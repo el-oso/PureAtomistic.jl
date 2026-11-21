@@ -35,6 +35,7 @@
   - a NaN or infinite input;
   - |σαβ| > √σαα·√σββ·(1 + 8·eps(S)), with S the type of the σ inputs (equivalent to σαβ² > σαα·σββ·(1 + 16·eps(S)), compared through square roots so that nothing underflows), a rounding bound of kind (b) for σ's formed as 3-term dot products: each σ carries at most 3 eps, a product of two σ's at most 6 eps, and a factor of 2 is margin;
   - mismatched axes (`DimensionMismatch` for axes).
+  - a total density above n_max(T, K), or (for a GGA) a σ component above σ_max(T, K): powers of two documented per functional family and measured as the largest at which every output at order K stays within its accuracy bound against BigFloat.
   - Nothing clamps a caller error. ρ = −0.0 is not negative and is treated as 0.
 - **Thresholds.** Each functional follows its spec's "PureXC rule" exactly. Thresholds are fields of the functional, typed in its number type; when a parameter is a PureTaylor `Taylor` (parameter gradients), the thresholds take that Taylor's value type.
   - Float64 defaults are the spec values.
@@ -79,7 +80,7 @@
     - The ρ part lists all multisets of size a over (α, β) in lexicographic order. The σ part lists all multisets of size b over (αα, αβ, ββ) in lexicographic order. The ρ part is the outer loop.
     - Example: `v2rhosigma` = (α·αα, α·αβ, α·ββ, β·αα, β·αβ, β·ββ).
     - The order-1 and order-2 fields are checked against Libxc's outputs in Task 6, so a layout error fails there.
-- **Seeds.** Every input is a PureTaylor variable with scale s = max(|x|, r, floatmin(T)^(1/K)), where K is the derivative order and r is the input's natural size at that point: the total density n for a density input, and 4(3π²)^(2/3)·n^(8/3) (the σ at which the reduced gradient is 1) for a σ component. The scale is then bounded: s = max(min(max(|x|, r, m), M), |x|·m), with m the power of two whose K-th power is the smallest normal number and M the power of two with M^(K+1) ≤ floatmax(T), so that no coefficient underflows to zero or overflows at any finite valid input. At densities near floatmax, outputs smaller than about 1e4·floatmin(T) lose accuracy; the Float32 σ cap (2^31 at K = 3) is measured on the oracle grid. The scale changes only the representation; the derivatives are read with `derivatives(a, 1 ./ s)`.
+- **Seeds.** Every input is a PureTaylor variable with scale s = max(|x|, r, floatmin(T)^(1/K)), where K is the derivative order and r is the input's natural size at that point: the total density n for a density input, and 4(3π²)^(2/3)·n^(8/3) (the σ at which the reduced gradient is 1) for a σ component. Here m is the smallest power of two with m^K ≥ floatmin(T). Inputs above the documented domain limits n_max(T, K) and σ_max(T, K) are caller errors (Global Constraints), so no larger scale occurs. The scale changes only the representation; the derivatives are read with `derivatives(a, 1 ./ s)`.
 - **Polarized correlation** is computed in (ρ, ζ, σ) and converted to the density variables with `PureTaylor.substitute`. Polarized exchange uses the exact spin scaling, channel by channel.
 
 ## Review Focus
