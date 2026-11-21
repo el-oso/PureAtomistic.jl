@@ -52,7 +52,7 @@
   - The measure is `xc_evaluate!`, input validation included, against `Libxc.evaluate!`, by the interleaved A/B method of AGENTS.md.
   - The gate is the minimum speed-up over the rounds, which must be > 1.
   - Code that is slower is not accepted.
-- **Float32 stays Float32.** A functional built for Float32 and given Float32 inputs never widens.
+- **Float32 stays Float32.** A functional built for Float32 and given Float32 inputs never widens at orders K ≤ 7. At K ≥ 8 a Float32 call evaluates in Float64 and rounds each output to Float32 (an output beyond floatmax(Float32) becomes ±Inf with its sign): the spread of the order-K mixed partials grows like (ρα/ρβ)^K and leaves Float32's range (measured: 19.8 to 1.4e48 at (1, 1e-6), K = 9). The switch is decided at generation time from `Val(K)`.
 - **Indexing.**
   - Generic: `eachindex(ρ, σ)`, with outputs allocated or checked against the input axes.
   - No `@inbounds`.
