@@ -80,6 +80,27 @@
         return Float64((a + b) / min(a, b))
     end
 
+    # The bound, in eps(T) relative to the largest entry of each output, of the outputs at order K
+    # of the functional g at the input x, against `exact_big`:
+    # - Float32 at K ≥ 8, evaluated in Float64 and rounded: 50, bound (c), measured at most 0.5.
+    # - where nothing is ill-conditioned (lda_x; PW92 restricted, at the symmetric split, or where
+    #   the factor (1 ± ζ)^(4/3) of the smaller channel is the constant of rule 3): at K ≤ 3, 2100,
+    #   bound (b) of "LDA functionals agree with BigFloat"; at K ≥ 4, 1000, bound (c), measured at
+    #   most 13 (K = 4), 21 (K = 5, 6) and 51 (K = 7 to 10).
+    # - PW92 where that factor is kept: the same plus 8κ, κ = 2/(1 − |ζ|), the conditioning of
+    #   1 ± ζ formed from ζ (spec lda_c_pw, section 8), bound (c), measured at most 3.1·κ. Where κ
+    #   is large this admits errors of order 1 relative: that is the documented conditioning.
+    function point_bound(g, x, T, K)
+        T === Float32 && K >= 8 && return 50.0
+        base = K <= 3 ? 2100.0 : 1000.0
+        g isa PureXC.PW92Correlation && x isa Tuple || return base
+        t = g.thresholds.density
+        a, b = max(x[1], t), max(x[2], t)
+        ζ = (a - b) / (a + b)
+        κ = zeta_conditioning(g, x)
+        return min(1 + ζ, 1 - ζ) <= g.thresholds.zeta || κ <= 2 ? base : base + 8κ
+    end
+
     # The largest error of the entries of one output, relative to its largest BigFloat entry.
     function scaled_error(got, want)
         scale = maximum(abs, want)
@@ -278,15 +299,14 @@ end
     for f in (lda_x(), lda_c_pw(), lda_c_pw_mod()), K in 0:4, ρ in ((0.3, 0.0), (0.0, 0.3), (1.0e-6, 0.0))
         r = xc_derivatives(f, Val(K), ρ)
         @test all(x -> all(isfinite, x), values(r))
-        # Oracle: the channel at n_thr. Bound (b): the energy e = n·ε_c uses the caller's n, which
-        # changes by n_thr/n ≤ 1e-9; the derivatives are those at the same raised densities
-        # with the same seed scales; 2100·eps is the rounding bound (b) of "LDA functionals agree
-        # with BigFloat".
+        # Oracle: the channel at n_thr. The derivatives are exact: they are those at the same raised
+        # densities with the same seed scales. Bound (b) for the energy e = n·ε_c, which uses the
+        # caller's n: it changes by n_thr/n ≤ 1e-9, plus two roundings.
         floor = map(x -> iszero(x) ? 1.0e-15 : x, ρ)
         w = xc_derivatives(f, Val(K), floor)
-        for name in keys(r)
-            g, h = getfield(r, name), getfield(w, name)
-            @test all(abs.(g .- h) .<= (1.0e-9 + 2100 * eps()) .* maximum(abs, h))
+        @test abs(r.e - w.e) <= (1.0e-9 + 2 * eps()) * abs(w.e)
+        for name in keys(r)[2:end]
+            @test getfield(r, name) == getfield(w, name)
         end
     end
 end
@@ -323,10 +343,10 @@ end
         @test (@test_noalloc xc_derivatives(f, Val(2), ρp)) isa NamedTuple
     end
     # Float32 at the last order evaluated in Float32 and the first evaluated in Float64.
-    for build in (lda_x, lda_c_pw, lda_c_pw_mod), K in (7, 8)
+    for build in (lda_x, lda_c_pw, lda_c_pw_mod), K in (7, 8), ρ in (0.3f0, (0.3f0, 0.1f0))
         f = build(Float32)
-        xc_derivatives(f, Val(K), (0.3f0, 0.1f0))
-        @test (@test_noalloc xc_derivatives(f, Val(K), (0.3f0, 0.1f0))) isa NamedTuple
+        xc_derivatives(f, Val(K), ρ)
+        @test (@test_noalloc xc_derivatives(f, Val(K), ρ)) isa NamedTuple
     end
 end
 
@@ -342,8 +362,9 @@ end
 end
 
 # The domain limit n_max of an LDA. Oracle: the same functional in BigFloat. Bound (b) of "LDA
-# functionals agree with BigFloat": 2100·eps(T) relative to the largest entry of each output, with
-# floatmin(T) as the smallest scale, so that an output whose exact entries all underflow may be zero.
+# functionals agree with BigFloat", which covers K ≤ 3: 2100·eps(T) relative to the largest entry of
+# each output, with floatmin(T) as the smallest scale, so that an output whose exact entries all
+# underflow may be zero. K = 4 at n_max is checked by "LDA functionals at orders 0 to 10".
 @testitem "LDA functionals at the domain limit" begin
     function within(f, fbig, K, ρ, T)
         r = xc_derivatives(f, Val(K), ρ)
@@ -359,7 +380,7 @@ end
         for build in (lda_x, lda_c_pw, lda_c_pw_mod)
             f, fbig = build(T), build(BigFloat)
             for ρ in (n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4))
-                @test within(f, fbig, K, ρ, T)
+                K <= 3 && @test within(f, fbig, K, ρ, T)
             end
             for ρ in (2n, nextfloat(n), (nextfloat(n), zero(T)), (zero(T), nextfloat(n)), (n / 2, n), (floatmax(T), floatmax(T)))
                 @test_throws ArgumentError xc_derivatives(f, Val(K), ρ)
@@ -389,23 +410,16 @@ end
     @test PureXC._seed_scales(lda_c_pw(Float32), Val(4), (0.0f0, -0.0f0)) == (2.0f0^-31, 2.0f0^-31)
 end
 
-# A nearly empty channel next to a large one: (2^p, ρβ) and (ρβ, 2^p) for 2^p up to n_max.
-# Oracle: the same functional in BigFloat, with its parameters and thresholds converted exactly
-# (`exact_big`; it keeps the Float32 ε_ζ). Bounds, in eps(T) relative to the largest entry of each
-# output, with an infinity required exactly where the BigFloat entry exceeds floatmax(T):
-# - lda_x: bound (b) of "LDA functionals agree with BigFloat", 2100. Measured: at most 2.2.
-# - PW92 with ρβ = 2e-15 and 2^p ≥ 32: 1 − |ζ| is below ε_ζ in both types, so the factor of the
-#   empty channel is the constant of rule 3 and nothing is ill-conditioned: bound (b), 2100.
-#   Measured: at most 9.8 (Float32) and 11 (Float64).
-# - PW92 otherwise: 2100 + 8κ, with κ = 2/(1 − |ζ|). This is the conditioning of 1 ± ζ formed
-#   from ζ (spec lda_c_pw, section 8): its relative error is of order eps·κ, and the derivatives
-#   inherit it. Bound (c): measured at most 1.1·κ over these splits, and at most 3.8·κ over the
-#   splits (2^p, ρβ) with ρβ ∈ {0, 2e-15, 1e-6, 1e-3, 1, 2^(p−3)}, 2^-10 ≤ 2^p ≤ n_max; 8 is about
-#   twice the larger. Where κ is large this
-#   bound admits errors of order 1 relative: that is the documented conditioning.
+# A nearly empty channel next to a large one: (2^p, ρβ) and (ρβ, 2^p) for 2^p up to n_max, at
+# orders 1 to 3 (higher orders are in "LDA functionals at orders 0 to 10"). Oracle: the same
+# functional in BigFloat, with its parameters and thresholds converted exactly (`exact_big`; it
+# keeps the Float32 ε_ζ). Bounds: `point_bound`, with an infinity required exactly where the
+# BigFloat entry exceeds floatmax(T). Measured where nothing is ill-conditioned: at most 2.2
+# (lda_x) and 11 (PW92).
 @testitem "LDA functionals at uneven splits" setup = [LDAReference] begin
-    using .LDAReference: exact_big, error_eps, zeta_conditioning
-    # Float32 lda_x: the series of the empty channel stays within range.
+    using .LDAReference: exact_big, error_eps, point_bound
+    # Float32 lda_x: the series of the empty channel stays within range. Measured: 2.1 at both
+    # points; the order-4 point takes bound (c), 100.
     f = lda_x(Float32)
     fb = exact_big(f)
     ρ = (2.0f0, 2.0f-15)
@@ -414,8 +428,8 @@ end
     r, b = xc_derivatives(f, Val(4), ρ), xc_derivatives(fb, Val(4), big.(ρ))
     # Exact: v4rho4_ββββ ≈ −7.2e38 is below −floatmax(Float32).
     @test b.v4rho4[5] < -floatmax(Float32) && r.v4rho4[5] == -Inf32
-    @test error_eps(r, b, Float32) <= 2100
-    for T in (Float32, Float64), K in 1:4, build in (lda_x, lda_c_pw, lda_c_pw_mod)
+    @test error_eps(r, b, Float32) <= 100
+    for T in (Float32, Float64), K in 1:3, build in (lda_x, lda_c_pw, lda_c_pw_mod)
         g = build(T)
         gb = exact_big(g)
         P = exponent(PureXC._lda_density_max(T, Val(K)))
@@ -423,8 +437,7 @@ end
             x = (ldexp(one(T), p), T(ρβ))
             x = flip ? reverse(x) : x
             err = error_eps(xc_derivatives(g, Val(K), x), xc_derivatives(gb, Val(K), big.(x)), T)
-            strict = build === lda_x || (ρβ == 2.0e-15 && p >= 5)
-            @test err <= (strict ? 2100 : 2100 + 8 * zeta_conditioning(g, x))
+            @test err <= point_bound(g, x, T, K)
         end
     end
 end
@@ -432,8 +445,8 @@ end
 # Float32 at order 6. lda_x at (1, 2e-15): the β channel is seeded at m = 2^-21, its series
 # coefficient of order 6 is 3.1e28 (representable) and the output −1.8e69 is beyond floatmax, so
 # it is −Inf. PW92 at (2^23, 1): the coefficient of order 6 is 6.2e36, 720 times which exceeds
-# floatmax, and the output is 0.0128. Oracle: `exact_big`; bound (b) of "LDA functionals agree with
-# BigFloat", 2100 eps(Float32) relative to the largest entry of each output. Measured: 2.1 and 8.5.
+# floatmax, and the output is 0.0128. Oracle: `exact_big`. Bound (c), in eps(Float32) relative to the
+# largest entry of each output: 200 for lda_x (measured 2.1) and 800 for PW92 (measured 8.5).
 @testitem "Float32 LDA derivatives at order 6" setup = [LDAReference] begin
     using .LDAReference: exact_big, error_eps
     f = lda_x(Float32)
@@ -441,35 +454,20 @@ end
     b = xc_derivatives(exact_big(f), Val(6), (big(1.0f0), big(2.0f-15)))
     # Exact: the entry is beyond floatmax(Float32), so it must be −Inf.
     @test b.v6rho6[7] < -floatmax(Float32) && r.v6rho6[7] == -Inf32
-    @test error_eps(r, b, Float32) <= 2100
+    @test error_eps(r, b, Float32) <= 200
     for build in (lda_c_pw, lda_c_pw_mod)
         g = build(Float32)
         ρ = (2.0f0^23, 1.0f0)
-        @test error_eps(xc_derivatives(g, Val(6), ρ), xc_derivatives(exact_big(g), Val(6), big.(ρ)), Float32) <= 2100
+        @test error_eps(xc_derivatives(g, Val(6), ρ), xc_derivatives(exact_big(g), Val(6), big.(ρ)), Float32) <= 800
     end
 end
 
 # Orders 0 to 10 at the n_max splits and the uneven splits, for 2^p ≤ n_max with p ∈ 0:16:P,
 # p = 5 and p = P. A Float32 call evaluates in Float64 at K ≥ 8 and rounds each output. Oracle:
-# `exact_big`. Bounds, in eps(T) relative to the largest entry of each output, with an infinity of
-# the right sign required exactly where the BigFloat entry exceeds floatmax(T), so that no NaN
-# passes:
-# - where nothing is ill-conditioned (lda_x; PW92 where the factor (1 ± ζ)^(4/3) of the smaller
-#   channel is the constant of rule 3, or at the symmetric split): 2100. Bound (b) of "LDA
-#   functionals agree with BigFloat" at K ≤ 3; above, bound (c): measured at most 51 (Float64)
-#   and 32 (Float32).
-# - PW92 otherwise: 2100 + 8κ, κ = 2/(1 − |ζ|), the 1 ± ζ conditioning of spec lda_c_pw,
-#   section 8 (bound (c), as in "LDA functionals at uneven splits"). Measured: at most 3.1·κ.
+# `exact_big`. Bounds: `point_bound`, with an infinity of the right sign required exactly where the
+# BigFloat entry exceeds floatmax(T), so that no NaN passes.
 @testitem "LDA functionals at orders 0 to 10" setup = [LDAReference] begin
-    using .LDAReference: exact_big, error_eps, zeta_conditioning
-    function bound(g, x, T)
-        g isa PureXC.PW92Correlation && x isa Tuple || return 2100.0
-        t = g.thresholds.density
-        a, b = max(x[1], t), max(x[2], t)
-        ζ = (a - b) / (a + b)
-        κ = zeta_conditioning(g, x)
-        return min(1 + ζ, 1 - ζ) <= g.thresholds.zeta || κ <= 2 ? 2100.0 : 2100 + 8κ
-    end
+    using .LDAReference: exact_big, error_eps, point_bound
     for T in (Float32, Float64), K in 0:10, build in (lda_x, lda_c_pw, lda_c_pw_mod)
         g = build(T)
         gb = exact_big(g)
@@ -482,7 +480,7 @@ end
             end
             for x in splits
                 err = error_eps(xc_derivatives(g, Val(K), x), xc_derivatives(gb, Val(K), map(big, x)), T)
-                @test err <= bound(g, x, T)
+                @test err <= point_bound(g, x, T, K)
             end
         end
     end
@@ -490,42 +488,55 @@ end
 
 # Float32 at orders 8 and 9, evaluated in Float64. lda_x at (1, 2e-15), K = 8: the ββ entries of
 # orders 6 to 8 are −1.8e69, 4.1e84 and −1.2e100, beyond floatmax(Float32). lda_c_pw at (1, 1e-6),
-# K = 9: the order-9 entries range from 19.8 to −1.4e48. Oracle and bounds as in "LDA functionals
-# at orders 0 to 10".
+# K = 9: the order-9 entries range from 19.8 to −1.4e48. Oracle as in "LDA functionals at orders 0
+# to 10"; bound `point_bound`, 50 eps(Float32), bound (c): measured 0.41 (lda_x), 0.39 (lda_c_pw),
+# and 0.32 for the entry 19.8 on its own.
 @testitem "Float32 LDA derivatives at orders 8 and 9" setup = [LDAReference] begin
-    using .LDAReference: exact_big, error_eps, zeta_conditioning
+    using .LDAReference: exact_big, error_eps
     f = lda_x(Float32)
     r = @inferred xc_derivatives(f, Val(8), (1.0f0, 2.0f-15))
     b = xc_derivatives(exact_big(f), Val(8), (big(1.0f0), big(2.0f-15)))
     # Exact: infinities where the exact entries exceed floatmax(Float32).
     @test (r.v6rho6[7], r.v7rho7[8], r.v8rho8[9]) == (-Inf32, Inf32, -Inf32)
     @test b.v8rho8[9] < -floatmax(Float32)
-    @test error_eps(r, b, Float32) <= 2100
+    @test error_eps(r, b, Float32) <= 50
     g = lda_c_pw(Float32)
     ρ = (1.0f0, 1.0f-6)
     r = @inferred xc_derivatives(g, Val(9), ρ)
     b = xc_derivatives(exact_big(g), Val(9), big.(ρ))
     @test all(x -> !any(isnan, x), values(r))
     @test r.v9rho9[end] == -Inf32 && b.v9rho9[end] < -floatmax(Float32)
-    @test isfinite(r.v9rho9[1]) && abs(r.v9rho9[1] - b.v9rho9[1]) <= 2100 * eps(Float32) * abs(b.v9rho9[1])
-    @test error_eps(r, b, Float32) <= 2100 + 8 * zeta_conditioning(g, ρ)
+    @test isfinite(r.v9rho9[1]) && abs(r.v9rho9[1] - b.v9rho9[1]) <= 50 * eps(Float32) * abs(b.v9rho9[1])
+    @test error_eps(r, b, Float32) <= 50
 end
 
-# BigFloat at order 12: 256 bits against 512 bits. Bounds in eps of 256 bits, relative to the
-# largest entry of each output: lda_x, 2100, bound (c), measured at most 5.3; PW92, 2100 + 8κ, the
-# 1 ± ζ conditioning above (ε_ζ = eps(Float64) keeps the factor at these points), measured at most
-# 2.6·κ.
+# BigFloat at order 12: 256 bits against 512 bits. Bounds (c) in eps of 256 bits, relative to the
+# largest entry of each output: lda_x, 500, measured at most 5.3; PW92, 200 + 8κ (κ = 0 restricted),
+# with 8κ the 1 ± ζ conditioning of `point_bound` (ε_ζ = eps(Float64) keeps the factor at these
+# points), measured at most 108 restricted, 11 at (0.3, 0.1) and 2.6·κ at the other points.
 @testitem "BigFloat LDA derivatives at order 12" setup = [LDAReference] begin
     using .LDAReference: zeta_conditioning
     for build in (lda_x, lda_c_pw, lda_c_pw_mod), ρ in (1.0, (1.0, 2.0e-15), (1.0, 1.0e-6), (0.3, 0.1), (1.0e-6, 0.0))
         lo = setprecision(() -> xc_derivatives(build(BigFloat), Val(12), map(big, ρ)), BigFloat, 256)
         hi = setprecision(() -> xc_derivatives(build(BigFloat), Val(12), map(big, ρ)), BigFloat, 512)
-        tol = build === lda_x || ρ isa Real ? 2100.0 : 2100 + 8 * zeta_conditioning(build(), ρ)
+        tol = build === lda_x ? 500.0 : ρ isa Real ? 200.0 : 200 + 8 * zeta_conditioning(build(), ρ)
         for name in keys(hi)
             g, w = [getfield(lo, name)...], [getfield(hi, name)...]
             @test all(isfinite, g)
             scale = maximum(abs, w)
             @test maximum(abs.(g .- w)) <= tol * eps(BigFloat(1; precision = 256)) * scale
         end
+    end
+end
+
+# A Float32 call at K ≥ 8 converts the functional with `_with_number_type`, so every concrete
+# functional of the package needs a method.
+@testitem "every functional converts its number type" begin
+    using InteractiveUtils: subtypes
+    concrete(T) = isabstracttype(T) ? reduce(vcat, map(concrete, subtypes(T)); init = Any[]) : Any[T]
+    types = filter(T -> parentmodule(T) === PureXC, concrete(PureXC.AbstractFunctional))
+    @test !isempty(types)
+    for T in types
+        @test hasmethod(PureXC._with_number_type, Tuple{T, Type{Float64}})
     end
 end
