@@ -160,25 +160,47 @@ end
 end
 
 @testitem "the σαβ bound" setup = [TestFunctionals] begin
+    using Random
     using .TestFunctionals: _TestGGA
     gga = _TestGGA()
     σαα, σββ = 0.1, 0.2
-    p = σαα * σββ
-    bound = p * (1 + 16 * eps(Float64))
+    bound = sqrt(σαα) * sqrt(σββ) * (1 + 8 * eps(Float64))
     # σαβ = −√(σαα σββ) in Float64 is accepted.
     edge = -sqrt(σαα * σββ)
     @test isfinite(xc_derivatives(gga, Val(1), (1.0, 1.0), (σαα, edge, σββ)).e)
     @test isfinite(xc_derivatives(gga, Val(1), (1.0, 1.0), (σαα, -edge, σββ)).e)
     # Inside the bound by a few eps: accepted.
-    inside = -sqrt(p) * (1 + 4 * eps(Float64))
-    @test inside^2 <= bound
+    inside = -sqrt(σαα) * sqrt(σββ) * (1 + 4 * eps(Float64))
+    @test abs(inside) <= bound
     @test isfinite(xc_derivatives(gga, Val(0), (1.0, 1.0), (σαα, inside, σββ)).e)
     # Just beyond the bound: rejected, for either sign.
-    beyond = -sqrt(bound) * (1 + 4 * eps(Float64))
-    @test beyond^2 > bound
+    beyond = -bound * (1 + 4 * eps(Float64))
+    @test abs(beyond) > bound
     @test_throws "xc: " xc_derivatives(gga, Val(0), (1.0, 1.0), (σαα, beyond, σββ))
     @test_throws "xc: " xc_derivatives(gga, Val(0), (1.0, 1.0), (σαα, -beyond, σββ))
     @test_throws "xc: " xc_derivatives(gga, Val(0), (1.0, 1.0), (0.0, 1.0e-3, 1.0))
+    # Far beyond the bound where σαβ² and σαα·σββ both underflow: rejected.
+    @test_throws "xc: " xc_derivatives(gga, Val(0), (1.0, 1.0), (1.0e-200, -1.0e-170, 1.0e-200))
+    @test_throws "xc: " xc_derivatives(gga, Val(0), (1.0f0, 1.0f0), (1.0f-30, -1.0f-24, 1.0f-30))
+    @test_throws "xc: " xc_derivatives(_TestGGA(Float32), Val(0), (1.0f0, 1.0f0), (1.0f-30, -1.0f-24, 1.0f-30))
+    # Float32 σ's at the edge, given to a Float64 functional: the bound is in the σ's own type, so
+    # none is rejected. Both −√(σαα σββ) and the dot products of antiparallel gradients.
+    rng = Xoshiro(20261121)
+    rejected = 0
+    for _ in 1:10_000
+        a, b = exp10(Float32(-12 + 14 * rand(rng))), exp10(Float32(-12 + 14 * rand(rng)))
+        g = randn(rng, Float32, 3)
+        h = -exp10(Float32(-3 + 6 * rand(rng))) .* g
+        for σ in ((a, -sqrt(a * b), b), (sum(g .* g), sum(g .* h), sum(h .* h)))
+            try
+                xc_derivatives(gga, Val(0), (1.0, 1.0), σ)
+            catch err
+                err isa ArgumentError || rethrow()
+                rejected += 1
+            end
+        end
+    end
+    @test rejected == 0
 end
 
 @testitem "ρ = −0.0 is accepted as zero" setup = [TestFunctionals] begin
@@ -355,4 +377,39 @@ end
             end
         end
     end
+end
+
+@testitem "the seed minimum is a power of two whose powers are normal" begin
+    for R in (Float32, Float64), K in 0:12
+        m = PureXC._seed_minimum(R, Val(K))
+        @test m isa R
+        # Exact: powers of two in the normal range.
+        @test significand(m^K) == 1
+        @test m^K >= floatmin(R)
+        @test m^max(K, 1) >= floatmin(R)
+    end
+end
+
+# A parameter carried as a Taylor variable: e = c·ρ²σ with c = 2 + u.
+@testitem "energy_density with a Taylor parameter" begin
+    using PureTaylor
+    struct _ParamGGA{T} <: PureXC.AbstractGGA{T}
+        c::T
+        thresholds::PureXC.Thresholds{Float64}
+    end
+    PureXC._energy_density(f::_ParamGGA, ρ, σ) = f.c * ρ^2 * σ
+    PureXC._energy_density(f::_ParamGGA, ρ::Tuple, σ::Tuple) = f.c * (ρ[1] + ρ[2])^2 * (σ[1] + 2 * σ[2] + σ[3])
+    c = variable(Val(1), Val(1), Val(1), 2.0)
+    f = _ParamGGA(c, PureXC.Thresholds{Float64}(1.0e-15, 1.0e-20, eps(Float64)))
+    # Exact: e = 2·9·0.5 = 9 and ∂e/∂c = ρ²σ = 4.5, products of dyadic rationals.
+    e = energy_density(f, 3.0, 0.5)
+    @test e isa Taylor
+    @test derivatives(e, (1.0,)) == (9.0, 4.5)
+    ep = energy_density(f, (1.0, 2.0), (0.25, 0.0, 0.25))
+    @test derivatives(ep, (1.0,)) == (9.0, 4.5)
+    # The checks still apply, and derivatives in the inputs are refused.
+    @test_throws "xc: " energy_density(f, -1.0, 0.5)
+    @test_throws "xc: " xc_derivatives(f, Val(0), 3.0, 0.5)
+    @test_throws "xc: " xc_derivatives(f, Val(1), (1.0, 2.0), (0.25, 0.0, 0.25))
+    @test_throws "xc: " PureXC._xc_derivatives_unchecked(f, Val(1), 3.0, 0.5)
 end

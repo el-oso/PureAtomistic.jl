@@ -69,16 +69,19 @@ end
 # density and nσ σ inputs, mapped to the output fields.
 function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, r::NTuple{N, Real}) where {K, N}
     R = eltype(x)
-    # Seed scales s = max(|x|, r, floatmin^(1/K)): positive at x = 0, |x| covers a negative σαβ,
-    # and the last term keeps every s^k with k ≤ K a normal number. The scale changes only the
-    # representation of the series, not the derivatives.
-    m = floatmin(R)^(1 / R(K))
+    # Seed scales s = max(|x|, r, m): positive at x = 0, |x| covers a negative σαβ, and m keeps
+    # every s^k with k ≤ K a normal number. The scale changes only the representation of the
+    # series, not the derivatives.
+    m = _seed_minimum(R, Val(K))
     s = map((xi, ri) -> max(abs(xi), ri, m), x, r)
     e = _energy_density(f, _group(gρ, gσ, _seed(Val(K), x, s))...)
     d = derivatives(e, map(inv, s))
     cut = _cutoff(f, _group(gρ, gσ, x)...)
     return _outputs(Val(K), gρ, gσ, ntuple(i -> ifelse(cut, zero(d[i]), d[i]), Val(length(d))))
 end
+
+# A power of two m with m^k ≥ floatmin(R) for every k ≤ K, so every m^k is exact and normal.
+_seed_minimum(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), cld(exponent(floatmin(R)), max(K, 1)))
 
 # The natural size of a σ component at total density n: 4(3π²)^(2/3)·n^(8/3), the σ at which the
 # reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
@@ -146,6 +149,42 @@ end
 """
     energy_density(f, ρ[, σ])
 
-The energy per volume `e` of the functional `f`; the inputs are those of `xc_derivatives`.
+The energy per volume `e` of the functional `f`; the inputs are those of `xc_derivatives`. For a
+functional whose number type is a `Taylor` (a parameter carried as a series variable), `e` is a
+`Taylor` in that parameter.
 """
 energy_density(f::AbstractFunctional, x...) = xc_derivatives(f, Val(0), x...).e
+
+# A functional whose number type is a `Taylor` carries a parameter as a series variable. Its
+# energy density is evaluated on the plain input values, so the result is a `Taylor` in the
+# parameter. Derivatives in the inputs would need the parameter's and the inputs' variables in
+# one series, which the driver does not build.
+@noinline _throw_taylor_parameter() = throw(
+    ArgumentError(
+        "xc: xc_derivatives needs a functional whose number type is not a Taylor; " *
+            "energy_density accepts one"
+    )
+)
+
+function _plain_energy(f, x...)
+    e = _energy_density(f, x...)
+    return ifelse(_cutoff(f, x...), zero(e), e)
+end
+
+function energy_density(f::AbstractLDA{<:Taylor}, ρ::Union{Real, NTuple{2, Real}})
+    _check_inputs(f, ρ)
+    return _plain_energy(f, ρ)
+end
+function energy_density(f::AbstractGGA{<:Taylor}, ρ::Real, σ::Real)
+    _check_inputs(f, ρ, σ)
+    return _plain_energy(f, ρ, σ)
+end
+function energy_density(f::AbstractGGA{<:Taylor}, ρ::NTuple{2, Real}, σ::NTuple{3, Real})
+    _check_inputs(f, ρ, σ)
+    return _plain_energy(f, ρ, σ)
+end
+
+_xc_derivatives_unchecked(::AbstractLDA{<:Taylor}, ::Val, ::Real) = _throw_taylor_parameter()
+_xc_derivatives_unchecked(::AbstractLDA{<:Taylor}, ::Val, ::NTuple{2, Real}) = _throw_taylor_parameter()
+_xc_derivatives_unchecked(::AbstractGGA{<:Taylor}, ::Val, ::Real, ::Real) = _throw_taylor_parameter()
+_xc_derivatives_unchecked(::AbstractGGA{<:Taylor}, ::Val, ::NTuple{2, Real}, ::NTuple{3, Real}) = _throw_taylor_parameter()
