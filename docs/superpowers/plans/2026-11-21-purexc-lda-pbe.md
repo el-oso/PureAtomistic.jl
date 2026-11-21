@@ -176,6 +176,15 @@ Each line has a pinning test in the task that owns the code (Tasks 3, 4 and 5).
 - [ ] **Step 3: Run.** Expect all to pass, and `@test_noalloc` on `xc_derivatives` for each functional at `Val(2)`, in Float32 and Float64.
 - [ ] **Step 4: Commit** `Add LDA exchange and PW92 correlation`.
 
+### Task 3b: Derivatives of any order in Float32
+
+**Files:** whatever the cause needs, in `PureXC/` and, if the cause is there, `PureTaylor/` (with its own tests, gates and mutations kept green).
+
+- [ ] **Step 1: Find the cause** (superpowers:systematic-debugging). Float32 at K ≥ 6 gives wrong results at uneven spin splits (lda_x `v6rho6_ββ` at (1, 2e-15) is +Inf where BigFloat gives −1.8e69). Trace one failing case term by term against BigFloat, name the first intermediate that overflows or underflows, and say whether the true coefficients are representable in Float32 at all.
+- [ ] **Step 2: Fix** so that every output at every order is within its bound against BigFloat, or ±Inf exactly where the BigFloat value exceeds floatmax(T), at every valid input up to n_max. If Step 1 shows that some outputs cannot be represented at a given order, stop and report the measurement.
+- [ ] **Step 3: Tests** at K = 0…10 in Float32 and Float64 over the uneven-split sweep and the n_max splits; BigFloat at K = 12.
+- [ ] **Step 4: Commit.**
+
 ### Task 4: PBE exchange and correlation
 
 **Files:**
