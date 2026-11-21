@@ -65,16 +65,24 @@ _group(::Val{2}, ::Val{3}, t) = ((t[1], t[2]), (t[3], t[4], t[5]))
     return :(NamedTuple{$(Tuple(names))}($(Expr(:tuple, vals...))))
 end
 
-# The derivatives to order K at the input values x with seed floors fl, grouped as nρ density and
-# nσ σ inputs, mapped to the output fields.
-function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N}, fl::NTuple{N}) where {K, N}
-    # Seed scales s = max(|x|, floor) > 0, also at x = 0; |x| covers σαβ, which may be negative.
-    s = map((xi, fi) -> max(abs(xi), fi), x, fl)
+# The derivatives to order K at the input values x, seeded with the natural sizes r, grouped as nρ
+# density and nσ σ inputs, mapped to the output fields.
+function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, r::NTuple{N, Real}) where {K, N}
+    R = eltype(x)
+    # Seed scales s = max(|x|, r, floatmin^(1/K)): positive at x = 0, |x| covers a negative σαβ,
+    # and the last term keeps every s^k with k ≤ K a normal number. The scale changes only the
+    # representation of the series, not the derivatives.
+    m = floatmin(R)^(1 / R(K))
+    s = map((xi, ri) -> max(abs(xi), ri, m), x, r)
     e = _energy_density(f, _group(gρ, gσ, _seed(Val(K), x, s))...)
     d = derivatives(e, map(inv, s))
     cut = _cutoff(f, _group(gρ, gσ, x)...)
     return _outputs(Val(K), gρ, gσ, ntuple(i -> ifelse(cut, zero(d[i]), d[i]), Val(length(d))))
 end
+
+# The natural size of a σ component at total density n: 4(3π²)^(2/3)·n^(8/3), the σ at which the
+# reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
+_sigma_size(n::R) where {R <: Real} = 4 * cbrt(3 * convert(R, π)^2)^2 * fast_cbrt(max(n, floatmin(R)))^8
 
 """
     _xc_derivatives_unchecked(f, Val(k), ρ[, σ])
@@ -82,36 +90,30 @@ end
 `xc_derivatives` without the input check.
 """
 function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
-    R = _result_type(f, ρ)
-    t = _thresholds(f)
-    return _derive(f, Val(K), Val(1), Val(0), (convert(R, ρ),), (convert(R, t.density),))
+    n = convert(_result_type(f, ρ), ρ)
+    return _derive(f, Val(K), Val(1), Val(0), (n,), (n,))
 end
 
 function _xc_derivatives_unchecked(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
     R = _result_type(f, ρ)
-    t = _thresholds(f)
-    n = convert(R, t.density)
-    return _derive(f, Val(K), Val(2), Val(0), (convert(R, ρ[1]), convert(R, ρ[2])), (n, n))
+    x = (convert(R, ρ[1]), convert(R, ρ[2]))
+    n = x[1] + x[2]
+    return _derive(f, Val(K), Val(2), Val(0), x, (n, n))
 end
 
 function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _result_type(f, ρ, σ)
-    t = _thresholds(f)
-    return _derive(
-        f, Val(K), Val(1), Val(1), (convert(R, ρ), convert(R, σ)),
-        (convert(R, t.density), convert(R, t.sigma_floor))
-    )
+    n = convert(R, ρ)
+    return _derive(f, Val(K), Val(1), Val(1), (n, convert(R, σ)), (n, _sigma_size(n)))
 end
 
 function _xc_derivatives_unchecked(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
     R = _result_type(f, ρ, σ)
-    t = _thresholds(f)
-    n, g = convert(R, t.density), convert(R, t.sigma_floor)
     x = (convert(R, ρ[1]), convert(R, ρ[2]), convert(R, σ[1]), convert(R, σ[2]), convert(R, σ[3]))
+    n = x[1] + x[2]
+    g = _sigma_size(n)
     return _derive(f, Val(K), Val(2), Val(3), x, (n, n, g, g, g))
 end
-
-_thresholds(f::AbstractFunctional) = f.thresholds
 
 """
     xc_derivatives(f, Val(k), ρ)

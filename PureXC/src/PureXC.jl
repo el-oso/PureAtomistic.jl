@@ -1,6 +1,6 @@
 module PureXC
 
-using PureTaylor: PureTaylor, Taylor, derivatives, value, variable
+using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, value, variable
 using StrictMode: @strict_policy
 
 """
