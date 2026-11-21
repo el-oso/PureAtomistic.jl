@@ -43,10 +43,10 @@ _with_number_type(f::PBECorrelation, ::Type{S}) where {S} = PBECorrelation{S}(
     convert(S, f.β), convert(S, f.γ), convert(S, f.B), _with_number_type(f.pw, S), _thresholds_in(S, f.thresholds)
 )
 
-# Measured: in pure Float32 orders 0 to 2 stay within their bounds up to n_max and t²_max(Float32, K);
-# at order 3 pure Float32 fails from t² = 2^14 at n_thr, below t²_max(Float32, 2) = 2^17, so orders
-# from 3 are evaluated in Float64.
-_float32_max_order(::Type{<:PBECorrelation}) = 2
+# Measured: in pure Float32 orders 0 to 3 stay within their bounds up to n_max and t² = 2^19, the
+# limit at order 2 (orders 0 to 2 are always evaluated in Float32); at order 4 pure Float32 fails
+# from t² = 2^14, so orders from 4 are evaluated in Float64.
+_float32_max_order(::Type{<:PBECorrelation}) = 3
 
 # Rule 1: the total density below n_thr (strict), restricted and polarized.
 _cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density
@@ -216,19 +216,19 @@ power of two: `2^_PBE_C_T2_EXPONENT_FLOAT32[K + 1]` in Float32, `2^_PBE_C_T2_EXP
 in Float64 and the other types. Each is measured as the largest power of two at which every output
 at order `K` is within its bound against BigFloat over the splits of `_lda_density_max` up to
 n_max, at every power of two up to the limit (step 1 in the exponent), restricted and polarized at
-orders 0 to 8; the bounds are those of the tests, which for pbe_c include the change of the outputs
-from rounding ε_c by one ulp. At orders 9 and 10 only restricted input is measured (Float32 2^14,
-2^13; Float64 2^88, 2^0), and the limit is the smaller of that and the order-8 limit. In Float64 at
-order 10 the restricted v10rho9sigma changes sign near t² = 2 at n = 1.8e-12, and its error relative
-to its own size exceeds the bound there. Above the limit outputs lose their accuracy: series
-coefficients of H that decrease like powers of 1/t² underflow, and near n_max the total σ
-overflows. Orders above 10 are not measured and take the order-10 value.
+orders 0 to 8, with the errors and bounds of the tests: per entry against the largest normalized
+Taylor coefficient of its order, plus for pbe_c the change of the outputs from rounding ε_c by one
+ulp. At orders 9 and 10 only restricted input is measured (Float32 2^14, 2^13; Float64 no failure up
+to 2^140, the end of the scan), and the limit is the smaller of that and the order-8 limit. Float32
+from order 4 is evaluated in Float64. Above the limit outputs lose their accuracy: in Float64 the
+total σ overflows near n_max, and in Float32 an entry beyond floatmax comes out with the wrong sign
+or not finite. Orders above 10 are not measured and take the order-10 value.
 """
 _pbe_c_t2_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), _PBE_C_T2_EXPONENT_FLOAT64[min(K, 10) + 1])
 _pbe_c_t2_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, _PBE_C_T2_EXPONENT_FLOAT32[min(K, 10) + 1])
 
-const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 17, 127, 127, 127, 16, 14, 11, 11, 11)
-const _PBE_C_T2_EXPONENT_FLOAT64 = (131, 131, 131, 131, 131, 131, 120, 107, 96, 88, 0)
+const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 19, 19, 127, 127, 16, 16, 16, 14, 13)
+const _PBE_C_T2_EXPONENT_FLOAT64 = (131, 131, 131, 131, 131, 131, 131, 131, 131, 131, 131)
 
 function _check_gga_domain(f::PBECorrelation, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _domain_type(f, (ρ, σ))

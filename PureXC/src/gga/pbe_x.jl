@@ -116,7 +116,7 @@ function _seed_scales(f::PBEExchange, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, 
 end
 
 # Measured: in pure Float32 every output of orders 0 to 3 stays within its bound up to n_max and
-# s² = 2^66, the limit at order 2 (orders 0 to 2 are always evaluated in Float32).
+# s² = 2^127, the limit at order 2 (orders 0 to 2 are always evaluated in Float32).
 # From order 4 the factors j/s of `derivatives` overflow for a σ seeded at floatmin(Float32),
 # the scale of σ_σσ in a channel near n_thr, where r(n_σ) is below floatmin; such orders are
 # evaluated in Float64.
@@ -129,14 +129,16 @@ s²_max(R, K), the largest reduced gradient s_σ² of a channel (restricted: s²
 at order `K` in the type `R`, a power of two: `2^_PBE_X_S2_EXPONENT_FLOAT32[K + 1]` in Float32,
 `2^_PBE_X_S2_EXPONENT_FLOAT64[K + 1]` in Float64 and the other types. Each is measured as the
 largest power of two at which every output at order `K` is within its bound against BigFloat over
-the splits of `_lda_density_max` up to n_max. Above it, series coefficients of size e/s² underflow
-at the smallest densities. Orders above 10 are not measured and take the order-10 value.
+the splits of `_lda_density_max` up to n_max, at every power of two (step 1 in the exponent), with
+the errors of the tests (per entry against the largest normalized Taylor coefficient of its order).
+It is the largest power of two below floatmax(R) at every measured order. Orders above 10 are not
+measured and take the order-10 value.
 """
 _pbe_x_s2_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), _PBE_X_S2_EXPONENT_FLOAT64[min(K, 10) + 1])
 _pbe_x_s2_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, _PBE_X_S2_EXPONENT_FLOAT32[min(K, 10) + 1])
 
-const _PBE_X_S2_EXPONENT_FLOAT32 = (127, 66, 66, 66, 127, 127, 127, 127, 127, 127, 127)
-const _PBE_X_S2_EXPONENT_FLOAT64 = (1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 483, 482)
+const _PBE_X_S2_EXPONENT_FLOAT32 = (127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127)
+const _PBE_X_S2_EXPONENT_FLOAT64 = (1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023)
 
 function _check_gga_domain(f::PBEExchange, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _domain_type(f, (ρ, σ))

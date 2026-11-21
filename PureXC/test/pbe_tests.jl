@@ -99,66 +99,118 @@
 
     U = PureXC._xc_derivatives_unchecked
 
-    # The scale of each output of `want` at order K: for pbe_c the largest entry of
-    # |D(n ε_c)| + |D(n H)|, the size of the terms whose sum it is (so that the cancellation of
-    # ε_c + H at large t, spec gga_c_pbe section 7, is the conditioning of the sum and not an error
-    # of the evaluation); otherwise the largest entry of |want|. At least floatmin(T).
-    function scales(f, K, ρ, σ, want, T)
-        if f isa PureXC.PBECorrelation
+    # The order and the multi-indices α of the entries of each output field of `xc_derivatives`,
+    # in its layout, for nρ density and nσ σ inputs to order K (computed once per argument set).
+    const LAYOUTS = Dict{NTuple{3, Int}, Any}()
+    layout(nρ, nσ, K) = get!(() -> make_layout(nρ, nσ, K), LAYOUTS, (nρ, nσ, K))
+    function make_layout(nρ, nσ, K)
+        ms(n, m) = m == 0 ? [()] : [(i, r...) for i in 1:n for r in ms(n, m - 1) if isempty(r) || r[1] >= i]
+        cnt(s, n) = ntuple(i -> count(==(i), s), n)
+        out = Any[(0, [ntuple(_ -> 0, nρ + nσ)])]
+        for j in 1:K, a in j:-1:0
+            push!(out, (j, [(cnt(r, nρ)..., cnt(s, nσ)...) for r in ms(nρ, a) for s in ms(nσ, j - a)]))
+        end
+        return out
+    end
+
+    # The seed scales s of `f` at the point, in the type S it is evaluated in, and for each entry
+    # of each output the factor ∏ s_i^α_i / α_i! that turns the derivative ∂^α e into its normalized
+    # Taylor coefficient in the seed variables.
+    function normalizers(f, K, ρ, σ, S, lay)
+        fS = PureXC._functional_in(f, PureXC._result_type(f, ρ, σ), S)
+        s = map(big, PureXC._seed_scales(fS, Val(K), map(x -> convert(S, x), ρ), map(x -> convert(S, x), σ)))
+        pow = [[s[i]^k / factorial(big(k)) for k in 0:K] for i in eachindex(s)]
+        return [[prod(pow[i][α[i] + 1] for i in eachindex(α)) for α in αs] for (_, αs) in lay]
+    end
+
+    # The scale of each derivative order j = 0…K at the point, in normalized Taylor coefficients:
+    # the largest entry of order j of |want| (pbe_x) or of |D(n ε_c)| + |D(n H)| (pbe_c, the size of
+    # the terms whose sum cancels at large t, spec gga_c_pbe section 7), at least floatmin(T). Errors
+    # are measured against this per-order scale and not entry by entry or output by output: next to
+    # a zero of an entry (an entry changing sign with t², say) the relative error of that entry has
+    # no upper limit, while its error against the other coefficients of the same order stays at the
+    # rounding level.
+    function scales(f, K, ρ, σ, want, T, nrm, lay)
+        vals = if f isa PureXC.PBECorrelation
             fb = exact_big(f)
             x, y = map(big, ρ), map(big, σ)
             a = U(Term(fb, LinComb(1, 0)), Val(K), x, y)
             b = U(Term(fb, LinComb(0, 1)), Val(K), x, y)
-            return map(n -> max(maximum(abs.([getfield(a, n)...]) .+ abs.([getfield(b, n)...])), big(floatmin(T))), keys(want))
+            [abs.([getfield(a, n)...]) .+ abs.([getfield(b, n)...]) for n in keys(want)]
+        else
+            [abs.([getfield(want, n)...]) for n in keys(want)]
         end
-        return map(n -> max(maximum(abs, [getfield(want, n)...]), big(floatmin(T))), keys(want))
+        sc = fill(big(floatmin(T)), K + 1)
+        for (k, (j, _)) in enumerate(lay)
+            sc[j + 1] = max(sc[j + 1], maximum(vals[k] .* nrm[k]))
+        end
+        return sc
     end
 
-    # The largest error of the outputs `got`, in the type T, against `want`, in units of eps(T)
-    # relative to the scales `sc`. An entry whose exact value exceeds floatmax(T) must be the
-    # infinity of its sign, and otherwise the error is Inf. `less` is subtracted from each output's error.
-    function error_eps(got, want, sc, T; less = map(_ -> big(0), sc))
+    # The largest error of the outputs `got`, in the type T, against `want`, in units of eps(T): for
+    # each entry, its normalized error (|got − want| − floatmin(T))·∏s^α/α! less `less` (normalized,
+    # at least zero), over the scale of its order. floatmin(T) is the absolute accuracy to which an
+    # output of type T can hold a value: below it, an exact entry underflows. A NaN fails (Inf). An entry whose exact value fits in T must be
+    # finite; one whose exact value exceeds floatmax(T) must be infinite, and with the exact sign
+    # where its normalized size, less `less`, is above `bound` (eps(T) of its order's scale): below
+    # that the sign is not determined to the working accuracy.
+    function error_eps(got, want, nrm, lay, sc, T; less = nothing, bound = Inf)
         worst = 0.0
-        for (i, name) in enumerate(keys(want))
+        for (k, name) in enumerate(keys(want))
+            j = lay[k][1]
             g, w = [getfield(got, name)...], [getfield(want, name)...]
-            fits = abs.(w) .<= floatmax(T)
-            all(@. ifelse(fits, isfinite(g), isinf(g) & (sign(g) == sign(w)))) || return Inf
-            any(fits) || continue
-            worst = max(worst, Float64(max(maximum(abs.(big.(g[fits]) .- w[fits])) - less[i], 0) / sc[i] / eps(T)))
+            for i in eachindex(w)
+                isnan(g[i]) && return Inf
+                d = isnothing(less) ? big(0) : less[k][i]
+                if abs(w[i]) <= floatmax(T)
+                    isfinite(g[i]) || return Inf
+                    e = max(abs(big(g[i]) - w[i]) - floatmin(T), 0) * nrm[k][i]
+                    worst = max(worst, Float64(max(e - d, 0) / sc[j + 1] / eps(T)))
+                else
+                    isinf(g[i]) || return Inf
+                    sign(g[i]) == sign(w[i]) || abs(w[i]) * nrm[k][i] - d <= bound * eps(T) * sc[j + 1] || return Inf
+                end
+            end
         end
         return worst
     end
 
-    # The sensitivity of pbe_c's outputs to the rounding of ε_c: for each output, the largest change
-    # of an entry, in BigFloat, when every series coefficient of ε_c is changed by one ulp of the
-    # evaluation type S (relative eps(S), two fixed sign patterns). Near full polarization, where
-    # z = −ε_c/(γφ³) changes by about 91 per unit of ζ, and at y = A·t² ≈ 1, this is far larger
-    # than the rounding of the other terms; measured, the Float64 errors there are of its size.
+    # The sensitivity of pbe_c's outputs to the rounding of ε_c: for each entry, the largest change,
+    # in BigFloat, when every series coefficient of ε_c is changed by one ulp of the evaluation type
+    # S (relative eps(S), two fixed sign patterns). Near full polarization, where z = −ε_c/(γφ³)
+    # changes by about 91 per unit of ζ, and at y = A·t² ≈ 1, this is far larger than the rounding of
+    # the other terms; measured, the Float64 errors there are of its size.
     function sensitivity(f, K, ρ, σ, want, S)
         fb = exact_big(f)
         x, y = map(big, ρ), map(big, σ)
         outs = [U(Term(fb, LinComb(1, 1), Perturb(seed, big(eps(S)))), Val(K), x, y) for seed in (1, 2)]
-        return map(n -> maximum(o -> maximum(abs.([getfield(o, n)...] .- [getfield(want, n)...])), outs), keys(want))
+        d(o, n) = abs.([getfield(o, n)...] .- [getfield(want, n)...])
+        return [max.(d(outs[1], n), d(outs[2], n)) for n in keys(want)]
     end
 
     # The constant c of the sensitivity term: the bound of a pbe_c point grows by c times the
-    # output's sensitivity (`sensitivity`). Bound (c): measured, the largest c needed at the points
-    # near full polarization and y ≈ 1 (orders 3 to 6, Float64) is 4.5.
+    # entry's sensitivity (`sensitivity`), bound (c). Measured at the points near full polarization
+    # and y ≈ 1 (orders 3 to 6, Float64): with errors per entry against the scale of its order, none
+    # exceeds the plain bound, so the term changes no result there.
     const SENSITIVITY_C = 8
 
     # The error of `f` at order K at (ρ, σ) against `exact_big(f)`, in eps(T) of the result type,
-    # relative to `scales`. For pbe_c, where the plain error exceeds `allow`, each output's error is
-    # first reduced by SENSITIVITY_C times its sensitivity (at most to zero), so that the comparison
-    # with a bound allows the change from rounding ε_c by one ulp.
+    # per entry against the scale of its order (`error_eps`). `allow` is the bound it will be
+    # compared with. For pbe_c, where the plain error exceeds it, each entry's error is first reduced
+    # by SENSITIVITY_C times its sensitivity (at most to zero), so that the comparison allows the
+    # change from rounding ε_c by one ulp.
     function point_error(f, K, ρ, σ; allow = Inf)
         T = PureXC._result_type(f, ρ, σ)
         got = xc_derivatives(f, Val(K), ρ, σ)
         want = U(exact_big(f), Val(K), map(big, ρ), map(big, σ))
-        sc = scales(f, K, ρ, σ, want, T)
-        err = error_eps(got, want, sc, T)
-        (err <= allow || !(f isa PureXC.PBECorrelation) || !isfinite(err)) && return err
-        Δ = sensitivity(f, K, ρ, σ, want, PureXC._evaluation_type(f, T, Val(K)))
-        return error_eps(got, want, sc, T; less = SENSITIVITY_C .* Δ)
+        S = PureXC._evaluation_type(f, T, Val(K))
+        lay = layout(ρ isa Tuple ? 2 : 1, ρ isa Tuple ? 3 : 1, K)
+        nrm = normalizers(f, K, ρ, σ, S, lay)
+        sc = scales(f, K, ρ, σ, want, T, nrm, lay)
+        err = error_eps(got, want, nrm, lay, sc, T; bound = allow)
+        (err <= allow || !(f isa PureXC.PBECorrelation) || isnan(err)) && return err
+        Δ = sensitivity(f, K, ρ, σ, want, S)
+        return error_eps(got, want, nrm, lay, sc, T; less = [SENSITIVITY_C .* Δ[k] .* nrm[k] for k in eachindex(nrm)], bound = allow)
     end
 
     # κ_ζ = 2/(1 − |ζ|) at the raised channels where pbe_c keeps the factors (1 ± ζ)^p of the smaller
@@ -515,8 +567,9 @@ end
 end
 
 # Oracle: the same functional built for BigFloat (256 bits), on the same Float64 inputs converted
-# exactly (`exact_big`). Errors are relative to the scale of each output (`scales`): for pbe_c the
-# size of the terms n·ε_c and n·H, whose sum cancels at large t (spec gga_c_pbe, section 7). Bound
+# exactly (`exact_big`). Each entry's error is in normalized Taylor coefficients, against the largest
+# coefficient of its order (`scales`, `error_eps`): for pbe_c the size of the terms n·ε_c and n·H,
+# whose sum cancels at large t (spec gga_c_pbe, section 7). Bound
 # (b) c·eps·N, with N the roundings of eps/2 that reach one output coefficient on the longest path,
 # polarized pbe_c, counted as in "LDA functionals agree with BigFloat":
 # - its PW92 part, 2100;
@@ -529,8 +582,8 @@ end
 #   2 ulps, 28;
 # N = 2100 + 1200 + 720 + 28 ≈ 4100 and c = 1. pbe_x takes the same bound. Where pbe_c keeps the
 # factors (1 ± ζ)^p of the smaller channel the bound adds 8κ_ζ, κ_ζ = 2/(1 − |ζ|), the conditioning
-# of 1 ± ζ formed from ζ (spec lda_c_pw, section 8), as for PW92. Largest measured: pbe_x 55,
-# pbe_c 1480 (v3sigma3, restricted, at n = 3.2e-3 and s = 0.1).
+# of 1 ± ζ formed from ζ (spec lda_c_pw, section 8), as for PW92. Largest measured at the points
+# without the 8κ_ζ term: pbe_x 13, pbe_c 12.
 @testitem "PBE functionals agree with BigFloat" setup = [PBEReference] begin
     using .PBEReference: GRID_RESTRICTED, GRID_POLARIZED, point_error, zeta_conditioning
     worst = Dict(pbe_x => Ref(0.0), pbe_c => Ref(0.0))
@@ -555,10 +608,10 @@ end
     @test PureXC._gga_density_max(Float64, Val(3)) == 2.0^381
     @test PureXC._gga_density_max(Float32, Val(3)) == 2.0f0^45
     @test PureXC._gga_density_max(BigFloat, Val(7)) == big(2.0)^381
-    @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float32, Val(K))), 0:10)) == (127, 66, 66, 66, 127, 127, 127, 127, 127, 127, 127)
-    @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float64, Val(K))), 0:10)) == (1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 483, 482)
-    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float32, Val(K))), 0:10)) == (19, 19, 17, 127, 127, 127, 16, 14, 11, 11, 11)
-    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float64, Val(K))), 0:10)) == (131, 131, 131, 131, 131, 131, 120, 107, 96, 88, 0)
+    @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float32, Val(K))), 0:10)) == (127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127)
+    @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float64, Val(K))), 0:10)) == (1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023)
+    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float32, Val(K))), 0:10)) == (19, 19, 19, 19, 127, 127, 16, 16, 16, 14, 13)
+    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float64, Val(K))), 0:10)) == (131, 131, 131, 131, 131, 131, 131, 131, 131, 131, 131)
     c3 = 4 * cbrt(3 * big(π)^2)^2
     tscale(n) = PureXC._pbe_t_scale(big(n), big(1.0))
     for T in (Float32, Float64), K in 0:3
@@ -586,10 +639,10 @@ end
     end
     # Polarized: the limit applies to each channel of pbe_x and to the total σ of pbe_c.
     c6 = 4 * cbrt(6 * big(π)^2)^2
-    s2 = big(PureXC._pbe_x_s2_max(Float64, Val(10)))
-    σβ = Float64(4 * s2 * c6 * big(1.0e-3)^(8 // 3))
-    @test_throws "xc: reduced gradient s²_β" xc_derivatives(pbe_x(), Val(10), (1.0, 1.0e-3), (1.0, 0.0, σβ))
-    @test_throws "xc: reduced gradient s²_α" xc_derivatives(pbe_x(), Val(10), (1.0e-3, 1.0), (σβ, 0.0, 1.0))
+    # s² of the channel at 1e-12 is about 1e330, above s²_max (and formed as Inf).
+    @test big(1.0e300) / (c6 * big(1.0e-12)^(8 // 3)) > big(PureXC._pbe_x_s2_max(Float64, Val(2)))
+    @test_throws "xc: reduced gradient s²_β" xc_derivatives(pbe_x(), Val(2), (1.0, 1.0e-12), (1.0, 0.0, 1.0e300))
+    @test_throws "xc: reduced gradient s²_α" xc_derivatives(pbe_x(), Val(2), (1.0e-12, 1.0), (1.0e300, 0.0, 1.0))
     t2 = big(PureXC._pbe_c_t2_max(Float64, Val(2)))
     g = Float64(2 * t2 * PureXC._pbe_t_scale(big(2.0), big(1.0)))
     @test_throws "xc: reduced gradient t²" xc_derivatives(pbe_c(), Val(2), (1.0, 1.0), (g / 4, g / 4, g / 4))
@@ -600,13 +653,14 @@ end
 # Orders 0 to 10 at 2^p for p ∈ {−20} ∪ 0:16:P ∪ {5, P} up to n_max = 2^P, and at the smallest
 # densities not cut off, over the splits of `_lda_density_max`, each at s² (pbe_x, per channel) or
 # t² (pbe_c) of 0, 1 and the limit of order K. A Float32 call evaluates in Float64 above
-# `_float32_max_order` and rounds each output. Oracle: `exact_big`. Bounds (`point_bound`), relative
-# to `scales`, with an infinity of the right sign required exactly where the BigFloat entry exceeds
-# floatmax(T), so that no NaN passes:
-# - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.50;
-# - K ≤ 3: 4100, bound (b) of "PBE functionals agree with BigFloat", measured at most 941;
-# - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 2343;
-# - K ≥ 8: 10^5, bound (c), measured at most 6.7e4;
+# `_float32_max_order` and rounds each output. Oracle: `exact_big`. Bounds (`point_bound`), per entry
+# against the largest normalized coefficient of its order (`error_eps`); an entry whose exact value
+# exceeds floatmax(T) must be infinite, with its sign where it is above the bound, and no NaN
+# passes:
+# - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.47;
+# - K ≤ 3: 4100, bound (b) of "PBE functionals agree with BigFloat", measured at most 898;
+# - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 898;
+# - K ≥ 8: 10^5, bound (c), measured at most 71;
 # - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
 # Polarized pbe_c is checked here to order 6 (`kmax_polarized_c`); see the comment there.
 @testitem "PBE functionals at orders 0 to 10" setup = [PBEReference] begin
