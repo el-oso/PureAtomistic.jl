@@ -179,31 +179,46 @@ end
 # Spec lda_c_pw and lda_c_pw_mod, section 7, rule 2: each channel is raised to n_thr before r_s and
 # ζ are formed, and the derivative with respect to a raised channel is the one at n_thr.
 @testitem "PW92 channels raised to the density threshold" begin
+    # Bound (b) for the same derivatives at different raw inputs: the raised densities are the same,
+    # so the computation differs only in the seed scales s, which follow the raw total density.
+    # Each output is formed with s^k·(1/s)^k, k ≤ 2, through the operations counted in "LDA
+    # functionals agree with BigFloat": 2·eps·1500 relative to the largest entry of the output.
+    close(g, w) = all(abs.(g .- w) .<= 2 * eps() * 1500 .* maximum(abs, w))
     # Oracle: the spec's values. Tolerance (a): 1e-6 relative, the user's floor.
     for (f, zk, vβ, v2ββ) in (
             (lda_c_pw(), -0.020296494557675415, -0.15101284284991515, 1.740992732755484e9),
             (lda_c_pw_mod(), -0.020296576673299066, -0.15101107190123725, nothing),
         )
-        ref = xc_derivatives(f, Val(3), (0.01, 0.0))
+        ref = xc_derivatives(f, Val(2), (0.01, 0.0))
         for ρβ in (0.0, 0.5e-15, 1.0e-15)
-            r = xc_derivatives(f, Val(3), (0.01, ρβ))
-            @test abs(r.e / (0.01 + ρβ) - zk) <= 1.0e-6 * abs(zk)
+            n = 0.01 + ρβ
+            r = xc_derivatives(f, Val(2), (0.01, ρβ))
+            @test abs(r.e / n - zk) <= 1.0e-6 * abs(zk)
             @test abs(r.vrho[2] - vβ) <= 1.0e-6 * abs(vβ)
             isnothing(v2ββ) || @test abs(r.v2rho2[3] - v2ββ) <= 1.0e-6 * abs(v2ββ)
-            # Oracle: the result at n_β = 0. Bound (b): e = n·ε_c with n = n_α + n_β, which
-            # differs by at most 1e-13 relative between these points, and ε_c and its
-            # derivatives are those at the raised channels, the same here; plus the rounding
-            # bound of the BigFloat test, 2·eps·1500, for the seed scales, which differ too.
-            for name in keys(ref)
-                g, w = getfield(r, name), getfield(ref, name)
-                @test all(abs.(g .- w) .<= (1.0e-13 + 2 * eps() * 1500) .* maximum(abs, w))
+            # e = n·ε_c with the caller's n and the common ε_c: bound (b) of the derivatives,
+            # plus one rounding of the product and one of the quotient.
+            @test abs(r.e / n - ref.e / 0.01) <= (2 * eps() * 1500 + 2 * eps()) * abs(zk)
+            for name in keys(ref)[2:end]
+                @test close(getfield(r, name), getfield(ref, name))
             end
         end
-        # Both channels raised to n_thr: the same zk. Bound (b) as above, with ε_c the same
-        # expression at the same raised densities.
-        a = xc_derivatives(f, Val(0), (0.5005e-15, 0.5005e-15)).e / 1.001e-15
-        b = xc_derivatives(f, Val(0), (0.9995e-15, 0.9995e-15)).e / 1.999e-15
-        @test abs(a - b) <= 2 * eps() * 1500 * abs(b)
+    end
+    # Both channels raised to n_thr. Oracle: the spec's lda_c_pw values. Tolerance (a): 1e-6.
+    for (f, zk, v) in ((lda_c_pw(), -8.674368563248956e-6, -1.1544342326421484e-5), (lda_c_pw_mod(), nothing, nothing))
+        ref = xc_derivatives(f, Val(2), (1.0e-15, 1.0e-15))
+        for x in (0.5005e-15, 0.9995e-15, 1.0e-15)
+            r = xc_derivatives(f, Val(2), (x, x))
+            if !isnothing(zk)
+                @test abs(r.e / 2x - zk) <= 1.0e-6 * abs(zk)
+                @test all(abs.(r.vrho .- v) .<= 1.0e-6 * abs(v))
+            end
+            # e is the caller's n times the common ε_c; bound (b) as above.
+            @test abs(r.e / 2x - ref.e / 2.0e-15) <= (2 * eps() * 1500 + 2 * eps()) * abs(ref.e / 2.0e-15)
+            for name in keys(ref)[2:end]
+                @test close(getfield(r, name), getfield(ref, name))
+            end
+        end
     end
 end
 
@@ -226,8 +241,9 @@ end
     for f in (lda_x(), lda_c_pw(), lda_c_pw_mod()), K in 0:4, ρ in ((0.3, 0.0), (0.0, 0.3), (1.0e-6, 0.0))
         r = xc_derivatives(f, Val(K), ρ)
         @test all(x -> all(isfinite, x), values(r))
-        # Oracle: the channel at n_thr. Bound (b) as in "PW92 channels raised to the density
-        # threshold": the prefactor n changes by n_thr/n ≤ 1e-9, and the rounding bound 2·eps·1500.
+        # Oracle: the channel at n_thr. Bound (b): the energy e = n·ε_c uses the caller's n, which
+        # changes by n_thr/n ≤ 1e-9; the derivatives are those at the same raised densities, so
+        # they differ by the seed scales alone, the rounding bound 2·eps·1500.
         floor = map(x -> iszero(x) ? 1.0e-15 : x, ρ)
         w = xc_derivatives(f, Val(K), floor)
         for name in keys(r)

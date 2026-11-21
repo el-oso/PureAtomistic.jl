@@ -42,3 +42,13 @@ function _raise(x::Taylor{N, K, M, T, L}, floor) where {N, K, M, T, L}
     v = max(value(x), convert(T, floor))
     return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? v : x.c[i], Val(L)))
 end
+
+"""
+    _with_value(x, v)
+
+The `Taylor` number `x` with its value replaced by `v` and its series part kept.
+"""
+function _with_value(x::Taylor{N, K, M, T, L}, v) where {N, K, M, T, L}
+    w = convert(T, v)
+    return Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? w : x.c[i], Val(L)))
+end

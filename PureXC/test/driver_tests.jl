@@ -186,7 +186,7 @@ end
     # Float32 σ's at the edge, given to a Float64 functional: the bound is in the σ's own type, so
     # none is rejected. Both −√(σαα σββ) and the dot products of antiparallel gradients.
     rng = Xoshiro(20261121)
-    rejected = 0
+    rejected = Ref(0)
     for _ in 1:10_000
         a, b = exp10(Float32(-12 + 14 * rand(rng))), exp10(Float32(-12 + 14 * rand(rng)))
         g = randn(rng, Float32, 3)
@@ -196,11 +196,11 @@ end
                 xc_derivatives(gga, Val(0), (1.0, 1.0), σ)
             catch err
                 err isa ArgumentError || rethrow()
-                rejected += 1
+                rejected[] += 1
             end
         end
     end
-    @test rejected == 0
+    @test rejected[] == 0
 end
 
 @testitem "ρ = −0.0 is accepted as zero" setup = [TestFunctionals] begin
