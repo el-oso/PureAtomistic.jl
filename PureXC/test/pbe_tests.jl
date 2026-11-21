@@ -660,7 +660,7 @@ end
 # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.47;
 # - K ≤ 3: 4100, bound (b) of "PBE functionals agree with BigFloat", measured at most 898;
 # - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 898;
-# - K ≥ 8: 10^5, bound (c), measured at most 71;
+# - K ≥ 8: 7100, bound (c), measured at most 71;
 # - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
 # Polarized pbe_c is checked here to order 6 (`kmax_polarized_c`); see the comment there.
 @testitem "PBE functionals at orders 0 to 10" setup = [PBEReference] begin
@@ -671,7 +671,7 @@ end
     kmax_polarized_c = 6
     function point_bound(f, ρ, T, K)
         T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 45.0
-        return (K <= 3 ? 4100.0 : K <= 7 ? 1.0e4 : 1.0e5) + 8 * zeta_conditioning(f, ρ)
+        return (K <= 3 ? 4100.0 : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
     end
     c3, c6 = 4 * cbrt(3 * big(π)^2)^2, 4 * cbrt(6 * big(π)^2)^2
     # σ at the reduced gradient g (s² or t²), from the exact values, rounded to T.
