@@ -422,3 +422,23 @@ end
         end
     end
 end
+
+# Float32 at order 6. lda_x at (1, 2e-15): the β channel is seeded at m = 2^-21, its series
+# coefficient of order 6 is 3.1e28 (representable) and the output −1.8e69 is beyond floatmax, so
+# it is −Inf. PW92 at (2^23, 1): the coefficient of order 6 is 6.2e36, 720 times which exceeds
+# floatmax, and the output is 0.0128. Oracle: `exact_big`; bound (b) of "LDA functionals agree with
+# BigFloat", 2100 eps(Float32) relative to the largest entry of each output. Measured: 2.1 and 8.5.
+@testitem "Float32 LDA derivatives at order 6" setup = [LDAReference] begin
+    using .LDAReference: exact_big, error_eps
+    f = lda_x(Float32)
+    r = xc_derivatives(f, Val(6), (1.0f0, 2.0f-15))
+    b = xc_derivatives(exact_big(f), Val(6), (big(1.0f0), big(2.0f-15)))
+    # Exact: the entry is beyond floatmax(Float32), so it must be −Inf.
+    @test b.v6rho6[7] < -floatmax(Float32) && r.v6rho6[7] == -Inf32
+    @test error_eps(r, b, Float32) <= 2100
+    for build in (lda_c_pw, lda_c_pw_mod)
+        g = build(Float32)
+        ρ = (2.0f0^23, 1.0f0)
+        @test error_eps(xc_derivatives(g, Val(6), ρ), xc_derivatives(exact_big(g), Val(6), big.(ρ)), Float32) <= 2100
+    end
+end

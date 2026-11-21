@@ -1,6 +1,6 @@
 module PureXC
 
-using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, fast_invcbrt, fast_log1p, fast_sqrt, substitute, value, variable
+using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, fast_invcbrt, fast_log1p, fast_sqrt, power_series, substitute, value, variable
 using StrictMode: @strict_policy
 
 """

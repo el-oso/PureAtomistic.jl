@@ -95,7 +95,7 @@ end
 # where the result is discarded.
 function _pw92_pow43(y, εζ)
     x = _raise(y, εζ)
-    t = x * fast_cbrt(x)
+    t = _pow43(x)
     return ifelse(value(y) <= εζ, zero(t) + εζ * fast_cbrt(εζ), t)
 end
 
