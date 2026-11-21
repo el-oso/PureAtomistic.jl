@@ -2,7 +2,7 @@
 # this file in a child process that loads only the package, so no test fixture adds a
 # specialization of its own.
 using PureTaylor
-using PureTaylor: coefficient
+using PureTaylor: coefficient, power_series
 
 # Every exported and public function and every Base method of the package, on the Taylor numbers
 # `numbers` (all over the same `N` and `K`, with coefficients of type `T`) and the scalar `x::T`.
@@ -32,6 +32,7 @@ function exercise_one(a::Taylor{N, K}, x::T) where {N, K, T}
     derivatives(a, ntuple(_ -> inv(x), Val(N)))
     derivatives(a, ntuple(_ -> 1, Val(N)))
     coefficient(a, ntuple(_ -> 0, Val(N))); coefficient(a, ntuple(i -> i == 1 ? 1 : 0, Val(N)))
+    power_series(a, T(4) / 3, x); power_series(a, 1 // 3, x)
     substitute(a, ntuple(_ -> a, Val(N)))
     substitute(a, ntuple(i -> isodd(i) ? a : x, Val(N)))
     return nothing

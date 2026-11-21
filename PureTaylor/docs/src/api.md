@@ -18,6 +18,7 @@ substitute
 Base.sqrt(::Taylor)
 Base.cbrt(::Taylor)
 Base.:^(::Taylor, ::Real)
+PureTaylor.power_series
 Base.:^(::Taylor, ::Taylor)
 Base.exp(::Taylor)
 Base.expm1(::Taylor)

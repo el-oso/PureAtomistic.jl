@@ -33,6 +33,7 @@ end
             (sqrt, pow_ref(big(1) / 2)),
             (cbrt, pow_ref(big(1) / 3)),
             (a -> a^p, pow_ref(p)),
+            (a -> PureTaylor.power_series(a, p, x0^p), pow_ref(p)),
             (exp, (x, k) -> exp(x)),
             (expm1, (x, k) -> k == 0 ? expm1(x) : exp(x)),
             (log, log_ref),
@@ -47,10 +48,10 @@ end
                 # 256 bits, c = 2 (one rounding per multiply and per add) and N = 45 roundings: Base's
                 # value (1); the series scale 1/x and, for log1p, 1 + x (2); the K = 4 terms of the
                 # coefficient recurrence, at most a subtract, a multiply and a divide each (12); s·h
-                # (1); 4 Horner steps of at most 4 products and 1 add each (20); the unscaling, α!
-                # and at most 4 invscale factors (5); and the test's own invscale 1/s, raised to at
-                # most the 4th power (4). Largest error measured: 1.8·eps.
-                @test abs(got[k + 1] - r) <= 2 * eps(BigFloat) * 45 * abs(r)
+                # (1); 4 Horner steps of at most 4 products and 1 add each (20); the unscaling, at most
+                # 4 factors j·invscale and the 3 products that form them (7); and the test's own
+                # invscale 1/s, raised to at most the 4th power (4). Largest error measured: 1.8·eps.
+                @test abs(got[k + 1] - r) <= 2 * eps(BigFloat) * 47 * abs(r)
             end
         end
         # sqrt(x)² recovers x through the series: a check independent of the closed forms. Rounding
@@ -182,4 +183,24 @@ end
     @test value(s) == 0.0
     @test all(isnan, s.c[2:end])
     @test all(isnan, cbrt(a).c[2:end]) && all(isnan, (a^0.5).c[2:end])
+end
+
+# x^(4/3) at x = 2e-15 seeded at s = 2^-21, so h/x has the coefficient s/x ≈ 2.4e8. In Float32 the
+# coefficient of u⁶ of ∛x is about −5.4e43, beyond floatmax, while that of x^(4/3) is about 3.1e28.
+@testitem "power_series holds a coefficient that a factor series cannot" begin
+    x0, s = 2.0f-15, 2.0f0^-21
+    x = variable(Val(1), Val(6), Val(1), x0, s)
+    # Exact: the coefficient of ∛x overflows, and so does the product's.
+    @test fast_cbrt(x).c[7] == -Inf32
+    @test (x * fast_cbrt(x)).c[7] == -Inf32
+    got = PureTaylor.power_series(x, 4.0f0 / 3, x0 * fast_cbrt(x0))
+    # Oracle: x₀^(4/3)·binomial(4/3, k)·(s/x₀)^k in BigFloat at the Float32 inputs, with the
+    # exponent rounded to Float32 as in `got`. Rounding bound c·eps·N with c = 2 and N = 40: the
+    # value (3), s/x₀ (1), the K = 6 terms of the recurrence (18), and 6 Horner steps of one
+    # product and one add each (12), with 6 more for the power of s/x₀ in the last coefficient.
+    # Largest error measured: 2.3·eps.
+    p = big(4.0f0 / 3)
+    want = [big(x0)^p * prod((p - j for j in 0:(k - 1)); init = big(1)) / factorial(big(k)) * (big(s) / big(x0))^k for k in 0:6]
+    @test all(abs.(big.(got.c) .- want) .<= 2 * eps(Float32) * 40 .* abs.(want))
+    @test PureTaylor.power_series(x, 1 // 3, fast_cbrt(x0)).c == fast_cbrt(x).c
 end

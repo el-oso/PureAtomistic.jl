@@ -50,6 +50,18 @@ function _power_series(a::Taylor{N, K, M, T}, v, p) where {N, K, M, T}
 end
 
 """
+    power_series(a::Taylor, p, v)
+
+The series of `aᵖ` for a real `p`, converted to the coefficient type of `a`, whose value is `v`, given
+by the caller as `value(a)^p` (for example `x * fast_cbrt(x)` for `p = 4/3`). The coefficients are
+`v·binomial(p, k)·(h/x)ᵏ` with `x = value(a)` and `h = a - x`, formed in one series, so no factor
+series has to be representable: in a product such as `a * fast_cbrt(a)` a coefficient of the factor
+can overflow where the product's fits. Domain: positive `value(a)`, unchecked.
+"""
+power_series(a::Taylor{N, K, M, T}, p::Real, v::Real) where {N, K, M, T} =
+    _power_series(a, convert(T, v), convert(T, p))
+
+"""
     sqrt(a::Taylor)
 
 The series of `√a`, with its value from Base's `sqrt` (a negative value throws `DomainError`). At value

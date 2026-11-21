@@ -81,3 +81,16 @@ end
     xf = variable(Val(2), Val(2), Val(2), 3.0f0, 0.5f0)
     @test derivatives(xf, (1.0, 2.0)) === derivatives(xf, (1.0f0, 2.0f0))   # Float32 stays Float32
 end
+
+# derivatives never forms α!·c_α: with c = 6e36 at order 6, 720·c overflows Float32, while
+# ∂⁶ = 720·c·(1/s)⁶ ≈ 0.0123 at s = 2^23.
+@testitem "derivatives where α!·c_α overflows" begin
+    c = 6.0f36
+    a = variable(Val(1), Val(6), Val(1), 0.0f0)^6 * c
+    @test 720 * c == Inf32
+    got = derivatives(a, (2.0f0^-23,))[end]
+    # Oracle: 720·c·2^-138 in BigFloat. Rounding bound c·eps·N with c = 1 and N = 5: the products of
+    # c by the factors j·2^-23, which are exact.
+    want = 720 * big(c) * big(2)^-138
+    @test abs(got - want) <= 5 * eps(Float32) * want
+end

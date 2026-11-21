@@ -332,18 +332,34 @@ expect = "fast functions on Taylor numbers agree"
 # The scale handling of `derivatives`.
 
 [[mutation]]
-name = "derivatives-factorial"
+name = "derivatives-factor-j"
 file = "src/type.jl"
-find = 'T(prod(k -> factorial(big(k)), α; init = big(1)))'
-replace = 'T(prod(k -> big(k), α; init = big(1)))'
-expect = "closed-form derivatives"
+find = 'push!(body.args, :($(factor(i, j)) = $(T(j)) * invscale[$i]))'
+replace = 'push!(body.args, :($(factor(i, j)) = $(T(j - 1)) * invscale[$i]))'
+expect = "closed-form derivatives|α!·c_α overflows"
 
 [[mutation]]
 name = "derivatives-invscale-variable"
 file = "src/type.jl"
-find = 'push!(scale.args, :(invscale[$i]))'
-replace = 'push!(scale.args, :(invscale[1]))'
+find = 'factor(i, j) = j == 1 ? :(invscale[$i]) : Symbol(:f_, i, :_, j)'
+replace = 'factor(i, j) = j == 1 ? :(invscale[1]) : Symbol(:f_, i, :_, j)'
 expect = "seeds and read-out"
+
+# The power series with a value given by the caller.
+
+[[mutation]]
+name = "power-series-exponent"
+file = "src/univariate.jl"
+find = '_power_series(a, convert(T, v), convert(T, p))'
+replace = '_power_series(a, convert(T, v), convert(T, p) - 1)'
+expect = "closed-form derivatives|power_series holds"
+
+[[mutation]]
+name = "power-series-value"
+file = "src/univariate.jl"
+find = '_power_series(a, convert(T, v), convert(T, p))'
+replace = '_power_series(a, convert(T, p), convert(T, p))'
+expect = "closed-form derivatives|power_series holds"
 
 # The change of variables: which elements of u carry an increment.
 
