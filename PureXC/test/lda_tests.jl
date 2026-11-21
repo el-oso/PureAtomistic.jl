@@ -343,11 +343,16 @@ end
         @test (@test_noalloc xc_derivatives(f, Val(2), ρ)) isa NamedTuple
         @test (@test_noalloc xc_derivatives(f, Val(2), ρp)) isa NamedTuple
     end
-    # Float32 at the last order evaluated in Float32 and the first evaluated in Float64.
-    for build in (lda_x, lda_c_pw, lda_c_pw_mod), K in (7, 8), ρ in (0.3f0, (0.3f0, 0.1f0))
+    # Float32 at the last order evaluated in Float32, `_float32_max_order`, and the first evaluated
+    # in Float64.
+    for build in (lda_x, lda_c_pw, lda_c_pw_mod), ρ in (0.3f0, (0.3f0, 0.1f0))
         f = build(Float32)
-        xc_derivatives(f, Val(K), ρ)
-        @test (@test_noalloc xc_derivatives(f, Val(K), ρ)) isa NamedTuple
+        k32 = PureXC._float32_max_order(typeof(f))
+        @test k32 == (build === lda_x ? 10 : 2)
+        for K in (k32, k32 + 1)
+            xc_derivatives(f, Val(K), ρ)
+            @test (@test_noalloc xc_derivatives(f, Val(K), ρ)) isa NamedTuple
+        end
     end
 end
 
@@ -376,7 +381,7 @@ end
         end
     end
     # Exact: the measured limits, powers of two.
-    measured = Dict(Float64 => (767, 767, 767, 767, 767, 767, 767, 733, 682, 630, 579), Float32 => ntuple(_ -> 95, 11))
+    measured = Dict(Float64 => (767, 767, 767, 767, 767, 767, 767, 731, 679, 627, 575), Float32 => ntuple(_ -> 95, 11))
     for T in (Float32, Float64), K in 0:10
         n = PureXC._lda_density_max(T, Val(K))
         @test n == ldexp(one(T), measured[T][K + 1])
@@ -468,8 +473,8 @@ end
     end
 end
 
-# Orders 0 to 10 at the n_max splits, the uneven splits and (n/2, r·n/2) for two ratios r near
-# ε_ζ/2, for 2^p ≤ n_max with p ∈ 0:16:P, p = 5 and p = P. A Float32 call evaluates in Float64
+# Orders 0 to 10 at the n_max splits, the uneven splits and (n/2, r·n/2) and its mirror for four
+# ratios r near ε_ζ/2 and ε_ζ, for 2^p ≤ n_max with p ∈ 0:16:P, p = 5 and p = P. A Float32 call evaluates in Float64
 # above `_float32_max_order` and rounds each output. Oracle:
 # `exact_big`. Bounds: `point_bound`, with an infinity of the right sign required exactly where the
 # BigFloat entry exceeds floatmax(T), so that no NaN passes.
@@ -485,9 +490,10 @@ end
             for x in (T(2.0e-15), T(1.0e-6), one(T))
                 push!(splits, (n, x), (x, n))
             end
-            # Just above full polarization, where 1 − ζ is near ε_ζ: the ratios that set n_max.
-            for r in (T === Float32 ? (1.0e-7, 2.0e-7) : (1.1e-16, 2.2e-16))
-                push!(splits, (n / 2, T(r * n / 2)))
+            # Near full polarization, where 1 − ζ is near ε_ζ: the ratios that set n_max, below, at
+            # and just above ε_ζ/2, and near ε_ζ.
+            for r in (T === Float32 ? (5.0e-8, 6.3e-8, 1.0e-7, 2.0e-7) : (1.1e-16, 1.122e-16, 1.15e-16, 2.25e-16))
+                push!(splits, (n / 2, T(r * n / 2)), (T(r * n / 2), n / 2))
             end
             for x in splits
                 err = error_eps(xc_derivatives(g, Val(K), x), xc_derivatives(gb, Val(K), map(big, x)), T)
