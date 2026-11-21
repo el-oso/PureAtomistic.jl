@@ -778,8 +778,8 @@ end
 # functionals, independent of `_pbe_x_term` and `_pbe_H`; ε_c comes from the PW92 code, which is
 # the spec formula as written. Compared with `exact_big(f)` at order 3, restricted and polarized, at
 # points in every region of the forms: x = μs²/κ below and above 1 (pbe_x); y = A·t² and X below and
-# above 1 and z = −ε_c/(γφ³) below and above 1, every reachable combination (pbe_c; z > 1, y > 1,
-# X ≤ 1 cannot occur, since X = E(1 − v) ≥ (e − 1)·2/3 there), at B = 0.5, 1 and 2. Errors per
+# above 1 and z = −ε_c/(γφ³) below and above 1, every reachable combination (pbe_c; at B = 0.5, 1 and 2,
+# z > 1, y > 1, X ≤ 1 cannot occur, since X > (e − 1)(1 − 1/(2 + B)) > 1 there; at B = 0 it can). Errors per
 # entry against the largest normalized coefficient of its order (`error_eps`), in eps of 256-bit
 # BigFloat. Bound (c): 1e4, measured at most 975.
 @testitem "PBE forms against the plain spec formulas" setup = [PBEReference] begin
