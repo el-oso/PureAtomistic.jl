@@ -1,0 +1,19 @@
+# The methods every functional defines, checked by TypeContracts. A concrete functional also holds
+# a `thresholds` field (see `Thresholds`).
+
+@contract AbstractFunctional "An exchange-correlation functional of the density, and for a GGA of σ." begin
+    family(::Self)::Symbol => "`:lda` or `:gga`"
+    kind(::Self)::Symbol => "`:exchange`, `:correlation` or `:exchange_correlation`"
+    _with_number_type(::Self, ::Type) => "the functional with its parameters in another number type"
+    _float32_max_order(::Type{Self})::Int => "largest derivative order evaluated in Float32"
+end
+
+@contract AbstractLDA "A functional of the density alone." begin
+    _energy_density(::Self, ::Real) => "energy per volume of a restricted density, as a series"
+    _energy_density(::Self, ::Tuple) => "energy per volume of a polarized density (ρα, ρβ)"
+end
+
+@contract AbstractGGA "A functional of the density and σ." begin
+    _energy_density(::Self, ::Real, ::Real) => "energy per volume of a restricted (ρ, σ), as a series"
+    _energy_density(::Self, ::Tuple, ::Tuple) => "energy per volume of a polarized (ρ, σ)"
+end

@@ -2,6 +2,7 @@ module PureXC
 
 using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, fast_exp, fast_expm1, fast_invcbrt, fast_log, fast_log1p, fast_sqrt, power_series, substitute, value, variable
 using StrictMode: @strict_policy
+using TypeContracts: @contract, Self
 
 """
     AbstractFunctional{T}
@@ -50,6 +51,7 @@ include("gga/pbe_x.jl")
 include("gga/pbe_c.jl")
 include("array.jl")
 include("composite.jl")
+include("contracts.jl")
 
 export AbstractFunctional, AbstractLDA, AbstractGGA, family, kind
 export xc_derivatives, energy_density, xc_evaluate!, xc_outputs, XC, pbe, zk

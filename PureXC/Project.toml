@@ -6,6 +6,7 @@ authors = ["el_oso"]
 [deps]
 PureTaylor = "afef06f6-54c7-4a99-a2ea-8612840565e0"
 StrictMode = "0e98b4f4-d0e6-42ac-af0a-707c24852f32"
+TypeContracts = "c7a3f1e2-84b5-4d69-9e0a-1f2b3c4d5e6f"
 
 [sources]
 PureTaylor = {path = "../PureTaylor"}
@@ -13,4 +14,5 @@ PureTaylor = {path = "../PureTaylor"}
 [compat]
 PureTaylor = "0.1"
 StrictMode = "0.5.10"
+TypeContracts = "0.14.7"
 julia = "1.12"
