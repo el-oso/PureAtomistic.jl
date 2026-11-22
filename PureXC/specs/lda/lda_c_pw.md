@@ -118,7 +118,7 @@ API. Applied as follows (application checked against Libxc, see below):
    The raised channels also give the total density n_r = max(n_α, n_thr) + max(n_β, n_thr).
    Every derivative is that of n_r·ε_c at the raised densities. The energy output is
    e = n·ε_c with the caller's n, so that e/n equals Libxc's zk (checked against Libxc, below).
-3. In (E3), a factor (1 ± ζ)^{4/3} with 1 ± ζ ≤ ε_ζ is replaced by the constant ε_ζ^{4/3}.
+3. In (E3), a factor (1 ± ζ)^{4/3} with 1 ± ζ < ε_ζ is replaced by the constant ε_ζ^{4/3}. The comparison is strict and uses the rounded ζ = (n_α − n_β)/n: at ρ = (1000, 1e-13) the rounded 1 − ζ equals ε_ζ, and Libxc keeps the factor (v2rho2_ββ = 4.65e6).
 
 ### Libxc behavior (information; checked against Libxc 7.0.0 outputs)
 

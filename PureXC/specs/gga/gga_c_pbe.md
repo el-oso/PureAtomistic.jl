@@ -131,7 +131,7 @@ checked against Libxc, see below):
    vrho_β = 16.23626753063028), and at n_α = n_β = 0.5005e-12 and 0.9995e-12.
 3. σ_σσ (restricted: σ) is raised to max(σ_σσ, σ_thr²); the floor is the **square** of the
    reported threshold, 1.0000000000000042e-32.
-4. In f(ζ) (`lda_c_pw_mod`) and in φ(ζ), a factor (1 ± ζ)^p with 1 ± ζ ≤ ε_ζ is replaced by
+4. In f(ζ) (`lda_c_pw_mod`) and in φ(ζ), a factor (1 ± ζ)^p with 1 ± ζ < ε_ζ (strict, on the rounded ζ, as in `lda_c_pw` rule 3) is replaced by
    the constant ε_ζ^p.
 5. In the polarized case the total σ_αα + 2σ_αβ + σ_ββ is raised to the σ floor σ_thr². It can be
    below it only by rounding, since PureXC rejects σ_αβ beyond √σ_αα·√σ_ββ·(1 + 8·eps) (Libxc
