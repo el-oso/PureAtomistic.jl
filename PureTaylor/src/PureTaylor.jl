@@ -20,7 +20,7 @@ public coefficient, power_series
 for f in (
         :_addsub_unrolled_body, :_mul_unrolled_body, :_literal_pow_unrolled_body, :_compose_unrolled_body,
         :_recurrence_unrolled_body, :_coefficient_unrolled_body, :_derivatives_unrolled_body,
-        :_scale_from_unrolled_body, :_substitute_body, :_substitute_plan, :_substitute_masks, :_int32_tuple,
+        :_scale_from_unrolled_body, :_div_unrolled_body, :_div_type_error, :_substitute_body, :_substitute_plan, :_substitute_masks, :_int32_tuple,
     )
     @eval @strict_exempt $f reason = "code generation: runs when a method is generated"
 end

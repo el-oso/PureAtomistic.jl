@@ -67,10 +67,24 @@ expect = "compose equals the sum of powers"
 # The closed-form derivatives.
 
 [[mutation]]
-name = "inverse-series-sign"
+name = "division-recurrence-sign"
 file = "src/arith.jl"
-find = 'isodd(k) ? r : -r'
-replace = 'isodd(k) ? r : r'
+find = '$(acc === nothing ? num : :($num - $acc))'
+replace = '$(acc === nothing ? num : :($num + $acc))'
+expect = "inverse and division"
+
+[[mutation]]
+name = "division-leading-coefficient"
+file = "src/arith.jl"
+find = ') / b.c[1]))'
+replace = ') / b.c[end]))'
+expect = "inverse and division"
+
+[[mutation]]
+name = "inverse-numerator"
+file = "src/arith.jl"
+find = 'inv(a::Taylor) = _div(one(a), a)'
+replace = 'inv(a::Taylor) = _div(a, a)'
 expect = "inverse and division"
 
 [[mutation]]
@@ -506,3 +520,17 @@ file = "src/substitute.jl"
 find = 't = wdeg[p] < D ? zero(T) : _load(s, om + q) * r'
 replace = 't = wdeg[p] <= D ? zero(T) : _load(s, om + q) * r'
 expect = "loop substitute within the rounding bound"
+
+[[mutation]]
+name = "loop-division-sign"
+file = "src/arith.jl"
+find = 'return (first ? num : num - acc) / b.c[1]'
+replace = 'return (first ? num : num + acc) / b.c[1]'
+expect = "loop division within the rounding bound"
+
+[[mutation]]
+name = "loop-division-operand"
+file = "src/arith.jl"
+find = 'x, y = b.c[i], _load(s, ib[q])'
+replace = 'x, y = b.c[i], _load(s, max(ib[q] - 1, 1))'
+expect = "loop division within the rounding bound"

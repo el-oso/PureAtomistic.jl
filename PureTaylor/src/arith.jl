@@ -171,13 +171,92 @@ function *(a::Taylor{N, K, M, T, L}, r::Real) where {N, K, M, T, L}
 end
 *(r::Real, a::Taylor) = a * r
 
-# 1/(x + h) = Σₖ (-1)ᵏ (h/x)ᵏ / x: the series in t = h/x has coefficients ±1/x.
-function inv(a::Taylor{N, K, M, T, L}) where {N, K, M, T, L}
-    r = inv(value(a))
-    return compose(a, ntuple(k -> isodd(k) ? r : -r, Val(K + 1)), r)
+# Division a/b solves b·c = a degree by degree: c_α = (a_α − Σ_{0<β≤α} b_β c_{α−β}) / b₀, in the
+# order of the stored multi-indices of the union mask (graded by total degree, so each c_{α−β} is
+# formed before c_α), with the sum one `muladd` chain over the pairs of `b` and `c` with β ≠ 0. The
+# recurrence is used rather than a·inv(b) with inv(b) the geometric series 1/(b₀(1 + u)),
+# u = (b − b₀)/b₀, composed by Horner's rule: where the coefficients of u exceed 1 in size, the
+# powers of u are much larger than their sum. Measured on a denominator of pbe_c in PureXC, whose
+# first coefficient of u is 2.4: the terms of the composed series exceed the order-8 coefficient of
+# the quotient by 5060 times, those of the recurrence by 4.5 times.
+
+# The error for a coefficient type whose quotient has another type, as for integer coefficients.
+_div_type_error(T, Q) = :(throw(ArgumentError($("PureTaylor: the series of a Taylor with coefficient type $T needs coefficients of type $Q; seed the variables with floating-point or Rational values"))))
+
+# The unrolled body of `_div`.
+function _div_unrolled_body(N, K, M1, M2)
+    M = M1 | M2
+    pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M1))))
+    idx2 = stored_indices(Val(N), Val(K), Val(M2))
+    idx = stored_indices(Val(N), Val(K), Val(M))
+    posc = Dict(α => j for (j, α) in enumerate(idx))
+    c = [Symbol(:c_, j) for j in eachindex(idx)]
+    body = Expr(:block, Expr(:meta, :inline))
+    for (j, α) in enumerate(idx)
+        acc = nothing
+        for (i, β) in enumerate(idx2)
+            i == 1 && continue
+            all(β .<= α) || continue
+            k = get(posc, α .- β, 0)
+            iszero(k) && continue
+            x, y = :(b.c[$i]), c[k]
+            acc = acc === nothing ? :($x * $y) : :(muladd($x, $y, $acc))
+        end
+        num = haskey(pos1, α) ? :(a.c[$(pos1[α])]) : :(zero(T))
+        push!(body.args, :($(c[j]) = $(acc === nothing ? num : :($num - $acc)) / b.c[1]))
+    end
+    push!(body.args, :(Taylor{N, K, $M, T, $(length(idx))}($(Expr(:tuple, c...)))))
+    return body
 end
 
-/(a::Taylor, b::Taylor) = a * inv(b)
+# a/b over the union mask, by the recurrence above: unrolled up to `_UNROLL_MAX` coefficients,
+# `_div_loop` above.
+@generated function _div(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}) where {N, K, M1, M2, T, L1, L2}
+    Q = Base.promote_op(/, T, T)
+    isconcretetype(T) && Q !== T && return _div_type_error(T, Q)
+    _use_loop(length(stored_indices(Val(N), Val(K), Val(M1 | M2)))) && return :(_div_loop(a, b))
+    return _div_unrolled_body(N, K, M1, M2)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _div_unrolled(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}) where {N, K, M1, M2, T, L1, L2} =
+    _div_unrolled_body(N, K, M1, M2)
+
+# `_div` by a loop: the pairs of `_mul_table` for b times the result, without those of b's
+# constant term, and the positions of a in the union mask from `_addsub_table`.
+@noinline function _div_loop(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}) where {N, K, M1, M2, T}
+    M = M1 | M2
+    offsets, ia, ib, degree = _mul_table(Val(N), Val(K), Val(M2), Val(M))
+    pos1, _ = _addsub_table(Val(N), Val(K), Val(M1), Val(M2))
+    L = length(degree)
+    vl = Val(L)
+    c = _with_scratch(T, vl) do s
+        for j in 1:L
+            _store!(s, j, _div_coefficient(a, b, s, offsets, ia, ib, pos1[j], j))
+        end
+        return _scratch_tuple(s, T, 0, vl)
+    end
+    return Taylor{N, K, M, T, L}(c)
+end
+
+# Coefficient j of `_div_loop`, from the coefficients before it in the scratch array `s`.
+@inline function _div_coefficient(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, s, offsets, ia, ib, p, j) where {N, K, M1, M2, T}
+    acc = zero(T)
+    first = true
+    for q in offsets[j]:(offsets[j + 1] - 1)
+        i = ia[q]
+        isone(i) && continue
+        x, y = b.c[i], _load(s, ib[q])
+        acc = first ? x * y : muladd(x, y, acc)
+        first = false
+    end
+    num = iszero(p) ? zero(T) : a.c[p]
+    return (first ? num : num - acc) / b.c[1]
+end
+
+inv(a::Taylor) = _div(one(a), a)
+
+/(a::Taylor, b::Taylor) = _div(a, b)
 /(a::Taylor{N, K, M, T}, r::Real) where {N, K, M, T} = a * inv(convert(T, r))
 /(r::Real, a::Taylor) = r * inv(a)
 

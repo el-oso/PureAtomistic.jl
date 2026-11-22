@@ -199,6 +199,7 @@ end
         @test same(P.coefficient, P._coefficient_unrolled, (A, NTuple{5, Int}))
         @test same(P._derivatives, P._derivatives_unrolled, (A, NTuple{5, Float64}))
         @test same(P._scale_from, P._scale_from_unrolled, (A, Float64, Val{2}))
+        @test same(P._div, P._div_unrolled, (A, A))
         U = Tuple{A, A, A, A, A}
         @test same(substitute, P._substitute_unrolled, (A, U))
         @test lowered(substitute, (A, U)).inlining == 1                           # inline
@@ -208,7 +209,10 @@ end
     @test (above * above).c == P._mul_loop(above, above, false, 8).c
     @test (above + above).c == P._addsub_loop(above, above, Val(1)).c
     r = inv(value(above))
-    @test inv(above).c == P._compose_loop(above, ntuple(k -> isodd(k) ? r : -r, Val(9)), r).c
+    d = ntuple(k -> isodd(k) ? r : -r, Val(9))
+    @test P.compose(above, d, r).c == P._compose_loop(above, d, r).c
+    @test inv(above).c == P._div_loop(one(above), above).c
+    @test (above / (above + 1)).c == P._div_loop(above, above + 1).c
     @test (above^3).c == P._literal_pow_loop(above, Val(3)).c
     E = series(Val(2), Val(8), Float64, 3, 0.1)
     u = (above, above)
@@ -216,4 +220,24 @@ end
     @test lowered(substitute, (typeof(E), typeof(u))).inlining == 2                 # noinline
     g = (q, k) -> q / k
     @test P._recurrence(g, 1.0, Val(126)) == P._loop_recurrence(g, 1.0, Val(127))
+end
+
+# Oracle: the unrolled division. Bound (b), 2γ_n·S per coefficient with S the loop division on the
+# absolute values (b₀ replaced by |b₀| and every other coefficient of b by −|b_β|, so that the
+# recurrence adds magnitudes). n counts the longest chain of roundings that feeds a coefficient: each
+# of the K degrees passes a term through one muladd chain of at most P terms (P roundings, with P
+# the largest number of pairs of `_mul_table` for b and the quotient), one subtraction and one
+# division, so n = K·(P + 2).
+@testitem "loop division within the rounding bound of the unrolled division" setup = [LoopCases] begin
+    using PureTaylor
+    using .LoopCases: P, series, CASES, absc, bound, nterms
+    for T in (Float64, Float32), (N, K, m1, m2) in CASES
+        a = series(Val(N), Val(K), T, m1, 0.4); b = series(Val(N), Val(K), T, m2, -0.3)
+        x, y = P._div_loop(a, b), P._div_unrolled(a, b)
+        @test typeof(x) == typeof(y)
+        bs = typeof(b)(ntuple(i -> isone(i) ? abs(b.c[1]) : -abs(b.c[i]), Val(length(b.c))))
+        S = P._div_loop(absc(a), bs).c
+        n = K * (maximum(nterms(b, x, false, K)) + 2)
+        @test all(abs(x.c[j] - y.c[j]) <= bound(n, S[j]) for j in eachindex(S))
+    end
 end

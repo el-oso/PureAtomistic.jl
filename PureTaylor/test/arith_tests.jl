@@ -124,9 +124,10 @@ end
     ref = map(partial, idx)
     for j in eachindex(idx)
         # Rounding bound c·eps(Float64)·N with c = 2 (one rounding per multiply and per add) and
-        # N = 40 roundings per coefficient: x·y (at most 3 products), + 2 (1), inv(value) (1), s·h (1)
-        # and K = 3 Horner steps of at most 10 products and 1 add each (33); relative to the largest
-        # reference derivative of the same total degree. Largest measured: 0.30·eps·scale.
+        # N = 40 roundings per coefficient: x·y (at most 3 products), + 2 (1), and the division
+        # recurrence, through K = 3 degrees of at most 9 products (one rounding each in the muladd
+        # chain), one subtraction and one division each (33); relative to the largest reference
+        # derivative of the same total degree. Largest measured: 1.1·eps·scale.
         scale = maximum(abs(ref[i]) for i in eachindex(idx) if sum(idx[i]) == sum(idx[j]))
         @test abs(got[j] - ref[j]) <= 2 * eps(Float64) * 40 * scale
     end
