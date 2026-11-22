@@ -53,6 +53,25 @@ jobs:
         with:
           project: PureTaylor
           check_bounds: 'yes'
+  purexc-exhaustive:
+    name: PureXC every point of polarized pbe_c at orders 7 to 10 (Julia 1.13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          project: PureXC
+      # Runs only the items tagged :exhaustive.
+      - uses: julia-actions/julia-runtest@v1
+        env:
+          PUREXC_EXHAUSTIVE: '1'
+        with:
+          project: PureXC
+          check_bounds: 'yes'
   pureblas:
     name: PureBLAS active (Julia 1.13)
     runs-on: ubuntu-latest

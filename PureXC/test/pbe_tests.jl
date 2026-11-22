@@ -228,6 +228,75 @@
         min(1 + ζ, 1 - ζ) < f.thresholds.zeta && return 0.0
         return Float64((a + b) / min(a, b))
     end
+
+    # The bound of a point of the orders-0-to-10 items and of the t²_max scan
+    # (`test/scans/pbe_c_t2_max.jl`), in eps of the order scale. The measured values are the
+    # largest errors less 8κ_ζ of pbe_c, from that scan over all its rows, restricted and
+    # polarized, at t² up to each order's limit, or from the item "polarized pbe_c at orders 7 to
+    # 10, every point":
+    # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.43 (the item);
+    # - K ≤ 3: `bound_b`, bound (b);
+    # - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 9170 (the scan, polarized);
+    # - K ≥ 8: 7100, bound (c), measured at most 6930 (the scan, polarized; restricted 1570);
+    # - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
+    function point_bound(f, ρ, T, K)
+        T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 45.0
+        return (K <= 3 ? bound_b(f) : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
+    end
+
+    # σ at the reduced gradient g (s² or t²), from the exact values, rounded to T. Polarized pbe_c
+    # takes σ_αα = σ_αβ = σ_ββ, so that the total σ is 4σ_αα.
+    function gradient(f, T, ρ, g)
+        if f isa PureXC.PBEExchange
+            ρ isa Tuple || return T(g * C3 * big(ρ)^(8 // 3))
+            a, b = g * C6 * big(ρ[1])^(8 // 3), g * C6 * big(ρ[2])^(8 // 3)
+            return (T(a), T(sqrt(a * b) / 2), T(b))
+        end
+        t = big(f.thresholds.density)
+        ρ isa Tuple || return T(g * PureXC._pbe_t_scale(max(big(ρ), t), big(1.0)))
+        a, b = max(big(ρ[1]), t), max(big(ρ[2]), t)
+        s = g * PureXC._pbe_t_scale(a + b, PureXC._pbe_phi((a - b) / (a + b), big(f.thresholds.zeta))) / 4
+        return (T(s), T(s), T(s))
+    end
+
+    # The densities and splits of the orders-0-to-10 items at order K in type T: restricted n and
+    # the polarized splits of each n.
+    function sweep_points(build, T, K)
+        P = exponent(PureXC._gga_density_max(T, Val(K)))
+        ns = [ldexp(one(T), p) for p in unique([-20; 0:16:P; 5; P])]
+        push!(ns, build === pbe_x ? T(2.5e-15) : T(1.0e-12))
+        out = Any[]
+        for n in ns
+            push!(out, n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4))
+            for x in (T(2.0e-15), T(1.0e-6), one(T))
+                push!(out, (n, x), (x, n))
+            end
+            for r in (T === Float32 ? (5.0e-8, 1.0e-7, 2.0e-7) : (1.1e-16, 1.15e-16, 2.25e-16))
+                push!(out, (n / 2, T(r * n / 2)), (T(r * n / 2), n / 2))
+            end
+        end
+        return out
+    end
+
+    # The largest error over the polarized pbe_c points of `sweep_points` at order K in type T, at
+    # t² = 0, 1 and the order's limit (1 − 2^-10 of it); `test` is called with each error and its bound.
+    function polarized_c_sweep(T, K, test)
+        f = pbe_c(T)
+        lim = PureXC._pbe_c_t2_max(T, Val(K))
+        worst = 0.0
+        for ρ in sweep_points(pbe_c, T, K)
+            ρ isa Tuple || continue
+            for g in (big(0), big(1), big(lim) * (1 - big(2.0)^-10))
+                σ = gradient(f, T, ρ, g)
+                all(isfinite, σ) || continue
+                b = point_bound(f, ρ, T, K)
+                e = point_error(f, K, ρ, σ; allow = b)
+                test(e, b)
+                worst = max(worst, e - 8 * zeta_conditioning(f, ρ))
+            end
+        end
+        return worst
+    end
 end
 
 # Oracle: the specs' Libxc 7.0.0 reference rows. Tolerance (a): 1e-6 relative, the user's floor;
@@ -575,6 +644,14 @@ end
             @test (@test_noalloc xc_derivatives(f, Val(K), ρ, σ)) isa NamedTuple
         end
     end
+    # Polarized pbe_c at order 10, whose series are above PureTaylor's unrolling threshold: their
+    # kernels are the loop forms, and the call runs on the default stack.
+    for T in (Float32, Float64)
+        f = pbe_c(T)
+        ρp, σp = (T(0.3), T(0.1)), (T(0.02), T(0.005), T(0.01))
+        xc_derivatives(f, Val(10), ρp, σp)
+        @test (@test_noalloc xc_derivatives(f, Val(10), ρp, σp)) isa NamedTuple
+    end
     # The energy density with κ as a series variable.
     f0 = pbe_x()
     κ = variable(Val(1), Val(1), Val(1), f0.κ)
@@ -686,66 +763,55 @@ end
 end
 
 # Orders 0 to 10 at 2^p for p ∈ {−20} ∪ 0:16:P ∪ {5, P} up to n_max = 2^P, and at the smallest
-# densities not cut off, over the splits of `_lda_density_max`, each at s² (pbe_x, per channel) or
-# t² (pbe_c) of 0, 1 and the limit of order K. A Float32 call evaluates in Float64 above
-# `_float32_max_order` and rounds each output. Oracle: `exact_big`. Bounds (`point_bound`), per entry
-# against the largest normalized coefficient of its order (`error_eps`); an entry whose exact value
-# exceeds floatmax(T) must be infinite, with its sign where it is above the bound, and no NaN
-# passes:
-# - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.47;
-# - K ≤ 3: `bound_b`, bound (b) of "PBE functionals agree with BigFloat" (pbe_c 7400, pbe_x 760), measured at most 898 and 7.7;
-# - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 898;
-# - K ≥ 8: 7100, bound (c), measured at most 71;
-# - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
-# Polarized pbe_c is checked here to order 6 (`kmax_polarized_c`); see the comment there.
+# densities not cut off, over the splits of `_lda_density_max` (`sweep_points`), each at s² (pbe_x,
+# per channel) or t² (pbe_c) of 0, 1 and the limit of order K. A Float32 call evaluates in Float64
+# above `_float32_max_order` and rounds each output. Oracle: `exact_big`. Bounds: `point_bound`, per
+# entry against the largest normalized coefficient of its order (`error_eps`); an entry whose exact
+# value exceeds floatmax(T) must be infinite, with its sign where it is above the bound, and no NaN
+# passes.
+#
+# Polarized pbe_c is a series in five coupled variables whose BigFloat reference costs, per point,
+# 0.03 s at order 7, 0.08 s at 8, 0.15 s at 9 and 0.29 s at 10. Orders 0 to 6 take every point here.
+# Orders 7 to 10 take a subset in Float64 of about 100 points per order: n ∈ {2^−20, 2^16, 2^64},
+# the symmetric and unequal splits, full polarization and the ratios across ε_ζ, at t² of 0, 1, 2^14,
+# 2^22 and 2^30 (the y = A·t² ≈ 1 band near full polarization) and the limit. All their points are
+# in the item "polarized pbe_c at orders 7 to 10, every point" (tag `:exhaustive`).
 @testitem "PBE functionals at orders 0 to 10" setup = [PBEReference] begin
-    using .PBEReference: point_error, zeta_conditioning, bound_b
-    # Polarized pbe_c is a series in five coupled variables whose compilation grows quickly with the
-    # order (measured at order 8: 153 s in Float64 and 26 min in BigFloat), so order 7 is measured
-    # outside the suite; orders 9 and 10 overflow the stack.
-    kmax_polarized_c = 6
-    function point_bound(f, ρ, T, K)
-        T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 45.0
-        return (K <= 3 ? bound_b(f) : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
-    end
-    c3, c6 = 4 * cbrt(3 * big(π)^2)^2, 4 * cbrt(6 * big(π)^2)^2
-    # σ at the reduced gradient g (s² or t²), from the exact values, rounded to T.
-    function gradient(f, T, ρ, g)
-        if f isa PureXC.PBEExchange
-            ρ isa Tuple || return T(g * c3 * big(ρ)^(8 // 3))
-            a, b = g * c6 * big(ρ[1])^(8 // 3), g * c6 * big(ρ[2])^(8 // 3)
-            return (T(a), T(sqrt(a * b) / 2), T(b))
-        end
-        t = big(f.thresholds.density)
-        ρ isa Tuple || return T(g * PureXC._pbe_t_scale(max(big(ρ), t), big(1.0)))
-        a, b = max(big(ρ[1]), t), max(big(ρ[2]), t)
-        s = g * PureXC._pbe_t_scale(a + b, PureXC._pbe_phi((a - b) / (a + b), big(f.thresholds.zeta))) / 4
-        return (T(s), T(s), T(s))
-    end
+    using .PBEReference: point_error, point_bound, gradient, sweep_points
     for T in (Float32, Float64), build in (pbe_x, pbe_c), K in 0:10
         f = build(T)
-        P = exponent(PureXC._gga_density_max(T, Val(K)))
         lim = build === pbe_x ? PureXC._pbe_x_s2_max(T, Val(K)) : PureXC._pbe_c_t2_max(T, Val(K))
-        ns = [ldexp(one(T), p) for p in unique([-20; 0:16:P; 5; P])]
-        push!(ns, build === pbe_x ? T(2.5e-15) : T(1.0e-12))
-        for n in ns
-            splits = Any[n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4)]
-            for x in (T(2.0e-15), T(1.0e-6), one(T))
-                push!(splits, (n, x), (x, n))
-            end
-            for r in (T === Float32 ? (5.0e-8, 1.0e-7, 2.0e-7) : (1.1e-16, 1.15e-16, 2.25e-16))
-                push!(splits, (n / 2, T(r * n / 2)), (T(r * n / 2), n / 2))
-            end
-            for ρ in splits
-                build === pbe_c && ρ isa Tuple && K > kmax_polarized_c && continue
-                for g in (big(0), big(1), big(lim) * (1 - big(2.0)^-10))
-                    σ = gradient(f, T, ρ, g)
-                    all(isfinite, σ) || continue
-                    b = point_bound(f, ρ, T, K)
-                    @test point_error(f, K, ρ, σ; allow = b) <= b
-                end
+        for ρ in sweep_points(build, T, K)
+            build === pbe_c && ρ isa Tuple && K > 6 && continue
+            for g in (big(0), big(1), big(lim) * (1 - big(2.0)^-10))
+                σ = gradient(f, T, ρ, g)
+                all(isfinite, σ) || continue
+                b = point_bound(f, ρ, T, K)
+                @test point_error(f, K, ρ, σ; allow = b) <= b
             end
         end
+    end
+    f = pbe_c(Float64)
+    for K in 7:10
+        lim = big(PureXC._pbe_c_t2_max(Float64, Val(K))) * (1 - big(2.0)^-10)
+        for n in (2.0^-20, 2.0^16, 2.0^64)
+            splits = ((n, 0.0), (0.0, n), (n / 2, n / 2), (n / 4 * 3, n / 4), (n / 2, 1.1e-16 * n / 2), (1.15e-16 * n / 2, n / 2), (n / 2, 2.25e-16 * n / 2))
+            for ρ in splits, g in (big(0), big(1), big(2.0)^14, big(2.0)^22, big(2.0)^30, lim)
+                g <= lim || continue
+                σ = gradient(f, Float64, ρ, g)
+                b = point_bound(f, ρ, Float64, K)
+                @test point_error(f, K, ρ, σ; allow = b) <= b
+            end
+        end
+    end
+end
+
+# Every point of "PBE functionals at orders 0 to 10" for polarized pbe_c at orders 7 to 10, Float32
+# and Float64; oracle and bounds as there. Runs only with PUREXC_EXHAUSTIVE=1.
+@testitem "polarized pbe_c at orders 7 to 10, every point" tags = [:exhaustive] setup = [PBEReference] begin
+    using .PBEReference: polarized_c_sweep
+    for T in (Float32, Float64), K in 7:10
+        polarized_c_sweep(T, K, (e, b) -> @test e <= b)
     end
 end
 
