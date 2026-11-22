@@ -221,22 +221,21 @@ end
 
 t²_max(R, K), the largest reduced gradient t² that `pbe_c` accepts at order `K` in the type `R`, a
 power of two: `2^_PBE_C_T2_EXPONENT_FLOAT32[K + 1]` in Float32, `2^_PBE_C_T2_EXPONENT_FLOAT64[K + 1]`
-in Float64 and the other types. Each is measured as the largest power of two at which every output
-at order `K` is within its bound against BigFloat over the splits of `_lda_density_max` up to
-n_max, at every power of two up to the limit (step 1 in the exponent), restricted and polarized at
-orders 0 to 8 (at orders 7 and 8 over 12 of the 21 splits, including the ratios near ε_ζ), with the
-errors and bounds of the tests: per entry against the largest normalized
-Taylor coefficient of its order, plus for pbe_c the change of the outputs from rounding ε_c by one
-ulp. At orders 9 and 10 only restricted input is measured (Float32 2^14, 2^13; Float64 no failure up
-to 2^140, the end of the scan), and the limit is the smaller of that and the order-8 limit. Float32
-from order 4 is evaluated in Float64. Above the limit outputs lose their accuracy: in Float64 the
-total σ overflows near n_max, and in Float32 an entry beyond floatmax comes out with the wrong sign
-or not finite. Orders above 10 are not measured and take the order-10 value.
+in Float64 and the other types. Each is measured by `test/scans/pbe_c_t2_max.jl` as the largest
+power of two at which every output at order `K` is within its bound against BigFloat at every power
+of two up to the limit (step 1 in the exponent), restricted and over 21 polarized splits, at n_thr
+and 2^p up to n_max for p = −39, −9, …, 381 (Float64) or −39, −33, …, 45 (Float32), at orders 0 to
+10, with the errors and bounds of the tests: per entry against the largest normalized Taylor
+coefficient of its order, plus for pbe_c the change of the outputs from rounding ε_c by one ulp.
+Float32 from order 4 is evaluated in Float64. Above the limit outputs lose their accuracy: in
+Float64 the total σ overflows at n_max (2^132 fails there, every other point passes to the end of
+the scan, 2^140), and in Float32 an entry beyond floatmax comes out with the wrong sign or not
+finite. Orders above 10 are not measured and take the order-10 value.
 """
 _pbe_c_t2_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), _PBE_C_T2_EXPONENT_FLOAT64[min(K, 10) + 1])
 _pbe_c_t2_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, _PBE_C_T2_EXPONENT_FLOAT32[min(K, 10) + 1])
 
-const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 19, 19, 127, 127, 16, 16, 16, 14, 13)
+const _PBE_C_T2_EXPONENT_FLOAT32 = (19, 19, 19, 19, 127, 127, 17, 17, 16, 14, 13)
 const _PBE_C_T2_EXPONENT_FLOAT64 = (131, 131, 131, 131, 131, 131, 131, 131, 131, 131, 131)
 
 function _check_gga_domain(f::PBECorrelation, ::Val{K}, ρ::Real, σ::Real) where {K}

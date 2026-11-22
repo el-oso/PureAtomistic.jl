@@ -635,7 +635,7 @@ end
     @test PureXC._gga_density_max(BigFloat, Val(7)) == big(2.0)^381
     @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float32, Val(K))), 0:10)) == (127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127)
     @test Tuple(map(K -> exponent(PureXC._pbe_x_s2_max(Float64, Val(K))), 0:10)) == (1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023)
-    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float32, Val(K))), 0:10)) == (19, 19, 19, 19, 127, 127, 16, 16, 16, 14, 13)
+    @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float32, Val(K))), 0:10)) == (19, 19, 19, 19, 127, 127, 17, 17, 16, 14, 13)
     @test Tuple(map(K -> exponent(PureXC._pbe_c_t2_max(Float64, Val(K))), 0:10)) == (131, 131, 131, 131, 131, 131, 131, 131, 131, 131, 131)
     c3 = 4 * cbrt(3 * big(π)^2)^2
     tscale(n) = PureXC._pbe_t_scale(big(n), big(1.0))

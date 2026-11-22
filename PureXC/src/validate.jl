@@ -123,9 +123,9 @@ the type `R`: `2^p` with p = 381 in Float64 and 45 in Float32, above which the �
 4(6π²)^(2/3)·n^(8/3) of `pbe_x`, or σ itself at s² = 1, is beyond floatmax(R). The exponent is
 ⌊3(e − 6)/8⌋ with e = exponent(floatmax(R)), measured to be the largest power of two at which every
 output is within its bound against BigFloat over the splits of `_lda_density_max` and the
-reduced gradients up to their limits: `pbe_x` at orders 0 to 10, `pbe_c` restricted at orders 0 to
-10 and polarized at orders 0 to 8 (at orders 7 and 8 over 12 of the 21 splits, including the
-ratios near ε_ζ). BigFloat and the other types use the Float64 value.
+reduced gradients up to their limits: `pbe_x` at orders 0 to 10 and `pbe_c` restricted and
+polarized at orders 0 to 10 (`test/scans/pbe_c_t2_max.jl` for pbe_c). BigFloat and the other types
+use the Float64 value.
 """
 _gga_density_max(::Type{R}, ::Val{K}) where {R, K} = ldexp(one(R), 381)
 _gga_density_max(::Type{Float32}, ::Val{K}) where {K} = ldexp(1.0f0, 45)
