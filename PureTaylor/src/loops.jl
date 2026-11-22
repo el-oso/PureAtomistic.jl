@@ -3,9 +3,10 @@
 # runs a loop over index tables that are computed when the method is generated and returned as
 # constant tuples, so that its compiled code has a fixed size and its stack frame holds the result
 # and a scratch array of O(L) entries. Each loop form performs the same arithmetic in the same order
-# as the unrolled form. The kernels without `muladd` therefore give identical results; where a
-# kernel uses `muladd`, LLVM decides at each call site whether to fuse the multiply and the add, so
-# the results can differ in rounding (even between two call sites of the unrolled form).
+# as the unrolled form. The two forms therefore give identical results (`==`). The coefficient kernels
+# accumulate with `fma`, not `muladd`: `muladd` lets LLVM fuse each multiply-add or not, decided at
+# each call site, so the same kernel would round differently inlined, out of line, unrolled and
+# looped. `fma` rounds once everywhere, which keeps every call site bit-identical.
 
 # Measured on Apple M-series, Julia 1.13: the loop product is 6 to 9 times slower than the unrolled
 # one at every size from L = 28 to L = 462, so there is no crossover in run time. The threshold is

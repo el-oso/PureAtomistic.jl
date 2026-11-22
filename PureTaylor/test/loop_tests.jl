@@ -2,14 +2,8 @@
 # kernel's unrolled form is reachable at any size as `_<kernel>_unrolled` (the same generated
 # expression the kernel uses at or below the threshold) and its loop form as `_<kernel>_loop`.
 #
-# Kernels without `muladd` must agree exactly (`==`): they perform the same operations in the same
-# order. The product and the kernels built on it cannot be compared with `==`: `muladd` lets LLVM
-# fuse each multiply-add or not, decided at each call site, so even the unrolled kernel is not
-# bit-reproducible between call sites. Those are compared with a rounding bound, kind (b): two
-# evaluations of the same sum of n rounded terms each lie within γ_n·S of the exact sum, where S is
-# the same computation on the absolute values of the inputs, so they differ by at most 2γ_n·S, with
-# γ_n = n·u/(1 − n·u) and u = eps(T)/2. S is computed by the loop kernel on the absolute values in
-# the type T, and is rounded up by the factor 1 + n·eps(T).
+# Every kernel accumulates with `fma`, which rounds once at every call site, so a loop form and its
+# unrolled form perform the same operations in the same order and agree exactly (`==`).
 @testmodule LoopCases begin
     using PureTaylor
     const P = PureTaylor
@@ -31,23 +25,9 @@
         (3, 8, 7, 3), (5, 5, 31, 31), (3, 10, 6, 7),
     )
 
-    absc(a::Taylor{N, K, M, T, L}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(map(abs, a.c))
-    γ(n, ::Type{T}) where {T} = n * (eps(T) / 2) / (1 - n * (eps(T) / 2))
-    # 2γ_n·S with S rounded up by the factor 1 + n·eps(T).
-    bound(n, S::T) where {T} = 2 * γ(n, T) * S * (1 + n * eps(T))
-
-    # The number of product terms of each output coefficient of `mul_truncated(a, b, skip0, D)`.
-    function nterms(a::Taylor{N, K, M1}, b::Taylor{N, K, M2}, skip0, D) where {N, K, M1, M2}
-        offsets, ia, _, degree = P._mul_table(Val(N), Val(K), Val(M1), Val(M2))
-        return map(eachindex(degree)) do j
-            degree[j] <= D || return 0
-            r = offsets[j]:(offsets[j + 1] - 1)
-            return count(q -> !(skip0 && isone(ia[q])), r)
-        end
-    end
 end
 
-@testitem "loop kernels without muladd equal the unrolled kernels" setup = [LoopCases] begin
+@testitem "loop kernels equal the unrolled kernels" setup = [LoopCases] begin
     using PureTaylor
     using .LoopCases: P, series, CASES
     for T in (Float64, Float32), (N, K, m1, m2) in CASES
@@ -85,57 +65,39 @@ end
     @test P._compose_loop(a0, (5.0,), 0.5) == P._compose_unrolled(a0, (5.0,), 0.5)
 end
 
-# Oracle: the unrolled product. Bound (b) per coefficient, 2γ_n·S with n its number of product terms
-# (see the top of this file).
-@testitem "loop product within the rounding bound of the unrolled product" setup = [LoopCases] begin
+# Oracle: the unrolled product, exact.
+@testitem "loop product equals the unrolled product" setup = [LoopCases] begin
     using PureTaylor
-    using .LoopCases: P, series, CASES, absc, bound, nterms
+    using .LoopCases: P, series, CASES
     for T in (Float64, Float32), (N, K, m1, m2) in CASES
         a = series(Val(N), Val(K), T, m1, 0.4); b = series(Val(N), Val(K), T, m2, -0.3)
         for (skip0, D) in ((false, K), (true, K), (true, max(K - 2, 0)))
             x = P._mul_loop(a, b, skip0, D)
             y = P._mul_unrolled(a, b, Val(skip0), Val(D))
             @test typeof(x) == typeof(y)
-            S = P._mul_loop(absc(a), absc(b), skip0, D).c
-            n = nterms(a, b, skip0, D)
-            @test all(abs(x.c[j] - y.c[j]) <= bound(n[j], S[j]) for j in eachindex(n))
-            # Coefficients above the degree limit are exact zeros in both forms.
-            @test all(iszero(x.c[j]) && iszero(y.c[j]) for j in eachindex(n) if iszero(n[j]))
+            @test x.c == y.c
         end
     end
 end
 
-# Oracle: the unrolled compose. Bound (b), 2γ_n·S per coefficient with S the loop compose on the
-# absolute values of a, d and s. n counts the longest chain of roundings that feeds a coefficient:
-# each of the K Horner steps passes a term through one product of t = s·(a − value(a)) (the
-# rounding of s·aᵢ and of the product), the additions of that product's muladd chain (at most
-# P − 1, with P the largest number of product terms of a coefficient) and the addition of d, so
-# n = K·(P + 2).
-@testitem "loop compose within the rounding bound of the unrolled compose" setup = [LoopCases] begin
+# Oracle: the unrolled compose, exact.
+@testitem "loop compose equals the unrolled compose" setup = [LoopCases] begin
     using PureTaylor
-    using .LoopCases: P, series, CASES, absc, bound, nterms
+    using .LoopCases: P, series, CASES
     for T in (Float64, Float32), (N, K, m1, _) in CASES
         a = series(Val(N), Val(K), T, m1, 0.4)
         d = ntuple(i -> T(-1)^i * T(7) / (i + 2), Val(K + 1))
         s = T(-0.8)
         x, y = P._compose_loop(a, d, s), P._compose_unrolled(a, d, s)
         @test typeof(x) == typeof(y)
-        S = P._compose_loop(absc(a), map(abs, d), abs(s)).c
-        n = K * (maximum(nterms(a, a, true, K)) + 2)
-        @test all(abs(x.c[j] - y.c[j]) <= bound(n, S[j]) for j in eachindex(S))
+        @test x.c == y.c
     end
 end
 
-# Oracle: the unrolled substitute. Bound (b), 2γ_n·S per coefficient with S the loop substitute on
-# the absolute values of the coefficients of E and u. n counts the longest chain of roundings that
-# feeds a coefficient: hᵢ (one subtraction), a monomial of degree at most K built by K − 1 products
-# of at most P terms each (P roundings each: the products and the additions of the muladd chain,
-# with P the largest number of product terms of a coefficient over the result's mask), its scaling
-# by E.c[j] (one), the partial sums over the L_E − 1 terms of E and the final addition of E.c[1]:
-# n = 1 + (K − 1)·P + 1 + L_E.
-@testitem "loop substitute within the rounding bound of the unrolled substitute" setup = [LoopCases] begin
+# Oracle: the unrolled substitute, exact.
+@testitem "loop substitute equals the unrolled substitute" setup = [LoopCases] begin
     using PureTaylor
-    using .LoopCases: P, absc, bound
+    using .LoopCases: P
     for T in (Float64, Float32), K in (2, 3, 4, 6)
         x = variable(Val(3), Val(K), Val(1), T(0.7)); y = variable(Val(3), Val(K), Val(2), T(0.2))
         z = variable(Val(3), Val(K), Val(3), T(1.3))
@@ -146,11 +108,7 @@ end
         for u in ((v[1] + v[2], (v[1] - v[2]) / (v[1] + v[2]), v[3] + 2 * v[4] + v[5]), (v[1] * v[5], T(0.3), v[2] + v[3]))
             r1, r2 = P._substitute_loop(E, u), P._substitute_unrolled(E, u)
             @test typeof(r1) == typeof(r2)
-            au = map(w -> w isa Taylor ? absc(w) : abs(w), u)
-            S = P._substitute_loop(absc(E), au).c
-            Pmax = maximum(diff(collect(P._mul_table(Val(5), Val(K), Val(31), Val(31))[1])))
-            n = 2 + (K - 1) * Pmax + length(E.c)
-            @test all(abs(r1.c[j] - r2.c[j]) <= bound(n, S[j]) for j in eachindex(S))
+            @test r1.c == r2.c
         end
     end
 end
@@ -222,22 +180,14 @@ end
     @test P._recurrence(g, 1.0, Val(126)) == P._loop_recurrence(g, 1.0, Val(127))
 end
 
-# Oracle: the unrolled division. Bound (b), 2γ_n·S per coefficient with S the loop division on the
-# absolute values (b₀ replaced by |b₀| and every other coefficient of b by −|b_β|, so that the
-# recurrence adds magnitudes). n counts the longest chain of roundings that feeds a coefficient: each
-# of the K degrees passes a term through one muladd chain of at most P terms (P roundings, with P
-# the largest number of pairs of `_mul_table` for b and the quotient), one subtraction and one
-# division, so n = K·(P + 2).
-@testitem "loop division within the rounding bound of the unrolled division" setup = [LoopCases] begin
+# Oracle: the unrolled division, exact.
+@testitem "loop division equals the unrolled division" setup = [LoopCases] begin
     using PureTaylor
-    using .LoopCases: P, series, CASES, absc, bound, nterms
+    using .LoopCases: P, series, CASES
     for T in (Float64, Float32), (N, K, m1, m2) in CASES
         a = series(Val(N), Val(K), T, m1, 0.4); b = series(Val(N), Val(K), T, m2, -0.3)
         x, y = P._div_loop(a, b), P._div_unrolled(a, b)
         @test typeof(x) == typeof(y)
-        bs = typeof(b)(ntuple(i -> isone(i) ? abs(b.c[1]) : -abs(b.c[i]), Val(length(b.c))))
-        S = P._div_loop(absc(a), bs).c
-        n = K * (maximum(nterms(b, x, false, K)) + 2)
-        @test all(abs(x.c[j] - y.c[j]) <= bound(n, S[j]) for j in eachindex(S))
+        @test x.c == y.c
     end
 end

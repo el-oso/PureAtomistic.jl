@@ -206,8 +206,8 @@ expect = "fast functions on Taylor numbers agree"
 [[mutation]]
 name = "invcbrt-step-second-order"
 file = "src/fast.jl"
-find = 'muladd(T(2 / 9), e, T(1 / 3))'
-replace = 'muladd(T(1 / 9), e, T(1 / 3))'
+find = 'fma(T(2 / 9), e, T(1 / 3))'
+replace = 'fma(T(1 / 9), e, T(1 / 3))'
 expect = "cbrt Float64|invcbrt Float64"
 
 # The final Newton step of fast_cbrt corrects an error of about one ulp, so the tests see its factor
@@ -286,8 +286,8 @@ expect = "exp Float64|expm1 Float64"
 [[mutation]]
 name = "expm1-power-of-two-term"
 file = "src/fast.jl"
-find = 'muladd(twok, p, twok - one(T))'
-replace = 'muladd(twok, p, twok)'
+find = 'fma(twok, p, twok - one(T))'
+replace = 'fma(twok, p, twok)'
 expect = "expm1 Float64"
 
 # LN2_LO is computed from LN2_HI, so a change of LN2_HI alone keeps LN2_HI + LN2_LO = ln 2. The
@@ -421,116 +421,125 @@ name = "loop-product-pair-index"
 file = "src/arith.jl"
 find = 'x, y = a.c[i], b.c[ib[q]]'
 replace = 'x, y = a.c[i], b.c[ia[q]]'
-expect = "loop product within the rounding bound"
+expect = "loop product equals the unrolled product"
 
 [[mutation]]
 name = "loop-product-skip-constant-term"
 file = "src/arith.jl"
 find = 'skip0 && isone(i) && continue'
 replace = 'skip0 && isone(q) && continue'
-expect = "loop product within the rounding bound"
+expect = "loop product equals the unrolled product"
 
 [[mutation]]
 name = "loop-product-degree-limit"
 file = "src/arith.jl"
 find = 'degree[j] <= D || return acc'
 replace = 'degree[j] < D || return acc'
-expect = "loop product within the rounding bound"
+expect = "loop product equals the unrolled product"
 
 [[mutation]]
 name = "loop-product-table-difference"
 file = "src/arith.jl"
 find = 'k = all(β .<= α) ? get(pos2, α .- β, 0) : 0'
 replace = 'k = all(β .<= α) ? get(pos2, β, 0) : 0'
-expect = "loop product within the rounding bound"
+expect = "loop product equals the unrolled product"
 
 [[mutation]]
 name = "loop-sum-sign"
 file = "src/arith.jl"
 find = 'iszero(i) && return sgn == 1 ? b.c[k] : -b.c[k]'
 replace = 'iszero(i) && return sgn == 1 ? b.c[k] : b.c[k]'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-horner-degree-limit"
 file = "src/univariate.jl"
 find = 'p = _mul_loop(t, p, true, K - j) + d[j + 1]'
 replace = 'p = _mul_loop(t, p, true, K - j - 1) + d[j + 1]'
-expect = "loop compose within the rounding bound"
+expect = "loop compose equals the unrolled compose"
 
 [[mutation]]
 name = "loop-literal-power-first-factor"
 file = "src/arith.jl"
 find = 'r = started ? r * x : x'
 replace = 'r = started ? r * x : x * x'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-recurrence-first-term"
 file = "src/loops.jl"
 find = 'unsafe_store!(p, x, 1)'
 replace = 'unsafe_store!(p, g(x, 0), 1)'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-derivatives-factor-j"
 file = "src/type.jl"
 find = 'v *= isone(j) ? invscale[i] : T(j) * invscale[i]'
 replace = 'v *= isone(j) ? invscale[i] : T(j + 1) * invscale[i]'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-coefficient-match"
 file = "src/type.jl"
 find = 'α == idx[j] && return a.c[j]'
 replace = 'α >= idx[j] && return a.c[j]'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-scale-degree-bound"
 file = "src/substitute.jl"
 find = 'degree[j] < D ? zero(T) : m.c[j] * r'
 replace = 'degree[j] <= D ? zero(T) : m.c[j] * r'
-expect = "loop kernels without muladd equal the unrolled kernels"
+expect = "loop kernels equal the unrolled kernels"
 
 [[mutation]]
 name = "loop-substitute-pair-order"
 file = "src/substitute.jl"
 find = 'iszero(k) || (push!(via, i); push!(vib, k))'
 replace = 'iszero(k) || (push!(via, k); push!(vib, i))'
-expect = "loop substitute within the rounding bound"
+expect = "loop substitute equals the unrolled substitute"
 
 [[mutation]]
 name = "loop-substitute-product-operand"
 file = "src/substitute.jl"
 find = 'x, y = _load(s, oa + via[q]), _load(s, ob + vib[q])'
 replace = 'x, y = _load(s, oa + via[q]), _load(s, oa + vib[q])'
-expect = "loop substitute within the rounding bound"
+expect = "loop substitute equals the unrolled substitute"
 
 [[mutation]]
 name = "loop-substitute-term-store"
 file = "src/substitute.jl"
 find = '_store!(s, acc + p, inA ? _load(s, acc + p) + t : t)'
 replace = '_store!(s, acc + p, inA ? _load(s, acc + p) + t : _load(s, acc + p))'
-expect = "loop substitute within the rounding bound"
+expect = "loop substitute equals the unrolled substitute"
 
 [[mutation]]
 name = "loop-substitute-term-degree"
 file = "src/substitute.jl"
 find = 't = wdeg[p] < D ? zero(T) : _load(s, om + q) * r'
 replace = 't = wdeg[p] <= D ? zero(T) : _load(s, om + q) * r'
-expect = "loop substitute within the rounding bound"
+expect = "loop substitute equals the unrolled substitute"
 
 [[mutation]]
 name = "loop-division-sign"
 file = "src/arith.jl"
 find = 'return (first ? num : num - acc) / b.c[1]'
 replace = 'return (first ? num : num + acc) / b.c[1]'
-expect = "loop division within the rounding bound"
+expect = "loop division equals the unrolled division"
 
 [[mutation]]
 name = "loop-division-operand"
 file = "src/arith.jl"
 find = 'x, y = b.c[i], _load(s, ib[q])'
 replace = 'x, y = b.c[i], _load(s, max(ib[q] - 1, 1))'
-expect = "loop division within the rounding bound"
+expect = "loop division equals the unrolled division"
+
+[[mutation]]
+name = "loop-product-unfused-add"
+file = "src/arith.jl"
+find = '''        x, y = a.c[i], b.c[ib[q]]
+        acc = first ? x * y : fma(x, y, acc)'''
+replace = '''        x, y = a.c[i], b.c[ib[q]]
+        acc = first ? x * y : x * y + acc'''
+expect = "loop product equals the unrolled product"

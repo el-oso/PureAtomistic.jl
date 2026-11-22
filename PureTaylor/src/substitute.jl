@@ -310,7 +310,7 @@ function _substitute_steps!(s, E::Taylor{N, K, M, T}, steps, voff, via, vib, cma
                 first = true
                 for q in voff[base + p]:(voff[base + p + 1] - 1)
                     x, y = _load(s, oa + via[q]), _load(s, ob + vib[q])
-                    v = first ? x * y : muladd(x, y, v)
+                    v = first ? x * y : fma(x, y, v)
                     first = false
                 end
                 _store!(s, out + p, v)

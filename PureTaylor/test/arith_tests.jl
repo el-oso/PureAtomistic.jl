@@ -125,7 +125,7 @@ end
     for j in eachindex(idx)
         # Rounding bound c·eps(Float64)·N with c = 2 (one rounding per multiply and per add) and
         # N = 40 roundings per coefficient: x·y (at most 3 products), + 2 (1), and the division
-        # recurrence, through K = 3 degrees of at most 9 products (one rounding each in the muladd
+        # recurrence, through K = 3 degrees of at most 9 products (one rounding each in the fma
         # chain), one subtraction and one division each (33); relative to the largest reference
         # derivative of the same total degree. Largest measured: 1.1·eps·scale.
         scale = maximum(abs(ref[i]) for i in eachindex(idx) if sum(idx[i]) == sum(idx[j]))
