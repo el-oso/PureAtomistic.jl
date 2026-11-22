@@ -816,6 +816,15 @@ end
     end
 end
 
+# Spec gga_c_pbe section 7: B ≥ 0; a negative or NaN B is a caller error.
+@testitem "pbe_c rejects a negative B" begin
+    f0 = pbe_c()
+    with_B(B) = PureXC.PBECorrelation{Float64}(f0.β, f0.γ, B, f0.pw, f0.thresholds)
+    @test_throws "xc: PBE correlation requires B ≥ 0, got B = -0.5" with_B(-0.5)
+    @test_throws "xc: PBE correlation requires B ≥ 0, got B = NaN" with_B(NaN)
+    @test with_B(0).B === 0.0
+end
+
 # The multiplier B of spec gga_c_pbe (E2): the bracket of H is (1 + B·A·t²)/(1 + A·t² + B·A²t⁴).
 # Oracle: the spec's Libxc 7.0.0 zk at B = 0, 0.5 and 2. Tolerance (a): 1e-6 relative, the user's
 # floor; measured at most 5.6e-15.

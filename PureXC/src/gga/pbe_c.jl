@@ -16,6 +16,12 @@ struct PBECorrelation{T} <: AbstractGGA{T}
     B::T
     pw::PW92Correlation{T}
     thresholds::Thresholds{T}
+    function PBECorrelation{T}(β, γ, B, pw, thresholds) where {T}
+        B = convert(T, B)
+        # The evaluation of H in `_pbe_H` holds for B ≥ 0 (section 7 of the spec).
+        B >= 0 || throw(ArgumentError("xc: PBE correlation requires B ≥ 0, got B = $B"))
+        return new{T}(β, γ, B, pw, thresholds)
+    end
 end
 
 # γ = (1 − ln 2)/π² in 256-bit BigFloat, and rounded to Float64 (0.031090690869654894, the double

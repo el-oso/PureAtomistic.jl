@@ -113,6 +113,9 @@ and up to 1.5e-3 (v2rhosigma); building ε_c from `lda_c_pw` (paper PW92 constan
 Domain: n_α, n_β ≥ 0, σ_αα, σ_ββ ≥ 0, σ ≥ 0. Negative density or σ, NaN or Inf is a caller
 error (design: throws), as is σ_αβ² > σ_αα σ_ββ beyond a rounding bound.
 
+Parameter: B ≥ 0. A negative or NaN B is a caller error (throws). The forms of H that an
+implementation uses at large z, y and X are checked for B ≥ 0 only.
+
 ### PureXC rule
 
 Parameters, defaults as Libxc 7.0.0 reports them for this functional: density threshold
