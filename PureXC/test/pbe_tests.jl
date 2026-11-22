@@ -225,7 +225,7 @@
         t = f.thresholds.density
         a, b = map(x -> big(max(x, t)), ρ)
         ζ = (a - b) / (a + b)
-        min(1 + ζ, 1 - ζ) <= f.thresholds.zeta && return 0.0
+        min(1 + ζ, 1 - ζ) < f.thresholds.zeta && return 0.0
         return Float64((a + b) / min(a, b))
     end
 end
@@ -389,7 +389,7 @@ end
     @test isfinite(xc_derivatives(f, Val(1), (0.1, 0.05), (1.0e-2, 9.0e-4, 1.0e-4)).e)
 end
 
-# Spec gga_c_pbe, section 7, rule 4: a factor (1 ± ζ)^p with 1 ± ζ ≤ ε_ζ, in f(ζ) and φ(ζ), is the
+# Spec gga_c_pbe, section 7, rule 4: a factor (1 ± ζ)^p with 1 ± ζ < ε_ζ, in f(ζ) and φ(ζ), is the
 # constant ε_ζ^p, which has no derivative. At (1e5, 0) the channel raised to n_thr gives
 # 1 − ζ = 2e-17 < ε_ζ; at (1e3, 1e-6) the factors are kept. Only the qualitative effect is checked:
 # the second derivative in the empty channel is moderate where the factors are constant and large
@@ -402,6 +402,21 @@ end
     @test abs(large) > 100
     # Oracle: Base cbrt. Bound (b): fast_cbrt within 2 ulps, squared and summed, 8 roundings of eps/2.
     @test abs(PureXC._pbe_phi(1.0, eps()) - (cbrt(2.0)^2 + cbrt(eps())^2) / 2) <= 4 * eps()
+end
+
+# Rule 4 is strict on the rounded 1 − ζ, with ζ formed from the channels raised to n_thr = 1e-12: at
+# (8000, 0) the rounded 1 − ζ equals ε_ζ and the factors are kept, so v2rho2_ββ is large; at
+# (1e5, 0) it rounds to 0 and they are replaced, so v2rho2_ββ is moderate. Only the qualitative
+# effect is checked, as above.
+@testitem "pbe_c ζ-factor at the rounded 1 − ζ = ε_ζ" begin
+    f = pbe_c()
+    t = f.thresholds.density
+    ζ(a) = (a - t) / (a + t)
+    @test 1 - ζ(8000.0) == f.thresholds.zeta
+    @test iszero(1 - ζ(1.0e5))
+    @test abs(xc_derivatives(f, Val(2), (8000.0, 0.0), (1.0, 0.0, 0.0)).v2rho2[3]) > 100
+    small = xc_derivatives(f, Val(2), (1.0e5, 0.0), (1.0, 0.0, 0.0)).v2rho2[3]
+    @test isfinite(small) && abs(small) < 1
 end
 
 # Review focus 1: a fully polarized point gives finite values at every order, equal to the rule's
@@ -828,7 +843,7 @@ end
         ε = PureXC._pw92_eps(p.f.pw, rs(n))
         return n * (ε + H(p.f, n, one(BigFloat), g, ε))
     end
-    pow23(x, εζ) = ifelse(value(x) <= εζ, zero(x) + εζ^(2 // 3), PureXC._raise(x, εζ)^(2 // 3))
+    pow23(x, εζ) = ifelse(value(x) < εζ, zero(x) + εζ^(2 // 3), PureXC._raise(x, εζ)^(2 // 3))
     function PureXC._energy_density(p::PlainC, ρ::Tuple, σ::Tuple)
         t = p.f.thresholds
         a, b = PureXC._raise(ρ[1], t.density), PureXC._raise(ρ[2], t.density)

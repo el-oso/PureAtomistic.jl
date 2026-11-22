@@ -64,13 +64,13 @@ _pow23(x::Taylor) = power_series(x, convert(typeof(value(x)), 2) / 3, _pow23(val
 # π/(16(3π²)^(1/3)): t² = c·σ/(φ² n^(7/3)) of (E1).
 _pbe_c_t2_coefficient(::Type{R}) where {R} = convert(R, π) / (16 * cbrt(3 * convert(R, π)^2))
 
-# (1 + x)^(2/3) for φ, or the constant ε_ζ^(2/3) with no series part where 1 + x ≤ ε_ζ (rule 4).
-# The argument is raised to ε_ζ first so that fast_cbrt stays in its domain where the result is
-# discarded.
+# (1 + x)^(2/3) for φ, or the constant ε_ζ^(2/3) with no series part where the rounded 1 + x < ε_ζ
+# (rule 4, strict: at 1 + x == ε_ζ the factor is kept). The argument is raised to ε_ζ first so
+# that fast_cbrt stays in its domain where the result is discarded.
 function _pbe_pow23(y, εζ)
     x = _raise(y, εζ)
     t = _pow23(x)
-    return ifelse(value(y) <= εζ, zero(t) + _pow23(εζ), t)
+    return ifelse(value(y) < εζ, zero(t) + _pow23(εζ), t)
 end
 
 # φ(ζ) = [(1 + ζ)^(2/3) + (1 − ζ)^(2/3)]/2 of (E1), with rule 4.

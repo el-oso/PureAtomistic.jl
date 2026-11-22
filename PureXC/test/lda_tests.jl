@@ -99,7 +99,7 @@
         a, b = max(x[1], t), max(x[2], t)
         ζ = (a - b) / (a + b)
         κ = zeta_conditioning(g, x)
-        return min(1 + ζ, 1 - ζ) <= g.thresholds.zeta || κ <= 2 ? base : base + 8κ
+        return min(1 + ζ, 1 - ζ) < g.thresholds.zeta || κ <= 2 ? base : base + 8κ
     end
 
     # The largest error of the entries of one output, relative to its largest BigFloat entry.
@@ -281,16 +281,32 @@ end
     end
 end
 
-# Spec lda_c_pw, section 7, rule 3: a factor (1 ± ζ)^(4/3) with 1 ± ζ ≤ ε_ζ is the constant
-# ε_ζ^(4/3), which has no derivative. At n_α = 1000 and n_β = 1e-14, 1 − ζ rounds below ε_ζ, so
-# v2rho2_ββ is small (Libxc 2.6e-3); at n_β = 1e-13 the factor is kept and v2rho2_ββ is large
-# (Libxc 4.6e6). Only the qualitative effect is checked, as in the spec.
+# Spec lda_c_pw, section 7, rule 3: a factor (1 ± ζ)^(4/3) with the rounded 1 ± ζ < ε_ζ is the
+# constant ε_ζ^(4/3), which has no derivative. At n_α = 1000 and n_β = 1e-14, 1 − ζ rounds below
+# ε_ζ, so v2rho2_ββ is small (Libxc 2.6e-3); at n_β = 1e-13 the factor is kept and v2rho2_ββ is
+# large (Libxc 4.6e6). Only the qualitative effect is checked, as in the spec.
 @testitem "PW92 ζ-factor replacement" begin
     for f in (lda_c_pw(), lda_c_pw_mod())
         small = xc_derivatives(f, Val(2), (1000.0, 1.0e-14)).v2rho2[3]
         large = xc_derivatives(f, Val(2), (1000.0, 1.0e-13)).v2rho2[3]
         @test isfinite(small) && abs(small) < 1
         @test large > 1.0e6
+    end
+end
+
+# Rule 3 is strict on the rounded 1 − ζ, with ζ = (n_α − n_β)/n as formed in `_energy_density`: at
+# (1000, 8e-14) the rounded 1 − ζ equals ε_ζ and the factor is kept, so v2rho2_ββ is large; at
+# (1000, 5e-14) it rounds to 0 and the factor is replaced, so v2rho2_ββ is small. Only the
+# qualitative effect is checked, as above.
+@testitem "PW92 ζ-factor at the rounded 1 − ζ = ε_ζ" begin
+    for f in (lda_c_pw(), lda_c_pw_mod())
+        a = 1000.0
+        ζ(b) = (a - b) / (a + b)
+        @test 1 - ζ(8.0e-14) == f.thresholds.zeta
+        @test iszero(1 - ζ(5.0e-14))
+        @test xc_derivatives(f, Val(2), (a, 8.0e-14)).v2rho2[3] > 1.0e6
+        small = xc_derivatives(f, Val(2), (a, 5.0e-14)).v2rho2[3]
+        @test isfinite(small) && abs(small) < 1
     end
 end
 

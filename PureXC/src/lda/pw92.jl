@@ -100,12 +100,12 @@ function _pw92_G(rs, r, (A, α₁, β₁, β₂, β₃, β₄))
 end
 
 # (1 + x)^(4/3) for the factors of (E3), or the constant ε_ζ^(4/3) with no series part where
-# 1 + x ≤ ε_ζ (rule 3). The argument is raised to ε_ζ first so that fast_cbrt stays in its domain
-# where the result is discarded.
+# the rounded 1 + x < ε_ζ (rule 3, strict: at 1 + x == ε_ζ the factor is kept). The argument is
+# raised to ε_ζ first so that fast_cbrt stays in its domain where the result is discarded.
 function _pw92_pow43(y, εζ)
     x = _raise(y, εζ)
     t = _pow43(x)
-    return ifelse(value(y) <= εζ, zero(t) + εζ * fast_cbrt(εζ), t)
+    return ifelse(value(y) < εζ, zero(t) + εζ * fast_cbrt(εζ), t)
 end
 
 """
