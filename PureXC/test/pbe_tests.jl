@@ -234,7 +234,8 @@
     # largest errors less 8κ_ζ of pbe_c, from that scan over all its rows, restricted and
     # polarized, at t² up to each order's limit, or from the item "polarized pbe_c at orders 7 to
     # 10, every point":
-    # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.43 (the item);
+    # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.43, polarized pbe_c at
+    #   orders 7 to 10 only (the item); not measured for pbe_x, restricted input or orders 4 to 6;
     # - K ≤ 3: `bound_b`, bound (b);
     # - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 9170 (the scan, polarized);
     # - K ≥ 8: 7100, bound (c), measured at most 6930 (the scan, polarized; restricted 1570);
@@ -772,7 +773,7 @@ end
 #
 # Polarized pbe_c is a series in five coupled variables whose BigFloat reference costs, per point,
 # 0.03 s at order 7, 0.08 s at 8, 0.15 s at 9 and 0.29 s at 10. Orders 0 to 6 take every point here.
-# Orders 7 to 10 take a subset in Float64 of about 100 points per order: n ∈ {2^−20, 2^16, 2^64},
+# Orders 7 to 10 take a subset in Float64 of 126 points per order: n ∈ {2^−20, 2^16, 2^64},
 # the symmetric and unequal splits, full polarization and the ratios across ε_ζ, at t² of 0, 1, 2^14,
 # 2^22 and 2^30 (the y = A·t² ≈ 1 band near full polarization) and the limit. All their points are
 # in the item "polarized pbe_c at orders 7 to 10, every point" (tag `:exhaustive`).
