@@ -93,6 +93,11 @@ end
 #   its variables, so its mixed coefficients in n and σ come from the small corrections alone;
 #   composed with the series of X they would be differences of terms larger by the factor 1/y² or
 #   X. The value is fast_log1p of the value of X.
+# - For z > 1, y > 1 and X > 1, log(1 + X) is instead z + log(1 − (1 − e^(−z))·v), since
+#   1 + X = e^z·(1 − (1 − e^(−z))·v), whose log1p argument lies in (−1/(2 + B), 0]. The split form
+#   log X + log(1 + 1/X) is not used there: at high order its two terms are much larger than their
+#   sum (measured at full polarization, n = 2^21: by about 25 times at order 9 and 40 times at
+#   order 10), so their roundings remain in the sum.
 # - For z = −ε_c/(γφ³) > 1, 1/E = e^(−z)/(1 − e^(−z)) and log E = z + log(1 − e^(−z)): the series of
 #   1/E or log E composed with that of E would be differences of terms of the size of the powers
 #   of its first coefficient.
@@ -132,7 +137,9 @@ function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
     logsmall = log(βγ * c) + fast_log(σ) - convert(R, 7) / 3 * fast_log(n) - 2 * fast_log(φ) - fast_log1p(w)
     loglarge = logE + fast_log1p(-v)
     split = ifelse(value(y) <= 1, logsmall, loglarge) + fast_log1p(ifelse(value(y) <= 1, rsmall, rlarge))
-    L = ifelse(value(X) <= 1, fast_log1p(X), _series_with_value(split, fast_log1p(value(X))))
+    whole = z + fast_log1p((em - 1) * v)
+    above = ifelse(zlarge & (value(y) > 1), whole, split)
+    L = ifelse(value(X) <= 1, fast_log1p(X), _series_with_value(above, fast_log1p(value(X))))
     return f.γ * φ3 * L
 end
 
