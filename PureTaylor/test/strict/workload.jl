@@ -61,8 +61,14 @@ function strict_workload(::Val{N}, ::Val{K}, ::Type{T}) where {N, K, T}
 end
 
 function run_workload()
-    for (N, K) in ((1, 0), (1, 3), (2, 2), (2, 3), (5, 2), (5, 3)), T in (Float32, Float64)
+    # (3, 8) and (1, 130) are above `_UNROLL_MAX` (L = 165 and 131), so their kernels are the loop
+    # forms; (1, 130) also takes the loop form of the recurrence of the power series (K + 1 = 131).
+    for (N, K) in ((1, 0), (1, 3), (2, 2), (2, 3), (5, 2), (5, 3), (3, 8)), T in (Float32, Float64)
         strict_workload(Val(N), Val(K), T)
+    end
+    for T in (Float32, Float64)
+        x = T(0.7)
+        exercise((variable(Val(1), Val(130), Val(1), x),), x)
     end
     # The fallbacks of the fast kernels for other `Real`s.
     for f in (fast_sqrt, fast_cbrt, fast_invcbrt, fast_log, fast_log1p, fast_exp, fast_expm1)

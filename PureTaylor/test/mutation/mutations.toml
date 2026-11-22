@@ -392,3 +392,117 @@ file = "src/substitute.jl"
 find = 'sum(α) < D ? :(zero(T)) : :(m.c[$j] * r)'
 replace = 'sum(α) <= D ? :(zero(T)) : :(m.c[$j] * r)'
 expect = "substitute"
+
+# The loop forms of the kernels above `_UNROLL_MAX`, compared with their unrolled forms.
+
+[[mutation]]
+name = "loop-threshold"
+file = "src/loops.jl"
+find = '_use_loop(n::Integer) = n > _UNROLL_MAX'
+replace = '_use_loop(n::Integer) = n >= _UNROLL_MAX'
+expect = "kernels switch to the loop form above the threshold"
+
+[[mutation]]
+name = "loop-product-pair-index"
+file = "src/arith.jl"
+find = 'x, y = a.c[i], b.c[ib[q]]'
+replace = 'x, y = a.c[i], b.c[ia[q]]'
+expect = "loop product within the rounding bound"
+
+[[mutation]]
+name = "loop-product-skip-constant-term"
+file = "src/arith.jl"
+find = 'skip0 && isone(i) && continue'
+replace = 'skip0 && isone(q) && continue'
+expect = "loop product within the rounding bound"
+
+[[mutation]]
+name = "loop-product-degree-limit"
+file = "src/arith.jl"
+find = 'degree[j] <= D || return acc'
+replace = 'degree[j] < D || return acc'
+expect = "loop product within the rounding bound"
+
+[[mutation]]
+name = "loop-product-table-difference"
+file = "src/arith.jl"
+find = 'k = all(β .<= α) ? get(pos2, α .- β, 0) : 0'
+replace = 'k = all(β .<= α) ? get(pos2, β, 0) : 0'
+expect = "loop product within the rounding bound"
+
+[[mutation]]
+name = "loop-sum-sign"
+file = "src/arith.jl"
+find = 'iszero(i) && return sgn == 1 ? b.c[k] : -b.c[k]'
+replace = 'iszero(i) && return sgn == 1 ? b.c[k] : b.c[k]'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-horner-degree-limit"
+file = "src/univariate.jl"
+find = 'p = _mul_loop(t, p, true, K - j) + d[j + 1]'
+replace = 'p = _mul_loop(t, p, true, K - j - 1) + d[j + 1]'
+expect = "loop compose within the rounding bound"
+
+[[mutation]]
+name = "loop-literal-power-first-factor"
+file = "src/arith.jl"
+find = 'r = started ? r * x : x'
+replace = 'r = started ? r * x : x * x'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-recurrence-first-term"
+file = "src/loops.jl"
+find = 'unsafe_store!(p, x, 1)'
+replace = 'unsafe_store!(p, g(x, 0), 1)'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-derivatives-factor-j"
+file = "src/type.jl"
+find = 'v *= isone(j) ? invscale[i] : T(j) * invscale[i]'
+replace = 'v *= isone(j) ? invscale[i] : T(j + 1) * invscale[i]'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-coefficient-match"
+file = "src/type.jl"
+find = 'α == idx[j] && return a.c[j]'
+replace = 'α >= idx[j] && return a.c[j]'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-scale-degree-bound"
+file = "src/substitute.jl"
+find = 'degree[j] < D ? zero(T) : m.c[j] * r'
+replace = 'degree[j] <= D ? zero(T) : m.c[j] * r'
+expect = "loop kernels without muladd equal the unrolled kernels"
+
+[[mutation]]
+name = "loop-substitute-pair-order"
+file = "src/substitute.jl"
+find = 'iszero(k) || (push!(via, i); push!(vib, k))'
+replace = 'iszero(k) || (push!(via, k); push!(vib, i))'
+expect = "loop substitute within the rounding bound"
+
+[[mutation]]
+name = "loop-substitute-product-operand"
+file = "src/substitute.jl"
+find = 'x, y = _load(s, oa + via[q]), _load(s, ob + vib[q])'
+replace = 'x, y = _load(s, oa + via[q]), _load(s, oa + vib[q])'
+expect = "loop substitute within the rounding bound"
+
+[[mutation]]
+name = "loop-substitute-term-store"
+file = "src/substitute.jl"
+find = '_store!(s, acc + p, inA ? _load(s, acc + p) + t : t)'
+replace = '_store!(s, acc + p, inA ? _load(s, acc + p) + t : _load(s, acc + p))'
+expect = "loop substitute within the rounding bound"
+
+[[mutation]]
+name = "loop-substitute-term-degree"
+file = "src/substitute.jl"
+find = 't = wdeg[p] < D ? zero(T) : _load(s, om + q) * r'
+replace = 't = wdeg[p] <= D ? zero(T) : _load(s, om + q) * r'
+expect = "loop substitute within the rounding bound"

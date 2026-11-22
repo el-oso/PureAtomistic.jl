@@ -48,12 +48,8 @@ The value of a `Taylor` (its coefficient of order 0); a non-`Taylor` number is i
 value(a::Taylor) = a.c[1]
 value(x::Real) = x
 
-"""
-    coefficient(a, α)
-
-The coefficient `c_α = (∂^α f)/α!` of `a` (in the seed variables `u`), or zero when `α` is not stored.
-"""
-@generated function coefficient(a::Taylor{N, K, M, T, L}, α::NTuple{N, Int}) where {N, K, M, T, L}
+# The unrolled body of `coefficient`: a chain of comparisons in the order of the stored indices.
+function _coefficient_unrolled_body(N, K, M)
     idx = stored_indices(Val(N), Val(K), Val(M))
     body = :(return zero(T))
     for j in length(idx):-1:1
@@ -61,6 +57,20 @@ The coefficient `c_α = (∂^α f)/α!` of `a` (in the seed variables `u`), or z
     end
     return body
 end
+
+"""
+    coefficient(a, α)
+
+The coefficient `c_α = (∂^α f)/α!` of `a` (in the seed variables `u`), or zero when `α` is not stored.
+"""
+@generated function coefficient(a::Taylor{N, K, M, T, L}, α::NTuple{N, Int}) where {N, K, M, T, L}
+    _use_loop(L) && return :(_coefficient_loop(a, α))
+    return _coefficient_unrolled_body(N, K, M)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _coefficient_unrolled(a::Taylor{N, K, M, T, L}, α::NTuple{N, Int}) where {N, K, M, T, L} =
+    _coefficient_unrolled_body(N, K, M)
 
 """
     derivatives(a, invscale)
@@ -77,8 +87,9 @@ of `|c_α|` and the result in magnitude.
 derivatives(a::Taylor{N, K, M, T}, invscale::NTuple{N, Real}) where {N, K, M, T} =
     _derivatives(a, ntuple(i -> convert(T, invscale[i]), Val(N)))
 
-# The factors j·invscale_i are formed once each, in the type T, and applied left to right.
-@generated function _derivatives(a::Taylor{N, K, M, T, L}, invscale::NTuple{N, T}) where {N, K, M, T, L}
+# The unrolled body of `_derivatives`: the factors j·invscale_i are formed once each, in the type T,
+# and applied left to right.
+function _derivatives_unrolled_body(N, K, M, T)
     pos = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M))))
     body = Expr(:block)
     factor(i, j) = j == 1 ? :(invscale[$i]) : Symbol(:f_, i, :_, j)
@@ -95,4 +106,48 @@ derivatives(a::Taylor{N, K, M, T}, invscale::NTuple{N, Real}) where {N, K, M, T}
     end
     push!(body.args, Expr(:tuple, terms...))
     return body
+end
+
+# Unrolled up to `_UNROLL_MAX` derivatives, `_derivatives_loop` above.
+@generated function _derivatives(a::Taylor{N, K, M, T, L}, invscale::NTuple{N, T}) where {N, K, M, T, L}
+    _use_loop(length(multi_indices(Val(N), Val(K)))) && return :(_derivatives_loop(a, invscale))
+    return _derivatives_unrolled_body(N, K, M, T)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _derivatives_unrolled(a::Taylor{N, K, M, T, L}, invscale::NTuple{N, T}) where {N, K, M, T, L} =
+    _derivatives_unrolled_body(N, K, M, T)
+
+# `coefficient` by a loop over the stored multi-indices, in their order.
+@noinline function _coefficient_loop(a::Taylor{N, K, M, T}, α::NTuple{N, Int}) where {N, K, M, T}
+    idx = stored_indices(Val(N), Val(K), Val(M))
+    for j in eachindex(idx)
+        α == idx[j] && return a.c[j]
+    end
+    return zero(T)
+end
+
+# The position in `a` (0 where not stored) of each multi-index of `multi_indices(Val(N), Val(K))`.
+@generated function _derivatives_table(::Val{N}, ::Val{K}, ::Val{M}) where {N, K, M}
+    pos = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M))))
+    return _int32_tuple(get(pos, α, 0) for α in multi_indices(Val(N), Val(K)))
+end
+
+# `_derivatives` by a loop: the same factors j·invscale_i, recomputed where they are used, applied
+# left to right in the same order.
+@noinline function _derivatives_loop(a::Taylor{N, K, M, T}, invscale::NTuple{N, T}) where {N, K, M, T}
+    idx = multi_indices(Val(N), Val(K))
+    pos = _derivatives_table(Val(N), Val(K), Val(M))
+    return _loop_tuple(q -> _derivative_entry(a, invscale, pos[q], idx[q]), T, Val(length(idx)))
+end
+
+# One entry of `_derivatives_loop`: the coefficient at position `p` (0 where not stored) for the
+# multi-index α.
+@inline function _derivative_entry(a::Taylor{N, K, M, T}, invscale::NTuple{N, T}, p, α) where {N, K, M, T}
+    iszero(p) && return zero(T)
+    v = a.c[p]
+    for i in 1:N, j in 1:α[i]
+        v *= isone(j) ? invscale[i] : T(j) * invscale[i]
+    end
+    return v
 end

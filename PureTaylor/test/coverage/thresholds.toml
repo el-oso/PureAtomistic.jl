@@ -7,6 +7,7 @@
 "src/arith.jl" = 1.00
 "src/fast.jl" = 0.89
 "src/indices.jl" = 1.00
+"src/loops.jl" = 1.00
 "src/substitute.jl" = 1.00
 "src/type.jl" = 1.00
 "src/univariate.jl" = 1.00

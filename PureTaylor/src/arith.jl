@@ -1,8 +1,7 @@
 import Base: +, -, *, /, ^, inv, literal_pow, zero, one, isfinite, isnan
 
-# Coefficient-wise sum or difference over the union mask. The generated body is marked inline so
-# the coefficient tuples stay in registers.
-@generated function _addsub(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{sgn}) where {N, K, M1, M2, T, L1, L2, sgn}
+# The unrolled body of `_addsub`.
+function _addsub_unrolled_body(N, K, M1, M2, sgn)
     M = M1 | M2
     pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M1))))
     pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
@@ -18,6 +17,41 @@ import Base: +, -, *, /, ^, inv, literal_pow, zero, one, isfinite, isnan
         $(Expr(:meta, :inline))
         Taylor{N, K, $M, T, $L}($(Expr(:tuple, terms...)))
     end
+end
+
+# Coefficient-wise sum or difference over the union mask. The generated body is marked inline so
+# the coefficient tuples stay in registers; above `_UNROLL_MAX` coefficients it is `_addsub_loop`.
+@generated function _addsub(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{sgn}) where {N, K, M1, M2, T, L1, L2, sgn}
+    _use_loop(length(stored_indices(Val(N), Val(K), Val(M1 | M2)))) && return :(_addsub_loop(a, b, Val($sgn)))
+    return _addsub_unrolled_body(N, K, M1, M2, sgn)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _addsub_unrolled(a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{sgn}) where {N, K, M1, M2, T, L1, L2, sgn} =
+    _addsub_unrolled_body(N, K, M1, M2, sgn)
+
+# Positions in `a` and `b` (0 where not stored) of each multi-index of the union mask.
+@generated function _addsub_table(::Val{N}, ::Val{K}, ::Val{M1}, ::Val{M2}) where {N, K, M1, M2}
+    pos1 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M1))))
+    pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
+    idx = stored_indices(Val(N), Val(K), Val(M1 | M2))
+    return (_int32_tuple(get(pos1, α, 0) for α in idx), _int32_tuple(get(pos2, α, 0) for α in idx))
+end
+
+# `_addsub` by a loop over `_addsub_table`.
+@noinline function _addsub_loop(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, ::Val{sgn}) where {N, K, M1, M2, T, sgn}
+    pos1, pos2 = _addsub_table(Val(N), Val(K), Val(M1), Val(M2))
+    L = length(pos1)
+    c = _loop_tuple(j -> _addsub_coefficient(a, b, pos1[j], pos2[j], Val(sgn)), T, Val(L))
+    return Taylor{N, K, M1 | M2, T, L}(c)
+end
+
+# One coefficient of `_addsub_loop`, from the positions `i` in `a` and `k` in `b` (0 where not stored).
+@inline function _addsub_coefficient(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, i, k, ::Val{sgn}) where {N, K, M1, M2, T, sgn}
+    iszero(i) && iszero(k) && return zero(T)
+    iszero(i) && return sgn == 1 ? b.c[k] : -b.c[k]
+    iszero(k) && return a.c[i]
+    return sgn == 1 ? a.c[i] + b.c[k] : a.c[i] - b.c[k]
 end
 
 +(a::Taylor, b::Taylor) = _addsub(a, b, Val(1))
@@ -48,13 +82,9 @@ one(::Type{Taylor{N, K, M, T, L}}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}
 isfinite(a::Taylor) = all(isfinite, a.c)
 isnan(a::Taylor) = any(isnan, a.c)
 
-# The product `a·b` restricted to total degree ≤ D (higher coefficients are zero), over the union
-# mask; `a`'s constant term is left out when `skip0`. Each output coefficient is one straight-line
-# `muladd` chain over the pairs of stored indices that sum to it, inlined so the tuples stay in
-# registers.
-@generated function mul_truncated(
-        a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{skip0}, ::Val{D}
-    ) where {N, K, M1, M2, T, L1, L2, skip0, D}
+# The unrolled body of `mul_truncated`: each output coefficient is one straight-line `muladd` chain
+# over the pairs of stored indices that sum to it, inlined so the tuples stay in registers.
+function _mul_unrolled_body(N, K, M1, M2, skip0, D)
     M = M1 | M2
     idx1 = stored_indices(Val(N), Val(K), Val(M1))
     pos2 = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
@@ -76,6 +106,62 @@ isnan(a::Taylor) = any(isnan, a.c)
         $(Expr(:meta, :inline))
         Taylor{N, K, $M, T, $L}($(Expr(:tuple, terms...)))
     end
+end
+
+# The product `a·b` restricted to total degree ≤ D (higher coefficients are zero), over the union
+# mask; `a`'s constant term is left out when `skip0`. Unrolled up to `_UNROLL_MAX` coefficients,
+# `_mul_loop` above.
+@generated function mul_truncated(
+        a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{skip0}, ::Val{D}
+    ) where {N, K, M1, M2, T, L1, L2, skip0, D}
+    _use_loop(length(stored_indices(Val(N), Val(K), Val(M1 | M2)))) && return :(_mul_loop(a, b, $skip0, $D))
+    return _mul_unrolled_body(N, K, M1, M2, skip0, D)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _mul_unrolled(
+    a::Taylor{N, K, M1, T, L1}, b::Taylor{N, K, M2, T, L2}, ::Val{skip0}, ::Val{D}
+) where {N, K, M1, M2, T, L1, L2, skip0, D} = _mul_unrolled_body(N, K, M1, M2, skip0, D)
+
+# For each multi-index α of the union mask, the pairs (i, k) of positions in `a` and `b` whose
+# multi-indices sum to α, in increasing i: those of output j are entries `offsets[j]:offsets[j+1]-1`
+# of `ia` and `ib`. `degree[j]` is the total degree of α.
+@generated function _mul_table(::Val{N}, ::Val{K}, ::Val{M1}, ::Val{M2}) where {N, K, M1, M2}
+    idx1 = stored_indices(Val(N), Val(K), Val(M1))
+    pos2 = Dict(γ => k for (k, γ) in enumerate(stored_indices(Val(N), Val(K), Val(M2))))
+    idx = stored_indices(Val(N), Val(K), Val(M1 | M2))
+    offsets, ia, ib = [1], Int[], Int[]
+    for α in idx
+        for (i, β) in enumerate(idx1)
+            k = all(β .<= α) ? get(pos2, α .- β, 0) : 0
+            iszero(k) || (push!(ia, i); push!(ib, k))
+        end
+        push!(offsets, length(ia) + 1)
+    end
+    return (_int32_tuple(offsets), _int32_tuple(ia), _int32_tuple(ib), _int32_tuple(sum.(idx)))
+end
+
+# `mul_truncated` by a loop over `_mul_table`, with the same `muladd` chain per coefficient.
+@noinline function _mul_loop(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, skip0::Bool, D::Int) where {N, K, M1, M2, T}
+    offsets, ia, ib, degree = _mul_table(Val(N), Val(K), Val(M1), Val(M2))
+    L = length(degree)
+    c = _loop_tuple(j -> _mul_coefficient(a, b, offsets, ia, ib, degree, skip0, D, j), T, Val(L))
+    return Taylor{N, K, M1 | M2, T, L}(c)
+end
+
+# Coefficient j of `_mul_loop`: the `muladd` chain over the pairs of `_mul_table` for output j.
+@inline function _mul_coefficient(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, offsets, ia, ib, degree, skip0, D, j) where {N, K, M1, M2, T}
+    acc = zero(T)
+    degree[j] <= D || return acc
+    first = true
+    for q in offsets[j]:(offsets[j + 1] - 1)
+        i = ia[q]
+        skip0 && isone(i) && continue
+        x, y = a.c[i], b.c[ib[q]]
+        acc = first ? x * y : muladd(x, y, acc)
+        first = false
+    end
+    return acc
 end
 
 *(a::Taylor{N, K}, b::Taylor) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
@@ -109,12 +195,10 @@ end
 
 ^(a::Taylor, n::Integer) = n < 0 ? inv(_pow_abs(a, n)) : _pow_abs(a, n)
 
-@generated function literal_pow(::typeof(^), a::Taylor, ::Val{n}) where {n}
-    # Julia lowers only integer literals to literal_pow; any other exponent is the general power.
-    n isa Integer || return :(a^$n)
-    n == 0 && return :(one(a))
+# The unrolled body of `literal_pow` for an integer `n ≠ 0`: repeated squaring of the literal
+# exponent.
+function _literal_pow_unrolled_body(n)
     m = abs(n)
-    # Unrolled repeated squaring of the literal exponent.
     body = Expr(:block, :(x = a))
     r = nothing
     while true
@@ -128,4 +212,32 @@ end
     end
     push!(body.args, n < 0 ? :(inv(r)) : :r)
     return body
+end
+
+@generated function literal_pow(::typeof(^), a::Taylor{N, K, M, T, L}, ::Val{n}) where {N, K, M, T, L, n}
+    # Julia lowers only integer literals to literal_pow; any other exponent is the general power.
+    n isa Integer || return :(a^$n)
+    n == 0 && return :(one(a))
+    _use_loop(L) && return :(_literal_pow_loop(a, Val($n)))
+    return _literal_pow_unrolled_body(n)
+end
+
+# The unrolled form at any size, for an integer `n ≠ 0`; the tests compare it with the loop form.
+@generated _literal_pow_unrolled(::typeof(^), a::Taylor, ::Val{n}) where {n} = _literal_pow_unrolled_body(n)
+
+# `literal_pow` by a loop over the bits of `|n|`, for an integer `n ≠ 0`, with the products of the
+# unrolled form in the same order: `r` starts as the first factor rather than as one.
+function _literal_pow_loop(a::Taylor, ::Val{n}) where {n}
+    m = abs(n)
+    x, r, started = a, a, false
+    while true
+        if isodd(m)
+            r = started ? r * x : x
+            started = true
+        end
+        m ÷= 2
+        iszero(m) && break
+        x = x * x
+    end
+    return n < 0 ? inv(r) : r
 end

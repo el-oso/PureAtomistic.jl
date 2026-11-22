@@ -8,12 +8,8 @@ end
 # The constant `x` in the type of `a`.
 _constant_like(a::Taylor{N, K, M, T, L}, x::T) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? x : zero(T), Val(L)))
 
-# Σₖ d[k+1]·(s·h)ᵏ for k = 0..K, with h = a - value(a) the part of `a` without constant term. `d`
-# holds the normalized derivatives fᵏ(x)/k! of a univariate f at x = value(a), in the variable
-# t = s·h. Horner's rule; the partial sum multiplied by tʲ in the end is needed only to degree K - j,
-# so each step is a degree-limited product.
-@generated function compose(a::Taylor{N, K, M, T, L}, d::NTuple{K1, T}, s::T) where {N, K, M, T, L, K1}
-    K1 == K + 1 || return :(throw(ArgumentError($("PureTaylor: compose needs K + 1 = $(K + 1) derivatives, got $K1"))))
+# The unrolled body of `compose`: the K Horner steps, each with its own degree limit.
+function _compose_unrolled_body(K)
     body = quote
         t = _scaled_nilpotent(a, s)
         p = _constant_like(a, d[$(K + 1)])
@@ -25,14 +21,39 @@ _constant_like(a::Taylor{N, K, M, T, L}, x::T) where {N, K, M, T, L} = Taylor{N,
     return body
 end
 
+# Σₖ d[k+1]·(s·h)ᵏ for k = 0..K, with h = a - value(a) the part of `a` without constant term. `d`
+# holds the normalized derivatives fᵏ(x)/k! of a univariate f at x = value(a), in the variable
+# t = s·h. Horner's rule; the partial sum multiplied by tʲ in the end is needed only to degree K - j,
+# so each step is a degree-limited product. Unrolled up to `_UNROLL_MAX` coefficients,
+# `_compose_loop` above.
+@generated function compose(a::Taylor{N, K, M, T, L}, d::NTuple{K1, T}, s::T) where {N, K, M, T, L, K1}
+    K1 == K + 1 || return :(throw(ArgumentError($("PureTaylor: compose needs K + 1 = $(K + 1) derivatives, got $K1"))))
+    _use_loop(L) && return :(_compose_loop(a, d, s))
+    return _compose_unrolled_body(K)
+end
+
+# The unrolled form at any size, for `K1 == K + 1`; the tests compare it with the loop form.
+@generated _compose_unrolled(a::Taylor{N, K, M, T, L}, d::NTuple{K1, T}, s::T) where {N, K, M, T, L, K1} =
+    _compose_unrolled_body(K)
+
+# `compose` with its Horner steps as a loop, for `K1 == K + 1`: every partial sum has the type of `a`.
+@noinline function _compose_loop(a::Taylor{N, K, M, T}, d::NTuple{K1, T}, s::T) where {N, K, M, T, K1}
+    t = _scaled_nilpotent(a, s)
+    p = _constant_like(a, d[K1])
+    for j in (K - 1):-1:0
+        p = _mul_loop(t, p, true, K - j) + d[j + 1]
+    end
+    return p
+end
+
 # Reached when the series coefficients `d` or the scale `s` are not of the coefficient type of `a`,
 # as for a Taylor with integer coefficients.
 compose(a::Taylor{N, K, M, T}, d::Tuple, s) where {N, K, M, T} = throw(
     ArgumentError(lazy"PureTaylor: the series of a Taylor with coefficient type $T needs coefficients of type $(eltype(d)); seed the variables with floating-point or Rational values")
 )
 
-# (b₀, g(b₀, 1), g(g(b₀, 1), 2), …): the K + 1 terms of the recurrence bₖ = g(bₖ₋₁, k), unrolled.
-@generated function _recurrence(g, b0, ::Val{K}) where {K}
+# The unrolled body of `_recurrence`.
+function _recurrence_unrolled_body(K)
     b = [Symbol(:b, k) for k in 0:K]
     body = Expr(:block, Expr(:meta, :inline), :($(b[1]) = b0))
     for k in 1:K
@@ -41,6 +62,16 @@ compose(a::Taylor{N, K, M, T}, d::Tuple, s) where {N, K, M, T} = throw(
     push!(body.args, Expr(:tuple, b...))
     return body
 end
+
+# (b₀, g(b₀, 1), g(g(b₀, 1), 2), …): the K + 1 terms of the recurrence bₖ = g(bₖ₋₁, k), unrolled up
+# to `_UNROLL_MAX` terms and by `_loop_recurrence` above.
+@generated function _recurrence(g, b0, ::Val{K}) where {K}
+    _use_loop(K + 1) && return :(_loop_recurrence(g, b0, Val($(K + 1))))
+    return _recurrence_unrolled_body(K)
+end
+
+# The unrolled form at any size; the tests compare it with the loop form.
+@generated _recurrence_unrolled(g, b0, ::Val{K}) where {K} = _recurrence_unrolled_body(K)
 
 # (x + h)ᵖ = xᵖ·(1 + h/x)ᵖ = Σₖ xᵖ·binomial(p, k)·(h/x)ᵏ, with the generalized binomial
 # coefficient of real p built by its recurrence binomial(p, k) = binomial(p, k-1)·(p - k + 1)/k.
