@@ -29,9 +29,9 @@ end
 const _PBE_GAMMA_EXACT = (1 - log(big(2))) / big(π)^2
 const _PBE_GAMMA_EXACT_FLOAT64 = Float64(_PBE_GAMMA_EXACT)
 const _PBE_GAMMA_EXACT_FLOAT32 = Float32(_PBE_GAMMA_EXACT)
-_pbe_gamma(::Type{T}) where {T} = convert(T, _PBE_GAMMA_EXACT)
-_pbe_gamma(::Type{Float64}) = _PBE_GAMMA_EXACT_FLOAT64
-_pbe_gamma(::Type{Float32}) = _PBE_GAMMA_EXACT_FLOAT32
+@inline _pbe_gamma(::Type{T}) where {T} = convert(T, _PBE_GAMMA_EXACT)
+@inline _pbe_gamma(::Type{Float64}) = _PBE_GAMMA_EXACT_FLOAT64
+@inline _pbe_gamma(::Type{Float32}) = _PBE_GAMMA_EXACT_FLOAT32
 
 """
     pbe_c(T = Float64)
@@ -56,31 +56,31 @@ _with_number_type(f::PBECorrelation, ::Type{S}) where {S} = PBECorrelation{S}(
 _float32_max_order(::Type{<:PBECorrelation}) = 3
 
 # Rule 1: the total density below n_thr (strict), restricted and polarized.
-_cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density
-_cutoff(f::PBECorrelation, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] < f.thresholds.density
+@inline _cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density
+@inline _cutoff(f::PBECorrelation, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] < f.thresholds.density
 
 # x^(−7/6), with the value 1/(x·√∛x), as one power series for a `Taylor`.
-_powm76(x::Real) = inv(x * fast_sqrt(fast_cbrt(x)))
-_powm76(x::Taylor) = power_series(x, -convert(typeof(value(x)), 7) / 6, _powm76(value(x)))
+@inline _powm76(x::Real) = inv(x * fast_sqrt(fast_cbrt(x)))
+@inline _powm76(x::Taylor) = power_series(x, -convert(typeof(value(x)), 7) / 6, _powm76(value(x)))
 
 # x^(2/3), with the value ∛x², as one power series for a `Taylor`.
-_pow23(x::Real) = fast_cbrt(x)^2
-_pow23(x::Taylor) = power_series(x, convert(typeof(value(x)), 2) / 3, _pow23(value(x)))
+@inline _pow23(x::Real) = fast_cbrt(x)^2
+@inline _pow23(x::Taylor) = power_series(x, convert(typeof(value(x)), 2) / 3, _pow23(value(x)))
 
 # π/(16(3π²)^(1/3)): t² = c·σ/(φ² n^(7/3)) of (E1).
-_pbe_c_t2_coefficient(::Type{R}) where {R} = convert(R, π) / (16 * cbrt(3 * convert(R, π)^2))
+@inline _pbe_c_t2_coefficient(::Type{R}) where {R} = convert(R, π) / (16 * cbrt(3 * convert(R, π)^2))
 
 # (1 + x)^(2/3) for φ, or the constant ε_ζ^(2/3) with no series part where the rounded 1 + x < ε_ζ
 # (rule 4, strict: at 1 + x == ε_ζ the factor is kept). The argument is raised to ε_ζ first so
 # that fast_cbrt stays in its domain where the result is discarded.
-function _pbe_pow23(y, εζ)
+@inline function _pbe_pow23(y, εζ)
     x = _raise(y, εζ)
     t = _pow23(x)
     return ifelse(value(y) < εζ, zero(t) + _pow23(εζ), t)
 end
 
 # φ(ζ) = [(1 + ζ)^(2/3) + (1 − ζ)^(2/3)]/2 of (E1), with rule 4.
-function _pbe_phi(ζ, εζ)
+@inline function _pbe_phi(ζ, εζ)
     return (_pbe_pow23(1 + ζ, εζ) + _pbe_pow23(1 - ζ, εζ)) / 2
 end
 
@@ -107,7 +107,7 @@ end
 # - For z = −ε_c/(γφ³) > 1, 1/E = e^(−z)/(1 − e^(−z)) and log E = z + log(1 − e^(−z)): the series of
 #   1/E or log E composed with that of E would be differences of terms of the size of the powers
 #   of its first coefficient.
-function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
+@inline function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
     R = typeof(value(n))
     φ2 = φ * φ
     φ3 = φ2 * φ
@@ -150,22 +150,22 @@ function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
 end
 
 # x^(7/6), with the value x·√∛x, as one power series for a `Taylor`.
-_pow76(x::Real) = x * fast_sqrt(fast_cbrt(x))
-_pow76(x::Taylor) = power_series(x, convert(typeof(value(x)), 7) / 6, _pow76(value(x)))
+@inline _pow76(x::Real) = x * fast_sqrt(fast_cbrt(x))
+@inline _pow76(x::Taylor) = power_series(x, convert(typeof(value(x)), 7) / 6, _pow76(value(x)))
 
 # `x` with its value replaced by `v`, for a `Taylor`; `v` for a number.
-_series_with_value(x::Taylor, v) = _with_value(x, v)
-_series_with_value(::Real, v) = v
+@inline _series_with_value(x::Taylor, v) = _with_value(x, v)
+@inline _series_with_value(::Real, v) = v
 
 # (E5) with (E1): e = n[ε_c(r_s, 0) + H] at φ = 1, with σ raised to the floor σ_thr² (rule 3). The
 # density is raised to n_thr only to keep the fast functions in their domains; every point that
 # the raise moves is cut off.
-_energy_density(f::PBECorrelation, ρ, σ) = _pbe_c_energy(f, ρ, σ, +)
+@inline _energy_density(f::PBECorrelation, ρ, σ) = _pbe_c_energy(f, ρ, σ, +)
 
 # n·combine(ε_c, H): `+` for the energy; the terms alone serve to measure the cancellation in ε_c + H.
 # `adjust` is applied to the series of ε_c before H is formed: `identity` for the energy; a change of
 # its coefficients by one ulp measures the sensitivity of the outputs to the rounding of ε_c.
-function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
+@inline function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
     n = _raise(ρ, f.thresholds.density)
     g = _raise(σ, f.thresholds.sigma_floor)
     ε = adjust(_pw92_eps(f.pw, _seitz_radius(n)))
@@ -173,7 +173,7 @@ function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
 end
 
 # The t-scale 16φ²k_F n²/π, the σ at which t² = 1, at the density n and the spin factor φ.
-_pbe_t_scale(n::R, φ::R) where {R} = 16 * φ^2 * cbrt(3 * convert(R, π)^2) * fast_cbrt(n) * n^2 / convert(R, π)
+@inline _pbe_t_scale(n::R, φ::R) where {R} = 16 * φ^2 * cbrt(3 * convert(R, π)^2) * fast_cbrt(n) * n^2 / convert(R, π)
 
 # (E1) with rules 2 to 5: r_s, ζ and φ are formed from the channels raised to n_thr (rule 2), each
 # σ_σσ is raised to the floor (rule 3) and so is the total σ_αα + 2σ_αβ + σ_ββ (rule 5), and the
@@ -182,9 +182,9 @@ _pbe_t_scale(n::R, φ::R) where {R} = 16 * φ^2 * cbrt(3 * convert(R, π)^2) * f
 # ε_c + H is expanded in its own variables (n, ζ, σ), seeded at the scales max(n_r, m), 1 and the
 # t-scale, with m of `_seed_minimum`, and composed with the series of n_r, ζ and the total σ in
 # the input variables.
-_energy_density(f::PBECorrelation, ρ::Tuple{Taylor, Taylor}, σ::NTuple{3, Taylor}) = _pbe_c_energy(f, ρ, σ, +)
+@inline _energy_density(f::PBECorrelation, ρ::Tuple{Taylor, Taylor}, σ::NTuple{3, Taylor}) = _pbe_c_energy(f, ρ, σ, +)
 
-function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine, adjust = identity) where {N, K}
+@inline function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine, adjust = identity) where {N, K}
     thr = f.thresholds
     a = _raise(ρ[1], thr.density)
     b = _raise(ρ[2], thr.density)
@@ -207,13 +207,13 @@ end
 # ε_c + H is a function of the total density, ζ and the total σ, smooth in each channel on the
 # scale of the total: both densities are seeded at max(n_r, m), with n_r the total of the raised
 # channels, and every σ component at the t-scale 16φ²k_F n_r²/π at the raised channels.
-function _seed_scales(f::PBECorrelation, ::Val{K}, ρ::R, σ::R) where {K, R}
+@inline function _seed_scales(f::PBECorrelation, ::Val{K}, ρ::R, σ::R) where {K, R}
     t = convert(R, f.thresholds.density)
     n = max(ρ, t)
     return (max(n, _seed_minimum(R)), _pbe_t_scale(n, one(R)))
 end
 
-function _seed_scales(f::PBECorrelation, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
+@inline function _seed_scales(f::PBECorrelation, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
     t = convert(R, f.thresholds.density)
     a, b = max(ρ[1], t), max(ρ[2], t)
     n = a + b

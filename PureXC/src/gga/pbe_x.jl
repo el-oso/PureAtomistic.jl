@@ -34,23 +34,23 @@ _with_number_type(f::PBEExchange, ::Type{S}) where {S} =
 
 # Rule 2: restricted input is n_α = n_β = n/2, so a channel at or below n_thr leaves nothing; this
 # includes rule 1 (n < n_thr).
-_cutoff(f::PBEExchange, ρ::Real, σ::Real) = ρ / 2 <= f.thresholds.density
+@inline _cutoff(f::PBEExchange, ρ::Real, σ::Real) = ρ / 2 <= f.thresholds.density
 # Rule 1: the total density below n_thr.
-_cutoff(f::PBEExchange, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] < f.thresholds.density
+@inline _cutoff(f::PBEExchange, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] < f.thresholds.density
 
 # x^(−4/3), with the value 1/(x·∛x), as one power series for a `Taylor`.
-_powm43(x::Real) = inv(_pow43(x))
-_powm43(x::Taylor) = power_series(x, -convert(typeof(value(x)), 4) / 3, _powm43(value(x)))
+@inline _powm43(x::Real) = inv(_pow43(x))
+@inline _powm43(x::Taylor) = power_series(x, -convert(typeof(value(x)), 4) / 3, _powm43(value(x)))
 
 # s² = σ/(c·n^(8/3)) as (σ·q)·q with q = n^(−4/3)/√c, so that no power of n beyond n^(±4/3) is formed.
-function _reduced_gradient2(n, σ, c)
+@inline function _reduced_gradient2(n, σ, c)
     q = _powm43(n) * inv(sqrt(c))
     return (σ * q) * q
 end
 
 # 4(3π²)^(2/3), restricted, and 4(6π²)^(2/3), per channel: s² = σ/(c·n^(8/3)) of (E3) and (E4).
-_pbe_x_c3(::Type{R}) where {R} = 4 * cbrt(3 * convert(R, π)^2)^2
-_pbe_x_c6(::Type{R}) where {R} = 4 * cbrt(6 * convert(R, π)^2)^2
+@inline _pbe_x_c3(::Type{R}) where {R} = 4 * cbrt(3 * convert(R, π)^2)^2
+@inline _pbe_x_c6(::Type{R}) where {R} = 4 * cbrt(6 * convert(R, π)^2)^2
 
 # n^(4/3)·F_x(s) with s² = σ/(c·n^(8/3)) and F_x = 1 + κ − κ/(1 + x), x = μs²/κ, of (E2). Two forms,
 # selected by the value of x, keep the series coefficients free of differences of nearly equal
@@ -61,7 +61,7 @@ _pbe_x_c6(::Type{R}) where {R} = 4 * cbrt(6 * convert(R, π)^2)^2
 #   P = n^(4/3)·κ·w = (κ²c/μ)·n²·n²/σ. P is a polynomial of degree 4 in n, so its coefficients
 #   above degree 4 are exact zeros; in the product n^(4/3)·κ/(1 + x) they would be differences of
 #   terms larger than the result by the factor x.
-function _pbe_x_term(f::PBEExchange, n, σ, c)
+@inline function _pbe_x_term(f::PBEExchange, n, σ, c)
     κ, μ = f.κ, f.μ
     n43 = _pow43(n)
     μs2 = μ * _reduced_gradient2(n, σ, c)
@@ -77,7 +77,7 @@ end
 # (E3): e(n, σ) = −(3/4)(3/π)^(1/3) n^(4/3) F_x(s), with σ raised to the floor σ_thr² (rule 3). The
 # density is raised to n_thr only to keep fast_cbrt in its domain; every point that the raise moves
 # is cut off.
-function _energy_density(f::PBEExchange, ρ, σ)
+@inline function _energy_density(f::PBEExchange, ρ, σ)
     R = typeof(value(ρ))
     n = _raise(ρ, f.thresholds.density)
     g = _raise(σ, f.thresholds.sigma_floor)
@@ -85,7 +85,7 @@ function _energy_density(f::PBEExchange, ρ, σ)
 end
 
 # (E4): e = −(3/4)(6/π)^(1/3) Σ_σ n_σ^(4/3) F_x(s_σ), channel by channel; σ_αβ does not enter.
-function _energy_density(f::PBEExchange, ρ::Tuple, σ::Tuple)
+@inline function _energy_density(f::PBEExchange, ρ::Tuple, σ::Tuple)
     R = typeof(value(ρ[1]))
     c = _pbe_x_c6(R)
     channels = _pbe_x_channel(f, ρ[1], σ[1], c) + _pbe_x_channel(f, ρ[2], σ[3], c)
@@ -94,7 +94,7 @@ end
 
 # n_σ^(4/3) F_x(s_σ), or zero for n_σ ≤ n_thr (rule 2), with σ_σσ raised to the floor (rule 3). The
 # channel is raised to n_thr first so that fast_cbrt stays in its domain where the term is discarded.
-function _pbe_x_channel(f::PBEExchange, ρσ, σσ, c)
+@inline function _pbe_x_channel(f::PBEExchange, ρσ, σσ, c)
     thr = f.thresholds
     t = _pbe_x_term(f, _raise(ρσ, thr.density), _raise(σσ, thr.sigma_floor), c)
     return ifelse(value(ρσ) <= thr.density, zero(t), t)
@@ -104,11 +104,11 @@ end
 # max(|σ_σσ|, r, m) with r = 4(6π²)^(2/3)·n_σr^(8/3) at the raised channel n_σr = max(n_σ, n_thr),
 # the σ at which that channel's s is 1. e does not depend on σ_αβ, so its scale only needs to be
 # normal.
-function _seed_scales(f::PBEExchange, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
+@inline function _seed_scales(f::PBEExchange, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
     m = _seed_minimum(R)
     t = convert(R, f.thresholds.density)
     c = _pbe_x_c6(R)
-    r(x) = c * fast_cbrt(max(x, t))^8
+    r(x) = c * _pow8(fast_cbrt(max(x, t)))
     return (
         _density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m),
         max(abs(σ[1]), r(ρ[1]), m), max(abs(σ[2]), m), max(abs(σ[3]), r(ρ[2]), m),

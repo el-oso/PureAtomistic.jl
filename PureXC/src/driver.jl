@@ -20,14 +20,14 @@ Whether the PureXC rule of `f` makes the energy and every derivative zero at the
 values `ρ` and `σ`, given in the result type (restricted: numbers; polarized: tuples). At such a
 point the result of `_energy_density` is discarded and every output is an exact zero.
 """
-_cutoff(::AbstractLDA, ρ) = false
-_cutoff(::AbstractGGA, ρ, σ) = false
+@inline _cutoff(::AbstractLDA, ρ) = false
+@inline _cutoff(::AbstractGGA, ρ, σ) = false
 
-_number_type(::AbstractFunctional{T}) where {T} = T
+@inline _number_type(::AbstractFunctional{T}) where {T} = T
 
-_result_type(f::AbstractFunctional, x...) = promote_type(_number_type(f), map(_input_type, x)...)
-_input_type(x::Real) = typeof(x)
-_input_type(x::Tuple) = promote_type(map(typeof, x)...)
+@inline _result_type(f::AbstractFunctional, x...) = promote_type(_number_type(f), map(_input_type, x)...)
+@inline _input_type(x::Real) = typeof(x)
+@inline _input_type(x::Tuple) = promote_type(map(typeof, x)...)
 
 # The variables x[i] + s[i]·u_i of a series to order K, in input order.
 @generated function _seed(::Val{K}, x::NTuple{N}, s::NTuple{N}) where {K, N}
@@ -35,10 +35,10 @@ _input_type(x::Tuple) = promote_type(map(typeof, x)...)
 end
 
 # The flat variable tuple regrouped as the functional's arguments.
-_group(::Val{1}, ::Val{0}, t) = (t[1],)
-_group(::Val{1}, ::Val{1}, t) = (t[1], t[2])
-_group(::Val{2}, ::Val{0}, t) = ((t[1], t[2]),)
-_group(::Val{2}, ::Val{3}, t) = ((t[1], t[2]), (t[3], t[4], t[5]))
+@inline _group(::Val{1}, ::Val{0}, t) = (t[1],)
+@inline _group(::Val{1}, ::Val{1}, t) = (t[1], t[2])
+@inline _group(::Val{2}, ::Val{0}, t) = ((t[1], t[2]),)
+@inline _group(::Val{2}, ::Val{3}, t) = ((t[1], t[2]), (t[3], t[4], t[5]))
 
 # The output fields from the partial derivatives `d` in `PureTaylor.multi_indices` order, over
 # `nρ` density variables followed by `nσ` σ variables. Order 0 is `e`; order j has one field per
@@ -68,7 +68,7 @@ end
 # The derivatives to order K at the input values x, seeded with the scales s, grouped as nρ density
 # and nσ σ inputs, mapped to the output fields. The scale changes only the representation of the
 # series, not the derivatives.
-function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, s::NTuple{N, Real}) where {K, N}
+@inline function _derive(f, ::Val{K}, gρ::Val, gσ::Val, x::NTuple{N, Real}, s::NTuple{N, Real}) where {K, N}
     e = _energy_density(f, _group(gρ, gσ, _seed(Val(K), x, s))...)
     d = derivatives(e, map(inv, s))
     cut = _cutoff(f, _group(gρ, gσ, x)...)
@@ -78,18 +78,26 @@ end
 # The smallest seed scale m = floatmin(R): a scale is positive and normal, so 1/s is finite.
 # `derivatives` multiplies the coefficients by the factors j/s in turn, so s^k itself need not be
 # representable.
-_seed_minimum(::Type{R}) where {R} = floatmin(R)
+@inline _seed_minimum(::Type{R}) where {R} = floatmin(R)
+
+# x^8 as three squarings: Base's integer power is an out-of-line call that keeps a loop over points
+# from vectorizing.
+@inline function _pow8(x)
+    x2 = x * x
+    x4 = x2 * x2
+    return x4 * x4
+end
 
 # The natural size of a σ component at total density n: 4(3π²)^(2/3)·n^(8/3), the σ at which the
 # reduced gradient is 1. The density is raised to floatmin so that fast_cbrt stays in its domain.
-_sigma_size(n::R) where {R <: Real} = 4 * cbrt(3 * convert(R, π)^2)^2 * fast_cbrt(max(n, floatmin(R)))^8
+@inline _sigma_size(n::R) where {R <: Real} = 4 * cbrt(3 * convert(R, π)^2)^2 * _pow8(fast_cbrt(max(n, floatmin(R))))
 
 # The seed scale of a density x evaluated as itself: max(|x|, n_thr, m).
-_density_seed(f::AbstractFunctional, x::R, m::R) where {R} = max(abs(x), convert(R, f.thresholds.density), m)
+@inline _density_seed(f::AbstractFunctional, x::R, m::R) where {R} = max(abs(x), convert(R, f.thresholds.density), m)
 
 # The seed scale of a σ component x at total density n: max(|x|, r, m), with r = `_sigma_size(n)`;
 # |x| covers a negative σαβ.
-_sigma_seed(x::R, n::R, m::R) where {R} = max(abs(x), _sigma_size(n), m)
+@inline _sigma_seed(x::R, n::R, m::R) where {R} = max(abs(x), _sigma_size(n), m)
 
 """
     _seed_scales(f, Val(K), ρ[, σ])
@@ -104,21 +112,21 @@ x has the scale max(|x|, n_thr, m), the value at which it is evaluated, and each
 max(|x|, r, m), with r = 4(3π²)^(2/3)·n^(8/3) at the total density n. A functional of the total
 density and ζ defines a method that seeds each density at the total of the raised channels.
 """
-function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
+@inline function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
     return (_density_seed(f, ρ, _seed_minimum(typeof(ρ))),)
 end
 
-function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
+@inline function _seed_scales(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
     m = _seed_minimum(R)
     return (_density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m))
 end
 
-function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::R, σ::R) where {K, R}
+@inline function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::R, σ::R) where {K, R}
     m = _seed_minimum(R)
     return (_density_seed(f, ρ, m), _sigma_seed(σ, ρ, m))
 end
 
-function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
+@inline function _seed_scales(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, R}, σ::NTuple{3, R}) where {K, R}
     m = _seed_minimum(R)
     n = ρ[1] + ρ[2]
     return (
@@ -133,10 +141,10 @@ end
 `xc_derivatives` without the input check. The outputs are in the result type R; they are
 evaluated in `_evaluation_type(f, R, Val(k))`.
 """
-_xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::Real) = _evaluate(f, k, ρ)
-_xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::NTuple{2, Real}) = _evaluate(f, k, ρ)
-_xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::Real, σ::Real) = _evaluate(f, k, ρ, σ)
-_xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) = _evaluate(f, k, ρ, σ)
+@inline _xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::Real) = _evaluate(f, k, ρ)
+@inline _xc_derivatives_unchecked(f::AbstractLDA, k::Val, ρ::NTuple{2, Real}) = _evaluate(f, k, ρ)
+@inline _xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::Real, σ::Real) = _evaluate(f, k, ρ, σ)
+@inline _xc_derivatives_unchecked(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) = _evaluate(f, k, ρ, σ)
 
 """
     _evaluation_type(f, R, Val(K))
@@ -148,8 +156,8 @@ output that fits in Float32 do not (at (1, 1e-6), K = 9, the order-9 partials of
 from 19.8 to 1.4e48). It is a function of the types alone, so the choice is made when the method
 is compiled.
 """
-_evaluation_type(f, ::Type{R}, ::Val{K}) where {R, K} = R
-_evaluation_type(f, ::Type{Float32}, ::Val{K}) where {K} = K > _float32_max_order(typeof(f)) ? Float64 : Float32
+@inline _evaluation_type(f, ::Type{R}, ::Val{K}) where {R, K} = R
+@inline _evaluation_type(f, ::Type{Float32}, ::Val{K}) where {K} = K > _float32_max_order(typeof(f)) ? Float64 : Float32
 
 """
     _float32_max_order(F)
@@ -166,24 +174,24 @@ _float32_max_order(::Type{<:AbstractFunctional}) = 2
 # floatmax(R) gives the infinity of its sign. `Vararg{Any, N}` makes the method specialize on the
 # inputs: Julia does not specialize a bare `x...` that is only passed on to other calls, and the
 # unspecialized call boxes its arguments.
-function _evaluate(f, k::Val, x::Vararg{Any, N}) where {N}
+@inline function _evaluate(f, k::Val, x::Vararg{Any, N}) where {N}
     R = _result_type(f, x...)
     S = _evaluation_type(f, R, k)
     return _outputs_in(R, S, _derivatives_at(_functional_in(f, R, S), k, x...))
 end
 
-_functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
-_functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
+@inline _functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
+@inline _functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
 
-_outputs_in(::Type, ::Type, r) = r
+@inline _outputs_in(::Type, ::Type, r) = r
 # Field by field in generated code, for Julia 1.12: there AllocCheck finds a possible allocation in
 # `map` over a NamedTuple of 15 fields (namedtuple.jl), so the call cannot be proven allocation-free;
 # on Julia 1.13 `map` is proven free as well.
 @generated function _outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple{names}) where {names}
     return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in32(r.$n)) for n in names)...))))
 end
-_output_in32(x::Real) = convert(Float32, x)
-_output_in32(t::Tuple) = ntuple(i -> convert(Float32, t[i]), Val(length(t)))
+@inline _output_in32(x::Real) = convert(Float32, x)
+@inline _output_in32(t::Tuple) = ntuple(i -> convert(Float32, t[i]), Val(length(t)))
 
 """
     _with_number_type(f, S)
@@ -194,24 +202,24 @@ concrete functional defines a method.
 function _with_number_type end
 
 # The derivatives of `f` at the inputs, in the result type of `f` and the inputs.
-function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
+@inline function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
     n = convert(_result_type(f, ρ), ρ)
     return _derive(f, Val(K), Val(1), Val(0), (n,), _seed_scales(f, Val(K), n))
 end
 
-function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
+@inline function _derivatives_at(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
     R = _result_type(f, ρ)
     x = (convert(R, ρ[1]), convert(R, ρ[2]))
     return _derive(f, Val(K), Val(2), Val(0), x, _seed_scales(f, Val(K), x))
 end
 
-function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
+@inline function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::Real, σ::Real) where {K}
     R = _result_type(f, ρ, σ)
     n, g = convert(R, ρ), convert(R, σ)
     return _derive(f, Val(K), Val(1), Val(1), (n, g), _seed_scales(f, Val(K), n, g))
 end
 
-function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
+@inline function _derivatives_at(f::AbstractGGA, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
     R = _result_type(f, ρ, σ)
     r = (convert(R, ρ[1]), convert(R, ρ[2]))
     g = (convert(R, σ[1]), convert(R, σ[2]), convert(R, σ[3]))
@@ -265,7 +273,7 @@ energy_density(f::AbstractFunctional, x...) = xc_derivatives(f, Val(0), x...).e
     )
 )
 
-function _plain_energy(f, x...)
+function _plain_energy(f, x::Vararg{Any, N}) where {N}
     e = _energy_density(f, x...)
     return ifelse(_cutoff(f, x...), zero(e), e)
 end

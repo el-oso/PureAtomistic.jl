@@ -48,9 +48,11 @@ include("lda/lda_x.jl")
 include("lda/pw92.jl")
 include("gga/pbe_x.jl")
 include("gga/pbe_c.jl")
+include("array.jl")
+include("composite.jl")
 
 export AbstractFunctional, AbstractLDA, AbstractGGA, family, kind
-export xc_derivatives, energy_density
+export xc_derivatives, energy_density, xc_evaluate!, xc_outputs, XC, pbe, zk
 export lda_x, lda_c_pw, lda_c_pw_mod, pbe_x, pbe_c
 public Thresholds, default_thresholds, LDAExchange, PW92Correlation, PBEExchange, PBECorrelation
 

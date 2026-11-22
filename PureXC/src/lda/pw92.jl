@@ -47,9 +47,9 @@ _pw92_thresholds(::Type{T}) where {T} = default_thresholds(T, 1.0e-15, 0.0, 2.22
 const _FZ20_EXACT = 4 / (9 * (cbrt(big(2)) - 1))
 const _FZ20_EXACT_FLOAT64 = Float64(_FZ20_EXACT)
 const _FZ20_EXACT_FLOAT32 = Float32(_FZ20_EXACT)
-_fz20_exact(::Type{T}) where {T} = convert(T, _FZ20_EXACT)
-_fz20_exact(::Type{Float64}) = _FZ20_EXACT_FLOAT64
-_fz20_exact(::Type{Float32}) = _FZ20_EXACT_FLOAT32
+@inline _fz20_exact(::Type{T}) where {T} = convert(T, _FZ20_EXACT)
+@inline _fz20_exact(::Type{Float64}) = _FZ20_EXACT_FLOAT64
+@inline _fz20_exact(::Type{Float32}) = _FZ20_EXACT_FLOAT32
 
 """
     lda_c_pw(T = Float64)
@@ -73,13 +73,13 @@ lda_c_pw_mod(::Type{T} = Float64) where {T} = PW92Correlation{T}(
 )
 
 # Rule 1: the total density below n_thr (strict).
-_cutoff(pw::PW92Correlation, ρ::Real) = ρ < pw.thresholds.density
-_cutoff(pw::PW92Correlation, ρ::Tuple) = ρ[1] + ρ[2] < pw.thresholds.density
+@inline _cutoff(pw::PW92Correlation, ρ::Real) = ρ < pw.thresholds.density
+@inline _cutoff(pw::PW92Correlation, ρ::Tuple) = ρ[1] + ρ[2] < pw.thresholds.density
 
 # ε_c is a function of the total density and ζ, smooth in each channel on the scale of the total,
 # so both densities are seeded at max(n_r, m), with n_r the total of the channels raised to n_thr.
 # Restricted, the default max(n, n_thr, m) is the same rule.
-function _seed_scales(pw::PW92Correlation, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
+@inline function _seed_scales(pw::PW92Correlation, ::Val{K}, ρ::NTuple{2, R}) where {K, R}
     t = convert(R, pw.thresholds.density)
     s = max(max(ρ[1], t) + max(ρ[2], t), _seed_minimum(R))
     return (s, s)
@@ -90,11 +90,11 @@ end
 
 r_s = (3/(4π n))^(1/3), [PW92] Eq. (1), for a positive normal density `n`.
 """
-_seitz_radius(n) = cbrt(3 / (4 * convert(typeof(value(n)), π))) * fast_invcbrt(n)
+@inline _seitz_radius(n) = cbrt(3 / (4 * convert(typeof(value(n)), π))) * fast_invcbrt(n)
 
 # (E1) with p = 1: G = −2A(1 + α₁ r_s) ln[1 + 1/(2A(β₁ r_s^(1/2) + β₂ r_s + β₃ r_s^(3/2) + β₄ r_s²))],
 # with `r` = r_s^(1/2).
-function _pw92_G(rs, r, (A, α₁, β₁, β₂, β₃, β₄))
+@inline function _pw92_G(rs, r, (A, α₁, β₁, β₂, β₃, β₄))
     q = r * (β₁ + r * (β₂ + r * (β₃ + r * β₄)))
     return -2A * (1 + α₁ * rs) * fast_log1p(inv(2A * q))
 end
@@ -102,7 +102,7 @@ end
 # (1 + x)^(4/3) for the factors of (E3), or the constant ε_ζ^(4/3) with no series part where
 # the rounded 1 + x < ε_ζ (rule 3, strict: at 1 + x == ε_ζ the factor is kept). The argument is
 # raised to ε_ζ first so that fast_cbrt stays in its domain where the result is discarded.
-function _pw92_pow43(y, εζ)
+@inline function _pw92_pow43(y, εζ)
     x = _raise(y, εζ)
     t = _pow43(x)
     return ifelse(value(y) < εζ, zero(t) + εζ * fast_cbrt(εζ), t)
@@ -119,7 +119,7 @@ unpolarized ε_c(r_s, 0) = G(r_s; set 0) of (E2). The arguments are numbers or `
 the same variables; `R` is the promotion of their value types, and a plain `ζ` and ε_ζ are
 converted to `R`.
 """
-function _pw92_eps(pw::PW92Correlation, rs, ζ, εζ = pw.thresholds.zeta)
+@inline function _pw92_eps(pw::PW92Correlation, rs, ζ, εζ = pw.thresholds.zeta)
     R = promote_type(typeof(value(rs)), typeof(value(ζ)))
     ζ = _in_value_type(R, ζ)
     r = fast_sqrt(rs)
@@ -135,21 +135,21 @@ function _pw92_eps(pw::PW92Correlation, rs, ζ, εζ = pw.thresholds.zeta)
     return ε0 + αc * f / pw.fz20 * (1 - ζ4) + (ε1 - ε0) * f * ζ4
 end
 
-_in_value_type(::Type{R}, x::Real) where {R} = convert(R, x)
-_in_value_type(::Type, x::Taylor) = x
+@inline _in_value_type(::Type{R}, x::Real) where {R} = convert(R, x)
+@inline _in_value_type(::Type, x::Taylor) = x
 
-_pw92_eps(pw::PW92Correlation, rs) = _pw92_G(rs, fast_sqrt(rs), pw.params[1])
+@inline _pw92_eps(pw::PW92Correlation, rs) = _pw92_G(rs, fast_sqrt(rs), pw.params[1])
 
 # (E5) at ζ = 0: e(n) = n G(r_s; set 0). The density is raised to n_thr only to keep fast_invcbrt in
 # its domain; every point that the raise moves is cut off.
-_energy_density(pw::PW92Correlation, ρ) = ρ * _pw92_eps(pw, _seitz_radius(_raise(ρ, pw.thresholds.density)))
+@inline _energy_density(pw::PW92Correlation, ρ) = ρ * _pw92_eps(pw, _seitz_radius(_raise(ρ, pw.thresholds.density)))
 
 # (E5) with rule 2: r_s and ζ are formed from the channels raised to n_thr, and so is the total
 # density n_r that multiplies ε_c, so every derivative is that of n_r·ε_c at the raised densities.
 # The value is n·ε_c with the caller's n = n_α + n_β. ε_c is expanded in its own variables (n, ζ),
 # seeded at the scales max(n_r, m) and 1, with m of `_seed_minimum`, and composed with the series
 # of n_r and ζ in the density variables.
-function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}) where {N, K}
+@inline function _energy_density(pw::PW92Correlation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}) where {N, K}
     a = _raise(ρ[1], pw.thresholds.density)
     b = _raise(ρ[2], pw.thresholds.density)
     nr = a + b
