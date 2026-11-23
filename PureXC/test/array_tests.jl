@@ -188,5 +188,8 @@ end
     ρ, σ = rand(64) .+ 0.1, rand(64)
     out = xc_outputs(f, Val(1), ρ, σ)
     ir = sprint(io -> code_llvm(io, xc_evaluate!, typeof.((out, f, Val(1), ρ, σ)); optimize = true, debuginfo = :none))
+    # `vector.body` is the block the loop vectorizer emits; `<2 x double>` alone also appears when
+    # only the SLP vectorizer has combined scalar operations.
+    @test occursin("vector.body", ir)
     @test occursin("<2 x double>", ir)
 end
