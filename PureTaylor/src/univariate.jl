@@ -9,8 +9,10 @@ end
 _constant_like(a::Taylor{N, K, M, T, L}, x::T) where {N, K, M, T, L} = Taylor{N, K, M, T, L}(ntuple(i -> i == 1 ? x : zero(T), Val(L)))
 
 # The unrolled body of `compose`: the K Horner steps, each with its own degree limit.
-function _compose_unrolled_body(K)
+# With `inline`, the body carries the inline hint (see `_INLINE_MAX`).
+function _compose_unrolled_body(K, inline = false)
     body = quote
+        $(inline ? Expr(:meta, :inline) : nothing)
         t = _scaled_nilpotent(a, s)
         p = _constant_like(a, d[$(K + 1)])
     end
@@ -29,12 +31,12 @@ end
 @generated function compose(a::Taylor{N, K, M, T, L}, d::NTuple{K1, T}, s::T) where {N, K, M, T, L, K1}
     K1 == K + 1 || return :(throw(ArgumentError($("PureTaylor: compose needs K + 1 = $(K + 1) derivatives, got $K1"))))
     _use_loop(L) && return :(_compose_loop(a, d, s))
-    return _compose_unrolled_body(K)
+    return _compose_unrolled_body(K, L <= _INLINE_MAX)
 end
 
 # The unrolled form at any size, for `K1 == K + 1`; the tests compare it with the loop form.
 @generated _compose_unrolled(a::Taylor{N, K, M, T, L}, d::NTuple{K1, T}, s::T) where {N, K, M, T, L, K1} =
-    _compose_unrolled_body(K)
+    _compose_unrolled_body(K, L <= _INLINE_MAX)
 
 # `compose` with its Horner steps as a loop, for `K1 == K + 1`: every partial sum has the type of `a`.
 @noinline function _compose_loop(a::Taylor{N, K, M, T}, d::NTuple{K1, T}, s::T) where {N, K, M, T, K1}
@@ -75,7 +77,8 @@ end
 
 # (x + h)ᵖ = xᵖ·(1 + h/x)ᵖ = Σₖ xᵖ·binomial(p, k)·(h/x)ᵏ, with the generalized binomial
 # coefficient of real p built by its recurrence binomial(p, k) = binomial(p, k-1)·(p - k + 1)/k.
-function _power_series(a::Taylor{N, K, M, T}, v, p) where {N, K, M, T}
+# Inlined, like `*` (arith.jl).
+@inline function _power_series(a::Taylor{N, K, M, T}, v, p) where {N, K, M, T}
     d = _recurrence((b, k) -> b * (p - T(k - 1)) / T(k), v, Val(K))
     return compose(a, d, inv(value(a)))
 end
@@ -93,7 +96,8 @@ can overflow where the product's fits. Domain: positive `value(a)`, unchecked.
 `(v / value(a)^p)·aᵖ`. `p` is converted to the coefficient type, so a `Float64` exponent with a
 `Rational` coefficient type is its binary fraction (4/3 becomes 6004799503160661//4503599627370496).
 """
-power_series(a::Taylor{N, K, M, T}, p::Real, v::Real) where {N, K, M, T} =
+# Inlined, like `*` (arith.jl).
+@inline power_series(a::Taylor{N, K, M, T}, p::Real, v::Real) where {N, K, M, T} =
     _power_series(a, convert(T, v), convert(T, p))
 
 """

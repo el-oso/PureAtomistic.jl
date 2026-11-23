@@ -164,7 +164,17 @@ end
     return acc
 end
 
-*(a::Taylor{N, K}, b::Taylor) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
+# The Taylor operations (`*`, `inv`, `compose`, `power_series` and the `fast_*` series methods) are
+# inlined into their callers when their series have at most `_INLINE_MAX` coefficients. Left to the
+# compiler, the `fma` chains make each of them exceed the inlining threshold; the out-of-line calls
+# then cost up to 2.1 times at order 2 in a caller that evaluates a series functional over many
+# points, and keep its loop from vectorizing. Above `_INLINE_MAX` the unrolled kernels are not forced
+# inline: their code grows with the square of the number of coefficients, and forcing them into every
+# caller made the compile time of polarized `lda_c_pw` at order 10 grow from 5 s to 104 s.
+@inline *(a::Taylor{N, K, M, T, L}, b::Taylor) where {N, K, M, T, L} =
+    _mul_operation(Val(max(L, length(b.c)) <= _INLINE_MAX), a, b)
+@inline _mul_operation(::Val{true}, a::Taylor{N, K}, b) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
+_mul_operation(::Val{false}, a::Taylor{N, K}, b) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
 function *(a::Taylor{N, K, M, T, L}, r::Real) where {N, K, M, T, L}
     s = convert(T, r)
     return Taylor{N, K, M, T, L}(ntuple(i -> a.c[i] * s, Val(L)))
@@ -254,7 +264,10 @@ end
     return (first ? num : num - acc) / b.c[1]
 end
 
-inv(a::Taylor) = _div(one(a), a)
+# Inlined, like `*`.
+@inline inv(a::Taylor{N, K, M, T, L}) where {N, K, M, T, L} = _inv_operation(Val(L <= _INLINE_MAX), a)
+@inline _inv_operation(::Val{true}, a) = _div(one(a), a)
+_inv_operation(::Val{false}, a) = _div(one(a), a)
 
 /(a::Taylor, b::Taylor) = _div(a, b)
 /(a::Taylor{N, K, M, T}, r::Real) where {N, K, M, T} = a * inv(convert(T, r))

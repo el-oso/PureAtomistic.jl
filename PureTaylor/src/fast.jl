@@ -168,7 +168,8 @@ fast_expm1(x::Real) = expm1(x)
 The series of `√a`, with its value from the scalar `fast_sqrt`. Domain: `value(a) ≥ 0`, unchecked; at
 value 0 the derivatives are singular.
 """
-fast_sqrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_sqrt(value(a)), inv(T(2)))
+# Inlined, like `*` (arith.jl).
+@inline fast_sqrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_sqrt(value(a)), inv(T(2)))
 
 """
     fast_cbrt(a::Taylor)
@@ -184,7 +185,8 @@ fast_cbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_cbrt
 The series of `a^(-1/3)`, with its value from the scalar `fast_invcbrt`. Domain: positive normal
 `value(a)` for `Float32` and `Float64`, unchecked.
 """
-fast_invcbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_invcbrt(value(a)), -inv(T(3)))
+# Inlined, like `*` (arith.jl).
+@inline fast_invcbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_invcbrt(value(a)), -inv(T(3)))
 
 """
     fast_log(a::Taylor)
@@ -208,7 +210,11 @@ fast_log1p(a::Taylor{N, K, M, T}) where {N, K, M, T} = _log_series(a, fast_log1p
 The series of `eᵃ`, with its value from the scalar `fast_exp`. Domain: `|value(a)| ≤ 700` for
 `Float64`, `|value(a)| ≤ 85` for `Float32`, unchecked.
 """
-fast_exp(a::Taylor) = (e = fast_exp(value(a)); _exp_taylor(a, e, e))
+# Inlined, like `*` (arith.jl). On the point loop of PureXC, `pbe_c` with these two hints, against
+# without them, takes (ns per point) 23% longer at order 0 in Float64 and 4% to 8% less at orders 0
+# to 2 in Float32 and at orders 1 and 2 in Float64 (7% at Float64 order 2). The net over orders 0 to
+# 2 is a gain, so the hints stay.
+@inline fast_exp(a::Taylor) = (e = fast_exp(value(a)); _exp_taylor(a, e, e))
 
 """
     fast_expm1(a::Taylor)
@@ -217,4 +223,5 @@ The series of `eᵃ - 1`, with its value from the scalar `fast_expm1` and the hi
 the scalar `fast_exp`. Domain: `|value(a)| ≤ 700` for `Float64`, `|value(a)| ≤ 85` for `Float32`,
 unchecked.
 """
-fast_expm1(a::Taylor) = _exp_taylor(a, fast_expm1(value(a)), fast_exp(value(a)))
+# Inlined together with `fast_exp`, for the measured trade-off stated there.
+@inline fast_expm1(a::Taylor) = _exp_taylor(a, fast_expm1(value(a)), fast_exp(value(a)))
