@@ -110,6 +110,11 @@ end
 # - For z = −ε_c/(γφ³) > 1, 1/E = e^(−z)/(1 − e^(−z)) and log E = z + log(1 − e^(−z)): the series of
 #   1/E or log E composed with that of E would be differences of terms of the size of the powers
 #   of its first coefficient.
+# Returns H, D = γφ³·log(1 + (e^(−z) − 1)·v) and whether y > 1. D equals ε_c + H for every y: with
+# γφ³·z = −ε_c and 1 + X = e^z − (e^z − 1)·v, log(1 + X) − z = log(1 + (e^(−z) − 1)·v). Where y > 1,
+# H approaches −ε_c as t grows and the sum ε_c + H is a difference of nearly equal terms, while D
+# has none: there (e^(−z) − 1)·v lies in (−1/(2 + B), 0]. Where y ≤ 1, v approaches 1 and D is
+# itself the difference of −γφ³·z and the small H, so it is not used there.
 @inline function _pbe_H(f::PBECorrelation, n, φ, σ, ε)
     R = typeof(value(n))
     φ2 = φ * φ
@@ -122,8 +127,9 @@ end
     z = -ε / (f.γ * φ3)
     E = fast_expm1(z)
     em = fast_exp(-z)
+    emm1 = fast_expm1(-z)
     zlarge = value(z) > 1
-    rE = ifelse(zlarge, em / (-fast_expm1(-z)), inv(E))
+    rE = ifelse(zlarge, em / (-emm1), inv(E))
     logE = ifelse(zlarge, z + fast_log1p(-em), fast_log(E))
     y = (βγ * rE) * t2
     # 1/t² and 1/y from their factors, φ²·n^(7/3)/(c·σ) and (E/(β/γ))·(1/t²): the inverse of the
@@ -149,8 +155,13 @@ end
     whole = z + fast_log1p((em - 1) * v)
     above = ifelse(zlarge & (value(y) > 1), whole, split)
     L = ifelse(value(X) <= 1, fast_log1p(X), _series_with_value(above, fast_log1p(value(X))))
-    return f.γ * φ3 * L
+    γφ3 = f.γ * φ3
+    return (γφ3 * L, γφ3 * fast_log1p(emm1 * v), value(y) > 1)
 end
+
+# combine(ε_c, H) from ε_c and the result (H, D, y > 1) of `_pbe_H`; for `+`, D where y > 1.
+@inline _pbe_combine(combine, ε, (H, _, _)) = combine(ε, H)
+@inline _pbe_combine(::typeof(+), ε, (H, D, ylarge)) = ifelse(ylarge, D, ε + H)
 
 # log((β/γ)·c) of `_pbe_H` in the type R: the stored value where R is the number type of `f`, the
 # same expression formed in R otherwise.
@@ -170,14 +181,15 @@ end
 # the raise moves is cut off.
 @inline _energy_density(f::PBECorrelation, ρ, σ) = _pbe_c_energy(f, ρ, σ, +)
 
-# n·combine(ε_c, H): `+` for the energy; the terms alone serve to measure the cancellation in ε_c + H.
+# n·combine(ε_c, H) (`_pbe_combine`): `+` for the energy; the terms alone serve to measure the
+# cancellation in ε_c + H.
 # `adjust` is applied to the series of ε_c before H is formed: `identity` for the energy; a change of
 # its coefficients by one ulp measures the sensitivity of the outputs to the rounding of ε_c.
 @inline function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
     n = _raise(ρ, f.thresholds.density)
     g = _raise(σ, f.thresholds.sigma_floor)
     ε = adjust(_pw92_eps(f.pw, _seitz_radius(n)))
-    return n * combine(ε, _pbe_H(f, n, one(typeof(value(n))), g, ε))
+    return n * _pbe_combine(combine, ε, _pbe_H(f, n, one(typeof(value(n))), g, ε))
 end
 
 # The t-scale 16φ²k_F n²/π, the σ at which t² = 1, at the density n and the spin factor φ.
@@ -207,7 +219,7 @@ end
     z = variable(Val(3), Val(K), Val(2), value(ζ))
     g = variable(Val(3), Val(K), Val(3), value(gt), st)
     ε = adjust(_pw92_eps(f.pw, _seitz_radius(n), z, εζ))
-    w = combine(ε, _pbe_H(f, n, _pbe_phi(z, εζ), g, ε))
+    w = _pbe_combine(combine, ε, _pbe_H(f, n, _pbe_phi(z, εζ), g, ε))
     e = substitute(n * w, (nr / sn, ζ, gt / st))
     return _with_value(e, (value(ρ[1]) + value(ρ[2])) * value(w))
 end

@@ -986,3 +986,35 @@ end
     @test regions == Set([(false, false, false), (false, false, true), (false, true, false), (false, true, true), (true, false, false), (true, false, true), (true, true, true)])
     @test 0 < worst[] <= 1.0e4
 end
+
+# D = γφ³·log(1 + (e^(−z) − 1)·v) of `_pbe_H`, the form of ε_c + H where y = A·t² > 1, against the
+# sum ε_c + H: both from `_pbe_H` in 256-bit BigFloat as series to order 3 in (n, ζ, σ), at the
+# (n, t²) points of the item above, ζ = 0, 0.3 and −0.9, and B = 0.5, 1 and 2, which give y below
+# and above 1 and z below and above 1. The difference, against the largest coefficient of ε_c or H,
+# in eps(BigFloat). Bound (c): where y > 1, 43 (measured at most 4.27); where y ≤ 1, where D is a
+# difference of −γφ³·z and the small H, 1.3e8 (measured at most 1.28e7).
+@testitem "pbe_c ε_c + H at large y is an identity" begin
+    using PureTaylor
+    big_thresholds(t) = PureXC.Thresholds{BigFloat}(big(t.density), big(t.sigma), big(t.zeta), big(t.sigma_floor))
+    f0 = pbe_c()
+    pw = PureXC.PW92Correlation{BigFloat}(map(p -> big.(p), f0.pw.params), big(f0.pw.fz20), big_thresholds(f0.pw.thresholds))
+    points = ((1.0e-6, 1.0e-3), (1.0e-6, 1.0e2), (3.0e-3, 0.75), (3.0e-3, 1.0e2), (1.0, 1.0e-2), (1.0e3, 10.0), (1.0, 1.0e3))
+    worst = Dict(false => 0.0, true => 0.0)
+    for B in (0.5, 1.0, 2.0), (n, t2) in points, ζ in (0.0, 0.3, -0.9)
+        fb = PureXC.PBECorrelation{BigFloat}(big(f0.β), big(f0.γ), big(B), pw, big_thresholds(f0.thresholds))
+        εζ = fb.thresholds.zeta
+        nb = big(n)
+        st = PureXC._pbe_t_scale(nb, PureXC._pbe_phi(big(ζ), εζ))
+        nv = variable(Val(3), Val(3), Val(1), nb, nb)
+        zv = variable(Val(3), Val(3), Val(2), big(ζ))
+        gv = variable(Val(3), Val(3), Val(3), big(t2) * st, st)
+        ε = PureXC._pw92_eps(pw, PureXC._seitz_radius(nv), zv, εζ)
+        H, D, ylarge = PureXC._pbe_H(fb, nv, PureXC._pbe_phi(zv, εζ), gv, ε)
+        scale = max(maximum(abs, ε.c), maximum(abs, H.c))
+        err = Float64(maximum(abs, (D - (ε + H)).c) / (scale * eps(BigFloat)))
+        worst[ylarge] = max(worst[ylarge], err)
+        @test err <= (ylarge ? 43 : 1.3e8)
+    end
+    # Both regions of y are reached.
+    @test 0 < worst[true] && 0 < worst[false]
+end

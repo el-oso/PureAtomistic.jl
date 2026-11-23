@@ -70,7 +70,7 @@ const C_32 = Dict(
     ("lda_c_pw", :restricted) => (79, 7.818), ("lda_c_pw", :polarized) => (320, 31.45),
     ("lda_c_pw_mod", :restricted) => (73, 7.236), ("lda_c_pw_mod", :polarized) => (220, 21.97),
     ("pbe_x", :restricted) => (1600, 160.0), ("pbe_x", :polarized) => (1600, 159.0),
-    ("pbe_c", :restricted) => (1.8e4, 1736), ("pbe_c", :polarized) => (6.2e4, 6156),
+    ("pbe_c", :restricted) => (1.8e4, 1736), ("pbe_c", :polarized) => (1900, 187.2),
     ("pbe", :restricted) => (4.7e4, 4653), ("pbe", :polarized) => (5500, 549.1),
 )
 # The number of known differences per functional and spin case: the polarized rows ζ = ±(1 − eps)
