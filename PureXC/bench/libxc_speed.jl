@@ -4,11 +4,11 @@
 #
 # macOS only: it reads `sysctl` (swap usage, CPU brand). Each arm runs in its own child process
 # with one thread (`-t 1`, `OMP_NUM_THREADS=1`); a round runs one child of each arm, and the arm
-# order alternates from round to round (PureXC first in odd rounds, Libxc first in even ones) so
-# that a steady drift of the machine does not favor one arm. A child builds the inputs, warms up
-# each cell, then reports the median of three one-evaluation Chairmarks samples per cell. The
-# speed-up of a round is the Libxc time over the PureXC time, so a value above 1 means PureXC is
-# faster.
+# order alternates from kept round to kept round (PureXC first in odd ones, Libxc first in even
+# ones; a discarded round is run again in its own order) so that a steady drift of the machine
+# does not favor one arm. A child builds the inputs, warms up each cell, then reports the median
+# of three one-evaluation Chairmarks samples per cell. The speed-up of a round is the Libxc time
+# over the PureXC time, so a value above 1 means PureXC is faster.
 #
 # A cell is a functional (`lda_x`, `lda_c_pw`, `lda_c_pw_mod`, `pbe_x`, `pbe_c`, and `pbe()`, which
 # Libxc evaluates as `gga_x_pbe` and `gga_c_pbe` into separate outputs, without the sum), a spin
@@ -294,7 +294,8 @@ function driver_main()
     attempt = 0
     while length(kept) < nrounds
         attempt += 1
-        purexc_first = isodd(attempt)
+        # The order follows the kept rounds, so a rerun of a discarded round keeps its order.
+        purexc_first = iseven(length(kept))
         sw0 = swap_used_mb()
         r = Dict{String, Any}()
         for arm in (purexc_first ? ("purexc", "libxc") : ("libxc", "purexc"))
