@@ -76,6 +76,19 @@ jobs:
         with:
           project: PureXC
           check_bounds: 'yes'
+  purexc-libxc:
+    name: PureXC against Libxc 7.0.0 (Julia 1.13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v2
+      - name: Instantiate the Libxc test environment
+        run: julia --project=PureXC/test/libxc -e 'using Pkg; Pkg.instantiate()'
+      - name: Compare with Libxc and BigFloat
+        run: julia --check-bounds=yes --project=PureXC/test/libxc PureXC/test/libxc/runtests.jl
   pureblas:
     name: PureBLAS active (Julia 1.13)
     runs-on: ubuntu-latest
