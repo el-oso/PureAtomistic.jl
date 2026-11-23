@@ -50,21 +50,24 @@ const FLOOR = 1.0e-6
 const RICHARDSON_TOL = 1.0e-3
 # Bound (c) of item (B), |jl − big| ≤ c·max(|libxc − big|, 4·eps·|big|), Float64, orders 0 to 2, per
 # functional and spin case: (c, the measured maximum over the above points). Each c is about 10
-# times its measurement.
+# times its measurement, except pbe_c: about 27 (restricted) and 100 (polarized) times.
 const C_B = Dict(
     ("lda_x", :restricted) => (13, 1.251), ("lda_x", :polarized) => (14, 1.322),
     ("lda_c_pw", :restricted) => (21, 2.021), ("lda_c_pw", :polarized) => (50, 4.972),
     ("lda_c_pw_mod", :restricted) => (22, 2.145), ("lda_c_pw_mod", :polarized) => (58, 5.758),
     ("pbe_x", :restricted) => (490, 48.89), ("pbe_x", :polarized) => (690, 68.24),
-    ("pbe_c", :restricted) => (940, 93.55), ("pbe_c", :polarized) => (3400, 333.6),
-    ("pbe", :restricted) => (1.2e4, 1121), ("pbe", :polarized) => (1400, 132.5),
+    ("pbe_c", :restricted) => (940, 35.12), ("pbe_c", :polarized) => (3400, 33.14),
+    ("pbe", :restricted) => (1.2e4, 1121), ("pbe", :polarized) => (1400, 132.8),
 )
 # Bound (c) of the Float32 items, max(|jl32 − big32| − floatmin(Float32), 0) ≤
 # c·eps(Float32)·max(1, κ̂)·|big32| (`float32_ratio`), orders 0 to 4, per functional and spin case:
 # (c, the measured maximum over the above points and the orders 0 to 4, except order 3 of polarized
 # correlation). Each c is about 10 times its measurement. The order-3 maxima of polarized
 # correlation are within c: lda_c_pw 0.45, lda_c_pw_mod 0.47, pbe_c 870.5. pbe() at order 3, which
-# evaluates its terms in Float64 and rounds once: 0.50 (restricted and polarized).
+# evaluates its terms in Float64 and rounds once: 0.50 (restricted and polarized). The largest pbe_c
+# values, 1736 (restricted) and 870.5 (polarized), both at v3rho3, are at outputs that are
+# ill-conditioned in the inputs: their condition numbers Σ_i |x_i ∂out/∂x_i| / |out|, measured in
+# BigFloat, are 142.5 and 974.
 const C_32 = Dict(
     ("lda_x", :restricted) => (33, 3.266), ("lda_x", :polarized) => (39, 3.874),
     ("lda_c_pw", :restricted) => (79, 7.818), ("lda_c_pw", :polarized) => (320, 31.45),

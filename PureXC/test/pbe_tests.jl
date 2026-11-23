@@ -195,8 +195,9 @@
     const SENSITIVITY_C = 8
 
     # The kind (b) bound at orders 0 to 3, in eps of the order scale: N of the derivation in "PBE
-    # functionals agree with BigFloat", 7400 for pbe_c and 760 for pbe_x.
-    bound_b(f) = f isa PureXC.PBECorrelation ? 7400.0 : 760.0
+    # functionals agree with BigFloat", 7600 for pbe_c (N = 7604 to two significant figures) and 760
+    # for pbe_x.
+    bound_b(f) = f isa PureXC.PBECorrelation ? 7600.0 : 760.0
 
     # The error of `f` at order K at (ρ, σ) against `exact_big(f)`, in eps(T) of the result type,
     # per entry against the scale of its order (`error_eps`). `allow` is the bound it will be
@@ -675,12 +676,13 @@ end
 # scalar kernel (within 2 ulps). Every operation is counted, whichever form `ifelse` selects, which
 # bounds the longest path.
 # - pbe_c, polarized: its PW92 part, 2100 (series in n and ζ). `_pbe_H` in three variables, L = 20,
-#   40 roundings: 55 series operations (φ: 3; φ², φ³: 2; q and t²: 4; z: 2; 1/E and log E: 2; y: 2;
-#   1/t² and 1/y: 7; w: 5; v: 4; X: 5; 1/X: 6; log X: 6; log(1 − v) and the split: 2; γφ³·L: 2;
-#   the sum with ε_c, the product with n and the change of variables: 3), 2200; 25 univariate
-#   functions (two (1 ± ζ)^(2/3), x^(−7/6), x^(7/6), nine inverses, fast_expm1(z), fast_exp(−z),
-#   fast_expm1(−z), four fast_log, five fast_log1p), 25·3·40 = 3000, and their kernels, 100.
-#   N = 2100 + 2200 + 3000 + 100 = 7400.
+#   40 roundings: 57 series operations (φ: 3; φ², φ³: 2; q and t²: 4; z: 2; 1/E and log E: 2; y: 2;
+#   1/t² and 1/y: 7; w: 5; v: 4; X: 5; 1/X: 6; log X: 6; log(1 − v) and the split: 2; γφ³, γφ³·L and
+#   (e^(−z) − 1)·v with its product by γφ³ (D): 4; the sum with ε_c, the product with n and the
+#   change of variables: 3), 2280; 26 univariate functions (two (1 ± ζ)^(2/3), x^(−7/6), x^(7/6),
+#   nine inverses, fast_expm1(z), fast_exp(−z), fast_expm1(−z), four fast_log, six fast_log1p),
+#   26·3·40 = 3120, and their kernels, 104. N = 2100 + 2280 + 3120 + 104 = 7604; the bound takes
+#   7600.
 # - pbe_x: each channel a series in at most two variables, L = 10, 20 roundings: 22 series
 #   operations (s²: 3; μs² and x: 2; the x ≤ 1 form: 2; w: 3; P: 5; the x > 1 form: 3; the channel
 #   sum, the constant factor and the scaling of `derivatives`: 4), 440; 5 univariate functions
