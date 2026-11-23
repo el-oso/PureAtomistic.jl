@@ -12,6 +12,7 @@
     _TestLDA() = _TestLDA{Float64}(TINY)
     PureXC._energy_density(::_TestLDA, ρ) = ρ^3
     PureXC._energy_density(::_TestLDA, ρ::Tuple) = (ρ[1] + ρ[2])^3
+    PureXC._cutoff(::_TestLDA, ρ) = false
 
     # e = ρ²σ³ + ρσ; polarized, with ρ = ρα + ρβ and σ = σαα + 2σαβ + σββ.
     struct _TestGGA{T} <: PureXC.AbstractGGA{T}
@@ -22,6 +23,7 @@
     _gga(ρ, σ) = ρ^2 * σ^3 + ρ * σ
     PureXC._energy_density(::_TestGGA, ρ, σ) = _gga(ρ, σ)
     PureXC._energy_density(::_TestGGA, ρ::Tuple, σ::Tuple) = _gga(ρ[1] + ρ[2], σ[1] + 2 * σ[2] + σ[3])
+    PureXC._cutoff(::_TestGGA, ρ, σ) = false
     # Polynomials with small integer coefficients, accurate in Float32 at every order the tests use.
     PureXC._float32_max_order(::Type{<:_TestLDA}) = 10
     PureXC._float32_max_order(::Type{<:_TestGGA}) = 10
@@ -64,6 +66,8 @@
     end
     PureXC._energy_density(::_LayoutLDA, ρ::Tuple) = _layout(ρ)
     PureXC._energy_density(::_LayoutGGA, ρ::Tuple, σ::Tuple) = _layout((ρ..., σ...))
+    PureXC._cutoff(::_LayoutLDA, ρ) = false
+    PureXC._cutoff(::_LayoutGGA, ρ, σ) = false
 
     # Multisets of size m over 1:n as nondecreasing index tuples, in lexicographic order.
     multisets(n, m) = m == 0 ? [()] : [(i, r...) for i in 1:n for r in multisets(n, m - 1) if isempty(r) || r[1] >= i]
@@ -408,6 +412,7 @@ end
     end
     PureXC._energy_density(f::_ParamGGA, ρ, σ) = f.c * ρ^2 * σ
     PureXC._energy_density(f::_ParamGGA, ρ::Tuple, σ::Tuple) = f.c * (ρ[1] + ρ[2])^2 * (σ[1] + 2 * σ[2] + σ[3])
+    PureXC._cutoff(::_ParamGGA, ρ, σ) = false
     c = variable(Val(1), Val(1), Val(1), 2.0)
     f = _ParamGGA(c, PureXC.Thresholds{Float64}(1.0e-15, 1.0e-20, eps(Float64)))
     # Exact: e = 2·9·0.5 = 9 and ∂e/∂c = ρ²σ = 4.5, products of dyadic rationals.

@@ -11,9 +11,13 @@ end
 @contract AbstractLDA "A functional of the density alone." begin
     _energy_density(::Self, ::Real) => "energy per volume of a restricted density, as a series"
     _energy_density(::Self, ::Tuple) => "energy per volume of a polarized density (ρα, ρβ)"
+    _cutoff(::Self, ::Real) => "whether every output is zero at a restricted density"
+    _cutoff(::Self, ::Tuple) => "whether every output is zero at a polarized density (ρα, ρβ)"
 end
 
 @contract AbstractGGA "A functional of the density and σ." begin
     _energy_density(::Self, ::Real, ::Real) => "energy per volume of a restricted (ρ, σ), as a series"
     _energy_density(::Self, ::Tuple, ::Tuple) => "energy per volume of a polarized (ρ, σ)"
+    _cutoff(::Self, ::Real, ::Real) => "whether every output is zero at a restricted (ρ, σ)"
+    _cutoff(::Self, ::Tuple, ::Tuple) => "whether every output is zero at a polarized (ρ, σ)"
 end

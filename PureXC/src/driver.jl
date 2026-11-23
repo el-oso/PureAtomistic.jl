@@ -1,8 +1,9 @@
 # The functional interface. A concrete LDA or GGA `f` has a field `thresholds::Thresholds{T}` and
-# a method `_energy_density(f, ρ)` (LDA) or `_energy_density(f, ρ, σ)` (GGA): restricted, ρ and σ
-# are `Taylor` numbers; polarized, ρ = (ρα, ρβ) and σ = (σαα, σαβ, σββ) are tuples of them. It
-# returns e, the energy per volume, as a `Taylor` over the same variables. It is evaluated at
-# every point, including those `_cutoff` selects, so it must not throw for nonnegative inputs.
+# the methods `_energy_density(f, ρ)` and `_cutoff(f, ρ)` (LDA) or `_energy_density(f, ρ, σ)` and
+# `_cutoff(f, ρ, σ)` (GGA). `_energy_density` takes, restricted, `Taylor` numbers ρ and σ; polarized,
+# tuples ρ = (ρα, ρβ) and σ = (σαα, σαβ, σββ) of them. It returns e, the energy per volume, as a
+# `Taylor` over the same variables. It is evaluated at every point, including those `_cutoff`
+# selects, so it must not throw for nonnegative inputs.
 
 """
     _energy_density(f, ρ[, σ])
@@ -18,10 +19,10 @@ function _energy_density end
 
 Whether the PureXC rule of `f` makes the energy and every derivative zero at the plain input
 values `ρ` and `σ`, given in the result type (restricted: numbers; polarized: tuples). At such a
-point the result of `_energy_density` is discarded and every output is an exact zero.
+point the result of `_energy_density` is discarded and every output is an exact zero. Each
+concrete LDA or GGA defines a method.
 """
-@inline _cutoff(::AbstractLDA, ρ) = false
-@inline _cutoff(::AbstractGGA, ρ, σ) = false
+function _cutoff end
 
 @inline _number_type(::AbstractFunctional{T}) where {T} = T
 
