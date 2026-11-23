@@ -1,0 +1,20 @@
+[deps]
+Libxc = "66e17ffc-8502-11e9-23b5-c9248d0eb96d"
+Libxc_jll = "a56a6d9d-ad03-58af-ab61-878bf78270d6"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PureTaylor = "afef06f6-54c7-4a99-a2ea-8612840565e0"
+PureXC = "044ac494-80fc-4ea7-b04d-a67dd3f5a0f9"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+PureTaylor = {path = "../../../PureTaylor"}
+PureXC = {path = "../.."}
+
+[compat]
+Libxc = "0.3.27"
+Libxc_jll = "=7.0.0"
+Printf = "1"
+PureTaylor = "0.1"
+PureXC = "0.1"
+Test = "1"
+julia = "1.13"

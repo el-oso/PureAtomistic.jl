@@ -73,3 +73,32 @@ The `PureXC.Thresholds` of a functional, or a tuple of those of the terms of an 
 """
 thresholds_of(f::PureXC.XC) = map(t -> t[2].thresholds, f.terms)
 thresholds_of(f::PureXC.AbstractFunctional) = f.thresholds
+"""
+    zeta_straddles(point, thresholds)
+
+Whether a polarized point lies within one rounding of 1 ± ζ = ε_ζ: the smaller of 1 + ζ and
+1 − ζ, for ζ = (ρα − ρβ)/(ρα + ρβ) either rounded from the channels in their type or exact, is
+within eps/2 (one rounding of ζ near ±1) of ε_ζ. The rounded and the exact ζ may then fall on
+different sides of ε_ζ, and an evaluation that compares with ≤ and one that compares with < may
+decide differently at the threshold itself, so one keeps the factor (1 ± ζ)^p and another
+replaces it by the constant ε_ζ^p; their derivatives differ by the series part of that factor.
+For a tuple of thresholds, whether it holds for any of them. Restricted points never straddle.
+"""
+zeta_straddles(p::Tuple, t::Tuple) = any(x -> zeta_straddles(p, x), t)
+zeta_straddles(p::Tuple{Vararg{Real}}, t::Thresholds) = false
+function zeta_straddles(p::Tuple{NTuple{2, Real}, Vararg}, t::Thresholds)
+    a, b = p[1]
+    (iszero(a) || iszero(b)) && return false
+    ζ = (a - b) / (a + b)
+    ζe = (big(a) - big(b)) / (big(a) + big(b))
+    ε = big(t.zeta)
+    u = big(eps(typeof(ζ))) / 2
+    return abs(1 - abs(big(ζ)) - ε) <= u || abs(1 - abs(ζe) - ε) <= u
+end
+
+"""
+    to_float32(point)
+
+The grid point with every input rounded to Float32.
+"""
+to_float32(p::Tuple) = map(x -> x isa Tuple ? Float32.(x) : Float32(x), p)
