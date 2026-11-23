@@ -62,8 +62,9 @@ const C_B = Dict(
 # Bound (c) of the Float32 items, max(|jl32 − big32| − floatmin(Float32), 0) ≤
 # c·eps(Float32)·max(1, κ̂)·|big32| (`float32_ratio`), orders 0 to 4, per functional and spin case:
 # (c, the measured maximum over the above points and the orders 0 to 4, except order 3 of polarized
-# correlation and of pbe()). Each c is about 10 times its measurement. The order-3 maxima of
-# polarized correlation are within c: lda_c_pw 0.45, lda_c_pw_mod 0.47, pbe_c 870.5.
+# correlation). Each c is about 10 times its measurement. The order-3 maxima of polarized
+# correlation are within c: lda_c_pw 0.45, lda_c_pw_mod 0.47, pbe_c 870.5. pbe() at order 3, which
+# evaluates its terms in Float64 and rounds once: 0.50 (restricted and polarized).
 const C_32 = Dict(
     ("lda_x", :restricted) => (33, 3.266), ("lda_x", :polarized) => (39, 3.874),
     ("lda_c_pw", :restricted) => (79, 7.818), ("lda_c_pw", :polarized) => (320, 31.45),
@@ -72,13 +73,6 @@ const C_32 = Dict(
     ("pbe_c", :restricted) => (1.8e4, 1736), ("pbe_c", :polarized) => (6.2e4, 6156),
     ("pbe", :restricted) => (4.7e4, 4653), ("pbe", :polarized) => (5500, 549.1),
 )
-# Float32 items known to fail, as (functional, spin, order), tested with @test_broken. pbe(Float32)
-# at order 3 evaluates both terms in Float32 (`_float32_max_order` 3 for each); where an entry of
-# each term exceeds floatmax(Float32) with opposite signs, the term outputs are +Inf32 and -Inf32
-# and their sum is NaN, while the exact sum can fit. Measured: 823 entries (restricted) and 8986
-# (polarized) on the grid that are NaN, or infinite where the exact value fits.
-const BROKEN32 = Set([("pbe", :restricted, 3), ("pbe", :polarized, 3)])
-const NONFINITE32 = Set([("pbe", :restricted, 3), ("pbe", :polarized, 3)])
 # The number of known differences per functional and spin case: the polarized rows ζ = ±(1 − eps)
 # of the grid, 2·131 points (LDA) and 2·131·42 (GGA).
 const KNOWN_COUNT = Dict(
@@ -570,16 +564,8 @@ value(name, spin, item) = haskey(RESULTS, (name, spin, item)) ? RESULTS[(name, s
             @test v(:richardson) <= RICHARDSON_TOL
             # Float32: accuracy at orders 0 to 4 and finiteness at orders 0 to 4.
             for j in 0:4
-                if (name, spin, j) in BROKEN32
-                    @test_broken v(Symbol(:float32_order, j)) <= C_32[(name, spin)][1]
-                else
-                    @test v(Symbol(:float32_order, j)) <= C_32[(name, spin)][1]
-                end
-                if (name, spin, j) in NONFINITE32
-                    @test_broken v(Symbol(:nonfinite32_order, j)) == 0
-                else
-                    @test v(Symbol(:nonfinite32_order, j)) == 0
-                end
+                @test v(Symbol(:float32_order, j)) <= C_32[(name, spin)][1]
+                @test v(Symbol(:nonfinite32_order, j)) == 0
             end
         end
     end

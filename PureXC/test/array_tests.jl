@@ -131,22 +131,25 @@ end
     @test_throws "which differ" xc_evaluate!((; e = out.e), f, Val(1), ρ, σ)
 end
 
+# A Float32 pbe above its `_float32_max_order` evaluates its terms in Float64 and rounds their sum
+# once; it equals that rounding, not the sum of the Float32 terms.
 @testitem "pbe equals the sum of its terms" setup = [ArrayFixtures] begin
     using .ArrayFixtures
     for T in (Float64, Float32), polarized in (false, true), K in 0:3
         f = pbe(T)
-        x, c = pbe_x(T), pbe_c(T)
+        S = PureXC._evaluation_type(f, T, Val(K))
+        x, c = PureXC._with_number_type(pbe_x(T), S), PureXC._with_number_type(pbe_c(T), S)
         ρ, σ = ArrayFixtures.inputs(T, 20; polarized)
         out = xc_evaluate!(xc_outputs(f, Val(K), ρ, σ), f, Val(K), ρ, σ)
         ox = xc_evaluate!(xc_outputs(x, Val(K), ρ, σ), x, Val(K), ρ, σ)
         oc = xc_evaluate!(xc_outputs(c, Val(K), ρ, σ), c, Val(K), ρ, σ)
         for n in keys(out)
-            @test out[n] == ox[n] + oc[n]
+            @test out[n] == T.(ox[n] + oc[n])
         end
         i = 7
         pρ = polarized ? Tuple(ρ[:, i]) : ρ[i]
         pσ = polarized ? Tuple(σ[:, i]) : σ[i]
-        @test energy_density(f, pρ, pσ) == energy_density(x, pρ, pσ) + energy_density(c, pρ, pσ)
+        @test energy_density(f, pρ, pσ) == energy_density(pbe_x(T), pρ, pσ) + energy_density(pbe_c(T), pρ, pσ)
     end
     # Weights scale the terms.
     f = XC(((2, pbe_x()), (0.5, pbe_c())))
@@ -176,6 +179,78 @@ end
     for n in keys(r)
         g, w = getfield(r, n), getfield(b, n)
         @test abs(w) <= floatmax(Float32) ? isfinite(g) : (isinf(g) && sign(g) == sign(w))
+    end
+end
+
+# pbe(Float32) above its `_float32_max_order`, 2, evaluates pbe_x and pbe_c in Float64 and rounds
+# each output once. At order 3 each term alone is evaluated in Float32, and at the entries
+# `order3_entries` counts their Float32 sum is NaN, or an infinity where the exact value fits:
+# on the Libxc oracle grid (`test/libxc/grid.jl`) in Float32, 823 entries (restricted) and 8986
+# (polarized). Oracle: pbe(Float32) converted exactly to BigFloat (256 bits). Bound: every such
+# entry of pbe(Float32) is consistent, and within eps(Float32) relative after floatmin(Float32)
+# absolute (one rounding is eps(Float32)/2); measured 0.38 (restricted) and 0.44 (polarized).
+@testmodule Order3Fixtures begin
+    using PureXC
+    include(joinpath(pkgdir(PureXC), "test", "libxc", "grid.jl"))
+
+    components(x) = x isa Tuple ? x : (x,)
+    to_float32(p) = map(x -> x isa Tuple ? map(Float32, x) : Float32(x), p)
+    to_big(p) = map(x -> x isa Tuple ? map(big, x) : big(x), p)
+
+    # An output g is consistent with its exact value w when it is finite and w fits in Float32, or
+    # is the infinity of the sign of w where |w| exceeds floatmax(Float32).
+    consistent(g, w) = isfinite(g) ? abs(w) <= floatmax(Float32) : (isinf(g) && abs(w) > floatmax(Float32) && sign(g) == sign(w))
+
+    # Over the Float32 grid points `pts` accepted at order 3, the entries at which the Float32 sum
+    # of pbe_x(Float32) and pbe_c(Float32), each evaluated in Float32, is not consistent with the
+    # exact value of pbe(Float32). Returns their number, the number of those entries at which
+    # pbe(Float32) is not consistent, and the largest error of pbe(Float32) there,
+    # max(|g − w| − floatmin(Float32), 0)/(eps(Float32)·|w|), over its finite entries.
+    function order3_entries(pts)
+        f, fx, fc = pbe(Float32), pbe_x(Float32), pbe_c(Float32)
+        fb = PureXC._with_number_type(f, BigFloat)
+        n, bad, worst = 0, 0, 0.0
+        for q in pts
+            PureXC._inputs_ok(f, Val(3), q...) || continue
+            r, rx, rc = xc_derivatives(f, Val(3), q...), xc_derivatives(fx, Val(3), q...), xc_derivatives(fc, Val(3), q...)
+            b = setprecision(BigFloat, 256) do
+                PureXC._xc_derivatives_unchecked(fb, Val(3), to_big(q)...)
+            end
+            for name in keys(r)
+                g, gx, gc, w = map(components ∘ Base.Fix2(getfield, name), (r, rx, rc, b))
+                for i in eachindex(w, g, gx, gc)
+                    consistent(gx[i] + gc[i], w[i]) && continue
+                    n += 1
+                    consistent(g[i], w[i]) || (bad += 1)
+                    isfinite(g[i]) || continue
+                    d = max(abs(big(g[i]) - w[i]) - big(floatmin(Float32)), 0)
+                    worst = max(worst, Float64(d / (big(eps(Float32)) * abs(w[i]))))
+                end
+            end
+        end
+        return (; n, bad, worst)
+    end
+end
+
+# Every fourth grid point: 209 entries (restricted) and 2252 (polarized).
+@testitem "pbe(Float32) at order 3 sums its terms in Float64" setup = [Order3Fixtures] begin
+    using .Order3Fixtures
+    for (spin, count) in ((:restricted, 209), (:polarized, 2252))
+        pts = map(Order3Fixtures.to_float32, Order3Fixtures.grid_points(:gga, spin))[begin:4:end]
+        r = Order3Fixtures.order3_entries(pts)
+        @test r.n == count
+        @test r.bad == 0
+        @test r.worst <= 1
+    end
+end
+
+@testitem "pbe(Float32) at order 3 on the whole grid" tags = [:exhaustive] setup = [Order3Fixtures] begin
+    using .Order3Fixtures
+    for (spin, count) in ((:restricted, 823), (:polarized, 8986))
+        r = Order3Fixtures.order3_entries(map(Order3Fixtures.to_float32, Order3Fixtures.grid_points(:gga, spin)))
+        @test r.n == count
+        @test r.bad == 0
+        @test r.worst <= 1
     end
 end
 

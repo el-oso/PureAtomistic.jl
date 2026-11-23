@@ -6,8 +6,9 @@
 The functional Σ wᵢ·fᵢ over `terms = ((w₁, f₁), (w₂, f₂), …)`, with real weights wᵢ. All terms
 belong to one family (LDA or GGA). `energy_density`, `xc_derivatives` and `xc_evaluate!` sum the
 weighted terms. Each term is evaluated by its own driver in its own evaluation type
-(`_evaluation_type`); the weighted terms are summed in the widest of those types, and each output
-is rounded once to the result type.
+(`_evaluation_type`), or in Float64 when the XC is Float32 above its `_float32_max_order`; the
+weighted terms are summed in the widest of those types, and each output is rounded once to the
+result type.
 """
 struct XC{T, TS <: Tuple} <: AbstractFunctional{T}
     terms::TS
@@ -31,8 +32,12 @@ pbe(::Type{T} = Float64) where {T} = XC(((1, pbe_x(T)), (1, pbe_c(T))))
 family(xc::XC) = family(xc.terms[1][2])
 kind(::XC) = :exchange_correlation
 _with_number_type(xc::XC, ::Type{S}) where {S} = XC(map(t -> (t[1], _with_number_type(t[2], S)), xc.terms))
-_float32_max_order(::Type{XC{T, TS}}) where {T, TS} =
-    minimum(i -> _float32_max_order(fieldtype(fieldtype(TS, i), 2)), 1:fieldcount(TS))
+# An XC is evaluated in Float32 to order 2, the default, and every term in Float64 above it. The
+# orders of its terms do not bound it: their outputs can cancel. Measured for pbe(Float32), K32 = 2:
+# at order 3, where pbe_x and pbe_c are each evaluated in Float32, an entry of each term exceeds
+# floatmax(Float32) with opposite signs while their sum fits, so the Float32 sum is Inf - Inf = NaN
+# or an infinity (823 entries restricted, 8986 polarized on the Libxc oracle grid).
+_float32_max_order(::Type{<:XC}) = 2
 
 function _check_inputs(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     foreach(t -> _check_inputs(t[2], k, x...), xc.terms)
@@ -66,7 +71,14 @@ end
 @inline _term_outputs(f, k::Val, x::Vararg{Any, N}) where {N} = _evaluate_unrounded(f, k, x...)
 _term_outputs(::AbstractFunctional{<:Taylor}, ::Val, ::Vararg{Any, N}) where {N} = _throw_taylor_parameter()
 
-@inline _xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _outputs_in(_result_type(xc, x...), _term_sum(xc.terms, k, x...))
+# The terms in the evaluation type S of the XC: unchanged where S is the result type R, each
+# converted to S otherwise (Float64 for a Float32 XC above `_float32_max_order`).
+@inline function _xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
+    R = _result_type(xc, x...)
+    return _outputs_in(R, _term_sum(_terms_in(xc, R, _evaluation_type(xc, R, k)), k, x...))
+end
+@inline _terms_in(xc::XC, ::Type{R}, ::Type{R}) where {R} = xc.terms
+@inline _terms_in(xc::XC, ::Type, ::Type{S}) where {S} = map(t -> (t[1], _with_number_type(t[2], S)), xc.terms)
 
 function xc_derivatives(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     _check_inputs(xc, k, x...)

@@ -562,7 +562,7 @@ end
 # Review focus 4: a Float64 functional promotes Float32 inputs; a Float32 functional with Float32
 # inputs stays Float32.
 @testitem "PBE result types" begin
-    for build in (pbe_x, pbe_c)
+    for build in (pbe_x, pbe_c, pbe)
         r = @inferred xc_derivatives(build(Float32), Val(3), (0.3f0, 0.1f0), (0.02f0, 0.005f0, 0.01f0))
         @test r.e isa Float32 && all(x -> x isa Tuple{Vararg{Float32}}, values(r)[2:end])
         @test (@inferred xc_derivatives(build(Float32), Val(2), 0.3f0, 0.02f0)).v2sigma2 isa Float32
@@ -639,7 +639,7 @@ end
     end
     # Float32 at the last order evaluated in Float32, `_float32_max_order`, and the first evaluated
     # in Float64.
-    for build in (pbe_x, pbe_c), (ρ, σ) in ((0.3f0, 0.02f0), ((0.3f0, 0.1f0), (0.02f0, 0.005f0, 0.01f0)))
+    for build in (pbe_x, pbe_c, pbe), (ρ, σ) in ((0.3f0, 0.02f0), ((0.3f0, 0.1f0), (0.02f0, 0.005f0, 0.01f0)))
         f = build(Float32)
         k32 = PureXC._float32_max_order(typeof(f))
         for K in (k32, k32 + 1)
