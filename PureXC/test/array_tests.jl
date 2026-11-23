@@ -2,8 +2,8 @@
     using PureXC
     using Random
 
-    # Every shipped point functional with its input kind.
-    functionals(T) = (lda_x(T), lda_c_pw(T), lda_c_pw_mod(T), pbe_x(T), pbe_c(T))
+    # Every shipped functional: the point functionals and the composite pbe.
+    functionals(T) = (lda_x(T), lda_c_pw(T), lda_c_pw_mod(T), pbe_x(T), pbe_c(T), pbe(T))
     isgga(f) = PureXC.family(f) == :gga
 
     # n ≥ 4 points: restricted vectors, polarized matrices with σαβ inside its bound. Point 1 has
