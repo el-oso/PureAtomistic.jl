@@ -147,11 +147,17 @@ mismatched axes throw a `DimensionMismatch`.
 
 No output may share memory with an input or with another output: if one does, `xc_evaluate!`
 throws `ArgumentError("xc: an output shares memory with an input or another output")` before
-writing anything. The test is exact for `Array`s of a bits type (by address range) and for
-views of one parent indexed by integers and ranges (by index set, so disjoint rows or column blocks
-of one matrix are accepted). Other arrays, other indices and other wrappers (an `OffsetArray`, a
-`reshape` of a view) are tested conservatively, by address span and the parent array or by
-`Base.mightalias`, and may be rejected although they do not share memory.
+writing anything. Every argument is resolved through `parent` to its root array. When the roots are
+`Array`s or `Memory`s of a bits type, arrays whose roots occupy disjoint address ranges are
+accepted, and arrays over one storage are accepted only when the test is exact: `Array`s and views
+of an `Array` indexed by integers and ranges whose address spans are disjoint, or views of the same
+`Array` whose integer or range indices select disjoint sets in some dimension (an `Array` stores
+each index at its own address), so disjoint rows or column blocks of one matrix are accepted. Any
+other array over the same storage is rejected, even when its elements are disjoint: a `reshape`,
+`transpose`, `OffsetArray` or other wrapper of one part of a buffer against another part, and views
+of one `Array` that differ only in vector or logical indices. When a root is not an `Array` or
+`Memory` of a bits type, the roots are tested with `Base.mightalias`; only in this case does the
+test rely on the `Base.dataids` of the array type.
 """
 function xc_evaluate!(out::NamedTuple, f::AbstractFunctional, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
     _check_axes(ρ, σ...)
@@ -196,21 +202,28 @@ function _evaluate_points!(
     return nothing
 end
 
-# Whether an output shares memory with an input or with another output, checked pair by pair:
+# Whether an output shares memory with an input or with another output, checked pair by pair. Each
+# array is first resolved through `parent`, repeatedly, to its root: the array that is its own parent,
+# which holds the elements of every wrapper and view above it.
 #
-# - two `Array`s of a bits type: exactly, by whether their address ranges [pointer, pointer + sizeof)
-#   intersect;
-# - a `SubArray` and any array: disjoint when both are strided `Array` memory (an `Array` of a bits
-#   type, or a view of one indexed by integers and ranges) whose address spans, from the lowest to
-#   the highest address of an element, do not intersect. Otherwise two views of the same parent with
-#   the same number of indices are compared by index set: exactly when every index is an integer or
-#   a range of integers, since such views are disjoint if and only if their index sets are disjoint
-#   in some dimension. An index of another type (a vector of integers, a logical mask) counts as
-#   intersecting in its dimension, and views of one parent with different numbers of indices count
-#   as overlapping, so such views may be rejected although disjoint. In every other case the view's
-#   parent is checked in its place, so a view is rejected when its parent overlaps the other array,
-#   even where the view's own elements do not;
-# - any other pair: `Base.mightalias`, which may reject arrays that do not share memory.
+# - When both roots are `Array`s or `Memory`s of a bits type, each root's storage is the address
+#   range [pointer, pointer + length · elsize). Roots whose ranges do not intersect share no memory.
+#   When they intersect, the pair is disjoint only if one of two exact tests proves it:
+#   - both arrays are strided memory of an `Array` (the `Array` itself, or a view of an `Array`
+#     indexed by integers and ranges, where every element's address follows from `pointer` and
+#     `strides`) and their address spans, from the lowest to the highest address of an element, do
+#     not intersect;
+#   - both are views of the same `Array` object with the same number of indices, and in some
+#     dimension both indices are integers or ranges of integers that select disjoint sets. An
+#     `Array` stores each index at its own address, so disjoint index sets select disjoint memory.
+#     Through any other parent (a `reshape`, a `PermutedDimsArray`, a view with repeated indices)
+#     several indices may reach one address, so index sets prove nothing there.
+#   Every other pair whose root ranges intersect counts as sharing memory. Some disjoint arrays are
+#   therefore rejected: a `reshape`, `transpose`, `adjoint`, `OffsetArray` or other wrapper of one
+#   part of a buffer against another part of it, and views of one `Array` whose index sets differ
+#   only in dimensions indexed by vectors of integers or logical masks.
+# - When either root is not an `Array` or `Memory` of a bits type, `Base.mightalias` of the two
+#   roots, which relies on the `Base.dataids` of their types; this is the only case that does.
 #
 # An empty array shares memory with nothing.
 @noinline _throw_overlap() = throw(ArgumentError("xc: an output shares memory with an input or another output"))
@@ -229,28 +242,33 @@ _overlaps_any(a, xs::Tuple) = _overlaps(a, first(xs)) || _overlaps_any(a, Base.t
 
 _overlaps(a::AbstractArray, b::AbstractArray) = !(isempty(a) || isempty(b)) && _shares(a, b)
 
-_shares(a, b) = Base.mightalias(a, b)
-function _shares(a::Array, b::Array)
-    sa, sb = _span(a), _span(b)
-    (isnothing(sa) || isnothing(sb)) && return Base.mightalias(a, b)
-    return _spans_intersect(sa, sb)
-end
-function _shares(a::SubArray, b::SubArray)
+function _shares(a, b)
+    ra, rb = _root(a), _root(b)
+    sa, sb = _extent(ra), _extent(rb)
+    (isnothing(sa) || isnothing(sb)) && return Base.mightalias(ra, rb)
+    _spans_intersect(sa, sb) || return false
     _spans_disjoint(a, b) && return false
-    parent(a) === parent(b) || return _shares(parent(a), parent(b))
-    ia, ib = parentindices(a), parentindices(b)
-    return !(length(ia) == length(ib) && _indices_disjoint(ia, ib))
+    return !_views_disjoint(a, b)
 end
-_shares(a::SubArray, b) = !_spans_disjoint(a, b) && _shares(parent(a), b)
-_shares(a, b::SubArray) = _shares(b, a)
 
-# The address span [lo, hi) of the elements of strided `Array` memory of a bits type, or `nothing`.
-_span(a) = nothing
-function _span(a::Array)
+# The array that is its own parent, reached through `parent`.
+_root(a) = _root(a, parent(a))
+_root(a::T, p::T) where {T} = p === a ? a : _root(p)
+_root(a, p) = _root(p)
+_root(a::Union{Array, Memory}) = a
+
+# The address range [lo, hi) of the storage of an `Array` or `Memory` of a bits type, or `nothing`;
+# `sizeof` of either is its length times its element size.
+_extent(a) = nothing
+function _extent(a::Union{Array, Memory})
     isbitstype(eltype(a)) || return nothing
     p = UInt(pointer(a))
     return (p, p + UInt(sizeof(a)))
 end
+
+# The address span [lo, hi) of the elements of strided `Array` memory of a bits type, or `nothing`.
+_span(a) = nothing
+_span(a::Array) = _extent(a)
 function _span(a::SubArray{<:Any, <:Any, <:Array, <:Tuple{Vararg{Union{Int, AbstractRange{Int}}}}})
     isbitstype(eltype(a)) || return nothing
     es = UInt(Base.elsize(parent(a)))
@@ -266,6 +284,13 @@ _spans_intersect(sa::Tuple, sb::Tuple) = sa[1] < sb[2] && sb[1] < sa[2]
 function _spans_disjoint(a, b)
     sa, sb = _span(a), _span(b)
     return !(isnothing(sa) || isnothing(sb)) && !_spans_intersect(sa, sb)
+end
+
+# Whether a and b are views of the same `Array` that select disjoint index sets.
+_views_disjoint(a, b) = false
+function _views_disjoint(a::SubArray{<:Any, <:Any, <:Array}, b::SubArray{<:Any, <:Any, <:Array})
+    ia, ib = parentindices(a), parentindices(b)
+    return parent(a) === parent(b) && length(ia) == length(ib) && _indices_disjoint(ia, ib)
 end
 
 # Whether index tuples of equal length select disjoint sets: disjoint in at least one dimension.

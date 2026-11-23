@@ -332,6 +332,84 @@ end
     end
 end
 
+@testitem "array layer rejects outputs that share memory through wrappers" begin
+    using OffsetArrays
+    msg = "xc: an output shares memory with an input or another output"
+    n = 64
+    # Every number is 42.0, a valid input and the sentinel of the outputs: a rejected call leaves
+    # every input and output all 42.0.
+    function rejects(out, f, x...)
+        map(a -> fill!(a, 42.0), out)
+        @test_throws msg xc_evaluate!(out, f, Val(1), x...)
+        @test all(a -> all(==(42.0), a), out)
+        @test all(a -> all(==(42.0), a), x)
+        return nothing
+    end
+    f = lda_x()
+    buf = fill(42.0, 2n)
+    GC.@preserve buf begin
+        vrho = unsafe_wrap(Array, pointer(buf, n ÷ 2 + 1), (1, n))
+        # A reshape of a view of the buffer as ρ.
+        ρ = reshape(view(reshape(buf, n, 2), :, 1:1), n)
+        rejects(merge(xc_outputs(f, Val(1), ρ), (; vrho)), f, ρ)
+        # OffsetArrays of Arrays over the buffer as ρ and vrho.
+        ρo = OffsetArray(unsafe_wrap(Array, pointer(buf), n), 0)
+        rejects(merge(xc_outputs(f, Val(1), ρo), (; vrho = OffsetArray(vrho, 0, 0))), f, ρo)
+        # A Memory over the buffer as ρ, and a reshape of one as vrho.
+        mem = unsafe_wrap(Memory{Float64}, pointer(buf), n)
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho)), f, mem)
+        vm = reshape(unsafe_wrap(Memory{Float64}, pointer(buf, n ÷ 2 + 1), n), 1, n)
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = vm)), f, unsafe_wrap(Array, pointer(buf), n))
+        @test all(==(42.0), buf)
+    end
+    # A reinterpretation of complex numbers as ρ.
+    cbuf = fill(complex(42.0, 42.0), n)
+    GC.@preserve cbuf begin
+        ρc = reinterpret(Float64, view(cbuf, 1:(n ÷ 2)))
+        vc = unsafe_wrap(Array, Ptr{Float64}(pointer(cbuf)) + 8 * (n ÷ 2), (1, n))
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = vc)), f, ρc)
+        @test all(==(complex(42.0, 42.0)), cbuf)
+    end
+    # Rows of a PermutedDimsArray over a view with repeated indices: row 2 is A[1:n] (or A[2:n+1]),
+    # as row 1 is, so index sets of P prove nothing.
+    for shift in (0, 1)
+        A = fill(42.0, n + 1)
+        P = PermutedDimsArray(reshape(view(A, vcat(1:n, (1 + shift):(n + shift))), n, 2), (2, 1))
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = view(P, 2:2, :))), f, view(P, 1, :))
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = view(P, 1:1, :), vrho = view(P, 2:2, :))), f, fill(42.0, n))
+        @test all(==(42.0), A)
+    end
+    # Rows of a reshape of a view with repeated indices.
+    x = fill(42.0, 2)
+    Pa = reshape(view(x, [1, 1, 2, 2]), 2, 2)
+    rejects((; e = view(Pa, 1:1, :), vrho = view(Pa, 2:2, :)), f, fill(42.0, 2))
+    @test all(==(42.0), x)
+    # Polarized: an OffsetArray vsigma over σ at an offset, and a transposed vrho over ρ at an offset.
+    fc = pbe_c()
+    sbuf = fill(42.0, 6n)
+    ρbuf = fill(42.0, 4n)
+    GC.@preserve sbuf ρbuf begin
+        σw = unsafe_wrap(Array, pointer(sbuf), (3, n))
+        ρw = unsafe_wrap(Array, pointer(ρbuf), (2, n))
+        vs = OffsetArray(unsafe_wrap(Array, pointer(sbuf, 3 * (n ÷ 2) + 1), (3, n)), 0, 0)
+        rejects(merge(xc_outputs(fc, Val(1), ρw, σw), (; vsigma = vs)), fc, ρw, σw)
+        vr = transpose(unsafe_wrap(Array, pointer(ρbuf, 3), (n, 2)))
+        rejects(merge(xc_outputs(fc, Val(1), ρw, σw), (; vrho = vr)), fc, ρw, σw)
+        @test all(==(42.0), sbuf) && all(==(42.0), ρbuf)
+    end
+    # Wrappers over disjoint parts of one buffer pass when their roots do not intersect.
+    buf = fill(42.0, 2n)
+    GC.@preserve buf begin
+        ρo = OffsetArray(unsafe_wrap(Array, pointer(buf), n), 0)
+        out = merge(xc_outputs(f, Val(1), ρo), (; vrho = transpose(unsafe_wrap(Array, pointer(buf, n + 1), n))))
+        xc_evaluate!(out, f, Val(1), ρo)
+        ref = xc_evaluate!(xc_outputs(f, Val(1), fill(42.0, n)), f, Val(1), fill(42.0, n))
+        @test collect(out.vrho) == ref.vrho && collect(out.e) == ref.e
+        @test all(==(42.0), view(buf, 1:n))
+    end
+end
+
+
 @testitem "array layer accepts disjoint views of one array as outputs" setup = [ArrayFixtures] begin
     using .ArrayFixtures
     using OffsetArrays
@@ -372,6 +450,7 @@ end
 
 @testitem "overlap test of views and Arrays" begin
     using PureXC: _overlaps
+    using OffsetArrays
     n = 16
     buf = zeros(2n)
     A = rand(4, n)
@@ -403,6 +482,15 @@ end
     end
     @test !_overlaps(view(A, 1:2, :), rand(2, n))
     @test _overlaps(view(A, 1:2, :), A)
+    # Index sets of a parent that is not an Array prove nothing: rows 1 and 2 of Pa are both x.
+    x = rand(2)
+    Pa = reshape(view(x, [1, 1, 2, 2]), 2, 2)
+    @test _overlaps(view(Pa, 1:1, :), view(Pa, 2:2, :))
+    # Wrappers of disjoint parts of one Array count as overlapping.
+    @test _overlaps(view(A, 1:1, :), reshape(view(A, 2, :), 1, n))
+    @test _overlaps(OffsetArray(view(A, 1:1, :), 0, 0), view(A, 2:2, :))
+    # Roots that are not Arrays or Memorys are tested by Base.mightalias.
+    @test !_overlaps(1:n, A)
 end
 
 @testitem "plain disjoint Arrays take the dense point loop" setup = [ArrayFixtures] begin
