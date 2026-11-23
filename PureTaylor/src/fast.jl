@@ -5,6 +5,11 @@
 
 const _FastFloat = Union{Float32, Float64}
 
+# p[1] + x·(p[2] + x·(…)) by Horner's rule with `fma`, which rounds once at every call site (unlike
+# the `muladd` of `evalpoly`, which LLVM may fuse or not).
+@inline _fma_horner(x, p::Tuple{Any}) = p[1]
+@inline _fma_horner(x, p::Tuple) = fma(x, _fma_horner(x, Base.tail(p)), p[1])
+
 _int(::Type{Float64}) = Int64
 _int(::Type{Float32}) = Int32
 _mantissa_bits(::Type{Float64}) = 52
@@ -82,8 +87,8 @@ fast_cbrt(x::Real) = cbrt(x)
 # R(s²) = Σ_{j≥1} 2·s^(2j)/(2j+1), truncated where the next term is below the rounding of log m.
 const LOG_COEFFS64 = ntuple(j -> 2 / (2j + 1), 9)
 const LOG_COEFFS32 = ntuple(j -> Float32(2 / (2j + 1)), 5)
-@inline _log_series(s2::Float64) = s2 * evalpoly(s2, LOG_COEFFS64)
-@inline _log_series(s2::Float32) = s2 * evalpoly(s2, LOG_COEFFS32)
+@inline _log_series(s2::Float64) = s2 * _fma_horner(s2, LOG_COEFFS64)
+@inline _log_series(s2::Float32) = s2 * _fma_horner(s2, LOG_COEFFS32)
 
 """
     fast_log(x)
@@ -122,8 +127,8 @@ fast_log1p(x::Real) = log1p(x)
 # expm1(r) = Σ_{j≥1} rʲ/j! for |r| ≤ ln2/2, truncated where the next term is below the rounding.
 const EXPM1_COEFFS64 = ntuple(j -> 1 / factorial(j), 13)
 const EXPM1_COEFFS32 = ntuple(j -> Float32(1 / factorial(j)), 8)
-@inline _expm1_series(r::Float64) = r * evalpoly(r, EXPM1_COEFFS64)
-@inline _expm1_series(r::Float32) = r * evalpoly(r, EXPM1_COEFFS32)
+@inline _expm1_series(r::Float64) = r * _fma_horner(r, EXPM1_COEFFS64)
+@inline _expm1_series(r::Float32) = r * _fma_horner(r, EXPM1_COEFFS32)
 
 # x = k·ln2 + r with k = round(x/ln2), |r| ≤ ln2/2; returns (expm1(r), 2ᵏ). 2ᵏ is built from its
 # exponent bits, so k + bias must be a normal exponent: |x| ≤ 700 (Float64), |x| ≤ 85 (Float32).
