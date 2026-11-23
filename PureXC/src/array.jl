@@ -7,13 +7,16 @@
 
 @inline function _point(x::AbstractMatrix, j, ::Val{N}) where {N}
     i = first(axes(x, 1))
-    return ntuple(t -> @inbounds(x[i + t - 1, j]), Val(N))
+    return ntuple(t -> x[i + t - 1, j], Val(N))
 end
 
-# The loads and stores of the point loop use `@inbounds`: its indices come from `_points(ρ)`, and
-# `_check_axes` and `_check_out` have established beforehand that every input and output field has
-# those points (and the row counts the loop reads). A bounds check in the loop is an early exit that
-# keeps LLVM from vectorizing it.
+# The restricted loads and all stores of the point loop use `@inbounds`: its indices come from
+# `_points(ρ)`, and `_check_axes` and `_check_out` have established beforehand that every input and
+# output field has those points (and the row counts the loop reads). A bounds check in the loop is an
+# early exit that keeps LLVM from vectorizing it. The polarized loads (`_point`) keep their checks:
+# measured on Apple M-series, Julia 1.13, 4096 points, `@inbounds` there makes polarized pbe_x at
+# order 1 slower (36.6 against 29.1 ns per point) and changes lda_x and pbe_x at orders 0 to 2 by at
+# most 2%. On the tuple stores it makes polarized lda_x at order 1 faster (4.0 against 4.6 ns).
 
 # The points of an input: its indices restricted, its columns polarized.
 _points(x::AbstractVector) = eachindex(x)
