@@ -16,6 +16,10 @@ jobs:
       matrix:
         package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
         version: ['1.12', '1.13']
+        exclude:
+          # PureXC requires Julia 1.13.
+          - package: PureXC
+            version: '1.12'
     steps:
       - uses: actions/checkout@v4
       # PureAtomistic's tests load checkpoints through PureMLIP's checkpoint cache.
