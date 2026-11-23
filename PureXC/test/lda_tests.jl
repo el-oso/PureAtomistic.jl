@@ -81,18 +81,21 @@
     end
 
     # The bound, in eps(T) relative to the largest entry of each output, of the outputs at order K
-    # of the functional g at the input x, against `exact_big`:
-    # - Float32 above `_float32_max_order`, evaluated in Float64 and rounded: 50, bound (c), measured
-    #   at most 0.5.
+    # of the functional g at the input x, against `exact_big`. The measured values above order 3 are
+    # the largest errors, less the 8κ term where it applies, that `test/scans/point_bounds.jl`
+    # measures over the points of "LDA functionals at orders 0 to 10" (lda_x, lda_c_pw and
+    # lda_c_pw_mod, restricted and polarized, Float32 and Float64):
+    # - Float32 above `_float32_max_order` (PW92, orders 3 to 10), evaluated in Float64 and rounded:
+    #   5, bound (c), measured at most 0.49 (restricted lda_c_pw).
     # - where nothing is ill-conditioned (lda_x; PW92 restricted, at the symmetric split, or where
     #   the factor (1 ± ζ)^(4/3) of the smaller channel is the constant of rule 3): at K ≤ 3, 2100,
     #   bound (b) of "LDA functionals agree with BigFloat"; at K ≥ 4, 1000, bound (c), measured at
-    #   most 21, 29, 37, 51, 52, 59 and 66 at K = 4 to 10.
+    #   most 12.8, 15.6, 15.6, 43.5, 43.5, 58.6 and 58.6 at K = 4 to 10 (lda_c_pw_mod at K = 9 and 10).
     # - PW92 where that factor is kept: the same plus 8κ, κ = 2/(1 − |ζ|), the conditioning of
     #   1 ± ζ formed from ζ (spec lda_c_pw, section 8), bound (c), measured at most 3.1·κ. Where κ
     #   is large this admits errors of order 1 relative: that is the documented conditioning.
     function point_bound(g, x, T, K)
-        T === Float32 && K > PureXC._float32_max_order(typeof(g)) && return 50.0
+        T === Float32 && K > PureXC._float32_max_order(typeof(g)) && return 5.0
         base = K <= 3 ? 2100.0 : 1000.0
         g isa PureXC.PW92Correlation && x isa Tuple || return base
         t = g.thresholds.density

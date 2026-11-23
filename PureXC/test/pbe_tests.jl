@@ -230,19 +230,21 @@
     end
 
     # The bound of a point of the orders-0-to-10 items and of the t²_max scan
-    # (`test/scans/pbe_c_t2_max.jl`), in eps of the order scale. The measured values are the
-    # largest errors less 8κ_ζ of pbe_c, from that scan over all its rows, restricted and
-    # polarized, at t² up to each order's limit, or from the item "polarized pbe_c at orders 7 to
-    # 10, every point":
-    # - Float32 evaluated in Float64 and rounded: 45, bound (c), measured at most 0.43, polarized pbe_c at
-    #   orders 7 to 10 only (the item); not measured for pbe_x, restricted input or orders 4 to 6;
+    # (`test/scans/pbe_c_t2_max.jl`), in eps of the order scale. Above order 3 each bound is of kind
+    # (c), about 10 times the largest error that `test/scans/point_bounds.jl` measures over every
+    # point it covers: the points of "PBE functionals at orders 0 to 10" and of "polarized pbe_c at
+    # orders 7 to 10, every point", and the rows of the t² scan up to each order's limit, for pbe_x
+    # and pbe_c, restricted and polarized. The error is that of `point_error` (for pbe_c reduced by
+    # its sensitivity, as the comparison with the bound takes it), less 8κ_ζ for pbe_c:
+    # - Float32 above `_float32_max_order`, evaluated in Float64 and rounded (orders 4 to 10): 5,
+    #   measured at most 0.50 (polarized pbe_c, K = 4; pbe_x 0.47);
     # - K ≤ 3: `bound_b`, bound (b);
-    # - 4 ≤ K ≤ 7: 10^4, bound (c), measured at most 9170 (the scan, polarized);
-    # - K ≥ 8: 7100, bound (c), measured at most 6930 (the scan, polarized; restricted 1570);
+    # - 4 ≤ K ≤ 7: 300, measured at most 29.9 (polarized pbe_x, K = 6; pbe_c 20.5);
+    # - K ≥ 8: 700, measured at most 69.8 (restricted pbe_c, K = 10; pbe_x 40.2);
     # - pbe_c where the factors (1 ± ζ)^p of the smaller channel are kept: plus 8κ_ζ, as for PW92.
     function point_bound(f, ρ, T, K)
-        T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 45.0
-        return (K <= 3 ? bound_b(f) : K <= 7 ? 1.0e4 : 7100.0) + 8 * zeta_conditioning(f, ρ)
+        T === Float32 && K > PureXC._float32_max_order(typeof(f)) && return 5.0
+        return (K <= 3 ? bound_b(f) : K <= 7 ? 300.0 : 700.0) + 8 * zeta_conditioning(f, ρ)
     end
 
     # σ at the reduced gradient g (s² or t²), from the exact values, rounded to T. Polarized pbe_c
