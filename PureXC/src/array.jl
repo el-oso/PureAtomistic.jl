@@ -144,10 +144,19 @@ field is a matrix with one row per component of the field (see `xc_derivatives`;
 scalar field) and the point axis of the inputs as its columns. All inputs are validated before the first
 output is written; an invalid input throws the `ArgumentError` of `xc_derivatives`, and
 mismatched axes throw a `DimensionMismatch`.
+
+No output may share memory with an input or with another output: if one does, `xc_evaluate!`
+throws `ArgumentError("xc: an output shares memory with an input or another output")` before
+writing anything. The test is exact for `Array`s of a bits type (by address range) and for
+views of one parent indexed by integers and ranges (by index set, so disjoint rows or column blocks
+of one matrix are accepted). Other arrays, other indices and other wrappers (an `OffsetArray`, a
+`reshape` of a view) are tested conservatively, by address span and the parent array or by
+`Base.mightalias`, and may be rejected although they do not share memory.
 """
 function xc_evaluate!(out::NamedTuple, f::AbstractFunctional, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
     _check_axes(ρ, σ...)
     _check_out(out, _point_type(f, k, ρ, σ...), ρ)
+    _check_no_overlap(values(out), (ρ, σ...))
     _validate(f, k, ρ, σ...)
     _evaluate_points!(out, f, k, ρ, σ...)
     return out
@@ -166,17 +175,16 @@ end
 
 # The dense point loop: inputs and outputs are `Array`s of IEEE floats, read and written through
 # raw pointers under `@simd ivdep`, which lets LLVM vectorize the polarized loop (its checked loads
-# keep it scalar). It is taken only when no output may share memory with an input or with another
-# output (`Base.mightalias`), so that the iterations are independent; otherwise the checked loop
-# runs. Every index is in range: `_check_axes` and `_check_out` have established that restricted
-# inputs are vectors, a polarized ρ has 2 rows and σ 3, and each output field has `c` rows (its
-# number of components), all over the same n = size(ρ, ndims(ρ)) points; an `Array` stores column
-# j of a c-row matrix at the linear indices c(j − 1) + 1 to c·j.
+# keep it scalar). The iterations are independent: `_check_no_overlap` has established that no
+# output shares memory with an input or with another output. Every index is in range: `_check_axes`
+# and `_check_out` have established that restricted inputs are vectors, a polarized ρ has 2 rows
+# and σ 3, and each output field has `c` rows (its number of components), all over the same
+# n = size(ρ, ndims(ρ)) points; an `Array` stores column j of a c-row matrix at the linear indices
+# c(j − 1) + 1 to c·j.
 function _evaluate_points!(
         out::NamedTuple{names, <:Tuple{Vararg{Matrix{<:Base.IEEEFloat}}}}, f, k::Val,
         ρ::Array{<:Base.IEEEFloat}, σ::Vararg{Array{<:Base.IEEEFloat}, M}
     ) where {names, M}
-    _any_alias(values(out), (ρ, σ...)) && return _evaluate_points_checked!(out, f, k, ρ, σ...)
     n = size(ρ, ndims(ρ))
     GC.@preserve out ρ σ begin
         po = map(pointer, values(out))
@@ -188,14 +196,88 @@ function _evaluate_points!(
     return nothing
 end
 
-# Whether an output may share memory with an input or with another output. `Base.mightalias` compares
-# the start address of each Array's memory, so it does not detect distinct Arrays that share memory
-# through `unsafe_wrap` of a pointer into another Array's memory past its start; such inputs take
-# the dense loop.
-_any_alias(::Tuple{}, ins::Tuple) = false
-_any_alias(outs::Tuple, ins::Tuple) =
-    _aliases(first(outs), ins) || _aliases(first(outs), Base.tail(outs)) || _any_alias(Base.tail(outs), ins)
-_aliases(a, xs::Tuple) = any(x -> Base.mightalias(a, x), xs)
+# Whether an output shares memory with an input or with another output, checked pair by pair:
+#
+# - two `Array`s of a bits type: exactly, by whether their address ranges [pointer, pointer + sizeof)
+#   intersect;
+# - a `SubArray` and any array: disjoint when both are strided `Array` memory (an `Array` of a bits
+#   type, or a view of one indexed by integers and ranges) whose address spans, from the lowest to
+#   the highest address of an element, do not intersect. Otherwise two views of the same parent with
+#   the same number of indices are compared by index set: exactly when every index is an integer or
+#   a range of integers, since such views are disjoint if and only if their index sets are disjoint
+#   in some dimension. An index of another type (a vector of integers, a logical mask) counts as
+#   intersecting in its dimension, and views of one parent with different numbers of indices count
+#   as overlapping, so such views may be rejected although disjoint. In every other case the view's
+#   parent is checked in its place, so a view is rejected when its parent overlaps the other array,
+#   even where the view's own elements do not;
+# - any other pair: `Base.mightalias`, which may reject arrays that do not share memory.
+#
+# An empty array shares memory with nothing.
+@noinline _throw_overlap() = throw(ArgumentError("xc: an output shares memory with an input or another output"))
+
+function _check_no_overlap(outs::Tuple, ins::Tuple)
+    _any_overlap(outs, ins) && _throw_overlap()
+    return nothing
+end
+
+_any_overlap(::Tuple{}, ins::Tuple) = false
+_any_overlap(outs::Tuple, ins::Tuple) =
+    _overlaps_any(first(outs), ins) || _overlaps_any(first(outs), Base.tail(outs)) || _any_overlap(Base.tail(outs), ins)
+
+_overlaps_any(a, ::Tuple{}) = false
+_overlaps_any(a, xs::Tuple) = _overlaps(a, first(xs)) || _overlaps_any(a, Base.tail(xs))
+
+_overlaps(a::AbstractArray, b::AbstractArray) = !(isempty(a) || isempty(b)) && _shares(a, b)
+
+_shares(a, b) = Base.mightalias(a, b)
+function _shares(a::Array, b::Array)
+    sa, sb = _span(a), _span(b)
+    (isnothing(sa) || isnothing(sb)) && return Base.mightalias(a, b)
+    return _spans_intersect(sa, sb)
+end
+function _shares(a::SubArray, b::SubArray)
+    _spans_disjoint(a, b) && return false
+    parent(a) === parent(b) || return _shares(parent(a), parent(b))
+    ia, ib = parentindices(a), parentindices(b)
+    return !(length(ia) == length(ib) && _indices_disjoint(ia, ib))
+end
+_shares(a::SubArray, b) = !_spans_disjoint(a, b) && _shares(parent(a), b)
+_shares(a, b::SubArray) = _shares(b, a)
+
+# The address span [lo, hi) of the elements of strided `Array` memory of a bits type, or `nothing`.
+_span(a) = nothing
+function _span(a::Array)
+    isbitstype(eltype(a)) || return nothing
+    p = UInt(pointer(a))
+    return (p, p + UInt(sizeof(a)))
+end
+function _span(a::SubArray{<:Any, <:Any, <:Array, <:Tuple{Vararg{Union{Int, AbstractRange{Int}}}}})
+    isbitstype(eltype(a)) || return nothing
+    es = UInt(Base.elsize(parent(a)))
+    lo = hi = UInt(pointer(a))
+    for (n, s) in zip(size(a), strides(a))
+        d = UInt(n - 1) * UInt(abs(s)) * es
+        s < 0 ? (lo -= d) : (hi += d)
+    end
+    return (lo, hi + es)
+end
+
+_spans_intersect(sa::Tuple, sb::Tuple) = sa[1] < sb[2] && sb[1] < sa[2]
+function _spans_disjoint(a, b)
+    sa, sb = _span(a), _span(b)
+    return !(isnothing(sa) || isnothing(sb)) && !_spans_intersect(sa, sb)
+end
+
+# Whether index tuples of equal length select disjoint sets: disjoint in at least one dimension.
+_indices_disjoint(i::Tuple{Any, Vararg}, j::Tuple{Any, Vararg}) =
+    _disjoint(first(i), first(j)) || _indices_disjoint(Base.tail(i), Base.tail(j))
+_indices_disjoint(::Tuple, ::Tuple) = false
+
+const _IntIndex = Union{Integer, AbstractRange{<:Integer}}
+_disjoint(i, j) = false
+_disjoint(i::_IntIndex, j::_IntIndex) = isempty(intersect(_steps(i), _steps(j)))
+_steps(i::Integer) = StepRange{Int, Int}(i, 1, i)
+_steps(r::AbstractRange{<:Integer}) = StepRange{Int, Int}(first(r), step(r), last(r))
 
 # The inputs of point j through the pointers p of the inputs: numbers of vectors (restricted),
 # columns of a 2-row ρ and a 3-row σ (polarized).

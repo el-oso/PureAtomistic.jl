@@ -280,25 +280,146 @@ end
     @test_throws "xc: _inputs_ok rejects a point that _check_inputs accepts" xc_evaluate!(xc_outputs(f, Val(0), ρ), f, Val(0), ρ)
 end
 
-@testitem "array layer with an output that shares memory with an input" setup = [ArrayFixtures] begin
+@testitem "array layer rejects outputs that share memory" setup = [ArrayFixtures] begin
     using .ArrayFixtures
-    for f in (lda_x(), pbe_x(), pbe_c(), pbe()), polarized in (false, true)
+    msg = "xc: an output shares memory with an input or another output"
+    n = 64
+    # Two Arrays over one buffer at different offsets: ρ is its first n numbers and vrho the n numbers
+    # from n ÷ 2 on. Every number is 42.0, a valid density and the sentinel of the outputs.
+    for f in (lda_x(), pbe_x())
+        buf = fill(42.0, 2n)
+        σ = fill(0.5, n)
+        e = fill(42.0, 1, n)
+        GC.@preserve buf begin
+            ρ = unsafe_wrap(Array, pointer(buf), n)
+            vrho = unsafe_wrap(Array, pointer(buf, n ÷ 2 + 1), (1, n))
+            args = ArrayFixtures.call(f, Val(1), ρ, σ)
+            out = merge(xc_outputs(args...), (; e, vrho))
+            map(a -> fill!(a, 42.0), out)
+            @test_throws msg xc_evaluate!(out, args...)
+            @test all(a -> all(==(42.0), a), out)
+            @test all(==(42.0), buf)
+            # Two outputs over the buffer at different offsets, the input apart.
+            ρs = fill(0.3, n)
+            args = ArrayFixtures.call(f, Val(1), ρs, σ)
+            e2 = unsafe_wrap(Array, pointer(buf, 3), (1, n))
+            out = merge(xc_outputs(args...), (; e = e2, vrho))
+            map(a -> fill!(a, 42.0), out)
+            @test_throws msg xc_evaluate!(out, args...)
+            @test all(a -> all(==(42.0), a), out)
+        end
+    end
+    for f in (lda_x(), pbe_c(), pbe()), polarized in (false, true)
         ρ, σ = ArrayFixtures.inputs(Float64, 12; polarized)
         args = ArrayFixtures.call(f, Val(1), ρ, σ)
-        @test !PureXC._any_alias(values(xc_outputs(args...)), (ρ, σ))
-        # vrho written over the memory of ρ: the arrays may alias, so the dense loop is not taken,
-        # and the result is that of the checked loop on the same arrays.
-        function aliased()
-            ρc, σc = copy(ρ), copy(σ)
-            a = ArrayFixtures.call(f, Val(1), ρc, σc)
-            return merge(xc_outputs(a...), (; vrho = polarized ? ρc : reshape(ρc, 1, :))), a
+        out = map(a -> fill!(a, 42.0), xc_outputs(args...))
+        # An output that is an input (polarized) or shares its memory through `reshape` (restricted).
+        same = merge(out, (; vrho = polarized ? ρ : reshape(ρ, 1, :)))
+        ρ0 = copy(ρ)
+        @test_throws msg xc_evaluate!(same, args...)
+        @test ρ == ρ0
+        @test all(a -> all(==(42.0), a), out)
+        # Two outputs that are one array, and two overlapping views of one matrix.
+        twice = merge(out, (; e = polarized ? view(out.vrho, 1:1, :) : out.vrho))
+        @test_throws msg xc_evaluate!(twice, args...)
+        if polarized
+            M = fill(42.0, 3, 12)
+            views = merge(out, (; e = view(M, 2:2, :), vrho = view(M, 1:2, :)))
+            @test_throws msg xc_evaluate!(views, args...)
+            @test all(==(42.0), M)
         end
-        out, a = aliased()
-        @test PureXC._any_alias(values(out), a[3:end])
-        xc_evaluate!(out, a...)
-        ref, b = aliased()
-        PureXC._evaluate_points_checked!(ref, b...)
-        @test all(n -> out[n] == ref[n], keys(out))
-        @test a[3:end] == b[3:end]
+        @test all(a -> all(==(42.0), a), out)
+    end
+end
+
+@testitem "array layer accepts disjoint views of one array as outputs" setup = [ArrayFixtures] begin
+    using .ArrayFixtures
+    using OffsetArrays
+    n = 20
+    for f in (lda_x(), pbe_x(), pbe_c(), pbe()), polarized in (false, true)
+        ρ, σ = ArrayFixtures.inputs(Float64, n; polarized)
+        args = ArrayFixtures.call(f, Val(1), ρ, σ)
+        ref = xc_evaluate!(xc_outputs(args...), args...)
+        rows = map(a -> size(a, 1), values(ref))
+        starts = cumsum((1, rows...))
+        # Each field a different block of rows of one matrix.
+        R = fill(NaN, sum(rows), n)
+        outr = NamedTuple{keys(ref)}(ntuple(i -> view(R, starts[i]:(starts[i + 1] - 1), :), length(rows)))
+        xc_evaluate!(outr, args...)
+        @test all(m -> outr[m] == ref[m], keys(ref))
+        # Each field a different block of columns of one matrix.
+        C = fill(NaN, maximum(rows), length(rows) * n)
+        outc = NamedTuple{keys(ref)}(ntuple(i -> view(C, 1:rows[i], ((i - 1) * n + 1):(i * n)), length(rows)))
+        xc_evaluate!(outc, args...)
+        @test all(m -> outc[m] == ref[m], keys(ref))
+    end
+    # A restricted input that is row 1 of a matrix and an output that is row 2.
+    f = lda_x()
+    ρ, _ = ArrayFixtures.inputs(Float64, n; polarized = false)
+    B = vcat(ρ', fill(NaN, 1, n))
+    ref = xc_evaluate!(xc_outputs(f, Val(0), ρ), f, Val(0), ρ)
+    out = (; e = view(B, 2:2, :))
+    xc_evaluate!(out, f, Val(0), view(B, 1, :))
+    @test out.e == ref.e
+    # An OffsetArray input with its OffsetArray outputs, and a view input of a buffer.
+    ro = OffsetArray(ρ, 6)
+    outo = xc_evaluate!(xc_outputs(f, Val(1), ro), f, Val(1), ro)
+    @test parent(outo.vrho) == xc_evaluate!(xc_outputs(f, Val(1), ρ), f, Val(1), ρ).vrho
+    big = vcat(ρ, ρ)
+    rv = view(big, 1:2:(2n))
+    @test xc_evaluate!(xc_outputs(f, Val(1), rv), f, Val(1), rv).vrho == xc_evaluate!(xc_outputs(f, Val(1), collect(rv)), f, Val(1), collect(rv)).vrho
+end
+
+@testitem "overlap test of views and Arrays" begin
+    using PureXC: _overlaps
+    n = 16
+    buf = zeros(2n)
+    A = rand(4, n)
+    # Views of one parent: exact for integers and ranges, in every dimension.
+    @test !_overlaps(view(A, 1:2, :), view(A, 3:4, :))
+    @test _overlaps(view(A, 1:2, :), view(A, 2:3, :))
+    @test !_overlaps(view(A, 1:2:4, :), view(A, 2:2:4, :))
+    @test !_overlaps(view(A, 1, :), view(A, 2:4, :))
+    @test !_overlaps(view(A, :, 1:4), view(A, :, n:-1:5))
+    @test _overlaps(view(A, :, 1:4), view(A, :, n:-1:4))
+    # Another index type counts as intersecting in its dimension; different numbers of indices count
+    # as overlapping.
+    @test _overlaps(view(A, [1, 2], :), view(A, [3, 4], :))
+    @test !_overlaps(view(A, [1, 2], 1:2), view(A, [3, 4], 3:4))
+    @test _overlaps(view(A, 1:2:8), view(A, 2:2:4, 1:2))
+    # An empty array shares memory with nothing.
+    @test !_overlaps(A, view(A, 1:0, :))
+    GC.@preserve buf begin
+        P = unsafe_wrap(Array, pointer(buf), n)
+        Q = unsafe_wrap(Array, pointer(buf, n ÷ 2 + 1), n)
+        @test _overlaps(P, Q) && _overlaps(Q, P)
+        @test !_overlaps(P, unsafe_wrap(Array, pointer(buf, n + 1), n))
+        # Views of different parents: disjoint address spans, else the parents.
+        @test !_overlaps(view(P, 1:4), view(Q, (n - 3):n))
+        @test !_overlaps(view(P, 1:2:7), Q)
+        @test _overlaps(view(P, n:-1:1), Q)
+        @test _overlaps(view(P, n:-1:(n - 1)), view(Q, (n ÷ 2 - 1):(n ÷ 2)))
+        @test _overlaps(view(P, (n ÷ 2 + 1):2:n), view(Q, 2:2:n))
+    end
+    @test !_overlaps(view(A, 1:2, :), rand(2, n))
+    @test _overlaps(view(A, 1:2, :), A)
+end
+
+@testitem "plain disjoint Arrays take the dense point loop" setup = [ArrayFixtures] begin
+    using .ArrayFixtures
+    # The dense method of `_evaluate_points!` has no other branch, so plain Arrays that pass the
+    # overlap check run the dense loop; a view runs the checked loop.
+    for f in (lda_x(), pbe_x(), pbe_c()), polarized in (false, true)
+        ρ, σ = ArrayFixtures.inputs(Float64, 12; polarized)
+        args = ArrayFixtures.call(f, Val(1), ρ, σ)
+        out = xc_outputs(args...)
+        @test isnothing(PureXC._check_no_overlap(values(out), args[3:end]))
+        dense = which(PureXC._evaluate_points!, typeof.((out, args...)))
+        vargs = (args[1], args[2], view(args[3], axes(args[3])...), args[4:end]...)
+        checked = which(PureXC._evaluate_points!, typeof.((out, vargs...)))
+        generic = which(PureXC._evaluate_points!, Tuple{NamedTuple, Any, Val, AbstractArray})
+        @test checked === generic && dense !== generic
+        xc_evaluate!(out, args...)
+        @test ArrayFixtures.agrees(out, f, Val(1), ρ, σ, axes(ρ, ndims(ρ)))
     end
 end
