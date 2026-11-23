@@ -489,8 +489,159 @@ end
     # Wrappers of disjoint parts of one Array count as overlapping.
     @test _overlaps(view(A, 1:1, :), reshape(view(A, 2, :), 1, n))
     @test _overlaps(OffsetArray(view(A, 1:1, :), 0, 0), view(A, 2:2, :))
-    # Roots that are not Arrays or Memorys are tested by Base.mightalias.
+    # Roots without a known address range are tested by their Base.dataids.
     @test !_overlaps(1:n, A)
+    # Index sets out of bounds of the parent prove nothing: row 3 of a 2-row matrix is row 1 shifted
+    # by one column.
+    B = rand(2, 2n)
+    @test _overlaps(view(B, 1, 1:n), Base.unsafe_view(B, 3:3, 1:n))
+    @test !_overlaps(view(B, 1, 1:n), view(B, 2:2, 1:n))
+    # A range of step zero selects its first value.
+    z = StepRangeLen(1, 0, n)
+    @test !_overlaps(view(B, 1:1, z), view(B, 2:2, 1:n))
+    @test _overlaps(view(B, 1:1, z), view(B, 1:1, 1:1))
+    @test !_overlaps(view(B, 1:1, z), view(B, 1:1, 2:n))
+end
+
+@testitem "array layer rejects overlap through array types without an Array root" begin
+    using SparseArrays
+    using PureXC: _overlaps
+    msg = "xc: an output shares memory with an input or another output"
+    n = 16
+    f = lda_x()
+    ref = xc_evaluate!(xc_outputs(f, Val(1), fill(42.0, n)), f, Val(1), fill(42.0, n))
+    # Every number is 42.0, a valid input and the sentinel of the outputs.
+    function rejects(out, x...)
+        map(a -> fill!(a, 42.0), out)
+        @test_throws msg xc_evaluate!(out, f, Val(1), x...)
+        @test all(a -> all(==(42.0), a), out)
+        @test all(a -> all(==(42.0), a), x)
+        return nothing
+    end
+    # isbits arrays over raw pointers: one with `pointer` and `strides` (no `Base.elsize`), a matrix
+    # type with all three, one with `Base.dataids` alone, and one with none of them.
+    struct PtrVec <: AbstractVector{Float64}
+        p::Ptr{Float64}
+        n::Int
+    end
+    Base.size(a::PtrVec) = (a.n,)
+    Base.getindex(a::PtrVec, i::Int) = unsafe_load(a.p, i)
+    Base.setindex!(a::PtrVec, v, i::Int) = unsafe_store!(a.p, v, i)
+    Base.pointer(a::PtrVec) = a.p
+    Base.strides(::PtrVec) = (1,)
+    struct PtrMat <: DenseMatrix{Float64}
+        p::Ptr{Float64}
+        sz::NTuple{2, Int}
+    end
+    Base.size(a::PtrMat) = a.sz
+    Base.getindex(a::PtrMat, i::Int, j::Int) = unsafe_load(a.p, i + (j - 1) * a.sz[1])
+    Base.setindex!(a::PtrMat, v, i::Int, j::Int) = unsafe_store!(a.p, v, i + (j - 1) * a.sz[1])
+    Base.unsafe_convert(::Type{Ptr{Float64}}, a::PtrMat) = a.p
+    Base.elsize(::Type{PtrMat}) = sizeof(Float64)
+    struct IdVec <: AbstractVector{Float64}
+        p::Ptr{Float64}
+        n::Int
+    end
+    Base.size(a::IdVec) = (a.n,)
+    Base.getindex(a::IdVec, i::Int) = unsafe_load(a.p, i)
+    Base.setindex!(a::IdVec, v, i::Int) = unsafe_store!(a.p, v, i)
+    Base.dataids(a::IdVec) = (UInt(a.p),)
+    struct BareVec <: AbstractVector{Float64}
+        p::Ptr{Float64}
+        n::Int
+    end
+    Base.size(a::BareVec) = (a.n,)
+    Base.getindex(a::BareVec, i::Int) = unsafe_load(a.p, i)
+    Base.setindex!(a::BareVec, v, i::Int) = unsafe_store!(a.p, v, i)
+    buf = fill(42.0, 3n)
+    GC.@preserve buf begin
+        vrho = unsafe_wrap(Array, pointer(buf, n ÷ 2 + 1), (1, n))
+        out1 = merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho))
+        # Address ranges from `pointer` and `strides`, at an offset.
+        rejects(out1, PtrVec(pointer(buf), n))
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = PtrMat(pointer(buf, 3), (1, n)))), unsafe_wrap(Array, pointer(buf), n))
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = PtrMat(pointer(buf), (1, n)), vrho = PtrMat(pointer(buf, 2), (1, n)))), fill(42.0, n))
+        # Base.dataids of an isbits root, compared directly: IdVec at the start of the buffer names
+        # the buffer's memory, as the Array does.
+        rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = view(reshape(buf, 1, :), :, 1:n))), IdVec(pointer(buf), n))
+        # Pointer types apart from the outputs are accepted.
+        far = fill(42.0, n)
+        GC.@preserve far begin
+            out = xc_outputs(f, Val(1), far)
+            xc_evaluate!(out, f, Val(1), PtrVec(pointer(far), n))
+            @test out == ref
+            out = merge(xc_outputs(f, Val(1), far), (; vrho = PtrMat(pointer(buf, 2n + 1), (1, n))))
+            xc_evaluate!(out, f, Val(1), far)
+            @test collect(out.vrho) == ref.vrho
+        end
+        # Limits: dataids name an identity, not an address range, and a type that exposes neither
+        # its memory nor dataids is its own identity.
+        @test !_overlaps(IdVec(pointer(buf), n), vrho)
+        @test !_overlaps(BareVec(pointer(buf), n), vrho)
+        @test all(==(42.0), view(buf, 1:2n))
+    end
+    # Wrappers that define Base.dataids and no parent.
+    struct Wrap <: AbstractVector{Float64}
+        data::Vector{Float64}
+    end
+    Base.size(a::Wrap) = size(a.data)
+    Base.getindex(a::Wrap, i::Int) = a.data[i]
+    Base.setindex!(a::Wrap, v, i::Int) = (a.data[i] = v)
+    Base.dataids(a::Wrap) = Base.dataids(a.data)
+    struct WrapM <: AbstractMatrix{Float64}
+        data::Matrix{Float64}
+    end
+    Base.size(a::WrapM) = size(a.data)
+    Base.getindex(a::WrapM, i::Int, j::Int) = a.data[i, j]
+    Base.setindex!(a::WrapM, v, i::Int, j::Int) = (a.data[i, j] = v)
+    Base.dataids(a::WrapM) = Base.dataids(a.data)
+    x = fill(42.0, n)
+    rejects(merge(xc_outputs(f, Val(1), x), (; vrho = reshape(x, 1, n))), Wrap(x))
+    rejects(merge(xc_outputs(f, Val(1), x), (; e = WrapM(reshape(x, 1, n)))), x)
+    o = fill(42.0, 1, n)
+    rejects((; e = WrapM(o), vrho = o), fill(42.0, n))
+    # SparseArrays defines Base.dataids of a SparseVector: its index and value arrays.
+    s = sparsevec(collect(1:n), fill(42.0, n))
+    rejects(merge(xc_outputs(f, Val(1), x), (; e = reshape(nonzeros(s), 1, n))), s)
+end
+
+@testitem "array layer rejects views that leave their parent or overlap themselves" begin
+    msg = "xc: an output shares memory with an input or another output"
+    n = 16
+    f = lda_x()
+    ref = xc_evaluate!(xc_outputs(f, Val(1), fill(42.0, n)), f, Val(1), fill(42.0, n))
+    function rejects(out, x...)
+        map(a -> fill!(a, 42.0), out)
+        @test_throws msg xc_evaluate!(out, f, Val(1), x...)
+        @test all(a -> all(==(42.0), a), out)
+        @test all(a -> all(==(42.0), a), x)
+        return nothing
+    end
+    # An unchecked view out of bounds: row 3 of a 2-row matrix lies on row 1, one column on.
+    A = fill(42.0, 2, 2n)
+    # With bounds checks forced, any access to it outside the call throws a BoundsError.
+    @test_throws msg xc_evaluate!((; e = Base.unsafe_view(A, 3:3, 1:n), vrho = fill(42.0, 1, n)), f, Val(1), view(A, 1, 1:n))
+    @test all(==(42.0), A)
+    # Outputs whose points share an address: a column index of step zero (on the input's row and
+    # on another), a repeated column index, and a view of such a view.
+    z = StepRangeLen(1, 0, n)
+    rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = view(A, 1:1, z))), view(A, 1, 1:n))
+    rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; vrho = view(A, 2:2, z))), view(A, 1, 1:n))
+    rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = view(A, 2:2, [1:(n - 1); 1]))), fill(42.0, n))
+    rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = view(view(A, 2:2, [1:(n - 1); 1]), :, 1:n))), fill(42.0, n))
+    @test all(==(42.0), A)
+    # An input with a column index of step zero reads one point n times; an output on another row
+    # is apart from it.
+    x = fill(42.0, n)
+    B = vcat(x', fill(NaN, 1, n))
+    out = merge(xc_outputs(f, Val(1), x), (; vrho = view(B, 2:2, 1:n)))
+    xc_evaluate!(out, f, Val(1), view(B, 1, z))
+    @test out == ref
+    # Distinct vector indices are accepted.
+    C = fill(NaN, 2, n)
+    out = merge(xc_outputs(f, Val(1), x), (; vrho = view(C, 2:2, reverse(1:n) |> collect)))
+    xc_evaluate!(out, f, Val(1), x)
+    @test out == ref
 end
 
 @testitem "plain disjoint Arrays take the dense point loop" setup = [ArrayFixtures] begin
