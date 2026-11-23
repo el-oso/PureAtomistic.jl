@@ -25,9 +25,10 @@ const _UNROLL_MAX = 126
 
 # The most coefficients of a series for which the Taylor operations are forced inline (`compose`;
 # see arith.jl). Forced inlining of the unrolled kernels compiles in time and memory that grow with
-# the number of coefficients and the order: polarized `lda_c_pw` at order 10 (66 coefficients) took
-# 104 s with `compose` forced inline at every size, against 4.8 s without. The value is the
-# number of coefficients of the largest series that PureXC evaluates at orders 0 to 2.
+# the number of coefficients and the order: polarized `lda_c_pw` at order 10 (66 coefficients),
+# compiled and called once in a fresh process, takes 59.61 s with the Taylor operations forced
+# inline at every size, against 3.42 s without forced inlining. The value is the number of
+# coefficients of the largest series that PureXC evaluates at orders 0 to 2.
 const _INLINE_MAX = 21
 
 # Whether a kernel with `n` output coefficients uses its loop form.

@@ -10,7 +10,7 @@
 
 The energy per volume e of the functional `f`, as a `Taylor` over the variables of its `Taylor`
 inputs: restricted, the numbers ρ and σ; polarized, the tuples ρ = (ρα, ρβ) and
-σ = (σαα, σαβ, σββ). Each concrete functional defines a method.
+σ = (σαα, σαβ, σββ). Each concrete LDA or GGA defines a method.
 """
 function _energy_density end
 

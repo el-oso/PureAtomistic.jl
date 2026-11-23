@@ -169,8 +169,9 @@ end
 # compiler, the `_fma` chains make each of them exceed the inlining threshold; the out-of-line calls
 # then cost up to 2.1 times at order 2 in a caller that evaluates a series functional over many
 # points, and keep its loop from vectorizing. Above `_INLINE_MAX` the unrolled kernels are not forced
-# inline: their code grows with the square of the number of coefficients, and forcing them into every
-# caller made the compile time of polarized `lda_c_pw` at order 10 grow from 5 s to 104 s.
+# inline: their code grows with the square of the number of coefficients. Polarized `lda_c_pw` at
+# order 10, compiled and called once in a fresh process, takes 59.61 s with the operations forced
+# inline at every size, against 3.42 s without forced inlining.
 @inline *(a::Taylor{N, K, M, T, L}, b::Taylor) where {N, K, M, T, L} =
     _mul_operation(Val(max(L, length(b.c)) <= _INLINE_MAX), a, b)
 @inline _mul_operation(::Val{true}, a::Taylor{N, K}, b) where {N, K} = mul_truncated(a, b, Val(false), Val(K))
