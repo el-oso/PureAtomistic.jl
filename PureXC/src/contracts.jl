@@ -1,5 +1,5 @@
-# The methods every functional defines, checked by TypeContracts. A concrete functional also holds
-# a `thresholds` field (see `Thresholds`).
+# The methods every functional defines, checked by TypeContracts. A concrete LDA or GGA also holds a
+# `thresholds` field (see `Thresholds`); an `XC` holds its terms instead.
 
 @contract AbstractFunctional "An exchange-correlation functional of the density, and for a GGA of σ." begin
     family(::Self)::Symbol => "`:lda` or `:gga`"

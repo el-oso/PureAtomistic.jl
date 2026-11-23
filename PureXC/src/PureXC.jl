@@ -37,8 +37,8 @@ family(::AbstractGGA) = :gga
 """
     kind(f)
 
-`:exchange` or `:correlation`, the kind of the functional `f`. Each concrete functional type
-defines its own method.
+`:exchange`, `:correlation` or `:exchange_correlation` (a sum `XC` of both), the kind of the
+functional `f`. Each concrete functional type defines its own method.
 """
 function kind end
 

@@ -1,4 +1,4 @@
-# The functional interface. A concrete functional `f` has a field `thresholds::Thresholds{T}` and
+# The functional interface. A concrete LDA or GGA `f` has a field `thresholds::Thresholds{T}` and
 # a method `_energy_density(f, ρ)` (LDA) or `_energy_density(f, ρ, σ)` (GGA): restricted, ρ and σ
 # are `Taylor` numbers; polarized, ρ = (ρα, ρβ) and σ = (σαα, σαβ, σββ) are tuples of them. It
 # returns e, the energy per volume, as a `Taylor` over the same variables. It is evaluated at
