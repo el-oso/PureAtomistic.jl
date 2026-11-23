@@ -184,9 +184,8 @@ end
 @inline _functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
 
 @inline _outputs_in(::Type, ::Type, r) = r
-# Field by field in generated code, for Julia 1.12: there AllocCheck finds a possible allocation in
-# `map` over a NamedTuple of 15 fields (namedtuple.jl), so the call cannot be proven allocation-free;
-# on Julia 1.13 `map` is proven free as well.
+# Field by field in generated code: AllocCheck cannot prove `map` over a large NamedTuple
+# allocation-free (45 fields, polarized pbe_c at order 8).
 @generated function _outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple{names}) where {names}
     return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in32(r.$n)) for n in names)...))))
 end
