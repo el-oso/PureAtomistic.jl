@@ -270,7 +270,10 @@ end
 @inline _inv_operation(::Val{true}, a) = _div(one(a), a)
 _inv_operation(::Val{false}, a) = _div(one(a), a)
 
-/(a::Taylor, b::Taylor) = _div(a, b)
+# Inlined, like `*`.
+@inline /(a::Taylor{N, K, M, T, L}, b::Taylor) where {N, K, M, T, L} = _div_operation(Val(max(L, length(b.c)) <= _INLINE_MAX), a, b)
+@inline _div_operation(::Val{true}, a, b) = _div(a, b)
+_div_operation(::Val{false}, a, b) = _div(a, b)
 /(a::Taylor{N, K, M, T}, r::Real) where {N, K, M, T} = a * inv(convert(T, r))
 /(r::Real, a::Taylor) = r * inv(a)
 
@@ -289,10 +292,10 @@ end
 ^(a::Taylor, n::Integer) = n < 0 ? inv(_pow_abs(a, n)) : _pow_abs(a, n)
 
 # The unrolled body of `literal_pow` for an integer `n ≠ 0`: repeated squaring of the literal
-# exponent.
-function _literal_pow_unrolled_body(n)
+# exponent. With `inline`, the body carries the inline hint (see `_INLINE_MAX`).
+function _literal_pow_unrolled_body(n, inline = false)
     m = abs(n)
-    body = Expr(:block, :(x = a))
+    body = Expr(:block, inline ? Expr(:meta, :inline) : nothing, :(x = a))
     r = nothing
     while true
         if isodd(m)
@@ -312,11 +315,12 @@ end
     n isa Integer || return :(a^$n)
     n == 0 && return :(one(a))
     _use_loop(L) && return :(_literal_pow_loop(a, Val($n)))
-    return _literal_pow_unrolled_body(n)
+    return _literal_pow_unrolled_body(n, L <= _INLINE_MAX)
 end
 
 # The unrolled form at any size, for an integer `n ≠ 0`; the tests compare it with the loop form.
-@generated _literal_pow_unrolled(::typeof(^), a::Taylor, ::Val{n}) where {n} = _literal_pow_unrolled_body(n)
+@generated _literal_pow_unrolled(::typeof(^), a::Taylor{N, K, M, T, L}, ::Val{n}) where {N, K, M, T, L, n} =
+    _literal_pow_unrolled_body(n, L <= _INLINE_MAX)
 
 # `literal_pow` by a loop over the bits of `|n|`, for an integer `n ≠ 0`, with the products of the
 # unrolled form in the same order: `r` starts as the first factor rather than as one.

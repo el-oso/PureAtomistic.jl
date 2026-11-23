@@ -84,14 +84,14 @@ variable, so neither `α!·c_α` nor `invscale_i^α_i` has to be representable. 
 factors increase in magnitude with `j`, so for a derivative in one variable no partial product exceeds the larger
 of `|c_α|` and the result in magnitude.
 """
-derivatives(a::Taylor{N, K, M, T}, invscale::NTuple{N, Real}) where {N, K, M, T} =
+@inline derivatives(a::Taylor{N, K, M, T}, invscale::NTuple{N, Real}) where {N, K, M, T} =
     _derivatives(a, ntuple(i -> convert(T, invscale[i]), Val(N)))
 
 # The unrolled body of `_derivatives`: the factors j·invscale_i are formed once each, in the type T,
-# and applied left to right.
-function _derivatives_unrolled_body(N, K, M, T)
+# and applied left to right. With `inline`, the body carries the inline hint (see `_INLINE_MAX`).
+function _derivatives_unrolled_body(N, K, M, T, inline = false)
     pos = Dict(α => j for (j, α) in enumerate(stored_indices(Val(N), Val(K), Val(M))))
-    body = Expr(:block)
+    body = Expr(:block, inline ? Expr(:meta, :inline) : nothing)
     factor(i, j) = j == 1 ? :(invscale[$i]) : Symbol(:f_, i, :_, j)
     for i in 1:N, j in 2:K
         push!(body.args, :($(factor(i, j)) = $(T(j)) * invscale[$i]))
@@ -111,12 +111,12 @@ end
 # Unrolled up to `_UNROLL_MAX` derivatives, `_derivatives_loop` above.
 @generated function _derivatives(a::Taylor{N, K, M, T, L}, invscale::NTuple{N, T}) where {N, K, M, T, L}
     _use_loop(length(multi_indices(Val(N), Val(K)))) && return :(_derivatives_loop(a, invscale))
-    return _derivatives_unrolled_body(N, K, M, T)
+    return _derivatives_unrolled_body(N, K, M, T, L <= _INLINE_MAX)
 end
 
 # The unrolled form at any size; the tests compare it with the loop form.
 @generated _derivatives_unrolled(a::Taylor{N, K, M, T, L}, invscale::NTuple{N, T}) where {N, K, M, T, L} =
-    _derivatives_unrolled_body(N, K, M, T)
+    _derivatives_unrolled_body(N, K, M, T, L <= _INLINE_MAX)
 
 # `coefficient` by a loop over the stored multi-indices, in their order.
 @noinline function _coefficient_loop(a::Taylor{N, K, M, T}, α::NTuple{N, Int}) where {N, K, M, T}

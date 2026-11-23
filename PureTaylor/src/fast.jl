@@ -182,7 +182,7 @@ value 0 the derivatives are singular.
 The series of `∛a`, with its value from the scalar `fast_cbrt`. Domain: positive normal `value(a)`
 for `Float32` and `Float64`, unchecked.
 """
-fast_cbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_cbrt(value(a)), inv(T(3)))
+@inline fast_cbrt(a::Taylor{N, K, M, T}) where {N, K, M, T} = _power_series(a, fast_cbrt(value(a)), inv(T(3)))
 
 """
     fast_invcbrt(a::Taylor)
@@ -199,7 +199,7 @@ The series of `a^(-1/3)`, with its value from the scalar `fast_invcbrt`. Domain:
 The series of `log(a)`, with its value from the scalar `fast_log`. Domain: positive normal `value(a)`
 for `Float32` and `Float64`, unchecked.
 """
-fast_log(a::Taylor) = _log_series(a, fast_log(value(a)), value(a))
+@inline fast_log(a::Taylor) = _log_series(a, fast_log(value(a)), value(a))
 
 """
     fast_log1p(a::Taylor)
@@ -207,7 +207,7 @@ fast_log(a::Taylor) = _log_series(a, fast_log(value(a)), value(a))
 The series of `log(1 + a)`, with its value from the scalar `fast_log1p`. Domain: `value(a) > -1`
 with `1 + value(a)` normal for `Float32` and `Float64`, unchecked.
 """
-fast_log1p(a::Taylor{N, K, M, T}) where {N, K, M, T} = _log_series(a, fast_log1p(value(a)), one(T) + value(a))
+@inline fast_log1p(a::Taylor{N, K, M, T}) where {N, K, M, T} = _log_series(a, fast_log1p(value(a)), one(T) + value(a))
 
 """
     fast_exp(a::Taylor)

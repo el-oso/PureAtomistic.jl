@@ -137,7 +137,7 @@ throws `DomainError`), and at value 0 the derivatives are singular: every coeffi
 ^(a::Taylor, p::Rational) = _real_power(a, p)
 
 # exp(x + h) = Σₖ e/k!·hᵏ with e = exp(x); the series of expm1 differs only in its value `v`.
-function _exp_taylor(a::Taylor{N, K, M, T}, v, e) where {N, K, M, T}
+@inline function _exp_taylor(a::Taylor{N, K, M, T}, v, e) where {N, K, M, T}
     d = _recurrence((b, k) -> b / T(k), e, Val(K))
     return compose(a, ntuple(i -> i == 1 ? v : d[i], Val(K + 1)), one(T))
 end
@@ -157,7 +157,7 @@ The series of `exp(a) - 1`, with its value from Base's `expm1`.
 expm1(a::Taylor) = _exp_taylor(a, expm1(value(a)), exp(value(a)))
 
 # log(y + h) = log(y) + Σₖ₌₁ (-1)ᵏ⁻¹/k·(h/y)ᵏ, at y = x for log and y = 1 + x for log1p.
-function _log_series(a::Taylor{N, K, M, T}, v, y) where {N, K, M, T}
+@inline function _log_series(a::Taylor{N, K, M, T}, v, y) where {N, K, M, T}
     d = ntuple(i -> i == 1 ? v : (iseven(i) ? one(T) : -one(T)) / T(i - 1), Val(K + 1))
     return compose(a, d, inv(y))
 end
