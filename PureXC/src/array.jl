@@ -98,11 +98,38 @@ end
     return Expr(:block, (:(_store!(out.$n, r.$n, j)) for n in names)..., :(return nothing))
 end
 
+# Every point is first tested by the branch-free `_inputs_ok`, which vectorizes; only when a point
+# fails are the points checked again in order by `_check_inputs`, which throws at the first invalid
+# one. `_inputs_ok` is the negation of the throwing conditions of `_check_inputs`, so the second
+# pass always throws; if it does not, the two disagree and that is an error of the package.
 function _validate(f, k::Val, x::Vararg{AbstractArray, N}) where {N}
+    _all_inputs_ok(f, k, x...) && return nothing
     for j in _points(x[1])
         _check_inputs(f, k, _inputs(x..., j)...)
     end
-    return nothing
+    throw(ErrorException("xc: _inputs_ok rejects a point that _check_inputs accepts"))
+end
+
+function _all_inputs_ok(f, k::Val, x::Vararg{AbstractArray, N}) where {N}
+    ok = true
+    for j in _points(x[1])
+        ok &= _inputs_ok(f, k, _inputs(x..., j)...)
+    end
+    return ok
+end
+
+# Dense inputs read through raw pointers, as in the dense point loop; the same checks have
+# established the index range.
+function _all_inputs_ok(f, k::Val, ρ::Array{<:Base.IEEEFloat}, σ::Vararg{Array{<:Base.IEEEFloat}, M}) where {M}
+    ok = true
+    n = size(ρ, ndims(ρ))
+    GC.@preserve ρ σ begin
+        px = map(pointer, (ρ, σ...))
+        @simd for j in Base.OneTo(n)
+            ok &= _inputs_ok(f, k, _dense_inputs(px, (ρ, σ...), j)...)
+        end
+    end
+    return ok
 end
 
 """
@@ -122,10 +149,70 @@ function xc_evaluate!(out::NamedTuple, f::AbstractFunctional, k::Val, ρ::Abstra
     _check_axes(ρ, σ...)
     _check_out(out, _point_type(f, k, ρ, σ...), ρ)
     _validate(f, k, ρ, σ...)
+    _evaluate_points!(out, f, k, ρ, σ...)
+    return out
+end
+
+# The point loop, after the axes, the outputs and the inputs have been checked.
+_evaluate_points!(out::NamedTuple, f, k::Val, x::Vararg{AbstractArray, N}) where {N} = _evaluate_points_checked!(out, f, k, x...)
+
+# The point loop with checked loads.
+function _evaluate_points_checked!(out::NamedTuple, f, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
     for j in _points(ρ)
         _store_all!(out, _xc_derivatives_unchecked(f, k, _inputs(ρ, σ..., j)...), j)
     end
-    return out
+    return nothing
+end
+
+# The dense point loop: inputs and outputs are `Array`s of IEEE floats, read and written through
+# raw pointers under `@simd ivdep`, which lets LLVM vectorize the polarized loop (its checked loads
+# keep it scalar). It is taken only when no output may share memory with an input or with another
+# output (`Base.mightalias`), so that the iterations are independent; otherwise the checked loop
+# runs. Every index is in range: `_check_axes` and `_check_out` have established that restricted
+# inputs are vectors, a polarized ρ has 2 rows and σ 3, and each output field has `c` rows (its
+# number of components), all over the same n = size(ρ, ndims(ρ)) points; an `Array` stores column
+# j of a c-row matrix at the linear indices c(j − 1) + 1 to c·j.
+function _evaluate_points!(
+        out::NamedTuple{names, <:Tuple{Vararg{Matrix{<:Base.IEEEFloat}}}}, f, k::Val,
+        ρ::Array{<:Base.IEEEFloat}, σ::Vararg{Array{<:Base.IEEEFloat}, M}
+    ) where {names, M}
+    _any_alias(values(out), (ρ, σ...)) && return _evaluate_points_checked!(out, f, k, ρ, σ...)
+    n = size(ρ, ndims(ρ))
+    GC.@preserve out ρ σ begin
+        po = map(pointer, values(out))
+        px = map(pointer, (ρ, σ...))
+        @simd ivdep for j in Base.OneTo(n)
+            _store_all_dense!(po, _xc_derivatives_unchecked(f, k, _dense_inputs(px, (ρ, σ...), j)...), j)
+        end
+    end
+    return nothing
+end
+
+# Whether an output may share memory with an input or with another output.
+_any_alias(::Tuple{}, ins::Tuple) = false
+_any_alias(outs::Tuple, ins::Tuple) =
+    _aliases(first(outs), ins) || _aliases(first(outs), Base.tail(outs)) || _any_alias(Base.tail(outs), ins)
+_aliases(a, xs::Tuple) = any(x -> Base.mightalias(a, x), xs)
+
+# The inputs of point j through the pointers p of the inputs: numbers of vectors (restricted),
+# columns of a 2-row ρ and a 3-row σ (polarized).
+@inline _dense_inputs(p::Tuple, ::Tuple{Vector}, j) = (unsafe_load(p[1], j),)
+@inline _dense_inputs(p::Tuple, ::Tuple{Vector, Vector}, j) = (unsafe_load(p[1], j), unsafe_load(p[2], j))
+@inline _dense_inputs(p::Tuple, ::Tuple{Matrix}, j) = (_dense_column(p[1], Val(2), j),)
+@inline _dense_inputs(p::Tuple, ::Tuple{Matrix, Matrix}, j) = (_dense_column(p[1], Val(2), j), _dense_column(p[2], Val(3), j))
+@inline _dense_column(p::Ptr, ::Val{N}, j) where {N} = ntuple(t -> unsafe_load(p, N * (j - 1) + t), Val(N))
+
+@inline _store_dense!(p::Ptr, v::Real, j) = (unsafe_store!(p, v, j); nothing)
+@inline function _store_dense!(p::Ptr, v::Tuple, j)
+    c = length(v)
+    for t in eachindex(v)
+        unsafe_store!(p, v[t], c * (j - 1) + t)
+    end
+    return nothing
+end
+
+@generated function _store_all_dense!(p::Tuple, r::NamedTuple{names}, j) where {names}
+    return Expr(:block, Expr(:meta, :inline), (:(_store_dense!(p[$i], r.$(names[i]), j)) for i in eachindex(names))..., :(return nothing))
 end
 
 """

@@ -143,3 +143,49 @@ function _check_reduced_gradient(name::Symbol, x::R, m::R, ::Val{K}) where {R, K
     x > m && _throw_input(lazy"xc: reduced gradient $name = $x exceeds $m, the largest accepted at order $K in $R")
     return nothing
 end
+
+"""
+    _inputs_ok(f, Val(k), ρ[, σ])
+
+Whether `_check_inputs(f, Val(k), ρ[, σ])` returns without throwing, computed without branches
+or throws, so that a loop over many points can be vectorized. Each condition is the negation of
+one throwing condition of `_check_inputs`, with the same comparison in the same type; a square
+root is taken of `abs` of its argument, which equals the argument wherever the condition decides
+the result (a negative input already fails its sign condition).
+"""
+function _inputs_ok end
+
+# The negation of the conditions of `_check_nonnegative`.
+@inline _nonnegative_ok(x) = isfinite(x) & !(x < 0)
+
+@inline function _inputs_ok(f::AbstractLDA, ::Val{K}, ρ::Real) where {K}
+    R = _domain_type(f, ρ)
+    return _nonnegative_ok(ρ) & !(convert(R, ρ) > _lda_density_max(R, Val(K)))
+end
+
+@inline function _inputs_ok(f::AbstractLDA, ::Val{K}, ρ::NTuple{2, Real}) where {K}
+    R = _domain_type(f, ρ)
+    n = convert(R, ρ[1]) + convert(R, ρ[2])
+    return _nonnegative_ok(ρ[1]) & _nonnegative_ok(ρ[2]) & !(n > _lda_density_max(R, Val(K)))
+end
+
+@inline function _inputs_ok(f::AbstractGGA, k::Val, ρ::Real, σ::Real)
+    return _nonnegative_ok(ρ) & _nonnegative_ok(σ) & _gga_domain_ok(f, k, ρ, σ)
+end
+
+@inline function _inputs_ok(f::AbstractGGA, k::Val, ρ::NTuple{2, Real}, σ::NTuple{3, Real})
+    S = float(promote_type(typeof(σ[1]), typeof(σ[2]), typeof(σ[3])))
+    aa, ab, bb = convert(S, σ[1]), convert(S, σ[2]), convert(S, σ[3])
+    signs = _nonnegative_ok(ρ[1]) & _nonnegative_ok(ρ[2]) & _nonnegative_ok(σ[1]) & isfinite(σ[2]) & _nonnegative_ok(σ[3])
+    bound = !(abs(ab) > fast_sqrt(abs(aa)) * fast_sqrt(abs(bb)) * (1 + 8 * eps(S)))
+    return signs & bound & _gga_domain_ok(f, k, ρ, σ)
+end
+
+"""
+    _gga_domain_ok(f, Val(K), ρ, σ)
+
+Whether `_check_gga_domain(f, Val(K), ρ, σ)` returns without throwing, without branches (see
+`_inputs_ok`); it may assume nothing about the signs of the inputs, whose conditions
+`_inputs_ok` combines with it.
+"""
+@inline _gga_domain_ok(::AbstractGGA, ::Val, ρ, σ) = true

@@ -66,12 +66,13 @@ end
     n43 = _pow43(n)
     μs2 = μ * _reduced_gradient2(n, σ, c)
     x = μs2 / κ
-    small = n43 * (1 + μs2 / (1 + x))
     r = inv(σ)
     w = (κ * c / μ) * ((n43 * r) * n43)
     P = (κ^2 * c / μ) * ((n * n * r) * (n * n))
-    large = (1 + κ) * n43 - P / (1 + w)
-    return ifelse(value(x) <= 1, small, large)
+    # One division serves the form selected: μs²/(1 + x) or P/(1 + w).
+    sm = value(x) <= 1
+    q = ifelse(sm, μs2, P) / ifelse(sm, 1 + x, 1 + w)
+    return ifelse(sm, n43 * (1 + q), (1 + κ) * n43 - q)
 end
 
 # (E3): e(n, σ) = −(3/4)(3/π)^(1/3) n^(4/3) F_x(s), with σ raised to the floor σ_thr² (rule 3). The
@@ -100,6 +101,16 @@ end
     return ifelse(value(ρσ) <= thr.density, zero(t), t)
 end
 
+# Restricted, σ is seeded at max(|σ|, r, m) with r = 4(3π²)^(2/3)·n_r^(8/3) at the raised density
+# n_r = max(n, n_thr), the σ at which s is 1, as each channel is seeded polarized. It equals the
+# default, at max(n, m), wherever the point is not cut off (n/2 > n_thr), and its cube root is that
+# of the energy at n_r.
+@inline function _seed_scales(f::PBEExchange, ::Val{K}, ρ::R, σ::R) where {K, R}
+    m = _seed_minimum(R)
+    t = convert(R, f.thresholds.density)
+    return (_density_seed(f, ρ, m), max(abs(σ), _pbe_x_c3(R) * _pow8(fast_cbrt(max(ρ, t))), m))
+end
+
 # Each channel is seeded at its own scales: the density at max(|n_σ|, n_thr, m) and σ_σσ at
 # max(|σ_σσ|, r, m) with r = 4(6π²)^(2/3)·n_σr^(8/3) at the raised channel n_σr = max(n_σ, n_thr),
 # the σ at which that channel's s is 1. e does not depend on σ_αβ, so its scale only needs to be
@@ -108,7 +119,7 @@ end
     m = _seed_minimum(R)
     t = convert(R, f.thresholds.density)
     c = _pbe_x_c6(R)
-    r(x) = c * _pow8(fast_cbrt(max(x, t)))
+    @inline r(x) = c * _pow8(fast_cbrt(max(x, t)))
     return (
         _density_seed(f, ρ[1], m), _density_seed(f, ρ[2], m),
         max(abs(σ[1]), r(ρ[1]), m), max(abs(σ[2]), m), max(abs(σ[3]), r(ρ[2]), m),
@@ -159,8 +170,31 @@ function _check_gga_domain(f::PBEExchange, ::Val{K}, ρ::NTuple{2, Real}, σ::NT
     return nothing
 end
 
+@inline function _gga_domain_ok(f::PBEExchange, ::Val{K}, ρ::Real, σ::Real) where {K}
+    R = _domain_type(f, (ρ, σ))
+    n = convert(R, ρ)
+    s2 = _pbe_x_s2_unchecked(n, convert(R, σ), _pbe_x_c3(R))
+    return !(n > _gga_density_max(R, Val(K))) & (!(n / 2 > f.thresholds.density) | !(s2 > _pbe_x_s2_max(R, Val(K))))
+end
+
+@inline function _gga_domain_ok(f::PBEExchange, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
+    R = _domain_type(f, (ρ..., σ...))
+    a, b = convert(R, ρ[1]), convert(R, ρ[2])
+    c, m, t = _pbe_x_c6(R), _pbe_x_s2_max(R, Val(K)), f.thresholds.density
+    oka = !(a > t) | !(_pbe_x_s2_unchecked(a, convert(R, σ[1]), c) > m)
+    okb = !(b > t) | !(_pbe_x_s2_unchecked(b, convert(R, σ[3]), c) > m)
+    return !(a + b > _gga_density_max(R, Val(K))) & oka & okb
+end
+
 # s² = σ/(c·n^(8/3)) as (√σ/(√c·n^(4/3)))², for a density above n_thr.
-function _pbe_x_s2(n, σ, c)
+@inline function _pbe_x_s2(n, σ, c)
     r = sqrt(σ) / (sqrt(c) * _pow43(n))
+    return r * r
+end
+
+# `_pbe_x_s2` with the square roots of `abs` of their arguments, which throws for no input; it equals
+# `_pbe_x_s2` for σ ≥ 0.
+@inline function _pbe_x_s2_unchecked(n, σ, c)
+    r = fast_sqrt(abs(σ)) / (fast_sqrt(abs(c)) * _pow43(n))
     return r * r
 end

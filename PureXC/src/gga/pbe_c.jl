@@ -16,11 +16,14 @@ struct PBECorrelation{T} <: AbstractGGA{T}
     B::T
     pw::PW92Correlation{T}
     thresholds::Thresholds{T}
+    # log((β/γ)·c) with c = π/(16(3π²)^(1/3)) in the value type of T, the constant term of
+    # `_pbe_H`'s logarithm, formed once (see `_pbe_log_βγc`).
+    log_βγc::T
     function PBECorrelation{T}(β, γ, B, pw, thresholds) where {T}
-        B = convert(T, B)
+        β, γ, B = convert(T, β), convert(T, γ), convert(T, B)
         # The evaluation of H in `_pbe_H` holds for B ≥ 0 (section 7 of the spec).
         B >= 0 || throw(ArgumentError("xc: PBE correlation requires B ≥ 0, got B = $B"))
-        return new{T}(β, γ, B, pw, thresholds)
+        return new{T}(β, γ, B, pw, thresholds, log(β / γ * _pbe_c_t2_coefficient(_value_type(T))))
     end
 end
 
@@ -140,7 +143,7 @@ end
     # 1/X: (1 + w)/(β/γ·t²), or (1/E)·(1 + 1/(y(1 + By))) with 1/(y(1 + By)) = (1/y)²/(B + 1/y).
     rsmall = (1 + w) * rt2 / βγ
     rlarge = rE * (1 + iy * (iy / (B + iy)))
-    logsmall = log(βγ * c) + fast_log(σ) - convert(R, 7) / 3 * fast_log(n) - 2 * fast_log(φ) - fast_log1p(w)
+    logsmall = _pbe_log_βγc(f, R) + fast_log(σ) - convert(R, 7) / 3 * fast_log(n) - 2 * fast_log(φ) - fast_log1p(w)
     loglarge = logE + fast_log1p(-v)
     split = ifelse(value(y) <= 1, logsmall, loglarge) + fast_log1p(ifelse(value(y) <= 1, rsmall, rlarge))
     whole = z + fast_log1p((em - 1) * v)
@@ -148,6 +151,11 @@ end
     L = ifelse(value(X) <= 1, fast_log1p(X), _series_with_value(above, fast_log1p(value(X))))
     return f.γ * φ3 * L
 end
+
+# log((β/γ)·c) of `_pbe_H` in the type R: the stored value where R is the number type of `f`, the
+# same expression formed in R otherwise.
+@inline _pbe_log_βγc(f::PBECorrelation, ::Type{R}) where {R} = log(f.β / f.γ * _pbe_c_t2_coefficient(R))
+@inline _pbe_log_βγc(f::PBECorrelation{R}, ::Type{R}) where {R} = f.log_βγc
 
 # x^(7/6), with the value x·√∛x, as one power series for a `Taylor`.
 @inline _pow76(x::Real) = x * fast_sqrt(fast_cbrt(x))
@@ -276,4 +284,34 @@ end
 function _pbe_c_t2(n::R, φ::R, σ::R) where {R}
     r = sqrt(σ) / sqrt(_pbe_t_scale(n, φ))
     return r * r
+end
+
+# `_pbe_c_t2` with the square roots of `abs` of their arguments, which throws for no input; it
+# equals `_pbe_c_t2` where σ ≥ 0 and the t-scale is nonnegative.
+@inline function _pbe_c_t2_unchecked(n::R, φ::R, σ::R) where {R}
+    r = fast_sqrt(abs(σ)) / fast_sqrt(abs(_pbe_t_scale(n, φ)))
+    return r * r
+end
+
+@inline function _gga_domain_ok(f::PBECorrelation, ::Val{K}, ρ::Real, σ::Real) where {K}
+    R = _domain_type(f, (ρ, σ))
+    n = convert(R, ρ)
+    g = max(convert(R, σ), convert(R, f.thresholds.sigma_floor))
+    t2 = _pbe_c_t2_unchecked(n, one(R), g)
+    return !(n > _gga_density_max(R, Val(K))) & ((n < f.thresholds.density) | !(t2 > _pbe_c_t2_max(R, Val(K))))
+end
+
+@inline function _gga_domain_ok(f::PBECorrelation, ::Val{K}, ρ::NTuple{2, Real}, σ::NTuple{3, Real}) where {K}
+    R = _domain_type(f, (ρ..., σ...))
+    thr = _thresholds_in(R, f.thresholds)
+    a, b = convert(R, ρ[1]), convert(R, ρ[2])
+    ar, br = max(a, thr.density), max(b, thr.density)
+    n = ar + br
+    φ = _pbe_phi((ar - br) / n, thr.zeta)
+    fl = thr.sigma_floor
+    s = convert(R, σ[2])
+    t2 = _pbe_c_t2_unchecked(n, φ, max(convert(R, σ[1]), fl)) + 2 * copysign(_pbe_c_t2_unchecked(n, φ, abs(s)), s) +
+        _pbe_c_t2_unchecked(n, φ, max(convert(R, σ[3]), fl))
+    t2ok = !(max(t2, _pbe_c_t2_unchecked(n, φ, fl)) > _pbe_c_t2_max(R, Val(K)))
+    return !(a + b > _gga_density_max(R, Val(K))) & ((a + b < thr.density) | t2ok)
 end

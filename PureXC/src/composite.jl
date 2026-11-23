@@ -36,6 +36,9 @@ function _check_inputs(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     foreach(t -> _check_inputs(t[2], k, x...), xc.terms)
     return nothing
 end
+@inline _inputs_ok(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _terms_ok(xc.terms, k, x...)
+@inline _terms_ok(::Tuple{}, k, x::Vararg{Any, N}) where {N} = true
+@inline _terms_ok(terms::Tuple, k, x::Vararg{Any, N}) where {N} = _inputs_ok(terms[1][2], k, x...) & _terms_ok(Base.tail(terms), k, x...)
 
 # Σ wᵢ·rᵢ over the NamedTuples rᵢ of the terms, field by field.
 @generated function _weighted(w::Real, r::NamedTuple{names}) where {names}
@@ -49,13 +52,13 @@ _scale(w, x::Tuple) = ntuple(i -> _scale(w, x[i]), Val(length(x)))
 _plus(x::Real, y::Real) = x + y
 _plus(x::Tuple, y::Tuple) = ntuple(i -> x[i] + y[i], Val(length(x)))
 
-_term_sum(terms::Tuple{Any}, k, x::Vararg{Any, N}) where {N} = _weighted(terms[1][1], _xc_derivatives_unchecked(terms[1][2], k, x...))
-function _term_sum(terms::Tuple, k, x::Vararg{Any, N}) where {N}
+@inline _term_sum(terms::Tuple{Any}, k, x::Vararg{Any, N}) where {N} = _weighted(terms[1][1], _xc_derivatives_unchecked(terms[1][2], k, x...))
+@inline function _term_sum(terms::Tuple, k, x::Vararg{Any, N}) where {N}
     head = _weighted(terms[1][1], _xc_derivatives_unchecked(terms[1][2], k, x...))
     return _sum(head, _term_sum(Base.tail(terms), k, x...))
 end
 
-_xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _term_sum(xc.terms, k, x...)
+@inline _xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _term_sum(xc.terms, k, x...)
 
 function xc_derivatives(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     _check_inputs(xc, k, x...)

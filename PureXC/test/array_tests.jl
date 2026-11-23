@@ -191,12 +191,114 @@ end
     Base.JLOptions().check_bounds == 0 || error("the child process does not run with --check-bounds=auto")
     f = pbe_x()
     ρ, σ = rand(64) .+ 0.1, rand(64)
-    out = xc_outputs(f, Val(1), ρ, σ)
-    code_llvm(stdout, xc_evaluate!, typeof.((out, f, Val(1), ρ, σ)); optimize = true, debuginfo = :none)
+    ρp, σp = rand(2, 64) .+ 0.1, rand(3, 64)
+    # The point loops of xc_evaluate!: the dense loop of `Array`s, restricted and polarized, and the
+    # loop with checked loads that other arrays (here a view) take.
+    for (loop, x) in (
+            (PureXC._evaluate_points!, (ρ, σ)), (PureXC._evaluate_points!, (ρp, σp)),
+            (PureXC._evaluate_points_checked!, (view(ρ, :), σ)),
+        )
+        out = xc_outputs(f, Val(1), x...)
+        code_llvm(stdout, loop, typeof.((out, f, Val(1), x...)); optimize = true, debuginfo = :none)
+        println("END OF LOOP")
+    end
     """
-    ir = read(`$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $script`, String)
+    out = read(`$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $script`, String)
+    irs = split(out, "END OF LOOP")[1:3]
     # `vector.body` is the block the loop vectorizer emits; `<2 x double>` alone also appears when
     # only the SLP vectorizer has combined scalar operations.
-    @test occursin("vector.body", ir)
-    @test occursin("<2 x double>", ir)
+    for ir in irs
+        @test occursin("vector.body", ir)
+        @test occursin("<2 x double>", ir)
+    end
+end
+
+@testitem "the input predicate agrees with the input checks" setup = [ArrayFixtures] begin
+    using .ArrayFixtures
+    using Random
+    # Whether `_check_inputs` accepts the inputs, from whether it throws.
+    function accepted(f, k, x...)
+        try
+            PureXC._check_inputs(f, k, x...)
+        catch err
+            err isa ArgumentError || rethrow()
+            return false
+        end
+        return true
+    end
+    # Edge values of every condition: signs (−0.0, −1e-300), finiteness, the density thresholds
+    # (1e-15, 1e-12) and limits (2^45, 2^95, 2^381, 2^731, 2^767 and the powers of two above them),
+    # σ floors (1e-40, 1e-32), large reduced gradients and Float32 subnormals.
+    ρs = (
+        0.0, -0.0, -1.0e-300, 1.0e-300, 1.0e-16, 2.0e-15, 1.0e-12, 1.5e-12, 0.3, 1.0e3, 2.0^45, 2.0^46,
+        2.0^95, 2.0^96, 2.0^381, 2.0^382, 2.0^731, 2.0^732, 2.0^767, 2.0^768, floatmax(Float64), Inf, -Inf, NaN,
+    )
+    σs = (
+        0.0, -0.0, -1.0e-300, 1.0e-45, 1.0e-40, 1.0e-32, 1.0e-20, 0.01, 1.0, 1.0e10, 1.0e40, 1.0e300,
+        floatmax(Float64), Inf, -Inf, NaN,
+    )
+    rng = Xoshiro(20261123)
+    for T in (Float64, Float32), f in ArrayFixtures.functionals(T), K in (0, 1, 2, 3, 7, 10)
+        k = Val(K)
+        conv(x) = convert(T, x)
+        if ArrayFixtures.isgga(f)
+            for ρ in ρs, σ in σs
+                @test PureXC._inputs_ok(f, k, conv(ρ), conv(σ)) == accepted(f, k, conv(ρ), conv(σ))
+            end
+            for _ in 1:400
+                ρ = conv.((rand(rng, ρs), rand(rng, ρs)))
+                aa, bb = conv(rand(rng, σs)), conv(rand(rng, σs))
+                # σαβ from the edge set, or at and just beyond ±√(σαα σββ).
+                edge = sqrt(abs(aa)) * sqrt(abs(bb))
+                ab = conv(rand(rng, (rand(rng, σs), -rand(rng, σs), edge, -edge, edge * (1 + 16 * eps(T)), -edge * (1 + 16 * eps(T)))))
+                σ = (aa, ab, bb)
+                @test PureXC._inputs_ok(f, k, ρ, σ) == accepted(f, k, ρ, σ)
+            end
+        else
+            for ρ in ρs
+                @test PureXC._inputs_ok(f, k, conv(ρ)) == accepted(f, k, conv(ρ))
+            end
+            for ρa in ρs, ρb in ρs
+                ρ = (conv(ρa), conv(ρb))
+                @test PureXC._inputs_ok(f, k, ρ) == accepted(f, k, ρ)
+            end
+        end
+    end
+end
+
+@testitem "array layer reports a predicate that disagrees with the checks" begin
+    using PureXC
+    # A functional whose predicate rejects every point that its checks accept.
+    struct _Disagreeing <: PureXC.AbstractLDA{Float64}
+        thresholds::PureXC.Thresholds{Float64}
+    end
+    PureXC._energy_density(::_Disagreeing, ρ) = ρ
+    PureXC._cutoff(::_Disagreeing, ρ) = false
+    PureXC._inputs_ok(::_Disagreeing, ::Val, ρ::Real) = false
+    f = _Disagreeing(PureXC.Thresholds{Float64}(1.0e-15, 0.0, eps(Float64)))
+    ρ = [0.1, 0.2]
+    @test_throws "xc: _inputs_ok rejects a point that _check_inputs accepts" xc_evaluate!(xc_outputs(f, Val(0), ρ), f, Val(0), ρ)
+end
+
+@testitem "array layer with an output that shares memory with an input" setup = [ArrayFixtures] begin
+    using .ArrayFixtures
+    for f in (lda_x(), pbe_x(), pbe_c(), pbe()), polarized in (false, true)
+        ρ, σ = ArrayFixtures.inputs(Float64, 12; polarized)
+        args = ArrayFixtures.call(f, Val(1), ρ, σ)
+        @test !PureXC._any_alias(values(xc_outputs(args...)), (ρ, σ))
+        # vrho written over the memory of ρ: the arrays may alias, so the dense loop is not taken,
+        # and the result is that of the checked loop on the same arrays.
+        function aliased()
+            ρc, σc = copy(ρ), copy(σ)
+            a = ArrayFixtures.call(f, Val(1), ρc, σc)
+            return merge(xc_outputs(a...), (; vrho = polarized ? ρc : reshape(ρc, 1, :))), a
+        end
+        out, a = aliased()
+        @test PureXC._any_alias(values(out), a[3:end])
+        xc_evaluate!(out, a...)
+        ref, b = aliased()
+        PureXC._evaluate_points_checked!(ref, b...)
+        @test all(n -> out[n] == ref[n], keys(out))
+        @test a[3:end] == b[3:end]
+    end
 end
