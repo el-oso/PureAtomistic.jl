@@ -13,6 +13,6 @@ PureTaylor = {path = "../PureTaylor"}
 
 [compat]
 PureTaylor = "0.1"
-StrictMode = "0.5.10"
+StrictMode = "0.5.20"
 TypeContracts = "0.14.7"
 julia = "1.13"
