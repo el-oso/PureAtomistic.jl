@@ -2,9 +2,9 @@
 # kernel's unrolled form is reachable at any size as `_<kernel>_unrolled` (the same generated
 # expression the kernel uses at or below the threshold) and its loop form as `_<kernel>_loop`.
 #
-# Every kernel accumulates with `_fma`, which for Float32 and Float64 rounds once at every call site,
-# so a loop form and its unrolled form perform the same operations in the same order and agree
-# exactly (`==`).
+# Every kernel accumulates with `_fma`, which rounds once for the IEEE floats and BigFloat and is
+# the plain `x * y + z` for other coefficient types. A loop form and its unrolled form perform the
+# same operations in the same order and agree exactly (`==`).
 @testmodule LoopCases begin
     using PureTaylor
     const P = PureTaylor
