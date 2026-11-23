@@ -1,0 +1,7598 @@
+{
+  "schema": "purexc-libxc-speed-v1",
+  "hardware": "Apple M6",
+  "julia_version": "1.13.4",
+  "purexc_commit": "2b25918ab904",
+  "purexc_version": "0.1.0",
+  "puretaylor_version": "0.1.0",
+  "libxc_jl_version": "0.3.27",
+  "libxc_jll_version": "7.0.0+2",
+  "libxc_c_version": "7.0.0",
+  "chairmarks_version": "1.3.1",
+  "threads": 1,
+  "omp_num_threads": 1,
+  "points": 1000000,
+  "seed": 20261121,
+  "samples_per_cell": 3,
+  "warmup_evaluations": 2,
+  "speedup": "Libxc time / PureXC time per round; above 1 means PureXC is faster",
+  "gate": "Float64 cells: the minimum speed-up over the kept rounds must be above 1; Float32 cells are reported against Libxc's Float64 time on the same points and not gated",
+  "order": "odd rounds run PureXC then Libxc, even rounds Libxc then PureXC",
+  "calibration": "seconds of a fixed scalar loop before and after each cell; rounds are discarded when the two children's medians differ by more than 1.0% or one child varies by more than 3.0%",
+  "populations": {
+    "lda_c_pw polarized": [
+      1048,
+      566,
+      524
+    ],
+    "lda_c_pw restricted": [
+      131,
+      131,
+      131
+    ],
+    "lda_c_pw_mod polarized": [
+      1048,
+      566,
+      524
+    ],
+    "lda_c_pw_mod restricted": [
+      131,
+      131,
+      131
+    ],
+    "lda_x polarized": [
+      1048,
+      566,
+      524
+    ],
+    "lda_x restricted": [
+      131,
+      131,
+      131
+    ],
+    "pbe polarized": [
+      44016,
+      21366,
+      21366
+    ],
+    "pbe restricted": [
+      5502,
+      5371,
+      5371
+    ],
+    "pbe_c polarized": [
+      44016,
+      21366,
+      21366
+    ],
+    "pbe_c restricted": [
+      5502,
+      5371,
+      5371
+    ],
+    "pbe_x polarized": [
+      44016,
+      22854,
+      21484
+    ],
+    "pbe_x restricted": [
+      5502,
+      5371,
+      5371
+    ]
+  },
+  "populations_columns": [
+    "grid points",
+    "above (Float64 cells)",
+    "above in Float32 too (Float32 cells)"
+  ],
+  "swap_first_start_mb": 151.12,
+  "swap_last_end_mb": 151.12,
+  "rounds": [
+    {
+      "round": 2,
+      "order": "Libxc,PureXC",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000720541,
+          0.00072525
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.00072525,
+          0.00072625
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000721375,
+          0.000723416
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.0007215,
+          0.000718667
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000728125,
+          0.000727167
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000720542,
+          0.000726209
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000721583,
+          0.000722791
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000726125,
+          0.000728042
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000719541,
+          0.000725333
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.00071875,
+          0.000713959
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000719959,
+          0.000728083
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000717709,
+          0.000725334
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000724333,
+          0.000718708
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000725333,
+          0.000718542
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000718666,
+          0.000724375
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000727083,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724333,
+          0.000724416
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.00071875,
+          0.000727166
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000726167,
+          0.000718625
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000727125,
+          0.000727208
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000725792,
+          0.000727167
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000727125,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728041,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000720334,
+          0.000727083
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000722416,
+          0.000722417
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000719542,
+          0.000727208
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000724334,
+          0.000727166
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.0007205,
+          0.000728042
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000725292,
+          0.000725333
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000728042,
+          0.000727083
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000718625,
+          0.000728083
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000725292,
+          0.000727125
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000721458,
+          0.000722416
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000724291,
+          0.000727166
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000728,
+          0.000723292
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000718625,
+          0.000726208
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000721416,
+          0.00072725
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000723375,
+          0.000727208
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000720583,
+          0.000727083
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000722375,
+          0.000728084
+        ],
+        "pbe polarized k=2 Float32": [
+          0.0007215,
+          0.000725167
+        ],
+        "pbe polarized k=2 Float64": [
+          0.0007205,
+          0.000724291
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000717667,
+          0.000713084
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000718709,
+          0.00071875
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000718708,
+          0.000715917
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000724375,
+          0.000725291
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000726208,
+          0.00072425
+        ],
+        "pbe restricted k=2 Float64": [
+          0.0007215,
+          0.000725292
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000717708,
+          0.000722459
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000725291,
+          0.000722459
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000724417,
+          0.000727167
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000718709,
+          0.000725291
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.00072725,
+          0.000728042
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.0007205,
+          0.000727166
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000727166,
+          0.000724292
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.00072525,
+          0.000725334
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000728042,
+          0.000724375
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000727208,
+          0.000728042
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000717666,
+          0.000719584
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000718708,
+          0.000727125
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000723334,
+          0.000712958
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000720542,
+          0.000727167
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000724334,
+          0.000723334
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000723333,
+          0.000723375
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.00072725,
+          0.000728042
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000717708,
+          0.000726
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000721459,
+          0.000727084
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000716708,
+          0.000718625
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000725291,
+          0.0007205
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000726208,
+          0.000722458
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000727208,
+          0.000724292
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000726125,
+          0.000718709
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000724375,
+          0.000725292
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000723333,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000724375,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000727209,
+          0.000721625
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000724333,
+          0.000725208
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724334,
+          0.000717708
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000723334,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.0007225,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000724416,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000727542,
+          0.000725417
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000722417,
+          0.000724292
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000718667,
+          0.000724333
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000725292,
+          0.000721416
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000728084,
+          0.000719709
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000727125,
+          0.000725209
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000727125,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.00072525,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.00072025,
+          0.000727125
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000716667,
+          0.000724292
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000724292,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000723334,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.00072525,
+          0.000723375
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000726125,
+          0.000728042
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000723542,
+          0.00072425
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000723375,
+          0.000721458
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000726375,
+          0.000720667
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727167,
+          0.000728083
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000725292,
+          0.00072525
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000728042,
+          0.000727083
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000727209,
+          0.000726959
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000728041,
+          0.000728083
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000725208,
+          0.000721583
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.00072525,
+          0.000725375
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000728042,
+          0.000724291
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000727208,
+          0.000723291
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000721416,
+          0.000728667
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000718667,
+          0.000724375
+        ],
+        "pbe polarized k=0 Float64": [
+          0.00072525,
+          0.0007215
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000728166,
+          0.000725375
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000725375,
+          0.000725292
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000724375,
+          0.000726209
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000728125,
+          0.00071875
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000721541,
+          0.000728083
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000721541,
+          0.000728083
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000724375,
+          0.000724417
+        ],
+        "pbe restricted k=1 Float64": [
+          0.0007215,
+          0.000718667
+        ],
+        "pbe restricted k=2 Float32": [
+          0.00072525,
+          0.000728083
+        ],
+        "pbe restricted k=2 Float64": [
+          0.00072525,
+          0.00072625
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000722375,
+          0.000724458
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000725333,
+          0.000714875
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000729,
+          0.000723375
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000726791,
+          0.000728083
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000728041,
+          0.000715084
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.00073,
+          0.000722417
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000728042,
+          0.000720584
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000721542,
+          0.000727125
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000721459,
+          0.000727166
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.00072525,
+          0.000723333
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000721458,
+          0.000727209
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000720583,
+          0.000727125
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000718625,
+          0.000721375
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000727958,
+          0.000723375
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000718667,
+          0.00072525
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000721459,
+          0.000727125
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727167,
+          0.000718583
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000722375,
+          0.000719041
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000728041,
+          0.000727167
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000718667,
+          0.000727167
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000724334,
+          0.000725292
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000728042,
+          0.000721583
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.00072775,
+          0.00072725
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000718625,
+          0.00071775
+        ]
+      }
+    },
+    {
+      "round": 3,
+      "order": "PureXC,Libxc",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000721541,
+          0.000727167
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000725291,
+          0.000727167
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000728042,
+          0.000727209
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000722083,
+          0.000728041
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000728041,
+          0.000727125
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000722417,
+          0.000725334
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.0007205,
+          0.000727125
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000724334,
+          0.000725292
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000721541,
+          0.00071575
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000726292,
+          0.000722541
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.0007215,
+          0.000720583
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000718667,
+          0.000728
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000713958,
+          0.000723334
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000728041,
+          0.000725291
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.00071875,
+          0.000725292
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000724333,
+          0.000728042
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724375,
+          0.000725208
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000722542,
+          0.000724417
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000724375,
+          0.000728042
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000728041,
+          0.000727167
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000722958,
+          0.00071925
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.0007205,
+          0.000727042
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000727167,
+          0.000717708
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000724458,
+          0.0007225
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.0007215,
+          0.000718625
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000721583,
+          0.000724375
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727125,
+          0.000727167
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000720709,
+          0.000725291
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.0007205,
+          0.000727125
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000727209,
+          0.000726209
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.00071875,
+          0.000718667
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000728166,
+          0.000716667
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.0007225,
+          0.000724333
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000728083,
+          0.00072725
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000719625,
+          0.000716833
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000724333,
+          0.000725042
+        ],
+        "pbe polarized k=0 Float32": [
+          0.00072525,
+          0.000724375
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000724291,
+          0.000722458
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000727167,
+          0.000727209
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000726166,
+          0.000718667
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000718625,
+          0.000723375
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000721458,
+          0.0007215
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000717708,
+          0.000722375
+        ],
+        "pbe restricted k=0 Float64": [
+          0.00071775,
+          0.000728041
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000724292,
+          0.000717708
+        ],
+        "pbe restricted k=1 Float64": [
+          0.00072675,
+          0.0007225
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000727167,
+          0.000722375
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000727125,
+          0.000724375
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000721458,
+          0.000725333
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000726167,
+          0.000726333
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.0007205,
+          0.000723333
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000723375,
+          0.000727166
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000724292,
+          0.000724291
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000718708,
+          0.000727209
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000715834,
+          0.000718667
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.00072525,
+          0.000722375
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.00072425,
+          0.000720542
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000718708,
+          0.000726291
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000719541,
+          0.000718708
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000723375,
+          0.000718625
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000728041,
+          0.000727209
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000727084,
+          0.000724375
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000718709,
+          0.000728041
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000718667,
+          0.000727167
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.00072625,
+          0.000718667
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000728083,
+          0.000727125
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000728042,
+          0.000723375
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.00072625,
+          0.000723416
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.00071875,
+          0.000725333
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000728125,
+          0.000728042
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000723458,
+          0.000725209
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000723375,
+          0.000728042
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000725291,
+          0.000727084
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000726959,
+          0.000725208
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000721542,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000724417,
+          0.000720583
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.00072525,
+          0.000724334
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724375,
+          0.000724375
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000728083,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000727209,
+          0.0007215
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.0007215,
+          0.0007215
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000721417,
+          0.000727166
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000718958,
+          0.000728125
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000727166,
+          0.000719584
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000722208,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000727167,
+          0.000727167
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000723334,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000721541,
+          0.000724459
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000728042,
+          0.000724375
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000728041,
+          0.000723417
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000728125,
+          0.0007215
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000725416,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000727208,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.00072525,
+          0.000725209
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728042,
+          0.00072525
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000723333,
+          0.000724375
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000727666,
+          0.000727166
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000712959,
+          0.000721542
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727084,
+          0.000714167
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000718625,
+          0.000718667
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000728083,
+          0.000724375
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000724333,
+          0.000718584
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000724417,
+          0.000727208
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000728083,
+          0.000727125
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000726166,
+          0.000723083
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000718667,
+          0.000721458
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000713875,
+          0.000727167
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000727125,
+          0.000728042
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000724375,
+          0.000727959
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000721417,
+          0.000724334
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000727209,
+          0.000718625
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000722375,
+          0.000724292
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000717708,
+          0.000721666
+        ],
+        "pbe polarized k=2 Float64": [
+          0.00072725,
+          0.000726209
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000727125,
+          0.000724292
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000717666,
+          0.000720542
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000727375,
+          0.00072525
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000722375,
+          0.000721458
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000723375,
+          0.000724375
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000717667,
+          0.000720583
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000723417,
+          0.000727167
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000725292,
+          0.000721459
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000718667,
+          0.000727166
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000722417,
+          0.000725209
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.0007215,
+          0.000726208
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000718708,
+          0.000719583
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000728042,
+          0.000724375
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000718625,
+          0.0007205
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000721458,
+          0.0007215
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000727125,
+          0.000727709
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000725291,
+          0.000724417
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000727167,
+          0.00072425
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000719584,
+          0.000728084
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000714,
+          0.000723417
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000727041,
+          0.000727166
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000726125,
+          0.000713875
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727833,
+          0.0007215
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000718583,
+          0.000726292
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000727166,
+          0.000724292
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000728083,
+          0.000727333
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.00071675,
+          0.000728042
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000716791,
+          0.000728084
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000724291,
+          0.000728125
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000713,
+          0.000722167
+        ]
+      }
+    },
+    {
+      "round": 4,
+      "order": "Libxc,PureXC",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000718708,
+          0.000727084
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000722334,
+          0.0007215
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000728083,
+          0.000722333
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000723375,
+          0.000718708
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000721792,
+          0.000722583
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000717792,
+          0.000718625
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000727208,
+          0.000721458
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000725334,
+          0.000725
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000725292,
+          0.0007245
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000725292,
+          0.000720458
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000722458,
+          0.000724375
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000714792,
+          0.000727333
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000727166,
+          0.000724292
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000727167,
+          0.000717667
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000724417,
+          0.000724333
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000720791,
+          0.000722417
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000728042,
+          0.000728125
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000713958,
+          0.000725166
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000728083,
+          0.000727083
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000722375,
+          0.000725042
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000728083,
+          0.000728042
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000727167,
+          0.000725292
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000725208,
+          0.000723375
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.00072525,
+          0.000718625
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000726208,
+          0.000718708
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.0007215,
+          0.000724291
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.0007215,
+          0.000727167
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000721458,
+          0.00072725
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000717708,
+          0.000725291
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000716833,
+          0.000725333
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000713959,
+          0.000725292
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000718583,
+          0.000723375
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000723417,
+          0.000727083
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000724291,
+          0.000724334
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.00072775,
+          0.00072425
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.0007215,
+          0.000723333
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000722416,
+          0.000723375
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000721416,
+          0.000727083
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000723417,
+          0.000727125
+        ],
+        "pbe polarized k=1 Float64": [
+          0.0007225,
+          0.000723375
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000721375,
+          0.000725209
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000725208,
+          0.000727125
+        ],
+        "pbe restricted k=0 Float32": [
+          0.00072475,
+          0.000723333
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000714792,
+          0.0007225
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000721417,
+          0.000721542
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000718708,
+          0.000719625
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000721584,
+          0.000723375
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000718708,
+          0.000725208
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000726208,
+          0.000725333
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000726333,
+          0.0007215
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000718792,
+          0.000727208
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000728042,
+          0.000728042
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000723375,
+          0.000728083
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.0007225,
+          0.000724334
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000724459,
+          0.000718792
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000725208,
+          0.000718625
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000720583,
+          0.000718625
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000721625,
+          0.000718709
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000718667,
+          0.00072425
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000728083,
+          0.000721542
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.00072525,
+          0.000727208
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000721583,
+          0.000727167
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.00072525,
+          0.000727084
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000725292,
+          0.000727125
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727208,
+          0.000721583
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000722458,
+          0.000727167
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000723334,
+          0.000728041
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000720459,
+          0.000724375
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.0007205,
+          0.000727125
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000715875,
+          0.000728083
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000718541,
+          0.000721625
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000724375,
+          0.0007205
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000727209,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.00071775,
+          0.000721458
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000727167,
+          0.000725208
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000724292,
+          0.00072525
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000723375,
+          0.000719625
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724416,
+          0.0007225
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000727125,
+          0.000727125
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000723958,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000722916,
+          0.000724334
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000721416,
+          0.000727125
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000722459,
+          0.000728041
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000722458,
+          0.0007195
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000724416,
+          0.000727166
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000728125,
+          0.000725292
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000719542,
+          0.000723333
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000724375,
+          0.000718708
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000728083,
+          0.000727166
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000724333,
+          0.000724417
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000724417,
+          0.000727125
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000725291,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000722625,
+          0.000718666
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000721459,
+          0.00072525
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.00072525,
+          0.000724334
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000722416,
+          0.00072425
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000727166,
+          0.000725292
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000718708,
+          0.000727167
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727125,
+          0.000718709
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000725375,
+          0.00072525
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000725334,
+          0.000728041
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000727125,
+          0.000727208
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.00072775,
+          0.000725334
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000724333,
+          0.000728083
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000728042,
+          0.000722458
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000709333,
+          0.000724375
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000720584,
+          0.0007215
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000724333,
+          0.00072525
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000718667,
+          0.000721459
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000727167,
+          0.000729625
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000727209,
+          0.000724458
+        ],
+        "pbe polarized k=1 Float64": [
+          0.00072475,
+          0.000724333
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000728083,
+          0.000723333
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000728083,
+          0.000723417
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000728042,
+          0.000720458
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000720625,
+          0.0007205
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000724375,
+          0.000724375
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000719584,
+          0.000721541
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000727125,
+          0.000724458
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000722833,
+          0.000724166
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000724417,
+          0.0007215
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000715958,
+          0.000724417
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000723417,
+          0.000724375
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000723292,
+          0.000727167
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000717792,
+          0.000720541
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000724375,
+          0.000728041
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000727125,
+          0.000724334
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000718666,
+          0.000727125
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000724333,
+          0.00072725
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000718667,
+          0.000725291
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000718625,
+          0.000724416
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000719625,
+          0.000724291
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000728042,
+          0.000727167
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000717709,
+          0.000723334
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000728041,
+          0.000727167
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.00071775,
+          0.000724084
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000718625,
+          0.000720542
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000727125,
+          0.000723333
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000726208,
+          0.000724375
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000721541,
+          0.000727166
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000721459,
+          0.000728083
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000727125,
+          0.000727167
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000727125,
+          0.000727208
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000718708,
+          0.000727125
+        ]
+      }
+    },
+    {
+      "round": 5,
+      "order": "PureXC,Libxc",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000722459,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000724417,
+          0.000724416
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000723375,
+          0.00072725
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000717625,
+          0.00071675
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000727167,
+          0.000727125
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.00071675,
+          0.000724416
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000725334,
+          0.000724416
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000717584,
+          0.000714833
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000727167,
+          0.000725375
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000721417,
+          0.000727166
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000721417,
+          0.00072475
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000725333,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.0007215,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000719666,
+          0.000727167
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000724666,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000724333,
+          0.000724333
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.0007255,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000724333,
+          0.000717833
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.0007225,
+          0.00072725
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000727208,
+          0.000727166
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.00072625,
+          0.000724292
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000728083,
+          0.000727208
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728042,
+          0.000723334
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000727125,
+          0.00072725
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000728084,
+          0.000724334
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.0007215,
+          0.000724417
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727583,
+          0.0007215
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000718667,
+          0.000722417
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.00072425,
+          0.000727125
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000715792,
+          0.000727167
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000721541,
+          0.000727542
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000716667,
+          0.000728041
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000726166,
+          0.0007215
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000722416,
+          0.000726166
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000727708,
+          0.000725375
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.0007215,
+          0.000727
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000726209,
+          0.000727125
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000721541,
+          0.000725208
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000724167,
+          0.000715792
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000718708,
+          0.000724333
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000724333,
+          0.000727208
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000721542,
+          0.000719667
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000727125,
+          0.000725416
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000717667,
+          0.000728
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000728041,
+          0.000728042
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000724416,
+          0.000725208
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000718625,
+          0.000718625
+        ],
+        "pbe restricted k=2 Float64": [
+          0.00072725,
+          0.000725292
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000718708,
+          0.00072525
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.0007215,
+          0.000717708
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000726167,
+          0.000727167
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000716833,
+          0.000718625
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000715833,
+          0.000724375
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000726291,
+          0.000718583
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.00072525,
+          0.000724458
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000719459,
+          0.000720583
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000722416,
+          0.0007195
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000726209,
+          0.00072725
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000728041,
+          0.000724292
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000722458,
+          0.000715792
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000723375,
+          0.000724375
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.00071975,
+          0.000727125
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.0007215,
+          0.000715791
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000718709,
+          0.000728084
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000722375,
+          0.000728167
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000727208,
+          0.000718625
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000728041,
+          0.000718708
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000713917,
+          0.000726208
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000727167,
+          0.000726166
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.00071875,
+          0.000719666
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000718625,
+          0.000727166
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000723458,
+          0.000718625
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000728084,
+          0.000718583
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.00072425,
+          0.000722459
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.0007205,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.0007195,
+          0.000725208
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000727125,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000728083,
+          0.000727166
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000728041,
+          0.00072625
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000722416,
+          0.000723375
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000724333,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000728041,
+          0.000724375
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.00072525,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000714959,
+          0.000721542
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000722459,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000725333,
+          0.000725292
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000720542,
+          0.000727083
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000724291,
+          0.000728083
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.0007215,
+          0.000725209
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000721584,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000727125,
+          0.000726209
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000724292,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.00072625,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000725292,
+          0.000724292
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000724375,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000718625,
+          0.0007195
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000724375,
+          0.000724333
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000721542,
+          0.000722125
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000711958,
+          0.000727625
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000728083,
+          0.0007215
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000727167,
+          0.000728916
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000724333,
+          0.000722458
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000725291,
+          0.000724292
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000722417,
+          0.000720583
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000727166,
+          0.000727208
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000721542,
+          0.000724333
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000727209,
+          0.000728041
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000718625,
+          0.000725334
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000728958,
+          0.000723333
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000728041,
+          0.000722417
+        ],
+        "pbe polarized k=1 Float32": [
+          0.00072725,
+          0.00072525
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000722458,
+          0.00072725
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000721459,
+          0.000728083
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000729041,
+          0.000718666
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000724375,
+          0.000723459
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000722542,
+          0.000721416
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000719584,
+          0.000723333
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000728041,
+          0.000713083
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000718667,
+          0.000723334
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000728542,
+          0.000724333
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000727208,
+          0.000720625
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000726208,
+          0.000727125
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000724333,
+          0.000724334
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000727084,
+          0.000728041
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.00072525,
+          0.00072525
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.00072525,
+          0.00071875
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000718625,
+          0.000723417
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000718708,
+          0.000722417
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000721416,
+          0.000727209
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000723417,
+          0.000724375
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000725291,
+          0.000728083
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.0007235,
+          0.000726834
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000728042,
+          0.000727125
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000723291,
+          0.000721542
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000728083,
+          0.000727167
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000717709,
+          0.000727125
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000728042,
+          0.000718667
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000728041,
+          0.000727208
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000718666,
+          0.000723167
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000721417,
+          0.000724292
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000724375,
+          0.000727125
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000724459,
+          0.000725333
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000718666,
+          0.000725333
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000721459,
+          0.000722458
+        ]
+      }
+    },
+    {
+      "round": 6,
+      "order": "Libxc,PureXC",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000724333,
+          0.000727125
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000723375,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000722459,
+          0.000727208
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000721375,
+          0.000722416
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000728041,
+          0.000728042
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000725209,
+          0.00072725
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.0007205,
+          0.000724458
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000718584,
+          0.000714958
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.0007215,
+          0.00072725
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.00071875,
+          0.000717666
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000713917,
+          0.000723291
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000727125,
+          0.000720417
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000728041,
+          0.00071875
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000711958,
+          0.000725333
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000727416,
+          0.000728083
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000728083,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000727208,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000728083,
+          0.000718667
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000725875,
+          0.0007255
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000718625,
+          0.000727291
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000727125,
+          0.000725292
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000718708,
+          0.000727125
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728041,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000728084,
+          0.000727125
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000716667,
+          0.000726291
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000720541,
+          0.000727167
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000727125,
+          0.000728042
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.00072625,
+          0.00072525
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000727208,
+          0.000726208
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000723375,
+          0.000718709
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000727084,
+          0.000714625
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000719625,
+          0.000717708
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000721542,
+          0.00072225
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000720833,
+          0.000725459
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000725375,
+          0.00071875
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000719708,
+          0.0007235
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000718708,
+          0.000725083
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000721542,
+          0.000724291
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000720583,
+          0.000727125
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000722417,
+          0.000724375
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000718625,
+          0.000724292
+        ],
+        "pbe polarized k=2 Float64": [
+          0.00072625,
+          0.000727166
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000727167,
+          0.00072625
+        ],
+        "pbe restricted k=0 Float64": [
+          0.00072625,
+          0.000718583
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000727083,
+          0.000725291
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000718666,
+          0.000728041
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000724291,
+          0.000724291
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000728083,
+          0.000722334
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000726208,
+          0.000724459
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.0007225,
+          0.000718625
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.0007245,
+          0.000726292
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000723416,
+          0.000724417
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000713875,
+          0.000727125
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000723417,
+          0.000724375
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000718833,
+          0.000720625
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000724375,
+          0.000730041
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.00071575,
+          0.00072525
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000724292,
+          0.000721542
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.00071875,
+          0.000718667
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000724292,
+          0.000723458
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000716875,
+          0.000728041
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000718667,
+          0.000725291
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000728042,
+          0.000727125
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.0007215,
+          0.000725292
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727208,
+          0.000723333
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000723834,
+          0.000727167
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000727083,
+          0.000716875
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000713958,
+          0.000725375
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.0007215,
+          0.000725208
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000723333,
+          0.000727209
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000727208,
+          0.000713875
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000718709,
+          0.000726167
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000727125,
+          0.000722417
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000727,
+          0.000721458
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000724292,
+          0.000721541
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000724333,
+          0.000723375
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000722584,
+          0.000724292
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724375,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000724417,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000719708,
+          0.000722875
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000727084,
+          0.000724375
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000722334,
+          0.000723417
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000727083,
+          0.000724334
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000728083,
+          0.000724416
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000728167,
+          0.000722458
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.00072525,
+          0.000724375
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.00071575,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000724334,
+          0.000722417
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724417,
+          0.000728042
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.0007215,
+          0.000724334
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.0007215,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000727625,
+          0.00072525
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.0007215,
+          0.0007215
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000727167,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000722583,
+          0.0007205
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000728083,
+          0.000724333
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000728083,
+          0.000728
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000721791,
+          0.000720625
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000725333,
+          0.000726667
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000721583,
+          0.000719542
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000728083,
+          0.000723417
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.00072525,
+          0.000728042
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000728083,
+          0.000727166
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000716708,
+          0.000728083
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000727083,
+          0.000727709
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000715791,
+          0.0007225
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000728083,
+          0.000721458
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000715792,
+          0.00072625
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000725292,
+          0.000723375
+        ],
+        "pbe polarized k=0 Float64": [
+          0.00071875,
+          0.000724333
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000713959,
+          0.000727166
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000726167,
+          0.000723375
+        ],
+        "pbe polarized k=2 Float32": [
+          0.00072525,
+          0.0007215
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000718666,
+          0.000715791
+        ],
+        "pbe restricted k=0 Float32": [
+          0.0007215,
+          0.000727167
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000728042,
+          0.00071875
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000728041,
+          0.000724333
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000727625,
+          0.000724417
+        ],
+        "pbe restricted k=2 Float32": [
+          0.00072525,
+          0.000727167
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000728041,
+          0.000717708
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000718667,
+          0.00072625
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000718792,
+          0.000724333
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000723334,
+          0.000723083
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000725291,
+          0.000724416
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000725375,
+          0.000718625
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000718708,
+          0.000727166
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000724333,
+          0.000724333
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000720541,
+          0.000727125
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000724458,
+          0.000727167
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000721541,
+          0.000723417
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000725292,
+          0.000724375
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.00072625,
+          0.000724375
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000722417,
+          0.000725333
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000728042,
+          0.000728041
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.0007295,
+          0.000728083
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.0007225,
+          0.000718708
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727167,
+          0.000724333
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000726166,
+          0.000728041
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000726209,
+          0.000720542
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000727084,
+          0.000719542
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000720584,
+          0.000718708
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000728125,
+          0.000727125
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000720541,
+          0.000723375
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000721542,
+          0.000718666
+        ]
+      }
+    },
+    {
+      "round": 7,
+      "order": "PureXC,Libxc",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000722417,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000711,
+          0.000720416
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000720542,
+          0.000727166
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000722458,
+          0.000723416
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000723333,
+          0.000726292
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724292,
+          0.000727166
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000728083,
+          0.000728041
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000727125,
+          0.000726209
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000721416,
+          0.000726291
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000717709,
+          0.0007205
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000724416,
+          0.000724417
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000724792,
+          0.000726208
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000727125,
+          0.000718542
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000718708,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000718666,
+          0.000727166
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000722458,
+          0.000727167
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000718667,
+          0.000723375
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000724333,
+          0.000718666
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000728042,
+          0.000718667
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000728083,
+          0.000723375
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000728042,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000716708,
+          0.00072525
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000726208,
+          0.000718667
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000723333,
+          0.000727375
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000727208,
+          0.000725333
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000719625,
+          0.000725292
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000725208,
+          0.0007205
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000722542,
+          0.000724375
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000713959,
+          0.000727083
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000724417,
+          0.000727125
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.00072525,
+          0.000721542
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.0007215,
+          0.000725209
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000723375,
+          0.000726167
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000723458,
+          0.000720584
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000727708,
+          0.000726166
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000719541,
+          0.000717708
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000727125,
+          0.000718708
+        ],
+        "pbe polarized k=0 Float64": [
+          0.0007215,
+          0.000721542
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000727125,
+          0.000728083
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000721542,
+          0.000721458
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000724334,
+          0.000724333
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000721458,
+          0.000723459
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000720458,
+          0.000721542
+        ],
+        "pbe restricted k=0 Float64": [
+          0.00072725,
+          0.000728125
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000725291,
+          0.000723208
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000724333,
+          0.000721417
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000727125,
+          0.000725334
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000728083,
+          0.000718667
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000720583,
+          0.000724417
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000716833,
+          0.000723333
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000724292,
+          0.0007215
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000728125,
+          0.000718666
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000721542,
+          0.000726167
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000727167,
+          0.000727125
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000720875,
+          0.000718708
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000719542,
+          0.000717667
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000724291,
+          0.000726208
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000723334,
+          0.000725209
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000727167,
+          0.000724291
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000721542,
+          0.000725291
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.00072525,
+          0.000717709
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000724333,
+          0.000718708
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000723458,
+          0.000727167
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000721416,
+          0.000727166
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000728041,
+          0.00072525
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000718708,
+          0.000718666
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000727209,
+          0.000717709
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000718666,
+          0.000725291
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000721583,
+          0.000726208
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000725292,
+          0.000717625
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000725333,
+          0.00072725
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000720542,
+          0.000718625
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.0007205,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000728083,
+          0.000723917
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000721542,
+          0.000723334
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.00072525,
+          0.000727125
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000724375,
+          0.000718625
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000718708,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000719625,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.0007205,
+          0.000725291
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000724375,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000721542,
+          0.0007215
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000724333,
+          0.000727708
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000724333,
+          0.000719583
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000724333,
+          0.000727209
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000724375,
+          0.000724291
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000728083,
+          0.000719542
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000721458,
+          0.000725333
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724375,
+          0.000727167
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000721583,
+          0.00072525
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000727125,
+          0.000721542
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000718667,
+          0.000723375
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000726959,
+          0.000725334
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000721542,
+          0.000721542
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.0007215,
+          0.000719583
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000721541,
+          0.00072525
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000720541,
+          0.000727166
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000722417,
+          0.000721541
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000725292,
+          0.000718708
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000720542,
+          0.000727584
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000727125,
+          0.000724417
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000726334,
+          0.000728041
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000726166,
+          0.000728042
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000722458,
+          0.000721542
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000728042,
+          0.000727208
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000721541,
+          0.000728916
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000718667,
+          0.000724459
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000718625,
+          0.000723375
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000723459,
+          0.000727166
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000727208,
+          0.000727167
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000728083,
+          0.000715792
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000727125,
+          0.000724375
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000714,
+          0.000718708
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000728083,
+          0.000718709
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000728083,
+          0.000724334
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000720542,
+          0.000718667
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000727167,
+          0.000721542
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000722542,
+          0.000721541
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000727125,
+          0.000724292
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000723333,
+          0.000724375
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000719708,
+          0.000724291
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000713042,
+          0.000728041
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000724333,
+          0.000724333
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000724333,
+          0.000725292
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000727125,
+          0.000728083
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000724417,
+          0.000727166
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.00072525,
+          0.000724291
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000718667,
+          0.000718667
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000724417,
+          0.000723375
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000728042,
+          0.000721542
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000724333,
+          0.000727125
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000721375,
+          0.000724375
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000718667,
+          0.000727167
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000723333,
+          0.000717667
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000728084,
+          0.000724375
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000727083,
+          0.00071875
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727041,
+          0.000728125
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000721584,
+          0.000725292
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000728083,
+          0.000724375
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000722458,
+          0.000717708
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000718667,
+          0.000727167
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000716708,
+          0.000727166
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000723375,
+          0.000724333
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000725292,
+          0.000717708
+        ]
+      }
+    },
+    {
+      "round": 8,
+      "order": "Libxc,PureXC",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000724291,
+          0.0007205
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.0007225,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000726208,
+          0.000722417
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000718583,
+          0.000727209
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000728084,
+          0.000722417
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.0007215,
+          0.000726292
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000725292,
+          0.000719625
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000718667,
+          0.000724292
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000722375,
+          0.000717666
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000728083,
+          0.000724375
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000728083,
+          0.000721375
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000728042,
+          0.000718625
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000724375,
+          0.000728042
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.0007275,
+          0.000728042
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000724375,
+          0.000721542
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000719708,
+          0.000728041
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724334,
+          0.000718625
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000725417,
+          0.000718667
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000718708,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000723458,
+          0.000725458
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000727125,
+          0.000726209
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000728167,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000724375,
+          0.000727125
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000727208,
+          0.000727125
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.0007205,
+          0.000727125
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.0007195,
+          0.000727083
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000725333,
+          0.00072625
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.0007205,
+          0.000727083
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.00072625,
+          0.000727125
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000723333,
+          0.000725333
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000726292,
+          0.000728083
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000725834,
+          0.000713916
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000718666,
+          0.000727125
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000724375,
+          0.000721541
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000718708,
+          0.000726625
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000713917,
+          0.000723375
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000721417,
+          0.000728041
+        ],
+        "pbe polarized k=0 Float64": [
+          0.00072525,
+          0.000724291
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000723333,
+          0.000724375
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000727208,
+          0.000726208
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000724375,
+          0.000727125
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000726167,
+          0.000725292
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000728083,
+          0.000720583
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000718667,
+          0.0007225
+        ],
+        "pbe restricted k=1 Float32": [
+          0.0007215,
+          0.0007215
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000725333,
+          0.000718791
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000725708,
+          0.000725291
+        ],
+        "pbe restricted k=2 Float64": [
+          0.0007215,
+          0.000725666
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000723375,
+          0.000724375
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000725708,
+          0.000724417
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000727083,
+          0.000726792
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000713,
+          0.000727208
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000722458,
+          0.000724292
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.00072525,
+          0.000724292
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000727125,
+          0.000728083
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000728041,
+          0.000718667
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000721458,
+          0.000715792
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000716792,
+          0.00071675
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000721417,
+          0.000721416
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.0007215,
+          0.000728042
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000720541,
+          0.000720125
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000725292,
+          0.0007205
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000721542,
+          0.000719875
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.00072525,
+          0.000719541
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000724375,
+          0.000728083
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000727167,
+          0.000725875
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000728083,
+          0.000728041
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000720666,
+          0.0007215
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000727125,
+          0.000714792
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000716916,
+          0.000724292
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000713958,
+          0.000720541
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000727167,
+          0.000721375
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000725334,
+          0.000718708
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000727125,
+          0.000724334
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000713125,
+          0.000724291
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000729042,
+          0.000723041
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000721458,
+          0.000725958
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000724417,
+          0.000728083
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000728083,
+          0.000724417
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000724417,
+          0.000721542
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000728083,
+          0.000724416
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000720542,
+          0.00072525
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000727167,
+          0.000727125
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.00072525,
+          0.000724292
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.00071875,
+          0.000724375
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000727083,
+          0.000723291
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000723666,
+          0.000724375
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000727125,
+          0.000724292
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724375,
+          0.000724416
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000718666,
+          0.000724291
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.0007215,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.00072475,
+          0.000724292
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000722458,
+          0.000721375
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000725291,
+          0.000724375
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000724333,
+          0.000724333
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000720541,
+          0.0007215
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000725292,
+          0.000718708
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000721459,
+          0.000716708
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000728041,
+          0.000728042
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.00072525,
+          0.000723459
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000727167,
+          0.000727166
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000721541,
+          0.000725416
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000725291,
+          0.000720459
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000725333,
+          0.000728083
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000727167,
+          0.000728083
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000716791,
+          0.000728084
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000723375,
+          0.000720542
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000713958,
+          0.000724375
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000718708,
+          0.000727125
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000723375,
+          0.000722583
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000729,
+          0.000725375
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000718584,
+          0.000727125
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000718667,
+          0.000718708
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000718708,
+          0.0007215
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000721083,
+          0.0007215
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000726167,
+          0.000712917
+        ],
+        "pbe restricted k=1 Float32": [
+          0.00071875,
+          0.000726166
+        ],
+        "pbe restricted k=1 Float64": [
+          0.0007215,
+          0.000727167
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000718667,
+          0.000724375
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000727125,
+          0.000723375
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000724333,
+          0.000726208
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000728042,
+          0.000728042
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000724417,
+          0.000724333
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000725291,
+          0.000725292
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000729083,
+          0.000728084
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000722375,
+          0.000727208
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000722416,
+          0.00072525
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.00072525,
+          0.000723458
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000720583,
+          0.000719625
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000728083,
+          0.000726209
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000721458,
+          0.000727125
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000722458,
+          0.000724375
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000724375,
+          0.000727333
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.0007215,
+          0.000724334
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000718708,
+          0.000727084
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000723084,
+          0.000724417
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000725333,
+          0.000727083
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000723417,
+          0.000717709
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000727167,
+          0.00072525
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000725333,
+          0.000725333
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000726917,
+          0.000718709
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000724375,
+          0.000726167
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000722334,
+          0.000727208
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000718625,
+          0.000728042
+        ]
+      }
+    }
+  ],
+  "discarded_rounds": [
+    {
+      "round": 1,
+      "order": "PureXC,Libxc",
+      "reason": "calibration varied by 8.6% within the PureXC child",
+      "swap_before_mb": 151.12,
+      "swap_after_mb": 151.12,
+      "purexc_s": {
+        "lda_c_pw polarized k=0 Float32": 0.00455325,
+        "lda_c_pw polarized k=0 Float64": 0.011117,
+        "lda_c_pw polarized k=1 Float32": 0.006685625000000001,
+        "lda_c_pw polarized k=1 Float64": 0.015918500000000002,
+        "lda_c_pw polarized k=2 Float32": 0.010074583,
+        "lda_c_pw polarized k=2 Float64": 0.023527000000000003,
+        "lda_c_pw restricted k=0 Float32": 0.0013153750000000001,
+        "lda_c_pw restricted k=0 Float64": 0.0034686670000000004,
+        "lda_c_pw restricted k=1 Float32": 0.0020627080000000003,
+        "lda_c_pw restricted k=1 Float64": 0.0053897500000000004,
+        "lda_c_pw restricted k=2 Float32": 0.0029682080000000004,
+        "lda_c_pw restricted k=2 Float64": 0.007259833,
+        "lda_c_pw_mod polarized k=0 Float32": 0.0045502500000000005,
+        "lda_c_pw_mod polarized k=0 Float64": 0.011009791000000001,
+        "lda_c_pw_mod polarized k=1 Float32": 0.0066149170000000005,
+        "lda_c_pw_mod polarized k=1 Float64": 0.015789042,
+        "lda_c_pw_mod polarized k=2 Float32": 0.010159334,
+        "lda_c_pw_mod polarized k=2 Float64": 0.023475583,
+        "lda_c_pw_mod restricted k=0 Float32": 0.001314917,
+        "lda_c_pw_mod restricted k=0 Float64": 0.0034712080000000004,
+        "lda_c_pw_mod restricted k=1 Float32": 0.002063833,
+        "lda_c_pw_mod restricted k=1 Float64": 0.005419292,
+        "lda_c_pw_mod restricted k=2 Float32": 0.0029069580000000003,
+        "lda_c_pw_mod restricted k=2 Float64": 0.007239667000000001,
+        "lda_x polarized k=0 Float32": 0.001161458,
+        "lda_x polarized k=0 Float64": 0.002871708,
+        "lda_x polarized k=1 Float32": 0.0016226250000000002,
+        "lda_x polarized k=1 Float64": 0.003935125,
+        "lda_x polarized k=2 Float32": 0.0022266250000000003,
+        "lda_x polarized k=2 Float64": 0.005223417,
+        "lda_x restricted k=0 Float32": 0.000549125,
+        "lda_x restricted k=0 Float64": 0.001384458,
+        "lda_x restricted k=1 Float32": 0.0007399580000000001,
+        "lda_x restricted k=1 Float64": 0.0018468330000000002,
+        "lda_x restricted k=2 Float32": 0.000964041,
+        "lda_x restricted k=2 Float64": 0.002366875,
+        "pbe polarized k=0 Float32": 0.014884291000000001,
+        "pbe polarized k=0 Float64": 0.036800959,
+        "pbe polarized k=1 Float32": 0.025097417,
+        "pbe polarized k=1 Float64": 0.058468041000000005,
+        "pbe polarized k=2 Float32": 0.147466125,
+        "pbe polarized k=2 Float64": 0.182139417,
+        "pbe restricted k=0 Float32": 0.0074201250000000005,
+        "pbe restricted k=0 Float64": 0.018754583000000002,
+        "pbe restricted k=1 Float32": 0.014207833000000001,
+        "pbe restricted k=1 Float64": 0.035440958,
+        "pbe restricted k=2 Float32": 0.021372042,
+        "pbe restricted k=2 Float64": 0.049403417000000005,
+        "pbe_c polarized k=0 Float32": 0.011752,
+        "pbe_c polarized k=0 Float64": 0.030740667000000003,
+        "pbe_c polarized k=1 Float32": 0.019759916000000002,
+        "pbe_c polarized k=1 Float64": 0.047490542000000004,
+        "pbe_c polarized k=2 Float32": 0.037172875,
+        "pbe_c polarized k=2 Float64": 0.084757334,
+        "pbe_c restricted k=0 Float32": 0.005789917,
+        "pbe_c restricted k=0 Float64": 0.017015042,
+        "pbe_c restricted k=1 Float32": 0.010508458,
+        "pbe_c restricted k=1 Float64": 0.027170167000000002,
+        "pbe_c restricted k=2 Float32": 0.017479750000000002,
+        "pbe_c restricted k=2 Float64": 0.041267791000000005,
+        "pbe_x polarized k=0 Float32": 0.0037157500000000003,
+        "pbe_x polarized k=0 Float64": 0.008720375,
+        "pbe_x polarized k=1 Float32": 0.0064365,
+        "pbe_x polarized k=1 Float64": 0.014757583000000001,
+        "pbe_x polarized k=2 Float32": 0.031275542,
+        "pbe_x polarized k=2 Float64": 0.038536208,
+        "pbe_x restricted k=0 Float32": 0.0017297920000000002,
+        "pbe_x restricted k=0 Float64": 0.004318958,
+        "pbe_x restricted k=1 Float32": 0.0032475000000000004,
+        "pbe_x restricted k=1 Float64": 0.007537541000000001,
+        "pbe_x restricted k=2 Float32": 0.005337083,
+        "pbe_x restricted k=2 Float64": 0.0119325
+      },
+      "libxc_s": {
+        "lda_c_pw polarized k=0 Float32": 0.0493255,
+        "lda_c_pw polarized k=0 Float64": 0.050455833000000005,
+        "lda_c_pw polarized k=1 Float32": 0.060704625000000005,
+        "lda_c_pw polarized k=1 Float64": 0.062261250000000004,
+        "lda_c_pw polarized k=2 Float32": 0.090121792,
+        "lda_c_pw polarized k=2 Float64": 0.09177062500000001,
+        "lda_c_pw restricted k=0 Float32": 0.035856584000000004,
+        "lda_c_pw restricted k=0 Float64": 0.035714209000000004,
+        "lda_c_pw restricted k=1 Float32": 0.040609292000000005,
+        "lda_c_pw restricted k=1 Float64": 0.040477333000000004,
+        "lda_c_pw restricted k=2 Float32": 0.049751750000000004,
+        "lda_c_pw restricted k=2 Float64": 0.049650041000000006,
+        "lda_c_pw_mod polarized k=0 Float32": 0.049393083000000004,
+        "lda_c_pw_mod polarized k=0 Float64": 0.050712666,
+        "lda_c_pw_mod polarized k=1 Float32": 0.060971500000000005,
+        "lda_c_pw_mod polarized k=1 Float64": 0.06216700000000001,
+        "lda_c_pw_mod polarized k=2 Float32": 0.090459042,
+        "lda_c_pw_mod polarized k=2 Float64": 0.092124416,
+        "lda_c_pw_mod restricted k=0 Float32": 0.035743041,
+        "lda_c_pw_mod restricted k=0 Float64": 0.035633666,
+        "lda_c_pw_mod restricted k=1 Float32": 0.040429458,
+        "lda_c_pw_mod restricted k=1 Float64": 0.040559167,
+        "lda_c_pw_mod restricted k=2 Float32": 0.049771334,
+        "lda_c_pw_mod restricted k=2 Float64": 0.049688750000000004,
+        "lda_x polarized k=0 Float32": 0.0065875000000000005,
+        "lda_x polarized k=0 Float64": 0.007120208,
+        "lda_x polarized k=1 Float32": 0.010783041,
+        "lda_x polarized k=1 Float64": 0.011160583,
+        "lda_x polarized k=2 Float32": 0.02245325,
+        "lda_x polarized k=2 Float64": 0.022698084,
+        "lda_x restricted k=0 Float32": 0.002019917,
+        "lda_x restricted k=0 Float64": 0.002022334,
+        "lda_x restricted k=1 Float32": 0.002678375,
+        "lda_x restricted k=1 Float64": 0.002672958,
+        "lda_x restricted k=2 Float32": 0.003376833,
+        "lda_x restricted k=2 Float64": 0.0033839580000000003,
+        "pbe polarized k=0 Float32": 0.060671958000000005,
+        "pbe polarized k=0 Float64": 0.060321292000000006,
+        "pbe polarized k=1 Float32": 0.090129916,
+        "pbe polarized k=1 Float64": 0.090179375,
+        "pbe polarized k=2 Float32": 0.205517625,
+        "pbe polarized k=2 Float64": 0.20573470900000002,
+        "pbe restricted k=0 Float32": 0.043307875,
+        "pbe restricted k=0 Float64": 0.04326225,
+        "pbe restricted k=1 Float32": 0.05756275,
+        "pbe restricted k=1 Float64": 0.057370542000000004,
+        "pbe restricted k=2 Float32": 0.084415792,
+        "pbe restricted k=2 Float64": 0.08285529100000001,
+        "pbe_c polarized k=0 Float32": 0.04684275,
+        "pbe_c polarized k=0 Float64": 0.047215792,
+        "pbe_c polarized k=1 Float32": 0.06906991600000001,
+        "pbe_c polarized k=1 Float64": 0.069150458,
+        "pbe_c polarized k=2 Float32": 0.16243437500000002,
+        "pbe_c polarized k=2 Float64": 0.162257916,
+        "pbe_c restricted k=0 Float32": 0.037227709000000005,
+        "pbe_c restricted k=0 Float64": 0.037206083,
+        "pbe_c restricted k=1 Float32": 0.048684250000000005,
+        "pbe_c restricted k=1 Float64": 0.048726125,
+        "pbe_c restricted k=2 Float32": 0.070045833,
+        "pbe_c restricted k=2 Float64": 0.06991362500000001,
+        "pbe_x polarized k=0 Float32": 0.013299333,
+        "pbe_x polarized k=0 Float64": 0.013320084000000001,
+        "pbe_x polarized k=1 Float32": 0.020602417,
+        "pbe_x polarized k=1 Float64": 0.020609875,
+        "pbe_x polarized k=2 Float32": 0.043135458,
+        "pbe_x polarized k=2 Float64": 0.043097833,
+        "pbe_x restricted k=0 Float32": 0.00597575,
+        "pbe_x restricted k=0 Float64": 0.005968916,
+        "pbe_x restricted k=1 Float32": 0.008674917,
+        "pbe_x restricted k=1 Float64": 0.008664833,
+        "pbe_x restricted k=2 Float32": 0.012615625,
+        "pbe_x restricted k=2 Float64": 0.012631209000000001
+      },
+      "purexc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.000728084,
+          0.000725292
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000724416,
+          0.000717666
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000718708,
+          0.000724375
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000726209,
+          0.000728042
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.0007225,
+          0.000719542
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.0007205,
+          0.000727167
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000726209,
+          0.0007225
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.00071575,
+          0.000718583
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000721458,
+          0.000728041
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000670208,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000724417,
+          0.000723375
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000724333,
+          0.000727083
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000718667,
+          0.000723333
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000727125,
+          0.000721458
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000728083,
+          0.000724334
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000718708,
+          0.00072525
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000724333,
+          0.000724334
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.000727208,
+          0.000718667
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000724417,
+          0.00072575
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000724417,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000728083,
+          0.000725375
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000725291,
+          0.000728083
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728,
+          0.000728041
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000724375,
+          0.000728041
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.000713917,
+          0.000721542
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000722417,
+          0.000724334
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000728041,
+          0.000728083
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000722542,
+          0.000723375
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000718542,
+          0.000718666
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000723375,
+          0.000727167
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000724334,
+          0.000717708
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000722458,
+          0.00072525
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000713959,
+          0.000725375
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000718667,
+          0.000717625
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000720542,
+          0.0007215
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000723416,
+          0.000718708
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000725375,
+          0.000727125
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000718708,
+          0.000723375
+        ],
+        "pbe polarized k=1 Float32": [
+          0.0007225,
+          0.000724334
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000723292,
+          0.000724334
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000717333,
+          0.000724375
+        ],
+        "pbe polarized k=2 Float64": [
+          0.0007205,
+          0.000724333
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000718584,
+          0.000713083
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000726208,
+          0.000724958
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000723334,
+          0.000720875
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000727125,
+          0.000724333
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000722417,
+          0.000724625
+        ],
+        "pbe restricted k=2 Float64": [
+          0.000712958,
+          0.000721458
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000721541,
+          0.00072725
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000725333,
+          0.000725292
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000721459,
+          0.000713083
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000725167,
+          0.000724375
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000715917,
+          0.000727041
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000721458,
+          0.000727125
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000724375,
+          0.000718667
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000721459,
+          0.000725334
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000728041,
+          0.000718791
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000724917,
+          0.000722541
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.000724417,
+          0.000723375
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000722417,
+          0.00072525
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000721458,
+          0.000725292
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.000727125,
+          0.000727833
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000722417,
+          0.000726417
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000722458,
+          0.000727708
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.0007225,
+          0.00072525
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000726208,
+          0.000724333
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.000720791,
+          0.000722417
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000725291,
+          0.000723417
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000727084,
+          0.000725875
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000722458,
+          0.000718709
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.0007215,
+          0.000718667
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.000723375,
+          0.000728041
+        ]
+      },
+      "libxc_calibration_s": {
+        "lda_c_pw polarized k=0 Float32": [
+          0.00072725,
+          0.000725209
+        ],
+        "lda_c_pw polarized k=0 Float64": [
+          0.000725292,
+          0.000724291
+        ],
+        "lda_c_pw polarized k=1 Float32": [
+          0.000726209,
+          0.000724334
+        ],
+        "lda_c_pw polarized k=1 Float64": [
+          0.000727083,
+          0.000724333
+        ],
+        "lda_c_pw polarized k=2 Float32": [
+          0.000727167,
+          0.000724334
+        ],
+        "lda_c_pw polarized k=2 Float64": [
+          0.000718708,
+          0.000726167
+        ],
+        "lda_c_pw restricted k=0 Float32": [
+          0.000724334,
+          0.000724334
+        ],
+        "lda_c_pw restricted k=0 Float64": [
+          0.000726208,
+          0.000728125
+        ],
+        "lda_c_pw restricted k=1 Float32": [
+          0.000721459,
+          0.000727167
+        ],
+        "lda_c_pw restricted k=1 Float64": [
+          0.000724334,
+          0.000724333
+        ],
+        "lda_c_pw restricted k=2 Float32": [
+          0.000725208,
+          0.000726209
+        ],
+        "lda_c_pw restricted k=2 Float64": [
+          0.000718666,
+          0.000723375
+        ],
+        "lda_c_pw_mod polarized k=0 Float32": [
+          0.000724417,
+          0.00072625
+        ],
+        "lda_c_pw_mod polarized k=0 Float64": [
+          0.000727125,
+          0.000727084
+        ],
+        "lda_c_pw_mod polarized k=1 Float32": [
+          0.000721584,
+          0.000727125
+        ],
+        "lda_c_pw_mod polarized k=1 Float64": [
+          0.000719541,
+          0.0007235
+        ],
+        "lda_c_pw_mod polarized k=2 Float32": [
+          0.000727167,
+          0.000722417
+        ],
+        "lda_c_pw_mod polarized k=2 Float64": [
+          0.0007215,
+          0.0007215
+        ],
+        "lda_c_pw_mod restricted k=0 Float32": [
+          0.000728042,
+          0.000727083
+        ],
+        "lda_c_pw_mod restricted k=0 Float64": [
+          0.000718709,
+          0.000721416
+        ],
+        "lda_c_pw_mod restricted k=1 Float32": [
+          0.000718708,
+          0.000721584
+        ],
+        "lda_c_pw_mod restricted k=1 Float64": [
+          0.000721542,
+          0.000718666
+        ],
+        "lda_c_pw_mod restricted k=2 Float32": [
+          0.000728083,
+          0.000721458
+        ],
+        "lda_c_pw_mod restricted k=2 Float64": [
+          0.000723375,
+          0.000727167
+        ],
+        "lda_x polarized k=0 Float32": [
+          0.00072425,
+          0.000727167
+        ],
+        "lda_x polarized k=0 Float64": [
+          0.000718542,
+          0.000717708
+        ],
+        "lda_x polarized k=1 Float32": [
+          0.000722458,
+          0.000727125
+        ],
+        "lda_x polarized k=1 Float64": [
+          0.000719583,
+          0.000723334
+        ],
+        "lda_x polarized k=2 Float32": [
+          0.000728125,
+          0.000727709
+        ],
+        "lda_x polarized k=2 Float64": [
+          0.000725333,
+          0.00072525
+        ],
+        "lda_x restricted k=0 Float32": [
+          0.000728041,
+          0.000727125
+        ],
+        "lda_x restricted k=0 Float64": [
+          0.000717625,
+          0.000720542
+        ],
+        "lda_x restricted k=1 Float32": [
+          0.000728042,
+          0.000725291
+        ],
+        "lda_x restricted k=1 Float64": [
+          0.000728083,
+          0.000724375
+        ],
+        "lda_x restricted k=2 Float32": [
+          0.000725292,
+          0.000727084
+        ],
+        "lda_x restricted k=2 Float64": [
+          0.000722417,
+          0.000727208
+        ],
+        "pbe polarized k=0 Float32": [
+          0.000727125,
+          0.000730875
+        ],
+        "pbe polarized k=0 Float64": [
+          0.000727125,
+          0.000724584
+        ],
+        "pbe polarized k=1 Float32": [
+          0.000722417,
+          0.000727167
+        ],
+        "pbe polarized k=1 Float64": [
+          0.000721542,
+          0.000724375
+        ],
+        "pbe polarized k=2 Float32": [
+          0.000726208,
+          0.000719541
+        ],
+        "pbe polarized k=2 Float64": [
+          0.000720458,
+          0.000724292
+        ],
+        "pbe restricted k=0 Float32": [
+          0.000722542,
+          0.000724292
+        ],
+        "pbe restricted k=0 Float64": [
+          0.000726208,
+          0.000724291
+        ],
+        "pbe restricted k=1 Float32": [
+          0.000723667,
+          0.000724375
+        ],
+        "pbe restricted k=1 Float64": [
+          0.000721416,
+          0.000718625
+        ],
+        "pbe restricted k=2 Float32": [
+          0.000724333,
+          0.000724291
+        ],
+        "pbe restricted k=2 Float64": [
+          0.00071675,
+          0.000724291
+        ],
+        "pbe_c polarized k=0 Float32": [
+          0.000717791,
+          0.000723291
+        ],
+        "pbe_c polarized k=0 Float64": [
+          0.000719333,
+          0.000725292
+        ],
+        "pbe_c polarized k=1 Float32": [
+          0.000718667,
+          0.00072975
+        ],
+        "pbe_c polarized k=1 Float64": [
+          0.000724334,
+          0.000715334
+        ],
+        "pbe_c polarized k=2 Float32": [
+          0.000719583,
+          0.00072975
+        ],
+        "pbe_c polarized k=2 Float64": [
+          0.000718667,
+          0.000726292
+        ],
+        "pbe_c restricted k=0 Float32": [
+          0.000723417,
+          0.0007215
+        ],
+        "pbe_c restricted k=0 Float64": [
+          0.000724334,
+          0.000714792
+        ],
+        "pbe_c restricted k=1 Float32": [
+          0.000728125,
+          0.000723208
+        ],
+        "pbe_c restricted k=1 Float64": [
+          0.000724292,
+          0.000725292
+        ],
+        "pbe_c restricted k=2 Float32": [
+          0.00072425,
+          0.000724375
+        ],
+        "pbe_c restricted k=2 Float64": [
+          0.000723416,
+          0.000724458
+        ],
+        "pbe_x polarized k=0 Float32": [
+          0.000727125,
+          0.000727209
+        ],
+        "pbe_x polarized k=0 Float64": [
+          0.00072775,
+          0.000728083
+        ],
+        "pbe_x polarized k=1 Float32": [
+          0.000727125,
+          0.000723375
+        ],
+        "pbe_x polarized k=1 Float64": [
+          0.000723375,
+          0.000725333
+        ],
+        "pbe_x polarized k=2 Float32": [
+          0.000727125,
+          0.000727083
+        ],
+        "pbe_x polarized k=2 Float64": [
+          0.000724375,
+          0.000722375
+        ],
+        "pbe_x restricted k=0 Float32": [
+          0.00072525,
+          0.000724333
+        ],
+        "pbe_x restricted k=0 Float64": [
+          0.000727167,
+          0.000726208
+        ],
+        "pbe_x restricted k=1 Float32": [
+          0.000728125,
+          0.000713083
+        ],
+        "pbe_x restricted k=1 Float64": [
+          0.000724375,
+          0.000719667
+        ],
+        "pbe_x restricted k=2 Float32": [
+          0.000722375,
+          0.000719667
+        ],
+        "pbe_x restricted k=2 Float64": [
+          0.00071775,
+          0.000718708
+        ]
+      }
+    }
+  ],
+  "cells": [
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.4398909479686386,
+        1.4404071342607643,
+        1.4438288521661458,
+        1.448381530341874,
+        1.4406050488721296,
+        1.4477872683319903,
+        1.4405802432436479
+      ],
+      "median": 1.4406050488721296,
+      "min": 1.4398909479686386,
+      "max": 1.448381530341874,
+      "purexc_s": [
+        0.0014030000000000002,
+        0.0014025840000000001,
+        0.001399375,
+        0.001396041,
+        0.0014023330000000002,
+        0.001396125,
+        0.001402791
+      ],
+      "libxc_s": [
+        0.0020201670000000002,
+        0.002020292,
+        0.002020458,
+        0.002022,
+        0.0020202080000000003,
+        0.002021292,
+        0.002020833
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.4559560350091596,
+        1.456644839268262,
+        1.4517499296906877,
+        1.4570240955677731,
+        1.4612400548726703,
+        1.4571556939352126,
+        1.4546954105872214
+      ],
+      "median": 1.456644839268262,
+      "min": 1.4517499296906877,
+      "max": 1.4612400548726703,
+      "purexc_s": [
+        0.001842375,
+        0.001842791,
+        0.001845417,
+        0.0018416250000000002,
+        0.001837709,
+        0.0018429170000000001,
+        0.0018472080000000001
+      ],
+      "libxc_s": [
+        0.0026824170000000003,
+        0.002684292,
+        0.002679084,
+        0.0026832920000000003,
+        0.002685334,
+        0.0026854170000000003,
+        0.0026871250000000003
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.429316765054174,
+        1.4305388010033262,
+        1.4325005366121928,
+        1.4302739593892309,
+        1.4242484753811337,
+        1.4337610844016528,
+        1.4392282111698347
+      ],
+      "median": 1.4305388010033262,
+      "min": 1.4242484753811337,
+      "max": 1.4392282111698347,
+      "purexc_s": [
+        0.002372083,
+        0.002362542,
+        0.002362041,
+        0.002363708,
+        0.002373708,
+        0.002362667,
+        0.002362667
+      ],
+      "libxc_s": [
+        0.0033904580000000003,
+        0.0033797080000000004,
+        0.0033836250000000003,
+        0.00338075,
+        0.00338075,
+        0.0033875000000000003,
+        0.003400417
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.576897543704359,
+        3.581284289829381,
+        3.6931470183322697,
+        3.581293591611972,
+        3.723290588449854,
+        3.574745687748784,
+        3.7041170026051877
+      ],
+      "median": 3.581293591611972,
+      "min": 3.574745687748784,
+      "max": 3.723290588449854,
+      "purexc_s": [
+        0.0005648750000000001,
+        0.0005641250000000001,
+        0.0005469590000000001,
+        0.0005640420000000001,
+        0.000542833,
+        0.00056525,
+        0.000545834
+      ],
+      "libxc_s": [
+        0.0020205,
+        0.002020292,
+        0.00202,
+        0.00202,
+        0.002021125,
+        0.0020206250000000003,
+        0.0020218330000000002
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.603427995294908,
+        3.4686185700420578,
+        3.472802794518206,
+        3.473363835856355,
+        3.55231671359947,
+        3.4643665202247567,
+        3.550939072847682
+      ],
+      "median": 3.473363835856355,
+      "min": 3.4643665202247567,
+      "max": 3.603427995294908,
+      "purexc_s": [
+        0.0007438750000000001,
+        0.00077275,
+        0.000772083,
+        0.000771958,
+        0.0007546250000000001,
+        0.0007734580000000001,
+        0.000755
+      ],
+      "libxc_s": [
+        0.0026805,
+        0.002680375,
+        0.002681292,
+        0.002681291,
+        0.0026806670000000003,
+        0.002679542,
+        0.002680959
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.3646300573950203,
+        3.3599143759345864,
+        3.3641650316599025,
+        3.3493535214371217,
+        3.360352463232843,
+        3.3659576841075913,
+        3.359872010550589
+      ],
+      "median": 3.360352463232843,
+      "min": 3.3493535214371217,
+      "max": 3.3659576841075913,
+      "purexc_s": [
+        0.001004791,
+        0.0010057920000000001,
+        0.001004583,
+        0.0010074580000000001,
+        0.0010050410000000001,
+        0.001004209,
+        0.001006958
+      ],
+      "libxc_s": [
+        0.00338075,
+        0.003379375,
+        0.0033795830000000002,
+        0.003374333,
+        0.003377292,
+        0.0033801250000000003,
+        0.0033832500000000004
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        2.4562881389040205,
+        2.468705205030815,
+        2.4672774294903657,
+        2.469841952701315,
+        2.4689988699097136,
+        2.4651775701192733,
+        2.4719445300611493
+      ],
+      "median": 2.468705205030815,
+      "min": 2.4562881389040205,
+      "max": 2.4719445300611493,
+      "purexc_s": [
+        0.002907792,
+        0.002895833,
+        0.0028949590000000003,
+        0.002891666,
+        0.0028944590000000003,
+        0.0028962080000000004,
+        0.002890791
+      ],
+      "libxc_s": [
+        0.007142375,
+        0.007148958,
+        0.007142667,
+        0.007141958,
+        0.007146416,
+        0.007139667000000001,
+        0.007145875
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        2.809977558047095,
+        2.8226121669625206,
+        2.8200678094277793,
+        2.8278996651292094,
+        2.8205986497570823,
+        2.8262286474853604,
+        2.825771856155085
+      ],
+      "median": 2.8226121669625206,
+      "min": 2.809977558047095,
+      "max": 2.8278996651292094,
+      "purexc_s": [
+        0.003978709,
+        0.003961416000000001,
+        0.003967,
+        0.00395675,
+        0.0039622500000000005,
+        0.003965458,
+        0.003959125
+      ],
+      "libxc_s": [
+        0.011180083,
+        0.011181541000000001,
+        0.011187209,
+        0.011189292,
+        0.011175917,
+        0.011207291000000001,
+        0.011187584
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        4.280763758775961,
+        4.303354199566784,
+        4.290157350821117,
+        4.280649631426486,
+        4.285177863336195,
+        4.269099389856063,
+        4.287251026576688
+      ],
+      "median": 4.285177863336195,
+      "min": 4.269099389856063,
+      "max": 4.303354199566784,
+      "purexc_s": [
+        0.005300417,
+        0.005302666,
+        0.005302292,
+        0.005307625000000001,
+        0.005295667,
+        0.005306125,
+        0.005292834000000001
+      ],
+      "libxc_s": [
+        0.022689833000000003,
+        0.022819250000000003,
+        0.022747667000000003,
+        0.022720083000000002,
+        0.022692875,
+        0.022652375000000002,
+        0.022691708
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        5.503150568590278,
+        5.507920208877285,
+        5.515803710785568,
+        5.525975732217573,
+        5.50748454469507,
+        5.513628079355428,
+        5.508975844400293
+      ],
+      "median": 5.508975844400293,
+      "min": 5.503150568590278,
+      "max": 5.525975732217573,
+      "purexc_s": [
+        0.001196292,
+        0.001196875,
+        0.0011955420000000002,
+        0.001195,
+        0.0011970000000000001,
+        0.001195583,
+        0.001195375
+      ],
+      "libxc_s": [
+        0.006583375000000001,
+        0.0065922920000000005,
+        0.006594375,
+        0.006603541,
+        0.006592459,
+        0.006592000000000001,
+        0.006585292
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        6.381356552797746,
+        6.377884575645756,
+        6.36542780161472,
+        6.385217455512072,
+        6.378888363851153,
+        6.375227883621327,
+        6.370291282202702
+      ],
+      "median": 6.377884575645756,
+      "min": 6.36542780161472,
+      "max": 6.385217455512072,
+      "purexc_s": [
+        0.001693292,
+        0.0016937500000000002,
+        0.0016939160000000002,
+        0.0016928750000000002,
+        0.001693,
+        0.00169275,
+        0.001693375
+      ],
+      "libxc_s": [
+        0.010805500000000001,
+        0.010802542,
+        0.0107825,
+        0.010809375000000001,
+        0.010799458000000001,
+        0.010791667000000001,
+        0.010787292
+      ]
+    },
+    {
+      "functional": "lda_x",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        9.907010098130357,
+        9.962182780872539,
+        9.843848323891908,
+        9.946004846882571,
+        9.820188402825474,
+        9.913119288119287,
+        9.951435290208495
+      ],
+      "median": 9.913119288119287,
+      "min": 9.820188402825474,
+      "max": 9.962182780872539,
+      "purexc_s": [
+        0.002286958,
+        0.002266375,
+        0.002287084,
+        0.0022695000000000002,
+        0.0022873330000000003,
+        0.002278584,
+        0.002263166
+      ],
+      "libxc_s": [
+        0.022656916000000003,
+        0.022578042000000003,
+        0.022513708,
+        0.022572458,
+        0.022462041000000002,
+        0.022587875,
+        0.02252175
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        9.95287092385005,
+        9.859237334801762,
+        9.946543506066998,
+        9.889330882675928,
+        9.890184605196138,
+        9.933821497651286,
+        9.956523238174045
+      ],
+      "median": 9.933821497651286,
+      "min": 9.859237334801762,
+      "max": 9.956523238174045,
+      "purexc_s": [
+        0.003601959,
+        0.0036320000000000002,
+        0.003615875,
+        0.003619709,
+        0.0036360840000000004,
+        0.0036190000000000003,
+        0.0036255000000000003
+      ],
+      "libxc_s": [
+        0.035849833000000005,
+        0.03580875,
+        0.035965458000000006,
+        0.0357965,
+        0.035961542,
+        0.0359505,
+        0.036097375
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        7.304136010580011,
+        7.243698230916626,
+        7.112178773884305,
+        7.334622688307825,
+        7.32554252947521,
+        7.2451081880323125,
+        7.190963196253575
+      ],
+      "median": 7.2451081880323125,
+      "min": 7.112178773884305,
+      "max": 7.334622688307825,
+      "purexc_s": [
+        0.005549333,
+        0.005610250000000001,
+        0.005711125,
+        0.005545667000000001,
+        0.005554583,
+        0.005595166,
+        0.005644208
+      ],
+      "libxc_s": [
+        0.040533083000000004,
+        0.040638958,
+        0.040618542,
+        0.040675375,
+        0.040690334,
+        0.040537583,
+        0.040587292000000004
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        6.607993958071917,
+        6.633914092680764,
+        6.618208884400556,
+        6.60417601985933,
+        6.61397400185701,
+        6.583615741888564,
+        6.61062429893095
+      ],
+      "median": 6.61062429893095,
+      "min": 6.583615741888564,
+      "max": 6.633914092680764,
+      "purexc_s": [
+        0.007536667,
+        0.007527042,
+        0.0075276660000000006,
+        0.007553125000000001,
+        0.0075390000000000006,
+        0.007562625000000001,
+        0.007561666000000001
+      ],
+      "libxc_s": [
+        0.049802250000000006,
+        0.049933750000000006,
+        0.049819666000000006,
+        0.049882167000000005,
+        0.049862750000000004,
+        0.049789417,
+        0.049987333
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        26.10723584046622,
+        26.09847276076069,
+        26.184278038521335,
+        26.12856175580759,
+        26.19303454211204,
+        26.00860107204506,
+        26.193990927970827
+      ],
+      "median": 26.12856175580759,
+      "min": 26.00860107204506,
+      "max": 26.193990927970827,
+      "purexc_s": [
+        0.00137275,
+        0.001372542,
+        0.001371292,
+        0.001372041,
+        0.0013745830000000002,
+        0.0013758750000000001,
+        0.0013727910000000002
+      ],
+      "libxc_s": [
+        0.035838708000000004,
+        0.03582125,
+        0.035906291,
+        0.035849458,
+        0.0360045,
+        0.035784584,
+        0.035958875
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        18.81272967644671,
+        18.86183831466543,
+        18.881985943548692,
+        18.91206844827602,
+        18.89090636421716,
+        18.882665583284968,
+        18.896118113044935
+      ],
+      "median": 18.882665583284968,
+      "min": 18.81272967644671,
+      "max": 18.91206844827602,
+      "purexc_s": [
+        0.00215575,
+        0.002153875,
+        0.002155167,
+        0.0021533340000000002,
+        0.0021537920000000003,
+        0.0021537500000000003,
+        0.0021558330000000002
+      ],
+      "libxc_s": [
+        0.040555542,
+        0.040626042,
+        0.040693833000000006,
+        0.040724,
+        0.040687083000000006,
+        0.040668541,
+        0.040736875000000006
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        16.505407321237307,
+        16.57523573624189,
+        16.49007036090918,
+        16.36825772561251,
+        16.233126536573494,
+        16.5520708085372,
+        16.478216024424455
+      ],
+      "median": 16.49007036090918,
+      "min": 16.233126536573494,
+      "max": 16.57523573624189,
+      "purexc_s": [
+        0.0030147090000000004,
+        0.0030020840000000003,
+        0.003024833,
+        0.0030458750000000004,
+        0.003081125,
+        0.003024833,
+        0.0030297500000000003
+      ],
+      "libxc_s": [
+        0.049759000000000005,
+        0.049760250000000006,
+        0.049879709,
+        0.049855667000000006,
+        0.050016292000000004,
+        0.05006725,
+        0.049924875
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        4.45010547564976,
+        4.4777539223781995,
+        4.445778621080588,
+        4.465262741391249,
+        4.452087004187954,
+        4.434162745511504,
+        4.459987729563371
+      ],
+      "median": 4.452087004187954,
+      "min": 4.434162745511504,
+      "max": 4.4777539223781995,
+      "purexc_s": [
+        0.011393625000000001,
+        0.011353125,
+        0.011398041000000001,
+        0.011372875000000001,
+        0.01140175,
+        0.011414791,
+        0.011383458
+      ],
+      "libxc_s": [
+        0.050702833,
+        0.0508365,
+        0.050673167000000005,
+        0.050782875000000005,
+        0.050761583000000006,
+        0.050615041000000006,
+        0.050770083
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        3.8448225819344204,
+        3.836160427672695,
+        3.867797737067686,
+        3.8387461708832333,
+        3.8353275334769252,
+        3.865101426054665,
+        3.8595522890630933
+      ],
+      "median": 3.8448225819344204,
+      "min": 3.8353275334769252,
+      "max": 3.867797737067686,
+      "purexc_s": [
+        0.016175833,
+        0.016186584,
+        0.016171584000000003,
+        0.016222083,
+        0.016307875,
+        0.016187458000000002,
+        0.016194333
+      ],
+      "libxc_s": [
+        0.06219320800000001,
+        0.062094333,
+        0.06254841600000001,
+        0.062272459,
+        0.06254604200000001,
+        0.062566167,
+        0.062502875
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        3.8918486223037854,
+        3.872411313761004,
+        3.9053556784322185,
+        3.892699069159161,
+        3.8665636941662185,
+        3.8825706043881523,
+        3.8767512732956724
+      ],
+      "median": 3.8825706043881523,
+      "min": 3.8665636941662185,
+      "max": 3.9053556784322185,
+      "purexc_s": [
+        0.023731792,
+        0.023741,
+        0.023780666000000002,
+        0.023722208,
+        0.023830958000000003,
+        0.023742292,
+        0.023830875
+      ],
+      "libxc_s": [
+        0.092360542,
+        0.091934917,
+        0.092871959,
+        0.09234341700000001,
+        0.092143917,
+        0.092181125,
+        0.092386375
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        10.384900758496379,
+        10.616313317058914,
+        10.566523211944451,
+        10.42059792184104,
+        10.43610335835638,
+        10.39930149841014,
+        10.586294047250057
+      ],
+      "median": 10.43610335835638,
+      "min": 10.384900758496379,
+      "max": 10.616313317058914,
+      "purexc_s": [
+        0.004750583,
+        0.004649833,
+        0.004671625,
+        0.004732458,
+        0.004745625000000001,
+        0.004741292,
+        0.004691042
+      ],
+      "libxc_s": [
+        0.049334333,
+        0.049364084,
+        0.049362834,
+        0.049315042,
+        0.049525833000000005,
+        0.049306125000000006,
+        0.049660750000000004
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        9.085310685335298,
+        8.912401161410493,
+        9.033573537231605,
+        8.925526327432369,
+        8.997434067139618,
+        8.999993546179361,
+        8.976466593487011
+      ],
+      "median": 8.997434067139618,
+      "min": 8.912401161410493,
+      "max": 9.085310685335298,
+      "purexc_s": [
+        0.006785,
+        0.0068451250000000005,
+        0.006817125,
+        0.0068485410000000005,
+        0.0068365000000000006,
+        0.006817667,
+        0.0068325
+      ],
+      "libxc_s": [
+        0.061643833,
+        0.061006500000000005,
+        0.061583000000000006,
+        0.061126833000000005,
+        0.061510958000000004,
+        0.061358959000000005,
+        0.061331708000000006
+      ]
+    },
+    {
+      "functional": "lda_c_pw",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        8.793004749159723,
+        8.813698305497988,
+        8.779624189750187,
+        8.806620548125217,
+        8.763759945066525,
+        8.840827751296477,
+        8.815389328968596
+      ],
+      "median": 8.806620548125217,
+      "min": 8.763759945066525,
+      "max": 8.840827751296477,
+      "purexc_s": [
+        0.010235916000000001,
+        0.01025375,
+        0.010297750000000001,
+        0.010250541,
+        0.010300459000000001,
+        0.010208042,
+        0.010242084
+      ],
+      "libxc_s": [
+        0.09000445800000001,
+        0.090373459,
+        0.090410375,
+        0.09027262500000001,
+        0.09027075000000001,
+        0.090247541,
+        0.090287958
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        9.928046888467506,
+        9.944112489203663,
+        9.951279841624913,
+        10.01953792842388,
+        9.927429281424725,
+        9.9791385016434,
+        9.937447824432336
+      ],
+      "median": 9.944112489203663,
+      "min": 9.927429281424725,
+      "max": 10.01953792842388,
+      "purexc_s": [
+        0.0036256250000000004,
+        0.0036181250000000002,
+        0.003622792,
+        0.003595417,
+        0.0036217500000000004,
+        0.0036074590000000004,
+        0.003623583
+      ],
+      "libxc_s": [
+        0.035995375,
+        0.035979042,
+        0.036051417,
+        0.036024417,
+        0.035954667,
+        0.035999333,
+        0.036009167
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        7.2636967390787,
+        7.296271468888589,
+        7.233235438429067,
+        7.1912192116197495,
+        7.275800227927867,
+        7.2861098408383596,
+        7.255309503740948
+      ],
+      "median": 7.2636967390787,
+      "min": 7.1912192116197495,
+      "max": 7.296271468888589,
+      "purexc_s": [
+        0.005588666,
+        0.005580750000000001,
+        0.0056291660000000006,
+        0.005644459,
+        0.005593875000000001,
+        0.0055784170000000004,
+        0.005614084
+      ],
+      "libxc_s": [
+        0.040594375,
+        0.040718667,
+        0.040717083,
+        0.040590542,
+        0.040699917,
+        0.040644959,
+        0.040731917
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        6.594630845094551,
+        6.621043503377278,
+        6.6069448542790035,
+        6.606387496612533,
+        6.616583170384118,
+        6.629067562000014,
+        6.6009066144316915
+      ],
+      "median": 6.6069448542790035,
+      "min": 6.594630845094551,
+      "max": 6.629067562000014,
+      "purexc_s": [
+        0.007547333000000001,
+        0.007540541,
+        0.007557250000000001,
+        0.007560959000000001,
+        0.0075432500000000005,
+        0.0075437080000000005,
+        0.007566833
+      ],
+      "libxc_s": [
+        0.049771875,
+        0.049926250000000005,
+        0.049930334,
+        0.049950625000000005,
+        0.049910541,
+        0.050007750000000004,
+        0.049947958
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        27.2999672097972,
+        26.164357338195078,
+        26.325278040246506,
+        26.77195570032573,
+        26.85723191506718,
+        26.497210418570052,
+        26.166685349747272
+      ],
+      "median": 26.497210418570052,
+      "min": 26.164357338195078,
+      "max": 27.2999672097972,
+      "purexc_s": [
+        0.001314417,
+        0.00137125,
+        0.001368417,
+        0.0013431250000000001,
+        0.001336209,
+        0.001355042,
+        0.001373792
+      ],
+      "libxc_s": [
+        0.035883541000000005,
+        0.035877875000000004,
+        0.036023958,
+        0.035958083,
+        0.035886875000000006,
+        0.035904833000000004,
+        0.035947583000000005
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        18.885448844458036,
+        19.65321377140437,
+        19.46628517982433,
+        19.094621167924732,
+        19.1943217293986,
+        19.297795617031852,
+        19.115744846205924
+      ],
+      "median": 19.1943217293986,
+      "min": 18.885448844458036,
+      "max": 19.65321377140437,
+      "purexc_s": [
+        0.002151458,
+        0.002065875,
+        0.0020912910000000003,
+        0.002127209,
+        0.0021221250000000003,
+        0.002108708,
+        0.002125667
+      ],
+      "libxc_s": [
+        0.04063125,
+        0.040601083,
+        0.040709667000000005,
+        0.04061825,
+        0.040732750000000005,
+        0.040693416,
+        0.040633708000000004
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        16.413085744795012,
+        16.45319132492301,
+        16.460887607119314,
+        16.758314027452293,
+        16.435513691850876,
+        16.38534891781257,
+        16.41442388548057
+      ],
+      "median": 16.435513691850876,
+      "min": 16.38534891781257,
+      "max": 16.758314027452293,
+      "purexc_s": [
+        0.003030458,
+        0.003027708,
+        0.0030340000000000002,
+        0.002987,
+        0.0030310000000000003,
+        0.003046792,
+        0.0030562500000000004
+      ],
+      "libxc_s": [
+        0.049739167,
+        0.049815459000000006,
+        0.049942333000000005,
+        0.050057084,
+        0.049816042000000005,
+        0.04992275,
+        0.050166583
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        4.387726639618636,
+        4.391026938964088,
+        4.392935432344144,
+        4.469758672149045,
+        4.395790758966451,
+        4.451422202310054,
+        4.431029832891103
+      ],
+      "median": 4.395790758966451,
+      "min": 4.387726639618636,
+      "max": 4.469758672149045,
+      "purexc_s": [
+        0.011540458,
+        0.011566666000000001,
+        0.011567417,
+        0.011364167000000001,
+        0.011554292,
+        0.011439125000000001,
+        0.011461209
+      ],
+      "libxc_s": [
+        0.050636375000000004,
+        0.050789542,
+        0.050814916,
+        0.050795084000000004,
+        0.05079025,
+        0.050920375000000004,
+        0.050784959000000005
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        3.8363049577706176,
+        3.8337443660017883,
+        3.852274444036469,
+        3.8697771919476645,
+        3.8471550616418093,
+        3.852798304048774,
+        3.887131232559776
+      ],
+      "median": 3.852274444036469,
+      "min": 3.8337443660017883,
+      "max": 3.887131232559776,
+      "purexc_s": [
+        0.016269833,
+        0.0162185,
+        0.016270042000000002,
+        0.016163958000000003,
+        0.016180333,
+        0.016156125,
+        0.016155541000000002
+      ],
+      "libxc_s": [
+        0.062416041000000005,
+        0.062177583,
+        0.062676667,
+        0.062550916,
+        0.062248250000000005,
+        0.062246291,
+        0.06279870800000001
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        3.868745889961407,
+        3.877906673781013,
+        3.855476828508448,
+        3.8723440019750903,
+        3.896944331701043,
+        3.8901217307207134,
+        3.8802061173356024
+      ],
+      "median": 3.877906673781013,
+      "min": 3.855476828508448,
+      "max": 3.896944331701043,
+      "purexc_s": [
+        0.023809083,
+        0.023719208000000002,
+        0.023873625000000002,
+        0.023796375,
+        0.023714125000000003,
+        0.023782,
+        0.023797125000000002
+      ],
+      "libxc_s": [
+        0.09211129200000001,
+        0.091980875,
+        0.092044208,
+        0.09214775,
+        0.09241262500000001,
+        0.09251487500000001,
+        0.09233775000000001
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        10.440539225325564,
+        10.454605323387051,
+        10.400511279780728,
+        10.468141360128289,
+        10.38028974568878,
+        10.3991683601741,
+        10.440472846086486
+      ],
+      "median": 10.440472846086486,
+      "min": 10.38028974568878,
+      "max": 10.468141360128289,
+      "purexc_s": [
+        0.004724333000000001,
+        0.004740666,
+        0.004743000000000001,
+        0.004710041,
+        0.004759208,
+        0.004745083000000001,
+        0.004741416
+      ],
+      "libxc_s": [
+        0.049324584000000005,
+        0.049561792,
+        0.049329625,
+        0.049305375000000005,
+        0.049401958,
+        0.049344917,
+        0.049502625
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        9.025725185719466,
+        8.971088781629371,
+        8.940890569898956,
+        8.933741118958613,
+        9.017921246531797,
+        9.033191207821805,
+        9.045847881925521
+      ],
+      "median": 9.017921246531797,
+      "min": 8.933741118958613,
+      "max": 9.045847881925521,
+      "purexc_s": [
+        0.006768542000000001,
+        0.006837,
+        0.006841125000000001,
+        0.0068437920000000005,
+        0.006802875000000001,
+        0.0068015,
+        0.006831417
+      ],
+      "libxc_s": [
+        0.061091000000000006,
+        0.061335334000000005,
+        0.061165750000000005,
+        0.061140666,
+        0.061347791000000006,
+        0.06143925,
+        0.061795959000000004
+      ]
+    },
+    {
+      "functional": "lda_c_pw_mod",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        8.830625227665545,
+        8.777469161556507,
+        8.836734072818528,
+        8.876200740873898,
+        8.81190531113207,
+        8.899734549311745,
+        8.833487604110857
+      ],
+      "median": 8.833487604110857,
+      "min": 8.777469161556507,
+      "max": 8.899734549311745,
+      "purexc_s": [
+        0.010245292000000001,
+        0.010282458000000001,
+        0.010219542,
+        0.010191208,
+        0.010256834000000001,
+        0.010252375000000001,
+        0.0102655
+      ],
+      "libxc_s": [
+        0.090472334,
+        0.09025395800000001,
+        0.09030737500000001,
+        0.090459208,
+        0.09038225000000001,
+        0.09124341600000001,
+        0.090680167
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.4050175854991447,
+        1.4003023773559924,
+        1.400190838132546,
+        1.3965104044891279,
+        1.404223095966215,
+        1.4021448147007072,
+        1.3922289465890934
+      ],
+      "median": 1.4003023773559924,
+      "min": 1.3922289465890934,
+      "max": 1.4050175854991447,
+      "purexc_s": [
+        0.0042714170000000004,
+        0.004274791,
+        0.004275875,
+        0.004277,
+        0.0042918750000000006,
+        0.004281209,
+        0.0043087080000000005
+      ],
+      "libxc_s": [
+        0.006001416000000001,
+        0.005986,
+        0.005987041,
+        0.005972875000000001,
+        0.00602675,
+        0.006002875,
+        0.005998708
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.1538786088442998,
+        1.1568505890470702,
+        1.1532475354800602,
+        1.1503513107820005,
+        1.152424915656288,
+        1.1531992962650368,
+        1.1571389637533398
+      ],
+      "median": 1.1532475354800602,
+      "min": 1.1503513107820005,
+      "max": 1.1571389637533398,
+      "purexc_s": [
+        0.007527583000000001,
+        0.007523083000000001,
+        0.007544167,
+        0.007563958000000001,
+        0.007551541,
+        0.007557959,
+        0.007536584000000001
+      ],
+      "libxc_s": [
+        0.008685917000000001,
+        0.008703083,
+        0.008700292,
+        0.008701209,
+        0.008702584000000001,
+        0.008715833000000001,
+        0.008720875000000001
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.0443115133482106,
+        1.053683184909678,
+        1.0651603575792272,
+        1.0508913571473388,
+        1.050243652120902,
+        1.0465124553691205,
+        1.051189378954672
+      ],
+      "median": 1.0508913571473388,
+      "min": 1.0443115133482106,
+      "max": 1.0651603575792272,
+      "purexc_s": [
+        0.012099,
+        0.012067708,
+        0.012058083,
+        0.012064917000000001,
+        0.012086084,
+        0.01211325,
+        0.012070375000000001
+      ],
+      "libxc_s": [
+        0.012635125,
+        0.012715541,
+        0.012843792000000001,
+        0.012678917000000001,
+        0.012693333000000001,
+        0.012676667,
+        0.012688250000000002
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.4065317184412818,
+        3.4263534500557227,
+        3.4102894568235214,
+        3.4260406617520944,
+        3.4108028490028492,
+        3.4228359908883825,
+        3.4107812700449007
+      ],
+      "median": 3.4108028490028492,
+      "min": 3.4065317184412818,
+      "max": 3.4263534500557227,
+      "purexc_s": [
+        0.0017592920000000002,
+        0.001753334,
+        0.001755875,
+        0.0017549170000000002,
+        0.001755,
+        0.0017560000000000002,
+        0.001753875
+      ],
+      "libxc_s": [
+        0.005993084,
+        0.006007542,
+        0.005988042000000001,
+        0.006012417000000001,
+        0.005985959000000001,
+        0.0060105,
+        0.005982084
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        2.6789315189035476,
+        2.676625161309389,
+        2.6789560130844716,
+        2.6755906588709952,
+        2.683718595352543,
+        2.6729258949009544,
+        2.677309145945733
+      ],
+      "median": 2.677309145945733,
+      "min": 2.6729258949009544,
+      "max": 2.683718595352543,
+      "purexc_s": [
+        0.003243333,
+        0.003248416,
+        0.003248125,
+        0.003246417,
+        0.003241041,
+        0.003250667,
+        0.003248084
+      ],
+      "libxc_s": [
+        0.008688667,
+        0.008694792,
+        0.008701584,
+        0.008686083,
+        0.008698042000000001,
+        0.008688792,
+        0.008696125
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        2.3735166255434144,
+        2.376292156099818,
+        2.3752413453650534,
+        2.3822551577401048,
+        2.3756809561817542,
+        2.370305464892146,
+        2.38248742861693
+      ],
+      "median": 2.3756809561817542,
+      "min": 2.370305464892146,
+      "max": 2.38248742861693,
+      "purexc_s": [
+        0.005319375,
+        0.0053252080000000005,
+        0.005333125,
+        0.005315167,
+        0.005332208000000001,
+        0.005339959,
+        0.005324792
+      ],
+      "libxc_s": [
+        0.012625625000000001,
+        0.01265425,
+        0.012667459,
+        0.012662084,
+        0.012667625,
+        0.012657334000000001,
+        0.012686250000000001
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.520176615465353,
+        1.5313723180009005,
+        1.5037345340935622,
+        1.526056365948508,
+        1.530070542866387,
+        1.5086999820278402,
+        1.520133684537696
+      ],
+      "median": 1.520176615465353,
+      "min": 1.5037345340935622,
+      "max": 1.5313723180009005,
+      "purexc_s": [
+        0.008704334000000001,
+        0.008725208,
+        0.008724917,
+        0.008727042,
+        0.008725333,
+        0.008719041,
+        0.008709459000000001
+      ],
+      "libxc_s": [
+        0.013232125,
+        0.013361542,
+        0.013119959,
+        0.013317958000000001,
+        0.013350375000000001,
+        0.013154417000000002,
+        0.013239542
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.3915967477546254,
+        1.389976764547414,
+        1.3841621250439646,
+        1.398614738962747,
+        1.3886139916864408,
+        1.3961274506484274,
+        1.3945132272459377
+      ],
+      "median": 1.3915967477546254,
+      "min": 1.3841621250439646,
+      "max": 1.398614738962747,
+      "purexc_s": [
+        0.014850417000000001,
+        0.014848,
+        0.01492675,
+        0.014756208000000002,
+        0.01485525,
+        0.0147665,
+        0.01484625
+      ],
+      "libxc_s": [
+        0.020665792000000002,
+        0.020638375,
+        0.020661042,
+        0.02063825,
+        0.020628208000000002,
+        0.020615916,
+        0.020703292
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.1047789009033768,
+        1.102205695579125,
+        1.1024991373471187,
+        1.1032701764140522,
+        1.101535840041448,
+        1.1023679219030378,
+        1.1025595868170082
+      ],
+      "median": 1.1024991373471187,
+      "min": 1.101535840041448,
+      "max": 1.1047789009033768,
+      "purexc_s": [
+        0.039063208,
+        0.039076834000000005,
+        0.039123500000000005,
+        0.039049667,
+        0.039085125000000005,
+        0.039079625,
+        0.039111
+      ],
+      "libxc_s": [
+        0.043156208,
+        0.043070709000000006,
+        0.043133625,
+        0.043082333,
+        0.043053666000000004,
+        0.043080125000000004,
+        0.043122208
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.564977806340404,
+        3.5733504976870063,
+        3.530769918889148,
+        3.499214965759145,
+        3.572516279846385,
+        3.538849545697488,
+        3.567077377650125
+      ],
+      "median": 3.564977806340404,
+      "min": 3.499214965759145,
+      "max": 3.5733504976870063,
+      "purexc_s": [
+        0.003740708,
+        0.003743417,
+        0.0037448750000000004,
+        0.0037418750000000004,
+        0.0037431250000000004,
+        0.003742,
+        0.0037438330000000002
+      ],
+      "libxc_s": [
+        0.013335541000000001,
+        0.013376541,
+        0.013222292,
+        0.013093625000000001,
+        0.013372375,
+        0.013242375,
+        0.013354542
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.1930131321729,
+        3.176003971479405,
+        3.193016931639676,
+        3.166804026459592,
+        3.161019328921786,
+        3.187072299853405,
+        3.186877784377326
+      ],
+      "median": 3.186877784377326,
+      "min": 3.161019328921786,
+      "max": 3.193016931639676,
+      "purexc_s": [
+        0.006494584,
+        0.006492291000000001,
+        0.0064882080000000005,
+        0.006519375,
+        0.006531042000000001,
+        0.006486583000000001,
+        0.006485292
+      ],
+      "libxc_s": [
+        0.020737292,
+        0.020619542,
+        0.020716958,
+        0.020645583000000002,
+        0.02064475,
+        0.020673209,
+        0.020667833
+      ]
+    },
+    {
+      "functional": "pbe_x",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        1.3315910540660698,
+        1.3340097960498702,
+        1.333022922809069,
+        1.3390440183299863,
+        1.3340557151049797,
+        1.332739419294188,
+        1.3317480913372055
+      ],
+      "median": 1.333022922809069,
+      "min": 1.3315910540660698,
+      "max": 1.3390440183299863,
+      "purexc_s": [
+        0.032333125000000004,
+        0.032255042000000005,
+        0.032303458,
+        0.03224225,
+        0.032279792,
+        0.032297042000000005,
+        0.032303375
+      ],
+      "libxc_s": [
+        0.0430545,
+        0.043028542,
+        0.04306125,
+        0.043173792,
+        0.043063041,
+        0.043043541000000005,
+        0.043019958000000004
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        2.1850828019189645,
+        2.1765242631681927,
+        2.175502910262219,
+        2.1829710059312113,
+        2.1843199811589886,
+        2.1867974568574025,
+        2.1698922579002873
+      ],
+      "median": 2.1829710059312113,
+      "min": 2.1698922579002873,
+      "max": 2.1867974568574025,
+      "purexc_s": [
+        0.017078167000000002,
+        0.017182958,
+        0.017179208,
+        0.017139333,
+        0.017137084,
+        0.0170655,
+        0.017186875
+      ],
+      "libxc_s": [
+        0.037317209000000004,
+        0.037399125000000005,
+        0.037373417,
+        0.037414667000000006,
+        0.037432875000000004,
+        0.037318792,
+        0.037293667
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.7586789977048396,
+        1.758090007627765,
+        1.7489040646559295,
+        1.7527266837581599,
+        1.748349469092989,
+        1.7528379568590517,
+        1.740897550314621
+      ],
+      "median": 1.7527266837581599,
+      "min": 1.740897550314621,
+      "max": 1.7586789977048396,
+      "purexc_s": [
+        0.027721375000000003,
+        0.027694875,
+        0.027962416,
+        0.027937875,
+        0.027971000000000003,
+        0.027873750000000003,
+        0.028028334000000002
+      ],
+      "libxc_s": [
+        0.048753000000000005,
+        0.048690083,
+        0.048903583,
+        0.048967459000000005,
+        0.048903083,
+        0.048858167,
+        0.048794458000000006
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.650166920538954,
+        1.6471757347170652,
+        1.642057888794086,
+        1.6518064259015113,
+        1.645496903554486,
+        1.6414025608363407,
+        1.643920623223497
+      ],
+      "median": 1.645496903554486,
+      "min": 1.6414025608363407,
+      "max": 1.6518064259015113,
+      "purexc_s": [
+        0.042508250000000004,
+        0.0426865,
+        0.042624208000000004,
+        0.042780083,
+        0.042791,
+        0.042724792000000004,
+        0.042745500000000006
+      ],
+      "libxc_s": [
+        0.070145708,
+        0.07031216700000001,
+        0.069991417,
+        0.07066441600000001,
+        0.07041245800000001,
+        0.07012858300000001,
+        0.070270209
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        6.454240563804304,
+        6.439278097083198,
+        6.404719580793498,
+        6.281081712881678,
+        6.3455467390843125,
+        6.384880223529504,
+        6.403477113271087
+      ],
+      "median": 6.403477113271087,
+      "min": 6.281081712881678,
+      "max": 6.454240563804304,
+      "purexc_s": [
+        0.005788959000000001,
+        0.005806875,
+        0.005844375000000001,
+        0.005954667,
+        0.00589175,
+        0.005860166,
+        0.005843583
+      ],
+      "libxc_s": [
+        0.037363334000000005,
+        0.037392083,
+        0.037431583000000004,
+        0.037401750000000004,
+        0.037386375,
+        0.037416458,
+        0.03741925
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        4.582847458739182,
+        4.487182963476526,
+        4.5336352475240975,
+        4.480987238328507,
+        4.546787861557816,
+        4.557770139435771,
+        4.453124332071235
+      ],
+      "median": 4.5336352475240975,
+      "min": 4.453124332071235,
+      "max": 4.582847458739182,
+      "purexc_s": [
+        0.010729792,
+        0.010886916,
+        0.010877042,
+        0.010921375,
+        0.010819708,
+        0.010793500000000001,
+        0.010971417
+      ],
+      "libxc_s": [
+        0.049173,
+        0.048851584,
+        0.049312541,
+        0.048938542,
+        0.049194917000000005,
+        0.049194292,
+        0.048857084
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.862530003932906,
+        3.8913903359781723,
+        3.8554132880484504,
+        3.8823254596151644,
+        3.9407497052332032,
+        3.878197874487575,
+        3.917510037502758
+      ],
+      "median": 3.8823254596151644,
+      "min": 3.8554132880484504,
+      "max": 3.9407497052332032,
+      "purexc_s": [
+        0.018116375,
+        0.018131416,
+        0.018138209000000002,
+        0.018134084,
+        0.017983708,
+        0.018085333000000002,
+        0.018132000000000002
+      ],
+      "libxc_s": [
+        0.069975042,
+        0.07055641700000001,
+        0.069930292,
+        0.07040241600000001,
+        0.070869292,
+        0.0701385,
+        0.07103229200000001
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.4993185529621122,
+        1.4970602942345927,
+        1.4862617183889497,
+        1.4977438586357414,
+        1.4969671309544512,
+        1.4997313708249136,
+        1.494201139911465
+      ],
+      "median": 1.4970602942345927,
+      "min": 1.4862617183889497,
+      "max": 1.4997313708249136,
+      "purexc_s": [
+        0.031398625,
+        0.0314375,
+        0.031678416,
+        0.031553209,
+        0.0316255,
+        0.031563958,
+        0.031565083
+      ],
+      "libxc_s": [
+        0.047076541,
+        0.047063833000000006,
+        0.047082417,
+        0.047258625000000005,
+        0.047342334,
+        0.047337458000000006,
+        0.047164583
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.422991508790989,
+        1.424999797841074,
+        1.4196858648395374,
+        1.4227823501625996,
+        1.4274069386736996,
+        1.4253288779296198,
+        1.4261693438501135
+      ],
+      "median": 1.424999797841074,
+      "min": 1.4196858648395374,
+      "max": 1.4274069386736996,
+      "purexc_s": [
+        0.04878575,
+        0.048724042,
+        0.04881975,
+        0.048869708000000005,
+        0.048806042,
+        0.048817125,
+        0.048789584000000004
+      ],
+      "libxc_s": [
+        0.069421708,
+        0.06943175,
+        0.06930870900000001,
+        0.069530958,
+        0.069666083,
+        0.069580458,
+        0.069582209
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.9100036002674485,
+        1.913588396681827,
+        1.9120823994326388,
+        1.9091078610012757,
+        1.9128064092678256,
+        1.9131111231877138,
+        1.9076397452628477
+      ],
+      "median": 1.9120823994326388,
+      "min": 1.9076397452628477,
+      "max": 1.913588396681827,
+      "purexc_s": [
+        0.085063125,
+        0.08506187500000001,
+        0.085092916,
+        0.08513387500000001,
+        0.085169666,
+        0.08510487500000001,
+        0.085130417
+      ],
+      "libxc_s": [
+        0.16247087500000001,
+        0.162773417,
+        0.162704667,
+        0.16252975,
+        0.16291308300000001,
+        0.162815083,
+        0.162398167
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.952516227817378,
+        3.9601984830523587,
+        3.943013144271007,
+        3.968337398032125,
+        3.966490045592686,
+        3.9588237143545832,
+        3.8994328070011526
+      ],
+      "median": 3.9588237143545832,
+      "min": 3.8994328070011526,
+      "max": 3.968337398032125,
+      "purexc_s": [
+        0.011870666,
+        0.011915375,
+        0.011899709000000001,
+        0.011891,
+        0.011869667,
+        0.011927375,
+        0.012040875000000001
+      ],
+      "libxc_s": [
+        0.046919,
+        0.04718725,
+        0.046920709000000005,
+        0.0471875,
+        0.047080916,
+        0.047218375,
+        0.046952583000000006
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.420429800584058,
+        3.4540688970644107,
+        3.4516311511213855,
+        3.4282022096462925,
+        3.4255326242740574,
+        3.4334698454882986,
+        3.4288877000767597
+      ],
+      "median": 3.4288877000767597,
+      "min": 3.420429800584058,
+      "max": 3.4540688970644107,
+      "purexc_s": [
+        0.020206208,
+        0.020121583000000002,
+        0.020166709,
+        0.020236542,
+        0.020245416000000002,
+        0.020234584,
+        0.020246167000000002
+      ],
+      "libxc_s": [
+        0.069113916,
+        0.069501334,
+        0.06960804100000001,
+        0.069374958,
+        0.069351333,
+        0.069474834,
+        0.069421833
+      ]
+    },
+    {
+      "functional": "pbe_c",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        4.345061295105697,
+        4.354265945041159,
+        4.350600717440216,
+        4.34857692200375,
+        4.350182508093954,
+        4.358725051332624,
+        4.344267722539177
+      ],
+      "median": 4.350182508093954,
+      "min": 4.344267722539177,
+      "max": 4.358725051332624,
+      "purexc_s": [
+        0.037359916,
+        0.037317417000000006,
+        0.037389875,
+        0.037344334,
+        0.037393958000000005,
+        0.037333958,
+        0.03737825
+      ],
+      "libxc_s": [
+        0.16233112500000002,
+        0.16248995800000002,
+        0.162668417,
+        0.162394709,
+        0.162670542,
+        0.16272845800000002,
+        0.16238112500000002
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        2.248711212600877,
+        2.2722625581671108,
+        2.2585327307612055,
+        2.256141334045942,
+        2.2507776024184905,
+        2.2620234632361558,
+        2.2669612513590636
+      ],
+      "median": 2.2585327307612055,
+      "min": 2.248711212600877,
+      "max": 2.2722625581671108,
+      "purexc_s": [
+        0.0192685,
+        0.019034167,
+        0.019209208000000002,
+        0.019268167000000003,
+        0.019301959,
+        0.019200250000000002,
+        0.019220958
+      ],
+      "libxc_s": [
+        0.043329292000000005,
+        0.043250625,
+        0.043384625,
+        0.043471708000000005,
+        0.043444417000000006,
+        0.043431416,
+        0.043573167
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.5913421931050316,
+        1.5911833110830904,
+        1.5868876958308529,
+        1.575657903386762,
+        1.581164823634699,
+        1.5794336048889503,
+        1.583034650010001
+      ],
+      "median": 1.583034650010001,
+      "min": 1.575657903386762,
+      "max": 1.5913421931050316,
+      "purexc_s": [
+        0.036127417,
+        0.036117958000000006,
+        0.036283417000000005,
+        0.036507792000000004,
+        0.036454875000000005,
+        0.036451833,
+        0.036436584
+      ],
+      "libxc_s": [
+        0.057491083000000005,
+        0.057470292000000006,
+        0.057577708000000005,
+        0.057523791000000005,
+        0.057641166,
+        0.057573250000000006,
+        0.057680375000000006
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.6497573671254084,
+        1.6552631252159704,
+        1.6479472371002821,
+        1.6466696676171397,
+        1.657074568572299,
+        1.6468891232231604,
+        1.6469128709878056
+      ],
+      "median": 1.6479472371002821,
+      "min": 1.6466696676171397,
+      "max": 1.657074568572299,
+      "purexc_s": [
+        0.050218875,
+        0.050249916000000006,
+        0.050323542000000006,
+        0.050370708,
+        0.050181583,
+        0.050379125000000004,
+        0.050443875000000006
+      ],
+      "libxc_s": [
+        0.082848959,
+        0.083176833,
+        0.08293054200000001,
+        0.082943917,
+        0.08315462500000001,
+        0.082968833,
+        0.083076667
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        5.826368293521323,
+        5.750919244948199,
+        5.75710669787099,
+        5.693663198289304,
+        5.808695863081188,
+        5.761160546965534,
+        5.761340025457713
+      ],
+      "median": 5.761160546965534,
+      "min": 5.693663198289304,
+      "max": 5.826368293521323,
+      "purexc_s": [
+        0.0074561670000000005,
+        0.007537708000000001,
+        0.007535708,
+        0.007631042,
+        0.007462583,
+        0.00755075,
+        0.007563916
+      ],
+      "libxc_s": [
+        0.043442375000000005,
+        0.043348750000000005,
+        0.043383875,
+        0.043448583000000006,
+        0.043347875,
+        0.043501083,
+        0.043578292000000005
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.934537124618092,
+        3.988974785900868,
+        3.925124912790997,
+        3.9481556963962277,
+        3.930537662079381,
+        3.895210345950975,
+        3.9457715517161804
+      ],
+      "median": 3.934537124618092,
+      "min": 3.895210345950975,
+      "max": 3.988974785900868,
+      "purexc_s": [
+        0.014629834000000001,
+        0.014432917000000002,
+        0.014644417000000002,
+        0.014619041000000001,
+        0.014642208,
+        0.014807416,
+        0.014624833
+      ],
+      "libxc_s": [
+        0.057561625000000005,
+        0.057572542000000004,
+        0.057481166,
+        0.057718250000000006,
+        0.057551750000000006,
+        0.05767800000000001,
+        0.05770625
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "restricted",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.903057750258205,
+        3.8566065588964085,
+        3.859551183151736,
+        3.8882888219136715,
+        3.9326759218485643,
+        3.8826058640990695,
+        3.8584045137982823
+      ],
+      "median": 3.8826058640990695,
+      "min": 3.8566065588964085,
+      "max": 3.9326759218485643,
+      "purexc_s": [
+        0.021496458000000003,
+        0.021557834,
+        0.021500708,
+        0.021525375000000003,
+        0.021573500000000002,
+        0.021550625,
+        0.021556125000000002
+      ],
+      "libxc_s": [
+        0.083901917,
+        0.083140084,
+        0.082983083,
+        0.083696875,
+        0.08484158400000001,
+        0.08367258300000001,
+        0.08317225
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.609696346880594,
+        1.595311431422699,
+        1.600265876107597,
+        1.6097333832778356,
+        1.6046226338315814,
+        1.5926349466450824,
+        1.6104550222992258
+      ],
+      "median": 1.6046226338315814,
+      "min": 1.5926349466450824,
+      "max": 1.6104550222992258,
+      "purexc_s": [
+        0.037707500000000005,
+        0.03782775,
+        0.0378635,
+        0.037689834000000005,
+        0.037709541,
+        0.03783625,
+        0.037665209000000005
+      ],
+      "libxc_s": [
+        0.060697625000000005,
+        0.060347042000000004,
+        0.060591667,
+        0.06067058400000001,
+        0.060509583000000006,
+        0.060259334000000005,
+        0.06065812500000001
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.5325666088687024,
+        1.534666573146548,
+        1.5308721517994717,
+        1.536800785516728,
+        1.5336063146877013,
+        1.5337903783286901,
+        1.5355010171644088
+      ],
+      "median": 1.5337903783286901,
+      "min": 1.5308721517994717,
+      "max": 1.536800785516728,
+      "purexc_s": [
+        0.058878083000000005,
+        0.058810875000000006,
+        0.058979125,
+        0.058884042000000004,
+        0.058892667,
+        0.05887954200000001,
+        0.058934917
+      ],
+      "libxc_s": [
+        0.090234584,
+        0.090255084,
+        0.09028950000000001,
+        0.09049304200000001,
+        0.090318166,
+        0.09030887500000001,
+        0.09049462500000001
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float64",
+      "gated": true,
+      "speedups": [
+        1.12397627384146,
+        1.1240745508720613,
+        1.1225870446501887,
+        1.1240284612920157,
+        1.1225340737466558,
+        1.1226539103003348,
+        1.1221173827394775
+      ],
+      "median": 1.1226539103003348,
+      "min": 1.1221173827394775,
+      "max": 1.1240745508720613,
+      "purexc_s": [
+        0.1832155,
+        0.18324400000000002,
+        0.18358825,
+        0.183519708,
+        0.183663542,
+        0.18369912500000002,
+        0.18355870800000001
+      ],
+      "libxc_s": [
+        0.205929875,
+        0.205979917,
+        0.20609379100000003,
+        0.20628137500000002,
+        0.20616858400000002,
+        0.20623054100000002,
+        0.20597441700000002
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 0,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.9938128780478945,
+        3.9879831815127247,
+        3.977973443027561,
+        3.9806747143738392,
+        3.9862456612042854,
+        3.9642762271917826,
+        3.978297543624149
+      ],
+      "median": 3.9806747143738392,
+      "min": 3.9642762271917826,
+      "max": 3.9938128780478945,
+      "purexc_s": [
+        0.015199959,
+        0.015221583,
+        0.01519375,
+        0.015182958000000002,
+        0.015222542,
+        0.015250041,
+        0.015221042
+      ],
+      "libxc_s": [
+        0.060705792,
+        0.060703417,
+        0.060440334000000005,
+        0.060438417,
+        0.060680792000000004,
+        0.060455375000000006,
+        0.060553834
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 1,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        3.5823210747715772,
+        3.6020482940465097,
+        3.5824985544776604,
+        3.5817478951690296,
+        3.580088998996644,
+        3.5923108681009546,
+        3.60372784386318
+      ],
+      "median": 3.5824985544776604,
+      "min": 3.580088998996644,
+      "max": 3.60372784386318,
+      "purexc_s": [
+        0.025217042000000002,
+        0.0252205,
+        0.025293625,
+        0.02526925,
+        0.025302083000000003,
+        0.025239,
+        0.025256208000000002
+      ],
+      "libxc_s": [
+        0.090335541,
+        0.090845459,
+        0.09061437500000001,
+        0.090508083,
+        0.09058370900000001,
+        0.090666334,
+        0.0910165
+      ]
+    },
+    {
+      "functional": "pbe",
+      "spin": "polarized",
+      "order": 2,
+      "precision": "Float32",
+      "gated": false,
+      "speedups": [
+        1.3675710489491135,
+        1.3694780884170243,
+        1.3700652615613593,
+        1.3674093993052996,
+        1.366374812623503,
+        1.3644900892306355,
+        1.3659966873013631
+      ],
+      "median": 1.3674093993052996,
+      "min": 1.3644900892306355,
+      "max": 1.3700652615613593,
+      "purexc_s": [
+        0.150738542,
+        0.150514,
+        0.15055891700000001,
+        0.150561042,
+        0.15093275,
+        0.15100295900000002,
+        0.15074658300000002
+      ],
+      "libxc_s": [
+        0.206145666,
+        0.206125625,
+        0.206275542,
+        0.205878584,
+        0.206230708,
+        0.206042041,
+        0.205919333
+      ]
+    }
+  ]
+}
