@@ -175,23 +175,26 @@ _float32_max_order(::Type{<:AbstractFunctional}) = 2
 # floatmax(R) gives the infinity of its sign. `Vararg{Any, N}` makes the method specialize on the
 # inputs: Julia does not specialize a bare `x...` that is only passed on to other calls, and the
 # unspecialized call boxes its arguments.
-@inline function _evaluate(f, k::Val, x::Vararg{Any, N}) where {N}
+@inline _evaluate(f, k::Val, x::Vararg{Any, N}) where {N} = _outputs_in(_result_type(f, x...), _evaluate_unrounded(f, k, x...))
+
+# The derivatives of `f` at the inputs `x` in its evaluation type S = `_evaluation_type(f, R, k)`,
+# not rounded to the result type R.
+@inline function _evaluate_unrounded(f, k::Val, x::Vararg{Any, N}) where {N}
     R = _result_type(f, x...)
-    S = _evaluation_type(f, R, k)
-    return _outputs_in(R, S, _derivatives_at(_functional_in(f, R, S), k, x...))
+    return _derivatives_at(_functional_in(f, R, _evaluation_type(f, R, k)), k, x...)
 end
 
 @inline _functional_in(f, ::Type{R}, ::Type{R}) where {R} = f
 @inline _functional_in(f, ::Type, ::Type{S}) where {S} = _with_number_type(f, S)
 
-@inline _outputs_in(::Type, ::Type, r) = r
-# Field by field in generated code: AllocCheck cannot prove `map` over a large NamedTuple
-# allocation-free (45 fields, polarized pbe_c at order 8).
-@generated function _outputs_in(::Type{Float32}, ::Type{Float64}, r::NamedTuple{names}) where {names}
-    return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in32(r.$n)) for n in names)...))))
+# The outputs `r` with every entry converted to R; an entry already of type R is unchanged. Field by
+# field in generated code: AllocCheck cannot prove `map` over a large NamedTuple allocation-free
+# (45 fields, polarized pbe_c at order 8).
+@generated function _outputs_in(::Type{R}, r::NamedTuple{names}) where {R, names}
+    return :(NamedTuple{names}($(Expr(:tuple, (:(_output_in(R, r.$n)) for n in names)...))))
 end
-@inline _output_in32(x::Real) = convert(Float32, x)
-@inline _output_in32(t::Tuple) = ntuple(i -> convert(Float32, t[i]), Val(length(t)))
+@inline _output_in(::Type{R}, x::Real) where {R} = convert(R, x)
+@inline _output_in(::Type{R}, t::Tuple) where {R} = ntuple(i -> convert(R, t[i]), Val(length(t)))
 
 """
     _with_number_type(f, S)

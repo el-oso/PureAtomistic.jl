@@ -5,7 +5,9 @@
 
 The functional Σ wᵢ·fᵢ over `terms = ((w₁, f₁), (w₂, f₂), …)`, with real weights wᵢ. All terms
 belong to one family (LDA or GGA). `energy_density`, `xc_derivatives` and `xc_evaluate!` sum the
-weighted terms; each term is evaluated by its own driver, in its own precision.
+weighted terms. Each term is evaluated by its own driver in its own evaluation type
+(`_evaluation_type`); the weighted terms are summed in the widest of those types, and each output
+is rounded once to the result type.
 """
 struct XC{T, TS <: Tuple} <: AbstractFunctional{T}
     terms::TS
@@ -52,13 +54,19 @@ _scale(w, x::Tuple) = ntuple(i -> _scale(w, x[i]), Val(length(x)))
 _plus(x::Real, y::Real) = x + y
 _plus(x::Tuple, y::Tuple) = ntuple(i -> x[i] + y[i], Val(length(x)))
 
-@inline _term_sum(terms::Tuple{Any}, k, x::Vararg{Any, N}) where {N} = _weighted(terms[1][1], _xc_derivatives_unchecked(terms[1][2], k, x...))
+# The weighted sum of the terms, each evaluated in its own evaluation type and not rounded to the
+# result type: `_plus` promotes, so the sum is formed in the widest evaluation type of the terms.
+# Rounding each term to the result type first would turn two terms beyond floatmax(Float32) with
+# opposite signs into Inf - Inf = NaN, where their sum may be finite.
+@inline _term_sum(terms::Tuple{Any}, k, x::Vararg{Any, N}) where {N} = _weighted(terms[1][1], _term_outputs(terms[1][2], k, x...))
 @inline function _term_sum(terms::Tuple, k, x::Vararg{Any, N}) where {N}
-    head = _weighted(terms[1][1], _xc_derivatives_unchecked(terms[1][2], k, x...))
+    head = _weighted(terms[1][1], _term_outputs(terms[1][2], k, x...))
     return _sum(head, _term_sum(Base.tail(terms), k, x...))
 end
+@inline _term_outputs(f, k::Val, x::Vararg{Any, N}) where {N} = _evaluate_unrounded(f, k, x...)
+_term_outputs(::AbstractFunctional{<:Taylor}, ::Val, ::Vararg{Any, N}) where {N} = _throw_taylor_parameter()
 
-@inline _xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _term_sum(xc.terms, k, x...)
+@inline _xc_derivatives_unchecked(xc::XC, k::Val, x::Vararg{Any, N}) where {N} = _outputs_in(_result_type(xc, x...), _term_sum(xc.terms, k, x...))
 
 function xc_derivatives(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     _check_inputs(xc, k, x...)

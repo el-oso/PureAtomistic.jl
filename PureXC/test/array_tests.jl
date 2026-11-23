@@ -157,6 +157,28 @@ end
     @test_throws "xc: ρ" xc_derivatives(pbe(), Val(1), -1.0, 0.1)
 end
 
+# The terms are summed in their evaluation type and each output is rounded once. pbe(Float32) at
+# order 4 is evaluated in Float64 (above `_float32_max_order`); at (1f-10, 8.247848f-32) the terms
+# of v4rho3sigma round to +Inf32 (pbe_x) and -Inf32 (pbe_c), while their sum is -6.03e36. Oracle:
+# the same functional converted exactly to BigFloat (256 bits). Bound (c): eps(Float32) relative,
+# measured 0.033 eps(Float32). Every other output is finite, or the infinity of the sign of its
+# exact value where that exceeds floatmax(Float32).
+@testitem "pbe(Float32) sums its terms before rounding" begin
+    ρ, σ = 1.0f-10, 8.247848f-32
+    r = xc_derivatives(pbe(Float32), Val(4), ρ, σ)
+    @test xc_derivatives(pbe_x(Float32), Val(4), ρ, σ).v4rho3sigma == Inf32
+    @test xc_derivatives(pbe_c(Float32), Val(4), ρ, σ).v4rho3sigma == -Inf32
+    b = setprecision(BigFloat, 256) do
+        PureXC._xc_derivatives_unchecked(PureXC._with_number_type(pbe(Float32), BigFloat), Val(4), big(ρ), big(σ))
+    end
+    @test isfinite(r.v4rho3sigma)
+    @test abs(big(r.v4rho3sigma) - b.v4rho3sigma) <= eps(Float32) * abs(b.v4rho3sigma)
+    for n in keys(r)
+        g, w = getfield(r, n), getfield(b, n)
+        @test abs(w) <= floatmax(Float32) ? isfinite(g) : (isinf(g) && sign(g) == sign(w))
+    end
+end
+
 @testitem "zk divides by the density" begin
     @test zk(-0.5, 2.0) == -0.25
     @test zk(-0.5, 0.0) == 0.0
