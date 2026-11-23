@@ -4,9 +4,15 @@
 # constant tuples, so that its compiled code has a fixed size and its stack frame holds the result
 # and a scratch array of O(L) entries. Each loop form performs the same arithmetic in the same order
 # as the unrolled form. The two forms therefore give identical results (`==`). The coefficient kernels
-# accumulate with `fma`, not `muladd`: `muladd` lets LLVM fuse each multiply-add or not, decided at
+# accumulate with `_fma`, not `muladd`: `muladd` lets LLVM fuse each multiply-add or not, decided at
 # each call site, so the same kernel would round differently inlined, out of line, unrolled and
-# looped. `fma` rounds once everywhere, which keeps every call site bit-identical.
+# looped.
+
+# x·y + z with one rounding where the coefficient type has an `fma` that rounds once (the IEEE floats
+# and BigFloat), so that every code path gives identical results. Other coefficient types (a Taylor of
+# Taylors, a custom Real) have no such method and use the plain expression.
+_fma(x::T, y::T, z::T) where {T <: Union{Float16, Float32, Float64, BigFloat}} = fma(x, y, z)
+_fma(x, y, z) = x * y + z
 
 # Measured on Apple M-series, Julia 1.13: the loop product is 6 to 9 times slower than the unrolled
 # one at every size from L = 28 to L = 462, so there is no crossover in run time. The threshold is

@@ -5,10 +5,10 @@
 
 const _FastFloat = Union{Float32, Float64}
 
-# p[1] + x·(p[2] + x·(…)) by Horner's rule with `fma`, which rounds once at every call site (unlike
+# p[1] + x·(p[2] + x·(…)) by Horner's rule with `_fma`, which rounds once at every call site (unlike
 # the `muladd` of `evalpoly`, which LLVM may fuse or not).
 @inline _fma_horner(x, p::Tuple{Any}) = p[1]
-@inline _fma_horner(x, p::Tuple) = fma(x, _fma_horner(x, Base.tail(p)), p[1])
+@inline _fma_horner(x, p::Tuple) = _fma(x, _fma_horner(x, Base.tail(p)), p[1])
 
 _int(::Type{Float64}) = Int64
 _int(::Type{Float32}) = Int32
@@ -55,8 +55,8 @@ const INVCBRT_M32 = Int32(round((4 / 3) * (127 - 0.0450465) * 2.0^23))
 @inline _invcbrt_guess(x::Float32) =
     reinterpret(Float32, INVCBRT_M32 - unsafe_trunc(Int32, Float32(reinterpret(Int32, x)) * (1.0f0 / 3)))
 @inline function _invcbrt_step(x::T, y::T) where {T}
-    e = fma(-x, y * y * y, one(T))
-    return fma(y * e, fma(T(2 / 9), e, T(1 / 3)), y)
+    e = _fma(-x, y * y * y, one(T))
+    return _fma(y * e, _fma(T(2 / 9), e, T(1 / 3)), y)
 end
 @inline _invcbrt_steps(y::Float64, x::Float64) = _invcbrt_step(x, _invcbrt_step(x, _invcbrt_step(x, y)))
 @inline _invcbrt_steps(y::Float32, x::Float32) = _invcbrt_step(x, _invcbrt_step(x, y))
@@ -80,7 +80,7 @@ fast_invcbrt(x::Real) = inv(cbrt(x))
     # The step is written as (x·y - c²·(c·y))·y/3 because c³ overflows for x near floatmax.
     y = fast_invcbrt(x)
     c = x * (y * y)
-    return fma((x * y - c * c * (c * y)) * y, T(1 / 3), c)
+    return _fma((x * y - c * c * (c * y)) * y, T(1 / 3), c)
 end
 fast_cbrt(x::Real) = cbrt(x)
 
@@ -134,7 +134,7 @@ const EXPM1_COEFFS32 = ntuple(j -> Float32(1 / factorial(j)), 8)
 # exponent bits, so k + bias must be a normal exponent: |x| ≤ 700 (Float64), |x| ≤ 85 (Float32).
 @inline function _exp_reduce(x::T) where {T <: _FastFloat}
     k = round(x * _inv_ln2(T))
-    r = fma(-k, _ln2_lo(T), fma(-k, _ln2_hi(T), x))
+    r = _fma(-k, _ln2_lo(T), _fma(-k, _ln2_hi(T), x))
     I = _int(T)
     twok = reinterpret(T, (unsafe_trunc(I, k) + I(_exponent_bias(T))) << _mantissa_bits(T))
     return _expm1_series(r), twok
@@ -147,7 +147,7 @@ end
 """
 @inline function fast_exp(x::_FastFloat)
     p, twok = _exp_reduce(x)
-    return fma(twok, p, twok)
+    return _fma(twok, p, twok)
 end
 fast_exp(x::Real) = exp(x)
 
@@ -160,7 +160,7 @@ fast_exp(x::Real) = exp(x)
 @inline function fast_expm1(x::T) where {T <: _FastFloat}
     # eˣ - 1 = 2ᵏ·expm1(r) + (2ᵏ - 1).
     p, twok = _exp_reduce(x)
-    return fma(twok, p, twok - one(T))
+    return _fma(twok, p, twok - one(T))
 end
 fast_expm1(x::Real) = expm1(x)
 

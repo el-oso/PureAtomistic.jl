@@ -82,7 +82,7 @@ one(::Type{Taylor{N, K, M, T, L}}) where {N, K, M, T, L} = Taylor{N, K, M, T, L}
 isfinite(a::Taylor) = all(isfinite, a.c)
 isnan(a::Taylor) = any(isnan, a.c)
 
-# The unrolled body of `mul_truncated`: each output coefficient is one straight-line `fma` chain
+# The unrolled body of `mul_truncated`: each output coefficient is one straight-line `_fma` chain
 # over the pairs of stored indices that sum to it, inlined so the tuples stay in registers.
 function _mul_unrolled_body(N, K, M1, M2, skip0, D)
     M = M1 | M2
@@ -97,7 +97,7 @@ function _mul_unrolled_body(N, K, M1, M2, skip0, D)
             γ = α .- β
             haskey(pos2, γ) || continue
             x, y = :(a.c[$i]), :(b.c[$(pos2[γ])])
-            acc = acc === nothing ? :($x * $y) : :(fma($x, $y, $acc))
+            acc = acc === nothing ? :($x * $y) : :(_fma($x, $y, $acc))
         end
         return acc === nothing ? :(zero(T)) : acc
     end
@@ -141,7 +141,7 @@ end
     return (_int32_tuple(offsets), _int32_tuple(ia), _int32_tuple(ib), _int32_tuple(sum.(idx)))
 end
 
-# `mul_truncated` by a loop over `_mul_table`, with the same `fma` chain per coefficient.
+# `mul_truncated` by a loop over `_mul_table`, with the same `_fma` chain per coefficient.
 @noinline function _mul_loop(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, skip0::Bool, D::Int) where {N, K, M1, M2, T}
     offsets, ia, ib, degree = _mul_table(Val(N), Val(K), Val(M1), Val(M2))
     L = length(degree)
@@ -149,7 +149,7 @@ end
     return Taylor{N, K, M1 | M2, T, L}(c)
 end
 
-# Coefficient j of `_mul_loop`: the `fma` chain over the pairs of `_mul_table` for output j.
+# Coefficient j of `_mul_loop`: the `_fma` chain over the pairs of `_mul_table` for output j.
 @inline function _mul_coefficient(a::Taylor{N, K, M1, T}, b::Taylor{N, K, M2, T}, offsets, ia, ib, degree, skip0, D, j) where {N, K, M1, M2, T}
     acc = zero(T)
     degree[j] <= D || return acc
@@ -158,7 +158,7 @@ end
         i = ia[q]
         skip0 && isone(i) && continue
         x, y = a.c[i], b.c[ib[q]]
-        acc = first ? x * y : fma(x, y, acc)
+        acc = first ? x * y : _fma(x, y, acc)
         first = false
     end
     return acc
@@ -166,7 +166,7 @@ end
 
 # The Taylor operations (`*`, `inv`, `compose`, `power_series` and the `fast_*` series methods) are
 # inlined into their callers when their series have at most `_INLINE_MAX` coefficients. Left to the
-# compiler, the `fma` chains make each of them exceed the inlining threshold; the out-of-line calls
+# compiler, the `_fma` chains make each of them exceed the inlining threshold; the out-of-line calls
 # then cost up to 2.1 times at order 2 in a caller that evaluates a series functional over many
 # points, and keep its loop from vectorizing. Above `_INLINE_MAX` the unrolled kernels are not forced
 # inline: their code grows with the square of the number of coefficients, and forcing them into every
@@ -183,7 +183,7 @@ end
 
 # Division a/b solves b·c = a degree by degree: c_α = (a_α − Σ_{0<β≤α} b_β c_{α−β}) / b₀, in the
 # order of the stored multi-indices of the union mask (graded by total degree, so each c_{α−β} is
-# formed before c_α), with the sum one `fma` chain over the pairs of `b` and `c` with β ≠ 0. The
+# formed before c_α), with the sum one `_fma` chain over the pairs of `b` and `c` with β ≠ 0. The
 # recurrence is used rather than a·inv(b) with inv(b) the geometric series 1/(b₀(1 + u)),
 # u = (b − b₀)/b₀, composed by Horner's rule: where the coefficients of u exceed 1 in size, the
 # powers of u are much larger than their sum. Measured on a denominator of pbe_c in PureXC, whose
@@ -210,7 +210,7 @@ function _div_unrolled_body(N, K, M1, M2)
             k = get(posc, α .- β, 0)
             iszero(k) && continue
             x, y = :(b.c[$i]), c[k]
-            acc = acc === nothing ? :($x * $y) : :(fma($x, $y, $acc))
+            acc = acc === nothing ? :($x * $y) : :(_fma($x, $y, $acc))
         end
         num = haskey(pos1, α) ? :(a.c[$(pos1[α])]) : :(zero(T))
         push!(body.args, :($(c[j]) = $(acc === nothing ? num : :($num - $acc)) / b.c[1]))
@@ -257,7 +257,7 @@ end
         i = ia[q]
         isone(i) && continue
         x, y = b.c[i], _load(s, ib[q])
-        acc = first ? x * y : fma(x, y, acc)
+        acc = first ? x * y : _fma(x, y, acc)
         first = false
     end
     num = iszero(p) ? zero(T) : a.c[p]
