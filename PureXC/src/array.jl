@@ -188,7 +188,10 @@ function _evaluate_points!(
     return nothing
 end
 
-# Whether an output may share memory with an input or with another output.
+# Whether an output may share memory with an input or with another output. `Base.mightalias` compares
+# the start address of each Array's memory, so it does not detect distinct Arrays that share memory
+# through `unsafe_wrap` of a pointer into another Array's memory past its start; such inputs take
+# the dense loop.
 _any_alias(::Tuple{}, ins::Tuple) = false
 _any_alias(outs::Tuple, ins::Tuple) =
     _aliases(first(outs), ins) || _aliases(first(outs), Base.tail(outs)) || _any_alias(Base.tail(outs), ins)
