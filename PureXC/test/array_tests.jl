@@ -6,8 +6,10 @@
     functionals(T) = (lda_x(T), lda_c_pw(T), lda_c_pw_mod(T), pbe_x(T), pbe_c(T))
     isgga(f) = PureXC.family(f) == :gga
 
-    # n points: restricted vectors, polarized matrices with σαβ inside its bound, one exact zero
-    # density and one density below the thresholds.
+    # n ≥ 4 points: restricted vectors, polarized matrices with σαβ inside its bound. Point 1 has
+    # zero density, point 2 a nonzero density below every density threshold (1e-15 and 1e-12),
+    # point 3 one between them (below that of pbe_c only); polarized, point 4 has an empty β
+    # channel (ρβ = σαβ = σββ = 0).
     function inputs(T, n; polarized)
         rng = MersenneTwister(5)
         if polarized
@@ -16,12 +18,18 @@
             g[2, :] .= T(0.5) .* sqrt.(g[1, :] .* g[3, :])
             ρ[:, 1] .= 0
             g[:, 1] .= 0
+            ρ[:, 2] .= T(1.0e-16)
+            ρ[:, 3] .= T(1.0e-13)
+            ρ[2, 4] = 0
+            g[2:3, 4] .= 0
             return ρ, g
         end
         ρ = T.(0.01 .+ 2 .* rand(rng, n))
         σ = T.(0.05 .+ rand(rng, n))
         ρ[1] = 0
         σ[1] = 0
+        ρ[2] = T(1.0e-16)
+        ρ[3] = T(1.0e-13)
         return ρ, σ
     end
 
