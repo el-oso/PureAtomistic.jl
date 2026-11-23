@@ -620,7 +620,7 @@ end
     # An unchecked view out of bounds: row 3 of a 2-row matrix lies on row 1, one column on.
     A = fill(42.0, 2, 2n)
     # With bounds checks forced, any access to it outside the call throws a BoundsError.
-    @test_throws msg xc_evaluate!((; e = Base.unsafe_view(A, 3:3, 1:n), vrho = fill(42.0, 1, n)), f, Val(1), view(A, 1, 1:n))
+    @test_throws "xc: an array view lies outside its parent" xc_evaluate!((; e = Base.unsafe_view(A, 3:3, 1:n), vrho = fill(42.0, 1, n)), f, Val(1), view(A, 1, 1:n))
     @test all(==(42.0), A)
     # Outputs whose points share an address: a column index of step zero (on the input's row and
     # on another), a repeated column index, and a view of such a view.
@@ -642,6 +642,73 @@ end
     out = merge(xc_outputs(f, Val(1), x), (; vrho = view(C, 2:2, reverse(1:n) |> collect)))
     xc_evaluate!(out, f, Val(1), x)
     @test out == ref
+end
+@testitem "array layer rejects views out of bounds of their parent" begin
+    using OffsetArrays
+    msg = "xc: an array view lies outside its parent"
+    n = 16
+    f = lda_x()
+    # One Memory holds two Arrays: A on its first n elements and B on the next n. Indices n+1:2n of
+    # A, unchecked, are the elements of B. All numbers are 42.0, a valid input and the sentinel.
+    M = fill!(Memory{Float64}(undef, 2n), 42.0)
+    A = Base.wrap(Array, memoryref(M, 1), (n,))
+    B = Base.wrap(Array, memoryref(M, n + 1), (1, n))
+    function rejects(out, x...)
+        @test_throws msg xc_evaluate!(out, f, Val(1), x...)
+        @test all(==(42.0), M)
+        return nothing
+    end
+    # Not read by the test outside the call: with bounds checks forced, such a read throws.
+    unsafe_in = Base.unsafe_view(A, (n + 1):(2n))
+    out = merge(xc_outputs(f, Val(1), A), (; vrho = B))
+    # An input view out of bounds, directly, under a wrapper, and under an in-bounds view.
+    rejects(out, unsafe_in)
+    rejects(out, OffsetArray(unsafe_in, 0))
+    rejects(out, view(unsafe_in, 1:n))
+    rejects(merge(xc_outputs(f, Val(1), A), (; vrho = reshape(view(B, 1, :), 1, n))), reshape(unsafe_in, n))
+    # An output view out of bounds, directly and under a wrapper; the input is in bounds.
+    unsafe_out = Base.unsafe_view(reshape(A, 1, n), 1:1, (n + 1):(2n))
+    rejects(merge(xc_outputs(f, Val(1), A), (; vrho = unsafe_out)), view(B, 1, :))
+    rejects(merge(xc_outputs(f, Val(1), A), (; e = OffsetArray(unsafe_out, 0, 0))), fill(42.0, n))
+    # In-bounds views of the same arrays are accepted.
+    out = xc_outputs(f, Val(1), A)
+    ref = xc_evaluate!(xc_outputs(f, Val(1), A), f, Val(1), fill(42.0, n))
+    xc_evaluate!(merge(out, (; vrho = B)), f, Val(1), view(A, 1:n))
+    @test B == ref.vrho
+end
+
+@testitem "array layer rejects outputs whose root repeats an address by a zero stride" begin
+    using PureXC: _self_overlaps
+    msg = "xc: an output shares memory with an input or another output"
+    n = 16
+    f = lda_x()
+    ref = xc_evaluate!(xc_outputs(f, Val(1), fill(42.0, n)), f, Val(1), fill(42.0, n))
+    # A matrix over a raw pointer with the strides it is given.
+    struct StridedPtr <: AbstractMatrix{Float64}
+        p::Ptr{Float64}
+        sz::NTuple{2, Int}
+        st::NTuple{2, Int}
+    end
+    Base.size(a::StridedPtr) = a.sz
+    Base.strides(a::StridedPtr) = a.st
+    Base.pointer(a::StridedPtr) = a.p
+    Base.elsize(::Type{StridedPtr}) = sizeof(Float64)
+    Base.getindex(a::StridedPtr, i::Int, j::Int) = unsafe_load(a.p, 1 + (i - 1) * a.st[1] + (j - 1) * a.st[2])
+    Base.setindex!(a::StridedPtr, v, i::Int, j::Int) = unsafe_store!(a.p, v, 1 + (i - 1) * a.st[1] + (j - 1) * a.st[2])
+    buf = fill(42.0, n)
+    x = fill(42.0, n)
+    GC.@preserve buf begin
+        # Every point of e at one address.
+        out = merge(xc_outputs(f, Val(1), x), (; e = StridedPtr(pointer(buf), (1, n), (1, 0))))
+        @test_throws msg xc_evaluate!(out, f, Val(1), x)
+        @test all(==(42.0), buf) && all(==(42.0), x)
+        # A zero stride in a dimension of length 1 repeats no address.
+        @test !_self_overlaps(StridedPtr(pointer(buf), (1, n), (0, 1)))
+        @test _self_overlaps(StridedPtr(pointer(buf), (2, n), (0, 1)))
+        out = merge(xc_outputs(f, Val(1), x), (; vrho = StridedPtr(pointer(buf), (1, n), (0, 1))))
+        xc_evaluate!(out, f, Val(1), x)
+        @test buf == vec(ref.vrho)
+    end
 end
 
 @testitem "plain disjoint Arrays take the dense point loop" setup = [ArrayFixtures] begin

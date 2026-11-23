@@ -145,11 +145,17 @@ scalar field) and the point axis of the inputs as its columns. All inputs are va
 output is written; an invalid input throws the `ArgumentError` of `xc_derivatives`, and
 mismatched axes throw a `DimensionMismatch`.
 
+Every view, at any level between an input or output and its root, must lie in bounds of its
+parent: a view whose indices fail `checkbounds(Bool, parent, indices...)` (one made by
+`Base.unsafe_view`) makes `xc_evaluate!` throw `ArgumentError("xc: an array view lies outside its
+parent")` before writing anything.
+
 No output may share memory with an input or with another output: if one does, `xc_evaluate!`
 throws `ArgumentError("xc: an output shares memory with an input or another output")` before
 writing anything. The same error is thrown for an output that overlaps itself: a view, at any level
 between the output and its root, whose indices repeat a value (a repeated vector index, a range of
-step zero) or fall outside its parent, so that two points may write one address.
+step zero), or a root that defines `strides` with a stride of zero in a dimension of length greater
+than one, so that two points may write one address.
 
 Every argument is resolved through `parent` to its root array. When both roots have a known
 address range (an `Array` or `Memory` of a bits type, or a root of a bits type that defines
@@ -170,6 +176,7 @@ the same file mapped twice, at two addresses, cannot be detected.
 function xc_evaluate!(out::NamedTuple, f::AbstractFunctional, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
     _check_axes(ρ, σ...)
     _check_out(out, _point_type(f, k, ρ, σ...), ρ)
+    _check_views_in_bounds(values(out)..., ρ, σ...)
     _check_no_overlap(values(out), (ρ, σ...))
     _validate(f, k, ρ, σ...)
     _evaluate_points!(out, f, k, ρ, σ...)
@@ -210,6 +217,19 @@ function _evaluate_points!(
     return nothing
 end
 
+# Whether every view between an array and its root, at any level, indexes its parent in bounds. A
+# view out of bounds (`Base.unsafe_view`) reaches addresses outside the storage of its root, which
+# the root's address range in the overlap check does not cover.
+@noinline _throw_view_bounds() = throw(ArgumentError("xc: an array view lies outside its parent"))
+
+_check_views_in_bounds(xs::Vararg{AbstractArray}) = (all(_views_in_bounds, xs) || _throw_view_bounds(); nothing)
+
+_views_in_bounds(a) = _views_in_bounds(a, parent(a))
+_views_in_bounds(a::T, p::T) where {T} = p === a || _views_in_bounds(p)
+_views_in_bounds(a, p) = _views_in_bounds(p)
+_views_in_bounds(a::Union{Array, Memory}) = true
+_views_in_bounds(a::SubArray) = checkbounds(Bool, parent(a), parentindices(a)...) && _views_in_bounds(parent(a))
+
 # Whether an output shares memory with an input or with another output, checked pair by pair. Each
 # array is first resolved through `parent`, repeatedly, to its root: the array that is its own parent,
 # which holds the elements of every wrapper and view above it.
@@ -240,8 +260,10 @@ end
 #   any isbits array, whatever memory it points to.
 #
 # An output overlaps itself when a view between it and its root, at any level, has an index out of
-# bounds of its parent or an index that repeats a value; other wrappers map distinct indices to
-# distinct elements of their parent. An empty array shares memory with nothing.
+# bounds of its parent or an index that repeats a value, or when its root defines `strides` with a
+# stride of zero in a dimension of length greater than one. Other wrappers are taken to map distinct
+# indices to distinct elements of their parent, and other strides of a root to give distinct
+# addresses. An empty array shares memory with nothing.
 @noinline _throw_overlap() = throw(ArgumentError("xc: an output shares memory with an input or another output"))
 
 function _check_no_overlap(outs::Tuple, ins::Tuple)
@@ -258,13 +280,18 @@ _self_overlaps(a::AbstractArray) = !(isempty(a) || _injective(a))
 
 # Whether distinct indices of `a` reach distinct elements of its root.
 _injective(a) = _injective(a, parent(a))
-_injective(a::T, p::T) where {T} = p === a || _injective(p)
+_injective(a::T, p::T) where {T} = p === a ? _root_injective(a) : _injective(p)
 _injective(a, p) = _injective(p)
 _injective(a::Union{Array, Memory}) = true
 function _injective(a::SubArray)
     i = parentindices(a)
     return checkbounds(Bool, parent(a), i...) && all(_injective_index, i) && _injective(parent(a))
 end
+
+# A root that defines `strides` and has a stride of zero in a dimension of length greater than one
+# stores several indices at one address.
+_root_injective(a) =
+    !hasmethod(strides, Tuple{typeof(a)}) || all(((n, s),) -> n <= 1 || !iszero(s), zip(size(a), strides(a)))
 
 _injective_index(i) = false
 _injective_index(::Union{Integer, CartesianIndex}) = true
