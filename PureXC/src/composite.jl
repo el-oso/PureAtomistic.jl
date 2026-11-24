@@ -85,6 +85,21 @@ function xc_derivatives(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     return _xc_derivatives_unchecked(xc, k, x...)
 end
 
+# An XC with a term whose number type is a `Taylor` (its own number type is then that `Taylor` or,
+# mixed with plain terms, `Real`): Σ wᵢ·eᵢ over the energy densities of the terms, each a `Taylor`
+# in the parameters of its own term or a plain value. A weight scales a `Taylor` in its coefficient
+# type, which `*` converts it to. Every other XC sums its terms as `xc_derivatives` does.
+function energy_density(xc::XC, x::Vararg{Any, N}) where {N}
+    any(_taylor_term, xc.terms) || return xc_derivatives(xc, Val(0), x...).e
+    return _term_energy(xc.terms, x...)
+end
+_taylor_term(t::Tuple) = t[2] isa AbstractFunctional{<:Taylor}
+_term_energy(terms::Tuple{Any}, x::Vararg{Any, N}) where {N} = _scale_energy(terms[1][1], energy_density(terms[1][2], x...))
+_term_energy(terms::Tuple, x::Vararg{Any, N}) where {N} =
+    _term_energy((terms[1],), x...) + _term_energy(Base.tail(terms), x...)
+_scale_energy(w, e::Real) = _scale(w, e)
+_scale_energy(w, e::Taylor) = e * w
+
 """
     zk(e, ρ)
 

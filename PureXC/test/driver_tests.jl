@@ -429,7 +429,7 @@ end
 end
 
 # The LDA form: e = c·ρ² with c = 2 + u. A sum `XC` with a Taylor-typed term refuses xc_derivatives
-# as its term does.
+# as its term does, and its energy_density is the weighted sum of its terms' energy densities.
 @testitem "energy_density of an LDA with a Taylor parameter" begin
     using PureTaylor
     struct _ParamLDA{T} <: PureXC.AbstractLDA{T}
@@ -451,6 +451,20 @@ end
     @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(f, Val(0), (1.0, 2.0))
     f0 = pbe_x()
     κ = variable(Val(1), Val(1), Val(1), f0.κ)
-    xc = XC(((1, PureXC.PBEExchange{typeof(κ)}(κ, f0.μ, f0.thresholds)),))
+    fκ = PureXC.PBEExchange{typeof(κ)}(κ, f0.μ, f0.thresholds)
+    xc = XC(((1, fκ),))
     @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(xc, Val(1), 0.3, 0.02)
+    # energy_density of an XC with a Taylor-typed term is Σ wᵢ·eᵢ over the terms' own energy
+    # densities. Oracle: that sum, formed here with the same operations, so equal bit for bit.
+    for (ρ, σ) in ((0.3, 0.02), ((0.1, 0.2), (0.01, 0.002, 0.03)))
+        a = energy_density(fκ, ρ, σ)
+        b = energy_density(pbe_c(), ρ, σ)
+        @test derivatives(energy_density(xc, ρ, σ), (1.0,)) == derivatives(a, (1.0,))
+        s = energy_density(XC(((1, fκ), (1, pbe_c()))), ρ, σ)
+        @test s isa Taylor
+        @test derivatives(s, (1.0,)) == (value(a) + b, derivatives(a, (1.0,))[2])
+        s = energy_density(XC(((0.5, fκ), (2, pbe_c()))), ρ, σ)
+        @test derivatives(s, (1.0,)) == (0.5 * value(a) + 2 * b, 0.5 * derivatives(a, (1.0,))[2])
+    end
+    @test_throws "xc: ρ = -1.0 is negative" energy_density(XC(((1, fκ), (1, pbe_c()))), -1.0, 0.0)
 end

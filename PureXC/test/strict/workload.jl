@@ -80,6 +80,9 @@ function run_workload()
     f = PureXC.PBEExchange{typeof(κ)}(κ, f0.μ, f0.thresholds)
     energy_density(f, 0.3, 0.02)
     energy_density(f, (0.3, 0.1), (0.02, 0.005, 0.01))
+    xc = XC(((1, f), (1, pbe_c())))
+    energy_density(xc, 0.3, 0.02)
+    energy_density(xc, (0.3, 0.1), (0.02, 0.005, 0.01))
     return nothing
 end
 
