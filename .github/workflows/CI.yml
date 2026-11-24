@@ -6,7 +6,8 @@ on:
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Every commit on main gets a complete run; other refs keep only their newest.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   test:
     name: ${{ matrix.package }} on Julia ${{ matrix.version }}
