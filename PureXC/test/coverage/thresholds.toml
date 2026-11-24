@@ -12,7 +12,7 @@
 "src/composite.jl" = 0.94
 "src/contracts.jl" = 1.00
 "src/driver.jl" = 0.99
-"src/gga/pbe_c.jl" = 0.97
+"src/gga/pbe_c.jl" = 0.98
 "src/gga/pbe_x.jl" = 0.97
 "src/lda/lda_x.jl" = 0.90
 "src/lda/pw92.jl" = 0.96
