@@ -15,6 +15,7 @@
     # writes the executable, so the build log is the only place a finding shows. It must have none.
     build_log = joinpath(dir, "build.log")
     @test success(pipeline(cmd; stdout = build_log, stderr = build_log))
+    print(stderr, read(build_log, String))
     @test isempty(filter(l -> occursin("unresolved call", l) || occursin("Error #", l), readlines(build_log)))
     @test isfile(exe)
     @test !isfile(joinpath(root, "LocalPreferences.toml"))
@@ -22,12 +23,21 @@
     ref, out = joinpath(dir, "ref.bin"), joinpath(dir, "bin.bin")
     entry = joinpath(root, "juliac", "entry.jl")
     @test success(addenv(`$(Base.julia_cmd()) --startup-file=no --project=$root $entry $ref`, env...))
-    errf = joinpath(dir, "stderr.txt")
-    @test success(pipeline(addenv(`$exe $out`, env...); stderr = errf))
-    @test isempty(read(errf, String))
+    errf, outf = joinpath(dir, "stderr.txt"), joinpath(dir, "stdout.txt")
     # 64 points: 6 restricted fields of one row and 21 polarized rows, in Float64.
     @test filesize(ref) == 64 * (6 + 21) * 8
-    @test read(out) == read(ref)
+    # The binary writes the same file with nothing on stdout or stderr, under the default load path
+    # and under one whose load path and active project name StrictMode (the test environment),
+    # which makes a StrictMode built with its banner on print it.
+    testenv = joinpath(root, "test")
+    strictmode_env = ("JULIA_LOAD_PATH" => string("@:", testenv, ":@stdlib"), "JULIA_PROJECT" => testenv)
+    for e in (env, strictmode_env)
+        rm(out; force = true)
+        @test success(pipeline(addenv(`$exe $out`, e...); stdout = outf, stderr = errf))
+        @test isempty(read(outf, String))
+        @test isempty(read(errf, String))
+        @test read(out) == read(ref)
+    end
     # A wrong argument count exits 1 with the usage line.
     p = run(pipeline(ignorestatus(addenv(`$exe`, env...)); stderr = errf))
     @test p.exitcode == 1
