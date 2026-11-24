@@ -17,7 +17,9 @@ jobs:
         package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
         version: ['1.12', '1.13']
         exclude:
-          # PureXC requires Julia 1.13.
+          # PureTaylor and PureXC require Julia 1.13.
+          - package: PureTaylor
+            version: '1.12'
           - package: PureXC
             version: '1.12'
     steps:
