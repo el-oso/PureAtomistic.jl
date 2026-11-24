@@ -386,6 +386,25 @@ end
     @test PureXC._pw92_eps(pw, 2.0f0, 0.25) isa Float64
 end
 
+# A `PW92Correlation` has one number type for its parameters and its thresholds, so a Taylor
+# parameter makes the thresholds Taylor numbers too, and raising a plain density to such a threshold
+# has no method (see #8). The item pins that refusal and its message, restricted and polarized.
+@testitem "PW92 with a Taylor parameter is refused" begin
+    using PureTaylor
+    f0 = lda_c_pw()
+    A = variable(Val(1), Val(1), Val(1), f0.params[1][1])
+    S = typeof(A)
+    series(x) = S((x, zero(x)))
+    params = map(p -> map(series, p), f0.params)
+    params = (Base.setindex(params[1], A, 1), params[2], params[3])
+    t = f0.thresholds
+    pw = PureXC.PW92Correlation{S}(params, series(f0.fz20), PureXC.Thresholds{S}(map(series, (t.density, t.sigma, t.zeta, t.sigma_floor))...))
+    @test_throws MethodError energy_density(pw, 0.3)
+    @test_throws r"no method matching Float64\(::(PureTaylor\.)?Taylor\{" energy_density(pw, 0.3)
+    @test_throws MethodError energy_density(pw, (0.2, 0.1))
+    @test_throws r"no method matching _raise\(::Tuple\{Float64, Float64\}, ::(PureTaylor\.)?Taylor\{" energy_density(pw, (0.2, 0.1))
+end
+
 # The domain limit n_max of an LDA. Oracle: the same functional in BigFloat. Bound (b) of "LDA
 # functionals agree with BigFloat", which covers K ≤ 3: 2100·eps(T) relative to the largest entry of
 # each output, with floatmin(T) as the smallest scale, so that an output whose exact entries all
