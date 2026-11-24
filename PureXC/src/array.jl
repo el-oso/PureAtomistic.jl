@@ -230,9 +230,15 @@ end
 
 _check_views_in_bounds(xs::Vararg{AbstractArray}) = (all(_views_in_bounds, xs) || _throw_view_bounds(); nothing)
 
-_views_in_bounds(a) = _views_in_bounds(a, parent(a))
-_views_in_bounds(a::T, p::T) where {T} = p === a || _views_in_bounds(p)
-_views_in_bounds(a, p) = _views_in_bounds(p)
+# The next array of the parent chain of `a`, or `nothing` when `a` is its root: when it is its own
+# parent, or when its `parent` is not an `AbstractArray` (storage the checks cannot read). The
+# walkers `_views_in_bounds`, `_injective` and `_root` all step through it, so they end the chain
+# at the same array.
+_next_parent(a) = _next_parent(a, parent(a))
+_next_parent(a::T, p::T) where {T} = p === a ? nothing : p
+_next_parent(a, p) = p isa AbstractArray ? p : nothing
+
+_views_in_bounds(a) = (p = _next_parent(a); isnothing(p) || _views_in_bounds(p))
 _views_in_bounds(a::Union{Array, Memory}) = true
 _views_in_bounds(a::SubArray) = checkbounds(Bool, parent(a), parentindices(a)...) && _views_in_bounds(parent(a))
 
@@ -286,9 +292,7 @@ _any_overlap(outs::Tuple, ins::Tuple) =
 _self_overlaps(a::AbstractArray) = !(isempty(a) || _injective(a))
 
 # Whether distinct indices of `a` reach distinct elements of its root.
-_injective(a) = _injective(a, parent(a))
-_injective(a::T, p::T) where {T} = p === a ? _root_injective(a) : _injective(p)
-_injective(a, p) = _injective(p)
+_injective(a) = (p = _next_parent(a); isnothing(p) ? _root_injective(a) : _injective(p))
 _injective(a::Union{Array, Memory}) = true
 function _injective(a::SubArray)
     i = parentindices(a)
@@ -321,9 +325,7 @@ end
 
 # The root of an array, reached through `parent`: the array that is its own parent, or the last
 # array of the chain whose `parent` is not an `AbstractArray` (storage the check cannot read).
-_root(a) = _root(a, parent(a))
-_root(a::T, p::T) where {T} = p === a ? a : _root(p)
-_root(a, p) = p isa AbstractArray ? _root(p) : a
+_root(a) = (p = _next_parent(a); isnothing(p) ? a : _root(p))
 _root(a::Union{Array, Memory}) = a
 
 _ids_intersect(x::Tuple, y::Tuple) = any(i -> any(==(i), y), x)

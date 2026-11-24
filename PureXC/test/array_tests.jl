@@ -765,6 +765,27 @@ end
     @test PureXC._root(BoxMat{false}(Box(y))) isa BoxMat{false}
     @test !_overlaps(BoxMat{false}(Box(y)), y)
     rejects((; e = BoxMat{true}(Box(y)), vrho = fill(42.0, 1, n)), y)
+    # A `parent` that returns an object with no `parent` method ends the chain at the matrix for
+    # all three walkers: none calls `parent` on the object (which would throw a MethodError).
+    struct Box2
+        v::Vector{Float64}
+    end
+    struct Box2Mat <: AbstractMatrix{Float64}
+        b::Box2
+    end
+    Base.size(w::Box2Mat) = (1, length(w.b.v))
+    Base.getindex(w::Box2Mat, i::Int, j::Int) = w.b.v[j]
+    Base.setindex!(w::Box2Mat, v, i::Int, j::Int) = (w.b.v[j] = v)
+    Base.parent(w::Box2Mat) = w.b
+    @test !hasmethod(parent, Tuple{Box2})
+    w = Box2Mat(Box2(fill(42.0, n)))
+    @test PureXC._root(w) === w
+    @test PureXC._views_in_bounds(w)
+    @test PureXC._injective(w)
+    out = merge(xc_outputs(f, Val(1), y), (; e = w))
+    xc_evaluate!(out, f, Val(1), y)
+    @test w == ref.e
+    @test out.vrho == ref.vrho
 end
 
 @testitem "array layer rejects views that leave their parent or overlap themselves" begin
