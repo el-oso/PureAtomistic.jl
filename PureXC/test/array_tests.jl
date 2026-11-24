@@ -363,7 +363,7 @@ end
         println("END OF LOOP")
     end
     """
-    out = read(`$(Base.julia_cmd()) --check-bounds=auto --code-coverage=none --project=$(Base.active_project()) -e $script`, String)
+    out = read(`$(Base.julia_cmd()) --color=no --check-bounds=auto --code-coverage=none --project=$(Base.active_project()) -e $script`, String)
     irs = split(out, "END OF LOOP")[1:6]
     # `vector.body` is the block the loop vectorizer emits; a vector of doubles (`<2 x double>` on
     # 128-bit SIMD, `<4 x double>` on AVX2) alone also appears when only the SLP vectorizer has
