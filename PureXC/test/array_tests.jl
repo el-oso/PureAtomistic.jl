@@ -788,6 +788,14 @@ end
     rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = view(A, 2:2, [1:(n - 1); 1]))), fill(42.0, n))
     rejects(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = view(view(A, 2:2, [1:(n - 1); 1]), :, 1:n))), fill(42.0, n))
     @test all(==(42.0), A)
+    # A view that stores an index which is neither an integer nor an array (the SubArray
+    # constructor keeps a Float64, which `setindex!` on the view refuses) counts as overlapping
+    # itself.
+    P = fill(42.0, 3, 1, n)
+    vf = SubArray(P, (2.0, 1:1, 1:n))
+    @test parentindices(vf)[1] === 2.0
+    @test_throws msg xc_evaluate!(merge(xc_outputs(f, Val(1), fill(1.0, n)), (; e = vf)), f, Val(1), fill(42.0, n))
+    @test all(==(42.0), P)
     # An input with a column index of step zero reads one point n times; an output on another row
     # is apart from it.
     x = fill(42.0, n)
