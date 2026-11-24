@@ -31,7 +31,7 @@ Bounds on every above point:
 | (A) against Libxc | 0 to 2 | \|jl − libxc\| ≤ 1e-6·\|libxc\| per component |
 | (B) conditioning against BigFloat | 0 to 2 | \|jl − big\| ≤ c_B·max(\|libxc − big\|, 4·eps·\|big\|), c_B below |
 | against BigFloat | 3 and 4 | relative error ≤ 1e-6 (order 4 on ten points per population) |
-| against Richardson differences of Libxc's order 2 | 3 | relative error ≤ 1e-3 |
+| Richardson differences of Libxc's order 2 against BigFloat | 3 | relative error ≤ 1e-3 (each entry against the larger of its \|BigFloat\| value and 1e-6 times the field maximum) |
 
 Item (B) measures PureXC's error against Libxc's own distance from the exact value of the same
 formula, so the bound at each point scales with the conditioning of the formula there. The constant c_B and the largest ratio measured over the above points (`C_B`):
