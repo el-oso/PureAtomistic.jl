@@ -74,7 +74,8 @@ seen, is in the docstring of [`xc_evaluate!`](@ref).
 
 - **Allocation and type stability.** `xc_derivatives`, `energy_density` and `xc_evaluate!` allocate
   nothing and are type-stable; the module ends with `@strict_policy (:typestable, :noalloc)` of
-  StrictMode (0.5.20 or later). `xc_outputs` is the one exemption: it returns new arrays.
+  StrictMode (0.5.20 or later). The only exemptions are `xc_outputs` and its helper
+  `_outputs_like`: they return new arrays.
 - **Trimming.** `energy_density`, `xc_derivatives` and `xc_evaluate!` at order 2 pass TrimCheck for
   every shipped functional in `Float64` and `Float32`, and the program `PureXC/juliac/entry.jl`,
   which evaluates `pbe()` with `xc_evaluate!`, builds with `juliac --trim=safe` and writes the same
