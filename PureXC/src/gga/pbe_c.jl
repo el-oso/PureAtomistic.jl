@@ -7,7 +7,7 @@
 Perdew–Burke–Ernzerhof correlation, Libxc's `gga_c_pbe`, in the number type `T`: the gradient
 coefficient `β`, `γ`, the multiplier `B` of the A·t² term of the numerator and the A²t⁴ term of the
 denominator of the bracket of H, and the uniform-gas correlation `pw`
-(a [`PW92Correlation`](@ref)). The ε_ζ of rule 4, in f(ζ) and in φ(ζ), is `thresholds.zeta`; the
+(a [`PW92Correlation`](@ref)). The `ε_ζ` of rule 4, in f(ζ) and in φ(ζ), is `thresholds.zeta`; the
 thresholds of `pw` are not used. Built by [`pbe_c`](@ref).
 """
 struct PBECorrelation{T} <: AbstractGGA{T}

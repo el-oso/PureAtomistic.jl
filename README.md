@@ -8,6 +8,9 @@ A monorepo for pure-Julia atomistic simulation packages.
   barostats, structure relaxation, trajectory and structure I/O, and analysis.
 - `PureTaylor/` is a truncated multivariate Taylor number type, with StrictMode as its
   only dependency, and vectorizable elementary-function kernels.
+- `PureXC/` holds exchange-correlation functionals (LDA exchange, Perdew–Wang 1992 correlation,
+  PBE exchange and correlation), spin-restricted and spin-polarized, with their derivatives to
+  any order through PureTaylor. Libxc is its test oracle only. It requires Julia 1.13.
 
 Goals for every package here:
 
