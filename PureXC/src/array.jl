@@ -192,10 +192,21 @@ end
 # The point loop, after the axes, the outputs and the inputs have been checked.
 _evaluate_points!(out::NamedTuple, f, k::Val, x::Vararg{AbstractArray, N}) where {N} = _evaluate_points_checked!(out, f, k, x...)
 
+# The result type R of the points of `f` and the functional `fe` the point loop evaluates: `f` in its
+# evaluation type (`_functional_in`), converted once before the loop. The outputs of `fe` rounded to
+# R are the outputs of `f`. Converting inside the loop runs the constructor of each converted
+# functional at every point, and its checks (a throw) and stored logarithm (a call) keep LLVM from
+# vectorizing the loop.
+@inline function _loop_functional(f, k::Val, x::Vararg{AbstractArray, N}) where {N}
+    R = promote_type(_number_type(f), map(eltype, x)...)
+    return R, _functional_in(f, R, _evaluation_type(f, R, k))
+end
+
 # The point loop with checked loads.
 function _evaluate_points_checked!(out::NamedTuple, f, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
+    R, fe = _loop_functional(f, k, ρ, σ...)
     for j in _points(ρ)
-        _store_all!(out, _xc_derivatives_unchecked(f, k, _inputs(ρ, σ..., j)...), j)
+        _store_all!(out, _outputs_in(R, _xc_derivatives_unchecked(fe, k, _inputs(ρ, σ..., j)...)), j)
     end
     return nothing
 end
@@ -213,11 +224,12 @@ function _evaluate_points!(
         ρ::Array{<:Base.IEEEFloat}, σ::Vararg{Array{<:Base.IEEEFloat}, M}
     ) where {names, M}
     n = size(ρ, ndims(ρ))
+    R, fe = _loop_functional(f, k, ρ, σ...)
     GC.@preserve out ρ σ begin
         po = map(pointer, values(out))
         px = map(pointer, (ρ, σ...))
         @simd ivdep for j in Base.OneTo(n)
-            _store_all_dense!(po, _xc_derivatives_unchecked(f, k, _dense_inputs(px, (ρ, σ...), j)...), j)
+            _store_all_dense!(po, _outputs_in(R, _xc_derivatives_unchecked(fe, k, _dense_inputs(px, (ρ, σ...), j)...)), j)
         end
     end
     return nothing
