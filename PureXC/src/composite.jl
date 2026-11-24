@@ -8,7 +8,8 @@ belong to one family (LDA or GGA). `energy_density`, `xc_derivatives` and `xc_ev
 weighted terms. Each term is evaluated by its own driver in its own evaluation type
 (`_evaluation_type`), or in Float64 when the XC is Float32 above its `_float32_max_order`; the
 weighted terms are summed in the widest of those types, and each output is rounded once to the
-result type.
+result type. A term may itself be an XC: it is evaluated as its weighted sum, in the evaluation type
+of the outer XC, and rounded with the outer sum.
 """
 struct XC{T, TS <: Tuple} <: AbstractFunctional{T}
     terms::TS
@@ -70,8 +71,10 @@ _plus(x::Tuple, y::Tuple) = ntuple(i -> x[i] + y[i], Val(length(x)))
 end
 @inline _term_outputs(f, k::Val, x::Vararg{Any, N}) where {N} = _evaluate_unrounded(f, k, x...)
 _term_outputs(::AbstractFunctional{<:Taylor}, ::Val, ::Vararg{Any, N}) where {N} = _throw_taylor_parameter()
+# An XC term is its own weighted sum, not rounded: `_terms_in` has already converted its terms to
+# the evaluation type of the outer XC, so the outputs are rounded once, by the outer XC.
 @inline _term_outputs(xc::XC, k::Val, x::Vararg{Any, N}) where {N} =
-    _has_taylor(xc) ? _throw_taylor_parameter() : _evaluate_unrounded(xc, k, x...)
+    _has_taylor(xc) ? _throw_taylor_parameter() : _term_sum(xc.terms, k, x...)
 
 # The terms in the evaluation type S of the XC: unchanged where S is the result type R, each
 # converted to S otherwise (Float64 for a Float32 XC above `_float32_max_order`).

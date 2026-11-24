@@ -160,6 +160,34 @@ end
     @test_throws "xc: ρ" xc_derivatives(pbe(), Val(1), -1.0, 0.1)
 end
 
+# An XC term is its own weighted sum in the evaluation type of the outer XC, rounded once with the
+# outer sum, so the nested XC equals its flattened form exactly. With x and c the outputs of pbe_x
+# and pbe_c, at weight 1 the two sums differ only in the order of commuting additions, (x + c) + x
+# against x + (c + x), and at weight 2 the scaling by 2 is exact. Float32 at order 3 is above
+# `_float32_max_order`: both forms are evaluated in Float64 and rounded once.
+@testitem "an XC term evaluates as its weighted sum" begin
+    using StrictModeTest: @test_noalloc
+    for T in (Float64, Float32)
+        cases = (
+            (XC(((1, pbe(T)), (1, pbe_x(T)))), XC(((1, pbe_x(T)), (1, pbe_c(T)), (1, pbe_x(T))))),
+            (XC(((1, pbe_x(T)), (2, pbe(T)))), XC(((1, pbe_x(T)), (2, pbe_x(T)), (2, pbe_c(T))))),
+        )
+        points = ((T(0.3), T(0.02)), ((T(0.3), T(0.1)), (T(0.02), T(0.005), T(0.01))))
+        for (nested, flat) in cases, x in points
+            for K in (T === Float32 ? (0, 1, 2, 3) : (0, 1, 2))
+                r = xc_derivatives(nested, Val(K), x...)
+                @test r.e isa T
+                @test r == xc_derivatives(flat, Val(K), x...)
+            end
+            @test energy_density(nested, x...) == energy_density(flat, x...)
+        end
+    end
+    nested = XC(((1, pbe()), (1, pbe_x())))
+    # @test_noalloc throws a StrictViolation unless AllocCheck proves the call allocation-free.
+    @test (@test_noalloc xc_derivatives(nested, Val(2), (0.3, 0.1), (0.02, 0.005, 0.01))) isa NamedTuple
+    @test_throws "xc: ρ = -1.0 is negative" xc_derivatives(nested, Val(1), -1.0, 0.1)
+end
+
 # The terms are summed in their evaluation type and each output is rounded once. pbe(Float32) at
 # order 4 is evaluated in Float64 (above `_float32_max_order`); at (1f-10, 8.247848f-32) the terms
 # of v4rho3sigma round to +Inf32 (pbe_x) and -Inf32 (pbe_c), while their sum is -6.03e36. Oracle:

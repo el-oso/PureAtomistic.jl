@@ -65,6 +65,15 @@ function run_workload()
         strict_workload(T)
         PureXC.default_thresholds(T, 1.0e-12, 1.0e-16, 1.0e-16)
         XC(((1, pbe_x(T)), (1, pbe_c(T))))
+        # An XC with an XC term, Float32 above its `_float32_max_order` included.
+        nested = XC(((1, pbe(T)), (1, pbe_x(T))))
+        restricted, polarized = point_inputs(T)
+        for x in (restricted, polarized)
+            energy_density(nested, x...)
+            for k in (Val(0), Val(1), Val(2), Val(3))
+                xc_derivatives(nested, k, x...)
+            end
+        end
     end
     # The methods `@contract` adds to TypeContracts functions, for each interface.
     for I in (AbstractFunctional, AbstractLDA, AbstractGGA)
