@@ -301,12 +301,13 @@ end
         return bits
     end
 
-    # Raw DEFLATE data that inflates to `1 + 258 * nmatch` zero bytes.
-    function zero_run(nmatch::Integer)
+    # Raw DEFLATE data that inflates to `1 + 258 * nmatch` zero bytes (without the literal, a
+    # match that reaches before the start of the output).
+    function zero_run(nmatch::Integer; literal::Bool = true)
         bits = Bool[]
         bits_lsb!(bits, 1, 1)                      # final block
         bits_lsb!(bits, 1, 2)                      # fixed Huffman codes
-        bits_msb!(bits, 0x30, 8)                   # literal 0
+        literal && bits_msb!(bits, 0x30, 8)        # literal 0
         for _ in 1:nmatch
             bits_msb!(bits, 0b11000101, 8)         # length 258
             bits_msb!(bits, 0, 5)                  # distance 1
@@ -456,4 +457,23 @@ end
     @test e isa ArgumentError
     @test occursin("interactions.0.conv_tp degree 1000000, expected at most 4", e.msg)
     @test bytes < 1_000_000
+end
+
+@testitem "malformed DEFLATE data is rejected with a clear error" setup = [DeflateBomb] begin
+    le = DeflateBomb.le
+    # A final stored block whose length and its complement disagree.
+    corrupt = UInt8[0x01, le(UInt16(1))..., le(UInt16(1))..., 0x00]
+    @test_throws "checkpoint: entry t/blob has a corrupt DEFLATE stored block" DeflateBomb.read_blob(DeflateBomb.archive(corrupt, 1))
+    # A final block of the reserved type 3.
+    @test_throws "checkpoint: entry t/blob has a DEFLATE block of invalid type 3" DeflateBomb.read_blob(DeflateBomb.archive(UInt8[0x07], 1))
+    # A match with nothing yet to copy from.
+    @test_throws "checkpoint: entry t/blob has a DEFLATE match reaching before its output" DeflateBomb.read_blob(DeflateBomb.archive(DeflateBomb.zero_run(1; literal = false), 258))
+end
+
+@testitem "a stored or literal DEFLATE block past the declared size is rejected" setup = [DeflateBomb] begin
+    le = DeflateBomb.le
+    stored = UInt8[0x01, le(UInt16(5))..., le(~UInt16(5))..., 1, 2, 3, 4, 5]
+    @test DeflateBomb.read_blob(DeflateBomb.archive(stored, 5, PureMLIP.Checkpoint.crc32(UInt8[1, 2, 3, 4, 5]))) == 5
+    @test_throws "checkpoint: entry t/blob inflates past its declared size of 3 bytes" DeflateBomb.read_blob(DeflateBomb.archive(stored, 3))
+    @test_throws "checkpoint: entry t/blob inflates past its declared size of 0 bytes" DeflateBomb.read_blob(DeflateBomb.archive(DeflateBomb.zero_run(0), 0))
 end
