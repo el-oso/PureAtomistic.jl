@@ -33,13 +33,32 @@ function _spec(d::Dict{String, S}, key::String) where {S}
     return d[key]
 end
 
+# Largest degree an irreps term may have. The edge attributes are checked to be `0..3` and the
+# hidden features to be `0..1`, so no tensor product of the supported architecture couples
+# above 3 + 1; a larger degree sizes a Wigner 3j tensor of `(2l + 1)^3` entries.
+const _MAX_IRREP_L = 4
+
+# Largest number of slots (`mul ÷ C`) one irreps term may hold. A term of a supported layer
+# has a few slots per degree; the bound keeps the slot vectors small when a term lies outside
+# every weight shape that is checked exactly.
+const _MAX_TERM_SLOTS = 4096
+
+function _check_degrees(irreps::Vector{Checkpoint.IrrepMul}, path::String)
+    for ir in irreps
+        ir.l <= _MAX_IRREP_L || _unsupported(string(path, " degree"), ir.l, string("at most ", _MAX_IRREP_L))
+    end
+    return nothing
+end
+
 # Degrees of the slots of `C` channels that hold e3nn irreps whose multiplicities are multiples
 # of `C`, and the first slot of each irreps term.
 function _slots(irreps::Vector{Checkpoint.IrrepMul}, C::Int, path::String)
+    _check_degrees(irreps, path)
     ls = Int[]
     first = Int[]
     for ir in irreps
         (ir.mul > 0 && ir.mul % C == 0) || _unsupported(string(path, " multiplicity"), ir.mul, string("a multiple of ", C))
+        ir.mul ÷ C <= _MAX_TERM_SLOTS || _unsupported(string(path, " slots per term"), ir.mul ÷ C, string("at most ", _MAX_TERM_SLOTS))
         push!(first, length(ls) + 1)
         append!(ls, fill(ir.l, ir.mul ÷ C))
     end
@@ -69,6 +88,10 @@ function _linear_plan(ck::MACECheckpoint, path::String, C_in::Int, C_out::Int)
 end
 
 function _linear(::Type{T}, ck::MACECheckpoint, path::String, C_in::Int, C_out::Int) where {T}
+    # One `[C_in, C_out]` block must fit in the stored weight (compared by division so the
+    # product cannot overflow).
+    nw = length(_f64(ck, path * ".weight").data)
+    C_in <= nw ÷ C_out || _unsupported(string(path, ".weight of length"), nw, string("at least ", C_in, " · ", C_out))
     in_ls, out_ls, ins = _linear_plan(ck, path, C_in, C_out)
     return E3nnLinear{T}(_f64(ck, path * ".weight").data, in_ls, out_ls, ins, C_in, C_out)
 end
@@ -110,6 +133,7 @@ end
 
 # Degrees of the irreps terms, each of multiplicity `mul`.
 function _degrees(irreps::Vector{Checkpoint.IrrepMul}, mul::Int, path::String)
+    _check_degrees(irreps, path)
     for ir in irreps
         ir.mul == mul || _unsupported(string(path, " multiplicity"), ir.mul, mul)
     end
@@ -230,6 +254,8 @@ struct MACEModel{T <: AbstractFloat}
         emb_shapes = [I.path_shape for I in emb_spec.instructions]
         emb_shapes == [[ns, C]] || _unsupported("node_embedding.linear path shapes", emb_shapes, [[ns, C]])
         W_emb = torch_array(_f64(ck, "node_embedding.linear.weight"), Val(1))
+        # `C` comes from the hidden irreps: it must fit the stored weight before `ns * C` is formed.
+        C <= length(W_emb) ÷ max(ns, 1) || _unsupported("node_embedding.linear.weight of length", length(W_emb), string("at least ", ns, " · ", C))
         length(W_emb) == ns * C || _unsupported("node_embedding.linear.weight of length", length(W_emb), ns * C)
         pw = emb_spec.instructions[1].path_weight
         embedding = T[pw * W_emb[(s - 1) * C + w] for w in 1:C, s in 1:ns]

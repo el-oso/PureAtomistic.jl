@@ -96,6 +96,14 @@ function irrep_parity(c::Char, l::Int, s::AbstractString)
     error(lazy"checkpoint: irreps string \"$s\" has an unknown parity $c")
 end
 
+# A term of an irreps string or object: a multiplicity below 1 or a negative degree has no
+# meaning, and the model sizes its arrays from both.
+function irrep_term(mul::Integer, l::Integer, parity::Integer, what::AbstractString)
+    mul >= 1 || error(lazy"checkpoint: irreps \"$what\" has multiplicity $mul, expected at least 1")
+    l >= 0 || error(lazy"checkpoint: irreps \"$what\" has degree $l, expected at least 0")
+    return IrrepMul(Int(mul), Int(l), Int(parity))
+end
+
 # Terms of an e3nn irreps string such as "128x0e + 64x1o"; a term without `x` has
 # multiplicity 1.
 function parse_irreps(s::AbstractString)
@@ -110,7 +118,7 @@ function parse_irreps(s::AbstractString)
         length(ir) >= 2 || error(lazy"checkpoint: malformed irreps string \"$s\"")
         l = tryparse(Int, ir[1:prevind(ir, lastindex(ir))])
         (isnothing(mul) || isnothing(l)) && error(lazy"checkpoint: malformed irreps string \"$s\"")
-        push!(out, IrrepMul(mul, l, irrep_parity(ir[end], l, s)))
+        push!(out, irrep_term(mul, l, irrep_parity(ir[end], l, s), s))
     end
     return out
 end
@@ -136,7 +144,7 @@ function irreps_value(t::PickleTree, idx::Integer, what::String)
         mul, l, p = t.nodes[mi[1]], t.nodes[lp[1]], t.nodes[lp[2]]
         (mul.kind == PK_INT && l.kind == PK_INT && p.kind == PK_INT && (p.int == 1 || p.int == -1)) ||
             error(lazy"checkpoint: $what: malformed irreps term")
-        push!(out, IrrepMul(Int(mul.int), Int(l.int), Int(p.int)))
+        push!(out, irrep_term(mul.int, l.int, p.int, what))
     end
     return out
 end

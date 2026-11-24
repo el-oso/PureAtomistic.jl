@@ -139,6 +139,10 @@ function open_torch_archive(bytes::Vector{UInt8})
         data_offset + csz - 1 <= length(bytes) ||
             throw(ArgumentError(lazy"entry $name extends past the end of the archive (bytes $data_offset to $(data_offset + csz - 1) of $(length(bytes)))"))
         haskey(entries, name) && throw(ArgumentError(lazy"duplicate zip entry: $name"))
+        # DEFLATE expands by at most 1032:1 (a run of 258 bytes costs 2 bits), so a larger
+        # declared size cannot be honest.
+        (method == 0 || sz <= DEFLATE_MAX_RATIO * csz) ||
+            throw(ArgumentError(lazy"checkpoint: entry $name declares $sz bytes, more than DEFLATE can produce from its $csz compressed bytes"))
         entries[name] = ZipEntry(name, data_offset, sz, csz, method, crc)
         if name == "data.pkl" || endswith(name, "/data.pkl")
             isempty(pkl_name) || throw(ArgumentError(lazy"more than one data.pkl entry in the archive: $pkl_name and $name"))
@@ -150,6 +154,61 @@ function open_torch_archive(bytes::Vector{UInt8})
     prefix = pkl_name[1:(end - ncodeunits("data.pkl"))]
     return TorchArchive(bytes, prefix, entries, Set{String}(), Dict{String, Vector{UInt8}}())
 end
+
+# Largest output of DEFLATE per input byte.
+const DEFLATE_MAX_RATIO = 1032
+
+# Decompresses the DEFLATE data `raw` and throws as soon as the output would pass `size`
+# bytes, so the output never grows beyond `size`. This is Inflate's in-memory block loop with
+# a bound on every append: Inflate's own `inflate` has no limit, and its streaming reader
+# holds an abstract `IO`, which makes every caller type-unstable.
+function inflate_bounded(raw::Vector{UInt8}, size::Int, name::AbstractString)
+    too_big() = throw(ArgumentError(lazy"checkpoint: entry $name inflates past its declared size of $size bytes"))
+    data = Inflate.InflateData(raw)
+    out = UInt8[]
+    final_block = false
+    while !final_block
+        final_block = Inflate.getbits(data, 1) == 1
+        mode = Inflate.getbits(data, 2)
+        if mode == 0
+            Inflate.skip_bits_to_byte_boundary(data)
+            len = Inflate.getbits(data, 16)
+            nlen = Inflate.getbits(data, 16)
+            len ⊻ nlen == 0xffff || throw(ArgumentError(lazy"checkpoint: entry $name has a corrupt DEFLATE stored block"))
+            length(out) + len <= size || too_big()
+            append!(out, Inflate.get_input_bytes(data, len))
+            continue
+        elseif mode == 1
+            data.literal_or_length_code = Inflate.fixed_literal_or_length_table
+            data.distance_code = Inflate.fixed_distance_table
+        elseif mode == 2
+            Inflate.read_code_tables(data)
+        else
+            throw(ArgumentError(lazy"checkpoint: entry $name has a DEFLATE block of invalid type 3"))
+        end
+        while true
+            v = Inflate.get_literal_or_length(data)
+            if v < 256
+                length(out) < size || too_big()
+                push!(out, UInt8(v))
+            elseif v == 256
+                break
+            else
+                len = Inflate.getlength(data, v)
+                distance = Inflate.getdist(data)
+                distance <= length(out) ||
+                    throw(ArgumentError(lazy"checkpoint: entry $name has a DEFLATE match reaching before its output"))
+                length(out) + len <= size || too_big()
+                # A match may overlap its own output, so it is copied one byte at a time.
+                for _ in 1:len
+                    push!(out, out[end - distance + 1])
+                end
+            end
+        end
+    end
+    return out
+end
+
 
 """
     entry_data(a::TorchArchive, name) -> view
@@ -166,7 +225,7 @@ function entry_data(a::TorchArchive, name::AbstractString)
         out = get(a.inflated, full, nothing)
         if isnothing(out)
             raw = a.bytes[e.data_offset:(e.data_offset + e.compressed_size - 1)]
-            out = Inflate.inflate(raw)::Vector{UInt8}
+            out = inflate_bounded(raw, e.size, full)
             length(out) == e.size || throw(ArgumentError(lazy"inflated size mismatch in $full"))
             crc32(out) == e.crc || throw(ArgumentError(lazy"CRC mismatch in $full"))
             a.inflated[full] = out
