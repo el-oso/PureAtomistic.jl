@@ -1,13 +1,13 @@
 # Mutation smoke check. Each entry of mutations.toml names a source file (relative to PureXC/; a
 # path into ../PureTaylor names a file of PureXC's path dependency), an exact substring (`find`,
 # which must occur exactly once), a deliberate bug (`replace`) and a regex (`expect`) matched
-# against the names of the test items and test sets expected to fail. An entry with
-# `libxc = true` also instantiates the Libxc environment and runs the Libxc comparison
-# (`test/libxc/runtests.jl`) after the main suite, and its failing test sets count with the items.
-# The script first runs the unmutated package as a control and stops if the suite fails or never
-# reports (with any entry selected that sets `libxc`, the Libxc comparison as well). For each selected entry it then copies PureXC and PureTaylor side by side to
-# a temporary directory, applies the one edit, runs the full test suite in a fresh Julia process
-# and classifies the run:
+# against the names of the test items and test sets expected to fail. An entry with `libxc = true`
+# also instantiates the Libxc environment and runs the Libxc comparison (`test/libxc/runtests.jl`)
+# after the main suite, and its failing test sets count with the items. The script first runs the
+# unmutated package as a control and stops if the suite fails or never reports (with any entry
+# selected that sets `libxc`, the Libxc comparison as well). For each selected entry it then copies
+# PureXC and PureTaylor side by side to a temporary directory, applies the one edit, runs the full
+# test suite in a fresh Julia process and classifies the run:
 #
 #   invalid           the package did not precompile or load, or the suite never reported
 #   killed            a test item failed, and a failing item matches `expect`
