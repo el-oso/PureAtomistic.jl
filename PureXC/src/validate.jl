@@ -61,7 +61,7 @@ also (n, r·n), (n/2, r·n/2) and their mirrors for r every 5e-18 over [5e-17, 4
 1e-18 over [9e-17, 1.3e-16], across ε_ζ/2 and ε_ζ, and r log-spaced over [1e-17, 1e-14]. The bound
 is 2100 eps(R) at K ≤ 3 and 1000 eps(R) above; for PW92 where the factor (1 ± ζ)^(4/3) of the
 smaller channel is kept it adds 8κ·eps(R), κ = 2/(1 − |ζ|), the conditioning of 1 ± ζ formed from ζ
-(spec `lda_c_pw`, section 8); a Float32 call evaluated in Float64 has the bound 50 eps(Float32).
+(spec `lda_c_pw`, section 8); a Float32 call evaluated in Float64 has the bound 5 eps(Float32).
 Measured: Float64 2^767 for K = 0 to 6, then 2^731, 679, 627, 575 for K = 7 to 10; Float32 2^95 for
 K = 0 to 10. For other types and above K = 10 it is not measured. BigFloat and the other types use
 the Float64 p(K), so that, for example, BigFloat at K = 7 rejects n > 2^731.
