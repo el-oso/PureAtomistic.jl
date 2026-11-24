@@ -3,7 +3,8 @@
 
 The thresholds of a functional's PureXC rule, in its number type `T`: the density threshold
 `density`, the reported gradient threshold `sigma` and the spin-polarization threshold `zeta`.
-The floor applied to a σ is `sigma_floor`, which is `sigma^2`.
+The floor applied to a σ is `sigma_floor`, which is `sigma^2`, or `floatmin(Float32)` where that
+is larger in the thresholds `default_thresholds` builds for `Float32`.
 """
 struct Thresholds{T}
     density::T
