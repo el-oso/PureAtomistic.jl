@@ -93,8 +93,10 @@ exactly the grid rows ζ = ±(1 − eps):
 The main suite compares every functional with its exact BigFloat function at orders 0 to 10, at
 sweeps of densities, spin splits and reduced gradients up to the domain limits. The bounds are in
 eps of the result type: for the LDA relative to the largest entry of each output, for the PBE
-functionals per entry against the scale of its order. Each bound above order 3 is about 10 times
-the largest error that `PureXC/test/scans/point_bounds.jl` measures over every point it covers.
+functionals per entry against the scale of its order. Where a row lists a measurement, it is the
+largest error that `PureXC/test/scans/point_bounds.jl` measures over every point it covers. The
+PBE bounds above order 3 are about 10 times that measurement; the LDA bound at orders 4 to 10 is
+about 17 times its largest measurement.
 
 LDA (source: `point_bound` in `PureXC/test/lda_tests.jl`):
 
