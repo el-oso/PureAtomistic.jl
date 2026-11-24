@@ -332,6 +332,20 @@ replace = 'n / 2 >= f.thresholds.density || return nothing'
 expect = "PBE domain limits|the input predicate agrees with the input checks"
 
 [[mutation]]
+name = "pbe-x-domain-channel-alpha"
+file = "src/gga/pbe_x.jl"
+find = 'a > t && _check_reduced_gradient(:s²_α'
+replace = 'a >= t && _check_reduced_gradient(:s²_α'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-x-domain-channel-beta"
+file = "src/gga/pbe_x.jl"
+find = 'b > t && _check_reduced_gradient(:s²_β'
+replace = 'b >= t && _check_reduced_gradient(:s²_β'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
 name = "pbe-c-cutoff-restricted"
 file = "src/gga/pbe_c.jl"
 find = '_cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density'
