@@ -1,10 +1,11 @@
-# Run in a fresh process, with no argument or with the argument `control` (the item "StrictMode
-# gates reject the failing control"): loads the package, runs the workload of `workload.jl` (with
-# `control`, the failing control's workload instead, a method of an unlisted Base function, `abs2`,
-# and a type-unstable method of a listed function), then judges every compiled specialization of
-# the package. Each guarantee is judged on its own, by two engines: the proof (`test_compiled`, JET
-# for `:typestable` and AllocCheck for `:noalloc` and `:noboxing`) and the value-free scan that
-# `@strict_policy` itself applies (`audit` with `sweep = true`, for `:noalloc` and `:noboxing`).
+# Run in a fresh process by the items "StrictMode policy holds in PureXC" (no argument) and
+# "StrictMode gates reject the failing control" (argument `control`): loads the package, runs the
+# workload of `workload.jl` (with `control`, the failing control's workload instead, a method of
+# an unlisted Base function, `abs2`, and a type-unstable method of a listed function), then judges
+# every compiled specialization of the package. Each guarantee is judged on its own, by two
+# engines: the proof (`test_compiled`, JET for `:typestable` and AllocCheck for `:noalloc` and
+# `:noboxing`) and the value-free scan that `@strict_policy` itself applies (`audit` with
+# `sweep = true`, for `:noalloc` and `:noboxing`).
 #
 # The module sweeps judge the functions the package owns. The methods it adds to functions it does
 # not own are judged afterwards, each compiled specialization against the guarantees
