@@ -2,10 +2,10 @@
 # path into ../PureTaylor names a file of PureXC's path dependency), an exact substring (`find`,
 # which must occur exactly once), a deliberate bug (`replace`) and a regex (`expect`) matched
 # against the names of the test items and test sets expected to fail. An entry with
-# `libxc = true` also runs the Libxc comparison (`test/libxc/runtests.jl`) after the main suite,
-# and its failing test sets count with the items. The script first runs the unmutated package as a
-# control and stops if the suite fails (with any entry selected that sets `libxc`, the Libxc
-# comparison as well). For each selected entry it then copies PureXC and PureTaylor side by side to
+# `libxc = true` also instantiates the Libxc environment and runs the Libxc comparison
+# (`test/libxc/runtests.jl`) after the main suite, and its failing test sets count with the items.
+# The script first runs the unmutated package as a control and stops if the suite fails or never
+# reports (with any entry selected that sets `libxc`, the Libxc comparison as well). For each selected entry it then copies PureXC and PureTaylor side by side to
 # a temporary directory, applies the one edit, runs the full test suite in a fresh Julia process
 # and classifies the run:
 #
@@ -117,15 +117,24 @@ function run_suite(m, logdir, name; libxc = false)
         copy_package(TAYLOR_DIR, joinpath(dir, "PureTaylor"))
         isnothing(m) || apply_mutation(dst, m)
         logfile = joinpath(dir, "log.txt")
-        main = `$(Base.julia_cmd()) --project=$dst -e "using Pkg; Pkg.test()"`
-        libxc_env = joinpath(dst, "test", "libxc")
-        second = `$(Base.julia_cmd()) --check-bounds=yes --project=$libxc_env $(joinpath(libxc_env, "runtests.jl"))`
-        # Both commands always run, so that a mutant the main suite misses is still judged by the
-        # Libxc comparison.
-        cmd = libxc ? `sh -c "$main; a=\$?; $second; b=\$?; [ \$a -eq 0 ] && [ \$b -eq 0 ]"` : main
-        limit = isnothing(m) ? Inf : timeout_s()
+        julia = Base.julia_cmd()
+        cmds = [`$julia --project=$dst -e "using Pkg; Pkg.test()"`]
+        if libxc
+            env = joinpath(dst, "test", "libxc")
+            push!(cmds, `$julia --project=$env -e "using Pkg; Pkg.instantiate()"`)
+            push!(cmds, `$julia --check-bounds=yes --project=$env $(joinpath(env, "runtests.jl"))`)
+        end
+        deadline = time() + (isnothing(m) ? Inf : timeout_s())
+        # Every command runs, so that a mutant the main suite misses is still judged by the Libxc
+        # comparison; they share one time limit.
         ok, timed_out = open(logfile, "w") do io
-            run_limited(cmd, io, limit)
+            all_ok = true
+            for cmd in cmds
+                ok_i, late = run_limited(cmd, io, deadline - time())
+                late && return false, true
+                all_ok &= ok_i
+            end
+            return all_ok, false
         end
         log = read(logfile, String)
         isempty(logdir) || write(joinpath(logdir, name * ".log"), log)
@@ -165,7 +174,9 @@ function main(args)
     if get(ENV, "MUTATION_NO_CONTROL", "") == "1"
         println("control (unmutated): skipped")
     else
-        ok, _, _ = run_suite(nothing, logdir, "control"; libxc = any(m -> get(m, "libxc", false), selected))
+        ok, log, _ = run_suite(nothing, logdir, "control"; libxc = any(m -> get(m, "libxc", false), selected))
+        # The control passes only when the suite reported and passed, by the rules of `classify`.
+        ok = first(classify(ok, log, "")) === :survived
         println("control (unmutated): ", ok ? "passed" : "FAILED")
         flush(stdout)
         ok || return 1
