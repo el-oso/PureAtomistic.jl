@@ -1,3 +1,11 @@
+"""
+    PureXC
+
+Exchange-correlation functionals in pure Julia. A functional is an immutable struct of its
+parameters and thresholds; [`xc_derivatives`](@ref) and [`energy_density`](@ref) evaluate it
+at one point, to any derivative order; [`xc_evaluate!`](@ref) and [`xc_outputs`](@ref) evaluate
+it over arrays of points; [`XC`](@ref) sums weighted functionals.
+"""
 module PureXC
 
 using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, fast_exp, fast_expm1, fast_invcbrt, fast_log, fast_log1p, fast_sqrt, power_series, substitute, value, variable
