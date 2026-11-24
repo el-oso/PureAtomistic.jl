@@ -31,7 +31,7 @@ largest order measured to stay within its bound in pure `Float32` (`_float32_max
 | `lda_x` | 10 |
 | `lda_c_pw`, `lda_c_pw_mod` | 2 |
 | `pbe_x`, `pbe_c` | 3 |
-| `XC`, including `pbe` | 2 |
+| `XC`, including `pbe` | 1 |
 
 Above these orders the mixed partials spread over many orders of magnitude (at (1, 1e-6), order 9,
 the order-9 partials of `lda_c_pw` range from 19.8 to 1.4e48), so that intermediate coefficients
@@ -39,9 +39,13 @@ overflow `Float32` where the output fits. An output beyond `floatmax(Float32)` b
 of its sign. The choice depends on the types alone, so it is made when the method is compiled.
 
 An [`XC`](@ref) evaluates each term in its own evaluation type (every term in `Float64` when a
-`Float32` XC is above order 2), sums the weighted terms in the widest of those types and rounds
+`Float32` XC is above order 1), sums the weighted terms in the widest of those types and rounds
 each output once. A sum of terms rounded first could turn two entries
 beyond `floatmax(Float32)` with opposite signs into `Inf - Inf = NaN` where their sum fits.
+The order of an XC is measured on the XC, not taken from its terms: for `pbe(Float32)` at order 2,
+each term evaluated in `Float32` gives an infinity of opposite sign in `v2sigma2` at densities from
+1e-12 to about 1e-11 and small σ, where the exact sum is beyond `floatmax(Float32)` (at (1e-12, 0),
+5.93e43), so a `Float32` sum would be `NaN` (`PureXC/test/scans/xc_float32_order.jl`).
 
 ## Array layer
 

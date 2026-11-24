@@ -210,7 +210,7 @@ end
     end
 end
 
-# pbe(Float32) above its `_float32_max_order`, 2, evaluates pbe_x and pbe_c in Float64 and rounds
+# pbe(Float32) above its `_float32_max_order`, 1, evaluates pbe_x and pbe_c in Float64 and rounds
 # each output once. At order 3 each term alone is evaluated in Float32, and at the entries
 # `order3_entries` counts their Float32 sum is NaN, or an infinity where the exact value fits:
 # on the Libxc oracle grid (`test/libxc/grid.jl`) in Float32, 823 entries (restricted) and 8986

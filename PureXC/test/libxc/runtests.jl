@@ -62,9 +62,10 @@ const C_B = Dict(
 # Bound (c) of the Float32 items, max(|jl32 − big32| − floatmin(Float32), 0) ≤
 # c·eps(Float32)·max(1, κ̂)·|big32| (`float32_ratio`), orders 0 to 4, per functional and spin case:
 # (c, the measured maximum over the above points and the orders 0 to 4, except order 3 of polarized
-# correlation). Each c is about 10 times its measurement. The order-3 maxima of polarized
-# correlation are within c: lda_c_pw 0.45, lda_c_pw_mod 0.47, pbe_c 870.5. pbe() at order 3, which
-# evaluates its terms in Float64 and rounds once: 0.50 (restricted and polarized). The largest pbe_c
+# correlation). Each c is about 10 times its measurement (pbe polarized 12.5 times). The order-3
+# maxima of polarized correlation are within c: lda_c_pw 0.45, lda_c_pw_mod 0.47, pbe_c 870.5.
+# pbe() above order 1, where it evaluates its terms in Float64 and rounds once: at most 0.50
+# (restricted and polarized); its maxima are at order 1, at vsigma. The largest pbe_c
 # values, 1736 (restricted) and 870.5 (polarized), both at v3rho3, are at outputs that are
 # ill-conditioned in the inputs: their condition numbers Σ_i |x_i ∂out/∂x_i| / |out|, measured in
 # BigFloat, are 142.5 and 974.
@@ -74,7 +75,7 @@ const C_32 = Dict(
     ("lda_c_pw_mod", :restricted) => (73, 7.236), ("lda_c_pw_mod", :polarized) => (220, 21.97),
     ("pbe_x", :restricted) => (1600, 160.0), ("pbe_x", :polarized) => (1600, 159.0),
     ("pbe_c", :restricted) => (1.8e4, 1736), ("pbe_c", :polarized) => (1900, 187.2),
-    ("pbe", :restricted) => (4.7e4, 4653), ("pbe", :polarized) => (5500, 549.1),
+    ("pbe", :restricted) => (4.7e4, 4653), ("pbe", :polarized) => (5500, 439.7),
 )
 # The number of known differences per functional and spin case: the polarized rows ζ = ±(1 − eps)
 # of the grid, 2·131 points (LDA) and 2·131·42 (GGA).
@@ -450,10 +451,11 @@ end
 
 # Float32: the accuracy items on the points that, rounded to Float32, are above both the Float64
 # and the Float32 thresholds (the Float32 ε_ζ is eps(Float32)) and straddle neither, and the
-# finiteness item on every grid point. The oracle is the exact function of the Float32 functional
-# (`exact_big(f32)`, its parameters rounded to Float32), so the items measure the evaluation error;
-# κ̂ comes from the Float64 functional and its exact function at the same point. The difference of
-# the two exact functions (the rounding of the parameters) is recorded per order, not gated.
+# finiteness item on every grid point and at `band_points`. The oracle is the exact function of the
+# Float32 functional (`exact_big(f32)`, its parameters rounded to Float32), so the items measure the
+# evaluation error; κ̂ comes from the Float64 functional and its exact function at the same point.
+# The difference of the two exact functions (the rounding of the parameters) is recorded per order,
+# not gated.
 function compare_float32(name, f64, f32, fb, spin, pts, names)
     t64, t32 = thresholds_of(f64), thresholds_of(f32)
     fb32 = exact_big(f32)
@@ -462,7 +464,10 @@ function compare_float32(name, f64, f32, fb, spin, pts, names)
     for p in pts
         q = to_float32(p)
         ab = isabove(q)
-        for (K, orders) in ((2, 0:2), (3, 3:3), (4, 4:4))
+        # Each order is read from the call of that order (orders 0 and 1 from an order-1 call), so
+        # that it is measured in the evaluation type of that call: an XC is evaluated in Float32
+        # only to order 1.
+        for (K, orders) in ((1, 0:1), (2, 2:2), (3, 3:3), (4, 4:4))
             got = fields_at(f32, K, q)
             if isnothing(got)
                 ab && K == 2 && record!(result(name, spin, :rejected32), 1.0 + result(name, spin, :rejected32).value, q, :none)
@@ -470,14 +475,7 @@ function compare_float32(name, f64, f32, fb, spin, pts, names)
             end
             # The exact values are needed only where an output is not finite, or at an above point.
             want32 = all(c -> all(isfinite, c), got) ? nothing : bigfields(fb32, K, q)
-            for k in eachindex(got), i in eachindex(got[k])
-                j = field_order(names[k])
-                (j in orders && !isfinite(got[k][i])) || continue
-                g, w = got[k][i], want32[k][i]
-                item = Symbol(:nonfinite32_order, j)
-                isinf(g) && abs(w) > floatmax(Float32) && sign(g) == sign(w) && continue
-                record!(result(name, spin, item), 1.0 + result(name, spin, item).value, q, names[k])
-            end
+            record_nonfinite32!(name, spin, got, want32, names, orders, q)
             ab && K <= 3 || continue
             want32 = something(want32, bigfields(fb32, K, q))
             K == 2 && (above32 += 1)
@@ -502,7 +500,52 @@ function compare_float32(name, f64, f32, fb, spin, pts, names)
             record!(result(name, spin, :param32_order4), field_relerr(want32[k], want64[k]), q, names[k])
         end
     end
+    for q in band_points(family(f32), spin), (K, orders) in ((1, 0:1), (2, 2:2), (3, 3:3), (4, 4:4))
+        got = fields_at(f32, K, q)
+        isnothing(got) && continue
+        want32 = all(c -> all(isfinite, c), got) ? nothing : bigfields(fb32, K, q)
+        record_nonfinite32!(name, spin, got, want32, names, orders, q)
+    end
     return above32
+end
+
+# The finiteness item: each non-finite output at the orders `orders` of the fields `got` at the
+# Float32 point q is counted, unless it is the infinity of the sign of its exact value `want32`
+# where that exceeds floatmax(Float32).
+function record_nonfinite32!(name, spin, got, want32, names, orders, q)
+    for k in eachindex(got), i in eachindex(got[k])
+        j = field_order(names[k])
+        (j in orders && !isfinite(got[k][i])) || continue
+        g, w = got[k][i], want32[k][i]
+        item = Symbol(:nonfinite32_order, j)
+        isinf(g) && abs(w) > floatmax(Float32) && sign(g) == sign(w) && continue
+        record!(result(name, spin, item), 1.0 + result(name, spin, item).value, q, names[k])
+    end
+    return
+end
+
+# Float32 points of the finiteness item below the grid, at the smallest accepted densities and σ:
+# n = 1e-12 and 21 log-spaced values over [1e-12, 1e-11]; for a GGA, σ = 0 and 10^m for
+# m = −40 … −28 (restricted σ; polarized σ_cc in each channel that is not empty, with σαβ =
+# ±√σαα·√σββ). Polarized splits: one channel empty in either order, equal channels and 9:1. There,
+# at order 2, pbe_x(Float32) and pbe_c(Float32) give v2sigma2 entries beyond floatmax(Float32) of
+# opposite signs, while their exact sum is beyond floatmax(Float32) too (at (1e-12, 0), 5.93e43).
+function band_points(fam, spin)
+    ns = unique(Float32[1.0f-12; Float32.(exp10.(range(-12, -11; length = 21)))])
+    splits(n) = ((n, 0.0f0), (0.0f0, n), (n / 2, n / 2), (Float32(0.9 * n), Float32(0.1 * n)))
+    if fam === :lda
+        spin === :restricted && return [(n,) for n in ns]
+        return [(ρ,) for n in ns for ρ in splits(n)]
+    end
+    σs = Float32[0; Float32.(exp10.(-40:-28))]
+    spin === :restricted && return [(n, σ) for n in ns for σ in σs]
+    pts = Tuple{NTuple{2, Float32}, NTuple{3, Float32}}[((0.0f0, 1.1215681f-12), (0.0f0, -0.0f0, 0.0f0))]
+    for n in ns, ρ in splits(n), σ in σs
+        a, b = iszero(ρ[1]) ? 0.0f0 : σ, iszero(ρ[2]) ? 0.0f0 : σ
+        c = sqrt(a) * sqrt(b)
+        push!(pts, (ρ, (a, c, b)), (ρ, (a, -c, b)))
+    end
+    return pts
 end
 
 # ---------------------------------------------------------------------------------------------

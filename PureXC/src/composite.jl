@@ -33,12 +33,15 @@ pbe(::Type{T} = Float64) where {T} = XC(((1, pbe_x(T)), (1, pbe_c(T))))
 family(xc::XC) = family(xc.terms[1][2])
 kind(::XC) = :exchange_correlation
 _with_number_type(xc::XC, ::Type{S}) where {S} = XC(map(t -> (t[1], _with_number_type(t[2], S)), xc.terms))
-# An XC is evaluated in Float32 to order 2, the default, and every term in Float64 above it. The
-# orders of its terms do not bound it: their outputs can cancel. Measured for pbe(Float32), K32 = 2:
-# at order 3, where pbe_x and pbe_c are each evaluated in Float32, an entry of each term exceeds
-# floatmax(Float32) with opposite signs while their sum fits, so the Float32 sum is Inf - Inf = NaN
-# or an infinity (823 entries restricted, 8986 polarized on the Libxc oracle grid).
-_float32_max_order(::Type{<:XC}) = 2
+# An XC is evaluated in Float32 to order 1, and every term in Float64 above it. The orders of its
+# terms do not bound it: their outputs can cancel or overflow together. Measured for pbe(Float32)
+# over the accepted domain by `test/scans/xc_float32_order.jl`, K32 = 1: at order 2, where pbe_x
+# and pbe_c are each evaluated in Float32, v2sigma2 of each term exceeds floatmax(Float32) with
+# opposite signs at densities from 1e-12 to about 1e-11 and small σ (at (1e-12, 0) pbe_x gives +Inf,
+# pbe_c −Inf, the exact sum 5.93e43), so the Float32 sum is Inf − Inf = NaN (708 entries
+# restricted, 20197 polarized of the scan); at order 3 the same holds for more entries, and on the
+# Libxc oracle grid (823 restricted, 8986 polarized).
+_float32_max_order(::Type{<:XC}) = 1
 
 function _check_inputs(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     foreach(t -> _check_inputs(t[2], k, x...), xc.terms)

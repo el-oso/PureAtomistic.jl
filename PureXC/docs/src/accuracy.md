@@ -59,7 +59,12 @@ max(|jl32 − big32| − floatmin(Float32), 0) ≤ c_32·eps(Float32)·max(1, κ
 with κ̂ the `Float64` error at the same point in ulps of `Float64`: where the formula is
 ill-conditioned, the `Float64` evaluation shows it, and the `Float32` bound grows with it. An
 infinity is accepted only where the exact value is beyond `floatmax(Float32)` with the same sign;
-no other output may be non-finite. The constant and the largest ratio measured (`C_32`):
+no other output may be non-finite. The finiteness check takes every grid point and, below the
+grid, the densities from 1e-12 to 1e-11 with σ from 0 to 1e-28 (`band_points`), where the terms of
+`pbe` at order 2 each exceed `floatmax(Float32)` with opposite signs. Each order is read from a call
+of that order, so it is measured in that call's evaluation type: `pbe` is evaluated in `Float32` at
+orders 0 and 1 and in `Float64` above them, with each output rounded once (its ratios at orders 2
+to 4 are at most 0.50). The constant and the largest ratio measured (`C_32`):
 
 | functional | c_32 restricted | measured | c_32 polarized | measured |
 |---|---|---|---|---|
@@ -68,7 +73,7 @@ no other output may be non-finite. The constant and the largest ratio measured (
 | `lda_c_pw_mod` | 73 | 7.236 | 220 | 21.97 |
 | `pbe_x` | 1600 | 160.0 | 1600 | 159.0 |
 | `pbe_c` | 1.8e4 | 1736 | 1900 | 187.2 |
-| `pbe` | 4.7e4 | 4653 | 5500 | 549.1 |
+| `pbe` | 4.7e4 | 4653 | 5500 | 439.7 |
 
 The measured values exclude order 3 of polarized correlation, whose maxima are within c_32:
 `lda_c_pw` 0.45, `lda_c_pw_mod` 0.47, `pbe_c` 870.5. The largest `pbe_c` values, 1736 (restricted)

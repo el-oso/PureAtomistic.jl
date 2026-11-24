@@ -167,8 +167,8 @@ is compiled.
 
 The largest derivative order at which the functional type `F`, built for Float32 and given Float32
 inputs, is evaluated in Float32: the largest order, measured, at which every output stays within
-its bound in pure Float32. It is at least 2. The default, 2, holds for any functional; a functional
-measured to stay accurate at higher orders defines a method.
+its bound in pure Float32. The default is 2; a functional measured to stay accurate at higher
+orders, or not at order 2, defines a method (an `XC` defines 1).
 """
 _float32_max_order(::Type{<:AbstractFunctional}) = 2
 
