@@ -153,16 +153,22 @@ function _read_config_file(path::AbstractString)
 end
 
 # Frame 0 and every `every`-th step of the run go to the trajectory. Returns the number of steps
-# taken; `system` and `potential` hold the final state.
+# taken; `system` and `potential` hold the final state. The frames are written here, between calls
+# of `run!`, so that `run!` itself does no file IO.
 function _simulate(cfg::MDConfig, system, potential, thermostat, barostat, rng, traj::IO.TrajectoryWriter)::Int
     dt = cfg.dt
     sim = Simulation(system, potential, VelocityVerlet(dt); thermostat, barostat, rng)
-    emit = s -> IO.write_frame(
+    emit(s) = IO.write_frame(
         traj, s.step_count * dt, s.system.positions;
         velocities = s.system.velocities, cell = s.system.cell, energy = s.potential.result.energy
     )
     emit(sim)
-    run!(sim, cfg.steps; every = cfg.every, observer = emit)
+    chunks, rest = divrem(cfg.steps, cfg.every)
+    for _ in 1:chunks
+        run!(sim, cfg.every)
+        emit(sim)
+    end
+    run!(sim, rest)
     return sim.step_count
 end
 

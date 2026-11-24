@@ -21,6 +21,8 @@ export TrajectoryWriter, TrajectoryReader, write_frame, read_frame
 @strict_exempt :noalloc _write_array_value reason = "entry point: formats an array value for `write_extxyz`"
 @strict_exempt :noalloc _write_numbers reason = "entry point: formats numbers for `write_extxyz`"
 @strict_exempt :noalloc read_frame reason = "entry point: trajectory reader, which returns a new frame"
+@strict_exempt :noalloc TrajectoryWriter reason = "entry point: creates the trajectory file and writes its header"
+@strict_exempt :noalloc write_frame reason = "entry point: appends a frame to the trajectory file"
 
 # Last, so that it checks every method defined above.
 @strict_policy (:typestable, :noalloc)

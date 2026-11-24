@@ -83,8 +83,8 @@ mutable struct TrajectoryWriter
     end
 end
 
-Base.close(w::TrajectoryWriter) = (close(w.io); nothing)
-Base.flush(w::TrajectoryWriter) = (flush(w.io); nothing)
+@strict_exempt :noalloc reason = "entry point: closes the trajectory file" Base.close(w::TrajectoryWriter) = (close(w.io); nothing)
+@strict_exempt :noalloc reason = "entry point: flushes the trajectory file" Base.flush(w::TrajectoryWriter) = (flush(w.io); nothing)
 
 # Validate one frame and copy it into the writer's buffers, converting to the stored types.
 # Nothing is written, so this allocates nothing.
@@ -199,7 +199,7 @@ struct TrajectoryReader
     end
 end
 
-Base.close(r::TrajectoryReader) = (close(r.io); nothing)
+@strict_exempt :noalloc reason = "entry point: closes the trajectory file" Base.close(r::TrajectoryReader) = (close(r.io); nothing)
 Base.length(r::TrajectoryReader) = r.nframes
 
 """
