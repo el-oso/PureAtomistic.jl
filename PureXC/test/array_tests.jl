@@ -279,6 +279,37 @@ end
     end
 end
 
+# Outputs that are not `Matrix`es take the checked point loop: views, `OffsetArray`s (with offset
+# inputs, since the point axes must match) and reshaped views of a vector.
+@testitem "array layer allocates nothing on view, OffsetArray and reshape outputs" setup = [ArrayFixtures] begin
+    using .ArrayFixtures
+    using OffsetArrays
+    using StrictModeTest
+    # A function barrier, so that `@allocated` measures the call alone.
+    allocated(out, args) = @allocated xc_evaluate!(out, args...)
+    function wrapped(kind, out, args)
+        kind === :view && return map(a -> view(a, :, :), out), args
+        kind === :reshape && return map(a -> reshape(view(vec(copy(a)), :), size(a)), out), args
+        x = map(a -> OffsetArray(a, ntuple(_ -> 3, ndims(a))...), args[3:end])
+        return map(a -> OffsetArray(a, 3, 3), out), (args[1], args[2], x...)
+    end
+    for T in (Float64, Float32), polarized in (false, true), f in ArrayFixtures.functionals(T), K in (0, 2)
+        ρ, σ = ArrayFixtures.inputs(T, 6; polarized)
+        dense = ArrayFixtures.call(f, Val(K), ρ, σ)
+        for kind in (:view, :offset, :reshape)
+            out, args = wrapped(kind, xc_outputs(dense...), dense)
+            @test xc_evaluate!(out, args...) === out
+            @test allocated(out, args) == 0
+            # @test_noalloc throws a StrictViolation unless AllocCheck proves the call allocation-free.
+            if ArrayFixtures.isgga(f)
+                @test (@test_noalloc xc_evaluate!(out, f, Val(K), args[3], args[4])) === out
+            else
+                @test (@test_noalloc xc_evaluate!(out, f, Val(K), args[3])) === out
+            end
+        end
+    end
+end
+
 @testitem "array loop vectorizes" begin
     # The IR comes from a child process started with `--check-bounds=auto`, the setting of a normal
     # session: the suite runs under `--check-bounds=yes`, which keeps every bounds check and so

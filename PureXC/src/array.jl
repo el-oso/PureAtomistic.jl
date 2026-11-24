@@ -68,12 +68,15 @@ function _point_type(f, k::Val, x::Vararg{AbstractArray, N}) where {N}
 end
 
 # Each output field is a matrix with one row per component and the points of the inputs as columns.
-function _check_out(out::NamedTuple{names}, ::Type{R}, ρ::AbstractArray) where {names, R <: NamedTuple}
-    fieldnames(R) == names || throw(ArgumentError(lazy"xc: out has the fields $names, which differ from those of the derivatives $(fieldnames(R))"))
-    V = fieldtypes(R)
-    pts = _points(ρ)
-    ntuple(i -> _check_field(names[i], out[i], V[i], ρ, pts), Val(length(names)))
-    return nothing
+# Field by field in generated code, so that each `_check_field` call has the concrete type of its
+# output field and of its component type.
+@generated function _check_out(out::NamedTuple{names}, ::Type{R}, ρ::AbstractArray) where {names, R <: NamedTuple}
+    if fieldnames(R) != names
+        msg = "xc: out has the fields $names, which differ from those of the derivatives $(fieldnames(R))"
+        return :(throw(ArgumentError($msg)))
+    end
+    checks = (:(_check_field($(QuoteNode(n)), out.$n, $(fieldtype(R, n)), ρ, pts)) for n in names)
+    return Expr(:block, :(pts = _points(ρ)), checks..., :(return nothing))
 end
 
 function _check_field(n, a, ::Type{T}, ρ, pts) where {T}
