@@ -758,6 +758,10 @@ end
     @test occursin("the last `AbstractArray` of the chain when a `parent` returns something that is not an `AbstractArray`", doc)
     @test occursin("(a `parent` that returns something other than an `AbstractArray` counts as none)", doc)
     y = fill(42.0, n)
+    # A lazy input is a root with no address range; it is compared by Base.dataids.
+    r = StepRangeLen(42.0, 0.0, n)
+    @test isnothing(PureXC._extent(PureXC._root(r)))
+    @test xc_evaluate!(xc_outputs(f, Val(1), r), f, Val(1), r) == ref
     @test PureXC._root(BoxMat{false}(Box(y))) isa BoxMat{false}
     @test !_overlaps(BoxMat{false}(Box(y)), y)
     rejects((; e = BoxMat{true}(Box(y)), vrho = fill(42.0, 1, n)), y)
