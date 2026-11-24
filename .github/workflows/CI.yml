@@ -15,13 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
-        version: ['1.12', '1.13']
-        exclude:
-          # PureTaylor and PureXC require Julia 1.13.
-          - package: PureTaylor
-            version: '1.12'
-          - package: PureXC
-            version: '1.12'
+        # Every package requires Julia 1.13.
+        version: ['1.13']
     steps:
       - uses: actions/checkout@v4
       # PureAtomistic's tests load checkpoints through PureMLIP's checkpoint cache.
@@ -111,7 +106,7 @@ jobs:
       fail-fast: false
       matrix:
         package: [PureMLIP, PureAtomistic]
-        version: ['1.12', '1.13']
+        version: ['1.13']
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

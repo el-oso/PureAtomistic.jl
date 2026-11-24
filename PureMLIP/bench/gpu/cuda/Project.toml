@@ -13,4 +13,4 @@ PureMLIP = {path = "../../.."}
 CUDA = "5"
 JSON = "1.6"
 KernelAbstractions = "0.10"
-julia = "1.12"
+julia = "1.13"
