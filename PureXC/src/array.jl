@@ -303,7 +303,6 @@ _root_injective(a) =
 _injective_index(i) = false
 _injective_index(::Union{Integer, CartesianIndex}) = true
 _injective_index(r::AbstractRange) = length(r) <= 1 || !iszero(step(r))
-_injective_index(::Base.LogicalIndex) = true
 _injective_index(v::AbstractArray) = allunique(v)
 
 _overlaps_any(a, ::Tuple{}) = false
