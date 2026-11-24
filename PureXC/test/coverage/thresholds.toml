@@ -7,8 +7,6 @@
 #   never record a count. They are the only uncovered lines of src/PureXC.jl, src/composite.jl,
 #   src/driver.jl, src/gga/pbe_c.jl, src/gga/pbe_x.jl, src/lda/lda_x.jl, src/lda/pw92.jl and
 #   src/validate.jl.
-# - src/array.jl also has `_extent(a)`, which no argument reaches: the root that `_root` returns is an
-#   `AbstractArray`, which the `_extent(::AbstractArray)` method takes.
 "src/PureXC.jl" = 0.00
 "src/array.jl" = 0.93
 "src/composite.jl" = 0.94

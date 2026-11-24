@@ -332,7 +332,6 @@ _ids_intersect(x::Tuple, y::Tuple) = any(i -> any(==(i), y), x)
 # bits type (`sizeof` of either is its length times its element size), or a nonempty root of a bits
 # type that defines `strides` and whose `pointer` is a `Ptr`, with the element size `Base.elsize` of
 # its type, or `sizeof` of its element type when the type defines no `Base.elsize`.
-_extent(a) = nothing
 function _extent(a::Union{Array, Memory})
     isbitstype(eltype(a)) || return nothing
     p = UInt(pointer(a))
