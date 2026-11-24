@@ -7,12 +7,11 @@
 #   never record a count. They are the only uncovered lines of src/PureXC.jl, src/composite.jl,
 #   src/driver.jl, src/gga/pbe_c.jl, src/gga/pbe_x.jl, src/lda/lda_x.jl, src/lda/pw92.jl and
 #   src/validate.jl.
-# - src/array.jl also has three methods that no argument reaches: `_injective_index(i)` (a view's
-#   index is an integer or an array), `_injective_index(::Base.LogicalIndex)` (`view` stores a logical
-#   index as a vector of integers) and `_extent(a)` (a root found through `parent` is an array).
+# - src/array.jl also has `_extent(a)`, which no argument reaches: the root that `_root` returns is an
+#   `AbstractArray`, which the `_extent(::AbstractArray)` method takes.
 "src/PureXC.jl" = 0.00
 "src/array.jl" = 0.93
-"src/composite.jl" = 0.92
+"src/composite.jl" = 0.94
 "src/contracts.jl" = 1.00
 "src/driver.jl" = 0.99
 "src/gga/pbe_c.jl" = 0.97
