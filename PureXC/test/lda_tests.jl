@@ -409,7 +409,7 @@ end
             for ρ in (n, (n, zero(T)), (zero(T), n), (n / 2, n / 2), (n / 4 * 3, n / 4))
                 K <= 3 && @test within(f, fbig, K, ρ, T)
             end
-            for ρ in (2n, nextfloat(n), (nextfloat(n), zero(T)), (zero(T), nextfloat(n)), (n / 2, n), (floatmax(T), floatmax(T)))
+            for ρ in (2n, nextfloat(n), (nextfloat(n), zero(T)), (zero(T), nextfloat(n)), (n / 2, n), (floatmax(T), floatmax(T)), (floatmax(T), zero(T)), (zero(T), floatmax(T)))
                 @test_throws ArgumentError xc_derivatives(f, Val(K), ρ)
                 @test_throws "xc: total density" xc_derivatives(f, Val(K), ρ)
             end

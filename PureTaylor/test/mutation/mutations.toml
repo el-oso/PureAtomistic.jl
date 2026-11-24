@@ -83,8 +83,8 @@ expect = "inverse and division"
 [[mutation]]
 name = "inverse-numerator"
 file = "src/arith.jl"
-find = 'inv(a::Taylor) = _div(one(a), a)'
-replace = 'inv(a::Taylor) = _div(a, a)'
+find = '@inline _inv_operation(::Val{true}, a) = _div(one(a), a)'
+replace = '@inline _inv_operation(::Val{true}, a) = _div(a, a)'
 expect = "inverse and division"
 
 [[mutation]]
@@ -539,7 +539,23 @@ expect = "loop division equals the unrolled division"
 name = "loop-product-unfused-add"
 file = "src/arith.jl"
 find = '''        x, y = a.c[i], b.c[ib[q]]
-        acc = first ? x * y : fma(x, y, acc)'''
+        acc = first ? x * y : _fma(x, y, acc)'''
 replace = '''        x, y = a.c[i], b.c[ib[q]]
         acc = first ? x * y : x * y + acc'''
 expect = "loop product equals the unrolled product"
+
+# The multiply-add of the kernels: one rounding for the IEEE floats and BigFloat.
+
+[[mutation]]
+name = "fma-unfused"
+file = "src/loops.jl"
+find = 'where {T <: Union{Float16, Float32, Float64, BigFloat}} = fma(x, y, z)'
+replace = 'where {T <: Union{Float16, Float32, Float64, BigFloat}} = x * y + z'
+expect = "Float32, Float64 and BigFloat results match the reference checksums"
+
+[[mutation]]
+name = "fma-type-split"
+file = "src/loops.jl"
+find = 'where {T <: Union{Float16, Float32, Float64, BigFloat}} = fma(x, y, z)'
+replace = 'where {T <: Union{Float16, Float32, BigFloat}} = fma(x, y, z)'
+expect = "Float32, Float64 and BigFloat results match the reference checksums"

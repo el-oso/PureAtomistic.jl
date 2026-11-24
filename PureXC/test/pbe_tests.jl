@@ -323,6 +323,7 @@ end
     # Libxc reports it (spec gga_x_pbe, section 5). Exact: constants.
     @test pbe_c().γ == 0.031090690869654894
     @test pbe_c(Float32).γ == Float32((1 - log(big(2))) / big(π)^2)
+    @test pbe_c(BigFloat).γ == (1 - log(big(2))) / big(π)^2
     @test (pbe_c().β, pbe_c().B) == (0.06672455060314922, 1.0)
     @test (pbe_x().κ, pbe_x().μ) == (0.804, 0.2195149727645171)
     @test pbe_c().pw == lda_c_pw_mod()
@@ -392,6 +393,9 @@ end
     # Oracle: the spec's zk = −6.6604e-5 at n = 1e-12 (σ = 0). Tolerance (a): half a unit in the
     # last printed digit.
     @test abs(xc_derivatives(f, Val(0), 1.0e-12, 0.0).e / 1.0e-12 + 6.6604e-5) <= 0.5e-9
+    # At a total density of exactly n_thr the point is kept, polarized as restricted (rule 1 is strict).
+    @test xc_derivatives(f, Val(0), (1.0e-12, 0.0), (0.0, 0.0, 0.0)).e < 0
+    @test xc_derivatives(f, Val(0), (0.5e-12, 0.5e-12), (0.0, 0.0, 0.0)).e < 0
     for n in (1.999e-12, 2.001e-12)
         @test xc_derivatives(f, Val(0), n, 0.0).e < 0
     end
@@ -482,6 +486,7 @@ end
 # (1e5, 0) it rounds to 0 and they are replaced, so v2rho2_ββ is moderate. Only the qualitative
 # effect is checked, as above.
 @testitem "pbe_c ζ-factor at the rounded 1 − ζ = ε_ζ" begin
+    using PureTaylor: variable, derivatives
     f = pbe_c()
     t = f.thresholds.density
     ζ(a) = (a - t) / (a + t)
@@ -490,6 +495,13 @@ end
     @test abs(xc_derivatives(f, Val(2), (8000.0, 0.0), (1.0, 0.0, 0.0)).v2rho2[3]) > 100
     small = xc_derivatives(f, Val(2), (1.0e5, 0.0), (1.0, 0.0, 0.0)).v2rho2[3]
     @test isfinite(small) && abs(small) < 1
+    # The factor (1 + x)^(2/3) of φ alone: its series is kept at 1 + x = ε_ζ and replaced by a
+    # constant below (rule 4, strict). Exact: a zero derivative.
+    ε = f.thresholds.zeta
+    kept = PureXC._pbe_pow23(variable(Val(1), Val(1), Val(1), ε), ε)
+    gone = PureXC._pbe_pow23(variable(Val(1), Val(1), Val(1), prevfloat(ε)), ε)
+    @test !iszero(derivatives(kept, (1.0,))[2])
+    @test iszero(derivatives(gone, (1.0,))[2])
 end
 
 # Review focus 1: a fully polarized point gives finite values at every order, equal to the rule's

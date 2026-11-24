@@ -431,3 +431,6 @@ end
     end
     return :(NamedTuple{$names}($(Expr(:tuple, fields...))))
 end
+
+@strict_exempt :noalloc xc_outputs reason = "returns newly allocated output arrays"
+@strict_exempt :noalloc _outputs_like reason = "returns newly allocated output arrays"

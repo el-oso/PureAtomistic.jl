@@ -427,3 +427,30 @@ end
     @test_throws "xc: " xc_derivatives(f, Val(1), (1.0, 2.0), (0.25, 0.0, 0.25))
     @test_throws "xc: " PureXC._xc_derivatives_unchecked(f, Val(1), 3.0, 0.5)
 end
+
+# The LDA form: e = c·ρ² with c = 2 + u. A sum `XC` with a Taylor-typed term refuses xc_derivatives
+# as its term does.
+@testitem "energy_density of an LDA with a Taylor parameter" begin
+    using PureTaylor
+    struct _ParamLDA{T} <: PureXC.AbstractLDA{T}
+        c::T
+        thresholds::PureXC.Thresholds{Float64}
+    end
+    PureXC._energy_density(f::_ParamLDA, ρ) = f.c * ρ^2
+    PureXC._energy_density(f::_ParamLDA, ρ::Tuple) = f.c * (ρ[1] + ρ[2])^2
+    PureXC._cutoff(::_ParamLDA, ρ) = false
+    c = variable(Val(1), Val(1), Val(1), 2.0)
+    f = _ParamLDA(c, PureXC.Thresholds{Float64}(1.0e-15, 1.0e-20, eps(Float64)))
+    # Exact: e = 2·9 = 18 and ∂e/∂c = ρ² = 9, products of integers.
+    e = energy_density(f, 3.0)
+    @test e isa Taylor
+    @test derivatives(e, (1.0,)) == (18.0, 9.0)
+    @test derivatives(energy_density(f, (1.0, 2.0)), (1.0,)) == (18.0, 9.0)
+    @test_throws "xc: " energy_density(f, -1.0)
+    @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(f, Val(1), 3.0)
+    @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(f, Val(0), (1.0, 2.0))
+    f0 = pbe_x()
+    κ = variable(Val(1), Val(1), Val(1), f0.κ)
+    xc = XC(((1, PureXC.PBEExchange{typeof(κ)}(κ, f0.μ, f0.thresholds)),))
+    @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(xc, Val(1), 0.3, 0.02)
+end

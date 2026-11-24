@@ -1,7 +1,7 @@
 module PureXC
 
 using PureTaylor: PureTaylor, Taylor, derivatives, fast_cbrt, fast_exp, fast_expm1, fast_invcbrt, fast_log, fast_log1p, fast_sqrt, power_series, substitute, value, variable
-using StrictMode: @strict_policy
+using StrictMode: @strict_exempt, @strict_policy
 using TypeContracts: @contract, Self
 
 """

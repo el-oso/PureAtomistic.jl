@@ -9,3 +9,4 @@ node_modules
 *.cov
 PureAtomistic/juliac/build/
 LocalPreferences.toml
+PureXC/juliac/build/

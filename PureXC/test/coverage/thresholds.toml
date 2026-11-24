@@ -1,0 +1,23 @@
+# Minimum line coverage per source file (covered / coverable lines), checked by check.jl.
+# A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
+# Rows below 1.00 and the lines that keep them there:
+# - Methods whose body is a constant (`family`, `kind`, `_float32_max_order`, `_ncomp`, the ends of the
+#   recursions over tuples, the `true`/`false` cases of the overlap and domain predicates) and the
+#   identity `_series_with_value(::Real, v)` are called, but folded into their callers, so their lines
+#   never record a count. They are the only uncovered lines of src/PureXC.jl, src/composite.jl,
+#   src/driver.jl, src/gga/pbe_c.jl, src/gga/pbe_x.jl, src/lda/lda_x.jl, src/lda/pw92.jl and
+#   src/validate.jl.
+# - src/array.jl also has three methods that no argument reaches: `_injective_index(i)` (a view's
+#   index is an integer or an array), `_injective_index(::Base.LogicalIndex)` (`view` stores a logical
+#   index as a vector of integers) and `_extent(a)` (a root found through `parent` is an array).
+"src/PureXC.jl" = 0.00
+"src/array.jl" = 0.93
+"src/composite.jl" = 0.92
+"src/contracts.jl" = 1.00
+"src/driver.jl" = 0.99
+"src/gga/pbe_c.jl" = 0.97
+"src/gga/pbe_x.jl" = 0.97
+"src/lda/lda_x.jl" = 0.90
+"src/lda/pw92.jl" = 0.96
+"src/thresholds.jl" = 1.00
+"src/validate.jl" = 0.98

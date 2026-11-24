@@ -1,7 +1,9 @@
 name: Mutation
 # Run by hand: each mutation runs the full test suite. For PureAtomistic that is 282 s per run, control
 # included, so its 163 entries are split into four shards of about 41 entries (about 200 minutes
-# each, under the 360-minute job limit).
+# each, under the 360-minute job limit). PureXC takes about 14 minutes per entry on an Apple
+# M-series machine with five other runs in parallel (not measured on the CI runner), so its 70
+# entries are split into five shards.
 on:
   workflow_dispatch:
 jobs:
@@ -19,6 +21,11 @@ jobs:
           - {package: PureAtomistic, shard: 3/4}
           - {package: PureAtomistic, shard: 4/4}
           - {package: PureTaylor, shard: ''}
+          - {package: PureXC, shard: 1/5}
+          - {package: PureXC, shard: 2/5}
+          - {package: PureXC, shard: 3/5}
+          - {package: PureXC, shard: 4/5}
+          - {package: PureXC, shard: 5/5}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -33,9 +40,9 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
           MUTATION_SHARD: ${{ matrix.shard }}
         run: julia ${{ matrix.package }}/test/mutation/run.jl
-      # PureTaylor has no extension files.
+      # PureTaylor and PureXC have no extension files.
       - name: Apply each extension mutation and run the :gpu items on the CPU backend
-        if: matrix.package != 'PureTaylor'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
         env:
           MUTATION_SUITE: gpu
           MUTATION_SHARD: ${{ matrix.shard }}

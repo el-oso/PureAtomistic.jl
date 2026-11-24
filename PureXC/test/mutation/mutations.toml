@@ -1,0 +1,530 @@
+# Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to PureXC/ (a path
+# into ../PureTaylor names a file of the path dependency); `find` must occur exactly once in it;
+# `expect` is a regex matched against the names of the test items (and, with `libxc = true`, the
+# test sets of the Libxc comparison) expected to fail.
+
+# Constants of section 5 of `specs/lda/lda_x.md`: the prefactors of (E2) and (E3).
+
+[[mutation]]
+name = "lda-x-prefactor-restricted"
+file = "src/lda/lda_x.jl"
+find = 'cbrt(3 / convert(R, π))) * _pow43(n)'
+replace = 'cbrt(4 / convert(R, π))) * _pow43(n)'
+expect = "reference values of the LDA functionals"
+
+[[mutation]]
+name = "lda-x-prefactor-polarized"
+file = "src/lda/lda_x.jl"
+find = 'cbrt(6 / convert(R, π))) * (_lda_x_channel'
+replace = 'cbrt(5 / convert(R, π))) * (_lda_x_channel'
+expect = "reference values of the LDA functionals"
+
+# Constants of section 5 of `specs/lda/lda_c_pw.md` and `specs/lda/lda_c_pw_mod.md`: α₁ and β₁ to
+# β₄ of the three sets (shared by both), A of each set of each variant, f''(0) of each, and
+# 2^(4/3) − 2.
+
+[[mutation]]
+name = "pw92-alpha1-set0"
+file = "src/lda/pw92.jl"
+find = '(0.2137, 7.5957,'
+replace = '(0.2147, 7.5957,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta1-set0"
+file = "src/lda/pw92.jl"
+find = '7.5957,'
+replace = '7.6957,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta2-set0"
+file = "src/lda/pw92.jl"
+find = '3.5876,'
+replace = '3.6876,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta3-set0"
+file = "src/lda/pw92.jl"
+find = '1.6382,'
+replace = '1.7382,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta4-set0"
+file = "src/lda/pw92.jl"
+find = '0.49294)'
+replace = '0.59294)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-alpha1-set1"
+file = "src/lda/pw92.jl"
+find = '(0.20548,'
+replace = '(0.21548,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta1-set1"
+file = "src/lda/pw92.jl"
+find = '14.1189,'
+replace = '14.2189,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta2-set1"
+file = "src/lda/pw92.jl"
+find = '6.1977,'
+replace = '6.2977,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta3-set1"
+file = "src/lda/pw92.jl"
+find = '3.3662,'
+replace = '3.4662,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta4-set1"
+file = "src/lda/pw92.jl"
+find = '0.62517)'
+replace = '0.72517)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-alpha1-set2"
+file = "src/lda/pw92.jl"
+find = '(0.11125,'
+replace = '(0.12125,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta1-set2"
+file = "src/lda/pw92.jl"
+find = '10.357,'
+replace = '10.457,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta2-set2"
+file = "src/lda/pw92.jl"
+find = '3.6231,'
+replace = '3.7231,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta3-set2"
+file = "src/lda/pw92.jl"
+find = '0.88026,'
+replace = '0.98026,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-beta4-set2"
+file = "src/lda/pw92.jl"
+find = '0.49671)'
+replace = '0.59671)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-A-set0"
+file = "src/lda/pw92.jl"
+find = '(0.031091,'
+replace = '(0.031191,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-A-set1"
+file = "src/lda/pw92.jl"
+find = ' 0.015545,'
+replace = ' 0.015645,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-A-set2"
+file = "src/lda/pw92.jl"
+find = ' 0.016887)'
+replace = ' 0.016987)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-mod-A-set0"
+file = "src/lda/pw92.jl"
+find = '(0.0310907,'
+replace = '(0.0311907,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-mod-A-set1"
+file = "src/lda/pw92.jl"
+find = '(0.0310907, 0.01554535,'
+replace = '(0.0310907, 0.01564535,'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-mod-A-set2"
+file = "src/lda/pw92.jl"
+find = ' 0.0168869)'
+replace = ' 0.0169869)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-fz20-rounded"
+file = "src/lda/pw92.jl"
+find = 'convert(T, 1.709921)'
+replace = 'convert(T, 1.719921)'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-fz20-exact"
+file = "src/lda/pw92.jl"
+find = 'const _FZ20_EXACT = 4 / (9 * (cbrt(big(2)) - 1))'
+replace = 'const _FZ20_EXACT = 4 / (9 * (cbrt(big(2)) - 1.01))'
+expect = "PW92 constants|reference values of the LDA functionals"
+
+[[mutation]]
+name = "pw92-f-zeta-denominator"
+file = "src/lda/pw92.jl"
+find = '(cbrt(convert(R, 16)) - 2)'
+replace = '(cbrt(convert(R, 17)) - 2)'
+expect = "reference values of the LDA functionals"
+
+# Constants of section 5 of `specs/gga/gga_x_pbe.md`: κ, μ, the prefactor (3/4)(3/π)^(1/3) (and
+# its polarized form) and 4(3π²)^(2/3) (and 4(6π²)^(2/3) of a channel).
+
+[[mutation]]
+name = "pbe-x-kappa"
+file = "src/gga/pbe_x.jl"
+find = '0.804, 0.2195149727645171,'
+replace = '0.814, 0.2195149727645171,'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-x-mu"
+file = "src/gga/pbe_x.jl"
+find = '0.804, 0.2195149727645171,'
+replace = '0.804, 0.2295149727645171,'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-x-prefactor-restricted"
+file = "src/gga/pbe_x.jl"
+find = 'cbrt(3 / convert(R, π))) * _pbe_x_term'
+replace = 'cbrt(4 / convert(R, π))) * _pbe_x_term'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-x-prefactor-polarized"
+file = "src/gga/pbe_x.jl"
+find = 'cbrt(6 / convert(R, π))) * channels'
+replace = 'cbrt(5 / convert(R, π))) * channels'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-x-s2-coefficient-restricted"
+file = "src/gga/pbe_x.jl"
+find = '_pbe_x_c3(::Type{R}) where {R} = 4 * cbrt(3'
+replace = '_pbe_x_c3(::Type{R}) where {R} = 5 * cbrt(3'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-x-s2-coefficient-polarized"
+file = "src/gga/pbe_x.jl"
+find = '_pbe_x_c6(::Type{R}) where {R} = 4 * cbrt(6'
+replace = '_pbe_x_c6(::Type{R}) where {R} = 5 * cbrt(6'
+expect = "reference values of the PBE functionals"
+
+# Constants of section 5 of `specs/gga/gga_c_pbe.md`: β, γ, the multiplier B and the PW92
+# variant.
+
+[[mutation]]
+name = "pbe-c-beta"
+file = "src/gga/pbe_c.jl"
+find = 'convert(T, 0.06672455060314922)'
+replace = 'convert(T, 0.06772455060314922)'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-c-gamma"
+file = "src/gga/pbe_c.jl"
+find = 'const _PBE_GAMMA_EXACT = (1 - log(big(2))) / big(π)^2'
+replace = 'const _PBE_GAMMA_EXACT = (1 - log(big(2.01))) / big(π)^2'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-c-multiplier-B"
+file = "src/gga/pbe_c.jl"
+find = '_pbe_gamma(T), one(T), lda_c_pw_mod(T)'
+replace = '_pbe_gamma(T), convert(T, 2), lda_c_pw_mod(T)'
+expect = "reference values of the PBE functionals"
+
+[[mutation]]
+name = "pbe-c-pw92-variant"
+file = "src/gga/pbe_c.jl"
+find = '_pbe_gamma(T), one(T), lda_c_pw_mod(T)'
+replace = '_pbe_gamma(T), one(T), lda_c_pw(T)'
+expect = "reference values of the PBE functionals"
+
+# Threshold comparisons of the rules (`<` against `≤`) and the σ floor, the square of the reported
+# threshold.
+
+[[mutation]]
+name = "lda-x-cutoff-restricted"
+file = "src/lda/lda_x.jl"
+find = 'ρ / 2 <= f.thresholds.density'
+replace = 'ρ / 2 < f.thresholds.density'
+expect = "lda_x per-channel rule"
+
+# lda_x's polarized rule 1 (n_α + n_β < n_thr) has no entry: where n_α + n_β = n_thr each channel is
+# at most n_thr, so its per-channel rule (`lda-x-channel-rule`) gives exact zeros either way.
+
+[[mutation]]
+name = "lda-x-channel-rule"
+file = "src/lda/lda_x.jl"
+find = 'ifelse(value(ρσ) <= thr, zero(t), t)'
+replace = 'ifelse(value(ρσ) < thr, zero(t), t)'
+expect = "lda_x per-channel rule"
+
+[[mutation]]
+name = "pw92-cutoff-restricted"
+file = "src/lda/pw92.jl"
+find = '_cutoff(pw::PW92Correlation, ρ::Real) = ρ < pw.thresholds.density'
+replace = '_cutoff(pw::PW92Correlation, ρ::Real) = ρ <= pw.thresholds.density'
+expect = "LDA cut-off at the density threshold"
+
+[[mutation]]
+name = "pw92-cutoff-polarized"
+file = "src/lda/pw92.jl"
+find = 'ρ[1] + ρ[2] < pw.thresholds.density'
+replace = 'ρ[1] + ρ[2] <= pw.thresholds.density'
+expect = "LDA cut-off at the density threshold"
+
+[[mutation]]
+name = "pw92-zeta-factor-strict"
+file = "src/lda/pw92.jl"
+find = 'ifelse(value(y) < εζ, zero(t) + εζ * fast_cbrt(εζ), t)'
+replace = 'ifelse(value(y) <= εζ, zero(t) + εζ * fast_cbrt(εζ), t)'
+expect = "PW92 ζ-factor at the rounded 1 − ζ = ε_ζ"
+
+[[mutation]]
+name = "pbe-x-cutoff-restricted"
+file = "src/gga/pbe_x.jl"
+find = '_cutoff(f::PBEExchange, ρ::Real, σ::Real) = ρ / 2 <= f.thresholds.density'
+replace = '_cutoff(f::PBEExchange, ρ::Real, σ::Real) = ρ / 2 < f.thresholds.density'
+expect = "pbe_x cut-off and per-channel rule"
+
+# pbe_x's polarized rule 1 has no entry, for the reason given for lda_x's (`pbe-x-channel-rule`).
+
+[[mutation]]
+name = "pbe-x-channel-rule"
+file = "src/gga/pbe_x.jl"
+find = 'ifelse(value(ρσ) <= thr.density, zero(t), t)'
+replace = 'ifelse(value(ρσ) < thr.density, zero(t), t)'
+expect = "pbe_x cut-off and per-channel rule"
+
+[[mutation]]
+name = "pbe-x-domain-channel-restricted"
+file = "src/gga/pbe_x.jl"
+find = 'n / 2 > f.thresholds.density || return nothing'
+replace = 'n / 2 >= f.thresholds.density || return nothing'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-c-cutoff-restricted"
+file = "src/gga/pbe_c.jl"
+find = '_cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density'
+replace = '_cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ <= f.thresholds.density'
+expect = "pbe_c cut-off at the density threshold"
+
+[[mutation]]
+name = "pbe-c-cutoff-polarized"
+file = "src/gga/pbe_c.jl"
+find = '_cutoff(f::PBECorrelation, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] < f.thresholds.density'
+replace = '_cutoff(f::PBECorrelation, ρ::Tuple, σ::Tuple) = ρ[1] + ρ[2] <= f.thresholds.density'
+expect = "pbe_c cut-off at the density threshold"
+
+[[mutation]]
+name = "pbe-c-zeta-factor-strict"
+file = "src/gga/pbe_c.jl"
+find = 'ifelse(value(y) < εζ, zero(t) + _pow23(εζ), t)'
+replace = 'ifelse(value(y) <= εζ, zero(t) + _pow23(εζ), t)'
+expect = "pbe_c ζ-factor at the rounded 1 − ζ = ε_ζ"
+
+[[mutation]]
+name = "pbe-c-domain-cutoff-restricted"
+file = "src/gga/pbe_c.jl"
+find = 'n < f.thresholds.density && return nothing'
+replace = 'n <= f.thresholds.density && return nothing'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "sigma-floor-square"
+file = "src/thresholds.jl"
+find = 'Thresholds{T}(density, sigma, zeta, convert(T, sigma)^2)'
+replace = 'Thresholds{T}(density, sigma, zeta, convert(T, sigma))'
+expect = "Thresholds and their Float32 defaults|pbe_x σ floor|pbe_c σ floor"
+
+[[mutation]]
+name = "sigma-floor-square-float32"
+file = "src/thresholds.jl"
+find = 'eps(Float32), max(s^2, tiny))'
+replace = 'eps(Float32), max(s, tiny))'
+expect = "Thresholds and their Float32 defaults"
+
+# The σαβ bound |σαβ| ≤ √σαα·√σββ·(1 + 8 eps), in the check and in its branch-free twin.
+
+[[mutation]]
+name = "sigma-ab-bound-check"
+file = "src/validate.jl"
+find = 'abs(ab) > sqrt(aa) * sqrt(bb) * (1 + 8 * eps(S))'
+replace = 'abs(ab) > sqrt(aa) * sqrt(bb) * (1 + 32 * eps(S))'
+expect = "the σαβ bound"
+
+[[mutation]]
+name = "sigma-ab-bound-predicate"
+file = "src/validate.jl"
+find = 'fast_sqrt(abs(bb)) * (1 + 8 * eps(S))'
+replace = 'fast_sqrt(abs(bb)) * (1 + 32 * eps(S))'
+expect = "the input predicate agrees with the input checks"
+
+# The output layout: field order by descending density order, and the polarized entries in
+# lexicographic multiset order.
+
+[[mutation]]
+name = "layout-field-order"
+file = "src/driver.jl"
+find = 'for j in 1:K, a in j:-1:0'
+replace = 'for j in 1:K, a in 0:j'
+expect = "field names and restricted values|polarized layout"
+
+[[mutation]]
+name = "layout-multiset-order"
+file = "src/driver.jl"
+find = 'if isempty(r) || r[1] >= i]'
+replace = 'if isempty(r) || r[1] <= i]'
+expect = "polarized layout"
+
+# The change of variables to (n, ζ) of the polarized correlations: the series of ζ = (n_α − n_β)/n_r in
+# the channel densities, and the scales of the substitution. The sign of ζ has no entry: ε_c and φ
+# are even in ζ, so ζ = (n_β − n_α)/n_r gives the same function.
+
+[[mutation]]
+name = "pw92-zeta-variable"
+file = "src/lda/pw92.jl"
+find = 'ζ = (a - b) / nr'
+replace = 'ζ = (a - b) / value(nr)'
+expect = "reference values of the LDA functionals|LDA functionals agree with BigFloat"
+
+[[mutation]]
+name = "pw92-density-variable-scale"
+file = "src/lda/pw92.jl"
+find = 'substitute(n * ε, (nr / s, ζ))'
+replace = 'substitute(n * ε, (nr / (2s), ζ))'
+expect = "reference values of the LDA functionals|LDA functionals agree with BigFloat"
+
+[[mutation]]
+name = "pbe-c-zeta-variable"
+file = "src/gga/pbe_c.jl"
+find = 'ζ = (a - b) / nr'
+replace = 'ζ = (a - b) / value(nr)'
+expect = "reference values of the PBE functionals|PBE functionals agree with BigFloat"
+
+[[mutation]]
+name = "pbe-c-sigma-variable-scale"
+file = "src/gga/pbe_c.jl"
+find = 'substitute(n * w, (nr / sn, ζ, gt / st))'
+replace = 'substitute(n * w, (nr / sn, ζ, gt / (2st)))'
+expect = "reference values of the PBE functionals|PBE functionals agree with BigFloat"
+
+# The overlap check of xc_evaluate!.
+
+[[mutation]]
+name = "overlap-span-touching"
+file = "src/array.jl"
+find = '_spans_intersect(sa::Tuple, sb::Tuple) = sa[1] < sb[2] && sb[1] < sa[2]'
+replace = '_spans_intersect(sa::Tuple, sb::Tuple) = sa[1] <= sb[2] && sb[1] <= sa[2]'
+expect = "array layer accepts disjoint views of one array as outputs|overlap test of views and Arrays|plain disjoint Arrays take the dense point loop"
+
+[[mutation]]
+name = "overlap-span-ignored"
+file = "src/array.jl"
+find = '    _spans_intersect(sa, sb) || return false'
+replace = '    true || return false'
+expect = "array layer accepts disjoint views of one array as outputs|overlap test of views and Arrays|plain disjoint Arrays take the dense point loop"
+
+[[mutation]]
+name = "overlap-index-sets"
+file = "src/array.jl"
+find = '_disjoint(i::_IntIndex, j::_IntIndex) = isempty(intersect(_steps(i), _steps(j)))'
+replace = '_disjoint(i::_IntIndex, j::_IntIndex) = true'
+expect = "array layer rejects outputs that share memory|overlap test of views and Arrays"
+
+[[mutation]]
+name = "overlap-shares-skipped"
+file = "src/array.jl"
+find = '_overlaps(a::AbstractArray, b::AbstractArray) = !(isempty(a) || isempty(b)) && _shares(a, b)'
+replace = '_overlaps(a::AbstractArray, b::AbstractArray) = false'
+expect = "array layer rejects outputs that share memory"
+
+[[mutation]]
+name = "overlap-zero-step-range"
+file = "src/array.jl"
+find = '_injective_index(r::AbstractRange) = length(r) <= 1 || !iszero(step(r))'
+replace = '_injective_index(r::AbstractRange) = true'
+expect = "array layer rejects views that leave their parent or overlap themselves"
+
+[[mutation]]
+name = "overlap-zero-stride-root"
+file = "src/array.jl"
+find = 'n <= 1 || !iszero(s), zip(size(a), strides(a)))'
+replace = 'true, zip(size(a), strides(a)))'
+expect = "array layer rejects outputs whose root repeats an address by a zero stride"
+
+[[mutation]]
+name = "overlap-dataids"
+file = "src/array.jl"
+find = '_ids_intersect(x::Tuple, y::Tuple) = any(i -> any(==(i), y), x)'
+replace = '_ids_intersect(x::Tuple, y::Tuple) = false'
+expect = "array layer rejects overlap through array types without an Array root"
+
+[[mutation]]
+name = "views-in-bounds"
+file = "src/array.jl"
+find = '_views_in_bounds(a::SubArray) = checkbounds(Bool, parent(a), parentindices(a)...) && _views_in_bounds(parent(a))'
+replace = '_views_in_bounds(a::SubArray) = _views_in_bounds(parent(a))'
+expect = "array layer rejects views out of bounds of their parent"
+
+# The dense point loop: the column offsets of the stores and of the polarized loads.
+
+[[mutation]]
+name = "dense-store-offset"
+file = "src/array.jl"
+find = 'unsafe_store!(p, v[t], c * (j - 1) + t)'
+replace = 'unsafe_store!(p, v[t], c * (j - 1) + 1)'
+expect = "array layer equals the point calls|plain disjoint Arrays take the dense point loop"
+
+[[mutation]]
+name = "dense-load-offset"
+file = "src/array.jl"
+find = 'ntuple(t -> unsafe_load(p, N * (j - 1) + t), Val(N))'
+replace = 'ntuple(t -> unsafe_load(p, N * (j - 1) + 1), Val(N))'
+expect = "array layer equals the point calls|plain disjoint Arrays take the dense point loop"
+
+# PureTaylor's forced inlining of the Taylor operations at most `_INLINE_MAX` coefficients, which
+# lets PureXC's point loop vectorize.
+
+[[mutation]]
+name = "taylor-inline-gating"
+file = "../PureTaylor/src/arith.jl"
+find = '_mul_operation(Val(max(L, length(b.c)) <= _INLINE_MAX), a, b)'
+replace = '_mul_operation(Val(false), a, b)'
+expect = "array loop vectorizes"
+
+[[mutation]]
+name = "taylor-inline-max"
+file = "../PureTaylor/src/loops.jl"
+find = 'const _INLINE_MAX = 21'
+replace = 'const _INLINE_MAX = 5'
+expect = "array loop vectorizes"

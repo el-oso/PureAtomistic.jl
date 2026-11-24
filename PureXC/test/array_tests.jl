@@ -311,33 +311,40 @@ end
 end
 
 @testitem "array loop vectorizes" begin
-    # The IR comes from a child process started with `--check-bounds=auto`, the setting of a normal
-    # session: the suite runs under `--check-bounds=yes`, which keeps every bounds check and so
-    # prevents the vectorization this item checks.
+    # The IR comes from a child process started with `--check-bounds=auto` and `--code-coverage=none`,
+    # the settings of a normal session: the suite runs under `--check-bounds=yes`, which keeps every
+    # bounds check, and under coverage a counter update in the loop body; either prevents the
+    # vectorization this item checks.
     script = """
     using PureXC, InteractiveUtils
     Base.JLOptions().check_bounds == 0 || error("the child process does not run with --check-bounds=auto")
-    f = pbe_x()
+    Base.JLOptions().code_coverage == 0 || error("the child process runs with code coverage")
     ρ, σ = rand(64) .+ 0.1, rand(64)
     ρp, σp = rand(2, 64) .+ 0.1, rand(3, 64)
     # The point loops of xc_evaluate!: the dense loop of `Array`s, restricted and polarized, and the
-    # loop with checked loads that other arrays (here a view) take.
-    for (loop, x) in (
-            (PureXC._evaluate_points!, (ρ, σ)), (PureXC._evaluate_points!, (ρp, σp)),
-            (PureXC._evaluate_points_checked!, (view(ρ, :), σ)),
+    # loop with checked loads that other arrays (here a view) take, for pbe_x at order 1; and the
+    # dense restricted loop at order 2 of lda_c_pw, pbe_x and pbe_c.
+    for (loop, f, k, x) in (
+            (PureXC._evaluate_points!, pbe_x(), Val(1), (ρ, σ)), (PureXC._evaluate_points!, pbe_x(), Val(1), (ρp, σp)),
+            (PureXC._evaluate_points_checked!, pbe_x(), Val(1), (view(ρ, :), σ)),
+            (PureXC._evaluate_points!, lda_c_pw(), Val(2), (ρ,)), (PureXC._evaluate_points!, pbe_x(), Val(2), (ρ, σ)),
+            (PureXC._evaluate_points!, pbe_c(), Val(2), (ρ, σ)),
         )
-        out = xc_outputs(f, Val(1), x...)
-        code_llvm(stdout, loop, typeof.((out, f, Val(1), x...)); optimize = true, debuginfo = :none)
+        out = xc_outputs(f, k, x...)
+        code_llvm(stdout, loop, typeof.((out, f, k, x...)); optimize = true, debuginfo = :none)
         println("END OF LOOP")
     end
     """
-    out = read(`$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $script`, String)
-    irs = split(out, "END OF LOOP")[1:3]
+    out = read(`$(Base.julia_cmd()) --check-bounds=auto --code-coverage=none --project=$(Base.active_project()) -e $script`, String)
+    irs = split(out, "END OF LOOP")[1:6]
     # `vector.body` is the block the loop vectorizer emits; `<2 x double>` alone also appears when
-    # only the SLP vectorizer has combined scalar operations.
+    # only the SLP vectorizer has combined scalar operations. At order 2 the Taylor operations of
+    # PureTaylor must be inlined (`_INLINE_MAX`): a call to a Julia function in the loop keeps it
+    # scalar.
     for ir in irs
         @test occursin("vector.body", ir)
         @test occursin("<2 x double>", ir)
+        @test !occursin(r"call [^@\n]*@j_", ir)
     end
 end
 
@@ -855,5 +862,27 @@ end
         @test checked === generic && dense !== generic
         xc_evaluate!(out, args...)
         @test ArrayFixtures.agrees(out, f, Val(1), ρ, σ, axes(ρ, ndims(ρ)))
+    end
+end
+
+# Outputs that are views with a logical index over the points, and a GGA without domain limits
+# (its input predicate is the default); exact: the same point calls.
+@testitem "array layer on logical-index output views and a GGA without domain limits" setup = [TestFunctionals] begin
+    using .TestFunctionals: _TestGGA
+    f = lda_x()
+    ρ = [0.1, 0.2, 0.3]
+    mask = [true, false, true, false, true]
+    out = (; e = view(fill(NaN, 1, 5), :, mask), vrho = view(fill(NaN, 1, 5), :, mask))
+    @test xc_evaluate!(out, f, Val(1), ρ) === out
+    for j in eachindex(ρ)
+        r = xc_derivatives(f, Val(1), ρ[j])
+        @test (out.e[1, j], out.vrho[1, j]) == (r.e, r.vrho)
+    end
+    g = _TestGGA()
+    σ = [0.5, 0.25, 0.125]
+    outg = xc_evaluate!(xc_outputs(g, Val(1), ρ, σ), g, Val(1), ρ, σ)
+    for j in eachindex(ρ)
+        r = xc_derivatives(g, Val(1), ρ[j], σ[j])
+        @test (outg.e[1, j], outg.vrho[1, j], outg.vsigma[1, j]) == (r.e, r.vrho, r.vsigma)
     end
 end
