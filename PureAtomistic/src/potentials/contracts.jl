@@ -118,18 +118,9 @@ function _sized_list(positions::AbstractMatrix{T}, cell::AbstractMatrix{T}, r_cu
 end
 
 # Refresh `nl` in place; false when the configuration holds more edges than `nl` has room for.
-# `neighbor_list!` throws an `ArgumentError` for that and for an invalid configuration (atoms that
-# coincide, positions that are not finite). The caller rebuilds the list with `neighbor_list`
-# after a false, which throws the same error again for an invalid configuration, so only the
-# capacity error ends in a rebuilt list.
+# An invalid configuration (atoms that coincide, positions that are not finite) throws.
 function _refresh!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T})::Bool where {T}
-    try
-        neighbor_list!(nl, positions, cell)
-    catch err
-        err isa ArgumentError || rethrow()
-        return false
-    end
-    return true
+    return try_neighbor_list!(nl, positions, cell)
 end
 
 # Core.stderr is a concrete stream, so the message stays resolvable in a trimmed program, where

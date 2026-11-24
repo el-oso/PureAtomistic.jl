@@ -12,7 +12,7 @@ include("workers.jl")
 include("evaluate.jl")
 include("device.jl")
 
-export NeighborList, neighbor_list, neighbor_list!
+export NeighborList, neighbor_list, neighbor_list!, try_neighbor_list!
 export MACEModel, MACEResult, MACEWorkspace, MACEEnergyWorkspace, ThreadedChunks, mace_energy!, mace_energy_forces!, mace_energy_forces
 
 public device_model, device_neighbor_list, device_workspace, device_result

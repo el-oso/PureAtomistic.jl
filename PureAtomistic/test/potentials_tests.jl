@@ -238,6 +238,12 @@ end
     bad[:, 2] .= bad[:, 1]
     @test_throws "neighbor list: atoms 1 and 2 coincide" prepare!(p, bad, F.CELL)
     @test p.n_regrows == 0
+    nan = copy(F.P); nan[2, 3] = NaN
+    @test_throws "neighbor list: positions and cell must be finite" prepare!(p, nan, F.CELL)
+    lj = F.lennard_jones(F.LJ_P, F.LJ_CELL)
+    ljnan = copy(F.LJ_P); ljnan[1, 1] = Inf
+    @test_throws "neighbor list: positions and cell must be finite" prepare!(lj, ljnan, F.LJ_CELL)
+    @test p.n_regrows == 0 && lj.n_regrows == 0
     # The potentials are written for 1-based arrays and say so.
     @test_throws ArgumentError prepare!(p, OffsetArray(F.P, 0:2, 1:3), F.CELL)
     @test_throws ArgumentError energy_forces!(hp, F.P, OffsetArray(F.CELL, 0:2, 0:2))

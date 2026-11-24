@@ -256,6 +256,7 @@ threads once the workers have started, where they give the bits of the serial ev
 NeighborList
 neighbor_list
 neighbor_list!
+try_neighbor_list!
 MACEModel
 MACEResult
 MACEWorkspace

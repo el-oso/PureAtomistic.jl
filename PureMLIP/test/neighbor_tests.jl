@@ -100,3 +100,26 @@ end
         @test issorted(view(nl.receivers, 1:nl.n_edges))
     end
 end
+
+@testitem "try_neighbor_list! reports capacity overflow by its return value" setup = [LammpsReference] begin
+    s = LammpsReference.structure(LammpsReference.load(:mpa0_f64), "triclinic_ni3al")
+    nl = neighbor_list(s.positions, 1.2 .* s.cell, 6.0)
+    edges = (copy(nl.senders), copy(nl.receivers), copy(nl.shifts), nl.n_edges)
+    @test try_neighbor_list!(nl, s.positions, s.cell) === false
+    @test (nl.senders, nl.receivers, nl.shifts, nl.n_edges) == edges
+    # After a false the scratch describes the new configuration; the caller rebuilds.
+    full = neighbor_list(s.positions, s.cell, 6.0)
+    ref = neighbor_list(s.positions, s.cell, 6.0)
+    @test try_neighbor_list!(full, s.positions, s.cell) === true
+    @test full.n_edges == ref.n_edges == 176
+    @test full.senders == ref.senders && full.receivers == ref.receivers && full.shifts == ref.shifts
+    roomy = neighbor_list(s.positions, s.cell, 6.0; extra_capacity = 10)
+    @test try_neighbor_list!(roomy, s.positions, s.cell) === true && roomy.n_edges == 176
+
+    nan = copy(s.positions); nan[2, 1] = NaN
+    @test_throws "neighbor list: positions and cell must be finite" try_neighbor_list!(full, nan, s.cell)
+    @test_throws "neighbor list: positions and cell must be finite" try_neighbor_list!(full, s.positions, fill(Inf, 3, 3))
+    @test_throws DimensionMismatch try_neighbor_list!(full, s.positions[:, 1:3], s.cell)
+    @test_throws "neighbor list: the cell must be 3×3" try_neighbor_list!(full, s.positions, s.cell[:, 1:2])
+    @test_throws "neighbor list: the cell is singular" try_neighbor_list!(full, s.positions, zeros(3, 3))
+end

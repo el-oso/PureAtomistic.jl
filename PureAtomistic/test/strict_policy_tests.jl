@@ -34,19 +34,16 @@
 end
 
 # `@contract` defines a method of `TypeContracts._contract_specs` in the module that declares the
-# contract, and it allocates its specs on every call, so a `@strict_policy (…, :noalloc)` placed
-# after a contract warns at every precompile. Potentials, Integrators, Thermostats, Barostats and
-# the top module (whose policy check covers its submodules) declare contracts and carry no policy
-# until TypeContracts generates the specs without allocating (see
-# https://github.com/el-oso/TypeContracts.jl/issues/4). Their code is held to the policy by the
-# item above all the same. When this item reports an unexpected pass, add
-# `@strict_policy (:typestable, :noalloc)` to those modules and turn it into a `@test`.
+# contract. Potentials, Integrators, Thermostats, Barostats and the top module (whose policy check
+# covers its submodules) declare contracts and carry no `@strict_policy (…, :noalloc)`; their code
+# is held to the policy by the item above all the same. This item checks that the generated specs
+# allocate nothing, which a `:noalloc` policy on those modules requires.
 @testitem "TypeContracts specs pass the allocation scan" tags = [:checks] begin
     using StrictMode, TypeContracts
     fs = StrictMode.findings(
         TypeContracts._contract_specs, (Type{PureAtomistic.Potentials.AbstractPotential},); guarantees = (:noalloc,)
     )
-    @test_broken all(f -> f.status !== :fail, fs)
+    @test all(f -> f.status !== :fail, fs)
 end
 
 # One exemption covers the keyword constructors of the parametric types, because Julia names the

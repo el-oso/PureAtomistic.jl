@@ -20,7 +20,7 @@ export load_mace_checkpoint, MACECheckpoint, MACEHyperparameters, MACEConstants,
 export sh_length, sh_index, spherical_harmonics!, spherical_harmonics_and_gradient!
 export clebsch_gordan_complex, real_clebsch_gordan, wigner_D
 export e3nn_spherical_harmonics!, e3nn_spherical_harmonics_and_gradient!, e3nn_basis_change, e3nn_wigner_3j
-export NeighborList, neighbor_list, neighbor_list!
+export NeighborList, neighbor_list, neighbor_list!, try_neighbor_list!
 export MACEModel, MACEResult, MACEWorkspace, MACEEnergyWorkspace, ThreadedChunks, mace_energy!, mace_energy_forces!, mace_energy_forces
 
 public device_model, device_neighbor_list, device_workspace, device_result

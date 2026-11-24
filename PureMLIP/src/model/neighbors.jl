@@ -60,22 +60,36 @@ function neighbor_list(positions::AbstractMatrix{T}, cell::AbstractMatrix{T}, r_
 end
 
 """
-    neighbor_list!(nl, positions, cell) -> nl
+    try_neighbor_list!(nl, positions, cell) -> Bool
 
-Rebuild `nl` for new `positions` and `cell` without allocating. After a capacity error `nl` must be
-rebuilt with `neighbor_list`: its scratch already describes the new positions. Throws before changing the edges
-if more than `length(nl.senders)` edges are found.
+Rebuild `nl` for new `positions` and `cell` without allocating, and report by the return value
+whether the edges fit. Returns `true` when `nl` was rebuilt, and `false` when more than
+`length(nl.senders)` edges are found, in which case the edges are unchanged. After a `false`,
+rebuild `nl` with `neighbor_list`: its scratch already describes the new positions. Throws for an
+invalid configuration (wrong size, non-finite positions or cell, singular cell, coinciding atoms).
 """
-function neighbor_list!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T}) where {T}
+function try_neighbor_list!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T}) where {T}
     Base.require_one_based_indexing(positions, cell)
     size(positions) == (3, nl.n_atoms) || throw(DimensionMismatch(lazy"neighbor list: positions are $(size(positions)), expected (3, $(nl.n_atoms))"))
     size(cell) == (3, 3) || throw(DimensionMismatch("neighbor list: the cell must be 3×3"))
     _bin!(nl, positions, cell)
     m = _search!(nl, positions, cell, Val(false))
-    capacity = length(nl.senders)
-    m <= capacity || throw(ArgumentError(lazy"neighbor list: $m edges exceed the capacity $capacity"))
+    m <= length(nl.senders) || return false
     _search!(nl, positions, cell, Val(true))
-    return nl
+    return true
+end
+
+"""
+    neighbor_list!(nl, positions, cell) -> nl
+
+Rebuild `nl` for new `positions` and `cell` without allocating. After a capacity error `nl` must be
+rebuilt with `neighbor_list`: its scratch already describes the new positions. Throws before changing the edges
+if more than `length(nl.senders)` edges are found; `try_neighbor_list!` reports that by its return value instead.
+"""
+function neighbor_list!(nl::NeighborList{T}, positions::AbstractMatrix{T}, cell::AbstractMatrix{T}) where {T}
+    try_neighbor_list!(nl, positions, cell) && return nl
+    m = _search!(nl, positions, cell, Val(false))
+    throw(ArgumentError(lazy"neighbor list: $m edges exceed the capacity $(length(nl.senders))"))
 end
 
 # Reciprocal cell, grid dimensions, and the atoms sorted into grid cells.

@@ -29,6 +29,7 @@
                 (P.entry_data, (P.TorchArchive, String)),
                 (P.neighbor_list, (Matrix{Float64}, Matrix{Float64}, Float64)),
                 (P.neighbor_list!, (P.NeighborList{Float64}, Matrix{Float64}, Matrix{Float64})),
+                (P.try_neighbor_list!, (P.NeighborList{Float64}, Matrix{Float64}, Matrix{Float64})),
                 (P.MACEModel{Float64}, (P.MACECheckpoint,)),
                 (P.MACEModel{Float32}, (P.MACECheckpoint,)),
                 (P.MACEResult{Float64}, (Int,)),
@@ -202,6 +203,21 @@ end
     @noinline f!(nl, P, C) = PureMLIP.neighbor_list!(nl, P, C)
     f!(nl, P, C)
     @test_noalloc f!(nl, P, C)
+end
+
+@testitem "StrictMode: try_neighbor_list! is allocation-free" tags = [:checks] begin
+    using StrictModeTest, StrictMode
+    P = [0.0 1.5 0.2; 0.0 0.0 2.0; 0.0 0.0 1.0]; C = [6.0 0.0 0.0; 0.0 6.0 0.0; 0.0 0.0 6.0]
+    nl = PureMLIP.neighbor_list(P, C, 4.0)
+    @noinline f!(nl, P, C) = PureMLIP.try_neighbor_list!(nl, P, C)
+    @test f!(nl, P, C)
+    @test_noalloc f!(nl, P, C)
+    # The overflow path returns false without allocating either.
+    Q = [0.0 1.5 5.0; 0.0 0.0 0.0; 0.0 0.0 0.0]; C2 = 2 .* C
+    small = PureMLIP.neighbor_list(Q, C2, 4.0)
+    @test small.n_edges < PureMLIP.neighbor_list(P, C2, 4.0).n_edges
+    @test !f!(small, P, C2)
+    @test_noalloc f!(small, P, C2)
 end
 
 @testitem "StrictMode: mace_energy! is allocation-free" tags = [:checks] setup = [Checkpoints] begin
