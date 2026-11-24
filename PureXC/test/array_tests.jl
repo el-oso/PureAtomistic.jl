@@ -365,13 +365,14 @@ end
     """
     out = read(`$(Base.julia_cmd()) --check-bounds=auto --code-coverage=none --project=$(Base.active_project()) -e $script`, String)
     irs = split(out, "END OF LOOP")[1:6]
-    # `vector.body` is the block the loop vectorizer emits; `<2 x double>` alone also appears when
-    # only the SLP vectorizer has combined scalar operations. At order 2 the Taylor operations of
+    # `vector.body` is the block the loop vectorizer emits; a vector of doubles (`<2 x double>` on
+    # 128-bit SIMD, `<4 x double>` on AVX2) alone also appears when only the SLP vectorizer has
+    # combined scalar operations. At order 2 the Taylor operations of
     # PureTaylor must be inlined (`_INLINE_MAX`): a call to a Julia function in the loop keeps it
     # scalar.
     for ir in irs
         @test occursin("vector.body", ir)
-        @test occursin("<2 x double>", ir)
+        @test occursin(r"<\d+ x double>", ir)
         @test !occursin(r"call [^@\n]*@j_", ir)
     end
 end
