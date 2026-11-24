@@ -175,9 +175,6 @@ function child_main(PX, LX, arm, npoints)
         end
     end
     println("PKG\t", join(("$(v.name)=$(v.version)" for (_, v) in Pkg.dependencies() if v.version !== nothing), ","))
-    if arm == "libxc"
-        println("LIBXC_C\t", LX.libxc_version)
-    end
     return
 end
 
@@ -201,7 +198,6 @@ function run_child(arm, npoints)
     results = Dict{String, NTuple{3, Float64}}()
     pops = Dict{String, Vector{Int}}()
     pkgs = Dict{String, String}()
-    libxc_c = ""
     for line in split(out, '\n')
         f = split(line, '\t')
         if f[1] == "RESULT"
@@ -213,11 +209,9 @@ function run_child(arm, npoints)
                 name, ver = split(kv, '=')
                 pkgs[name] = ver
             end
-        elseif f[1] == "LIBXC_C"
-            libxc_c = String(f[2])
         end
     end
-    return (; results, pops, pkgs, libxc_c)
+    return (; results, pops, pkgs)
 end
 
 calibrations(r) = Dict(k => [v[2], v[3]] for (k, v) in r)
@@ -273,7 +267,6 @@ function driver_main()
             puretaylor_version = get(get(last, "purexc", (; pkgs = Dict())).pkgs, "PureTaylor", nothing),
             libxc_jl_version = get(get(last, "libxc", (; pkgs = Dict())).pkgs, "Libxc", nothing),
             libxc_jll_version = get(get(last, "libxc", (; pkgs = Dict())).pkgs, "Libxc_jll", nothing),
-            libxc_c_version = get(last, "libxc", (; libxc_c = nothing)).libxc_c,
             chairmarks_version = get(get(last, "purexc", (; pkgs = Dict())).pkgs, "Chairmarks", nothing),
             threads = 1, omp_num_threads = 1, points = npoints, seed = SEED,
             samples_per_cell = SAMPLES, warmup_evaluations = WARMUP_EVALS,
