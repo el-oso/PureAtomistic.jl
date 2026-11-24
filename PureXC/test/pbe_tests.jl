@@ -778,13 +778,19 @@ end
     @test_throws "xc: reduced gradient t²" xc_derivatives(pbe_c(), Val(2), (1.0, 1.0), (g / 4, g / 4, g / 4))
     # A channel at or below n_thr of pbe_x is not limited: it contributes nothing.
     @test iszero(xc_derivatives(pbe_x(), Val(2), (1.0, 0.0), (1.0, 0.0, 1.0e300)).vsigma[3])
-    # At the threshold, with σ = floatmax (s² above the limit): a pbe_x channel exactly at n_thr is
-    # cut off and so not limited. The check and the predicate agree on each.
+    # At the threshold, with σ = floatmax (s², t² above the limit): a pbe_x channel exactly at n_thr
+    # (restricted n = 2n_thr) is cut off and so not limited; pbe_c at a total of exactly n_thr is
+    # limited. The check and the predicate agree on each.
     for T in (Float32, Float64)
         t, g = pbe_x(T).thresholds.density, floatmax(T)
-        for (ρ, σ) in (((t, one(T)), (g, zero(T), one(T))), ((one(T), t), (one(T), zero(T), g)))
+        for (ρ, σ) in ((2t, g), ((t, one(T)), (g, zero(T), one(T))), ((one(T), t), (one(T), zero(T), g)))
             @test PureXC._inputs_ok(pbe_x(T), Val(2), ρ, σ)
             @test isnothing(PureXC._check_inputs(pbe_x(T), Val(2), ρ, σ))
+        end
+        t = pbe_c(T).thresholds.density
+        for (ρ, σ) in ((t, g), ((t, zero(T)), (g, zero(T), zero(T))), ((t / 2, t / 2), (g, zero(T), g)))
+            @test !PureXC._inputs_ok(pbe_c(T), Val(2), ρ, σ)
+            @test_throws "xc: reduced gradient t²" PureXC._check_inputs(pbe_c(T), Val(2), ρ, σ)
         end
     end
 end

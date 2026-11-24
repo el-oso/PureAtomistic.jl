@@ -346,6 +346,27 @@ replace = 'b >= t && _check_reduced_gradient(:s²_β'
 expect = "PBE domain limits|the input predicate agrees with the input checks"
 
 [[mutation]]
+name = "pbe-x-domain-ok-restricted"
+file = "src/gga/pbe_x.jl"
+find = '!(n / 2 > f.thresholds.density) |'
+replace = '!(n / 2 >= f.thresholds.density) |'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-x-domain-ok-alpha"
+file = "src/gga/pbe_x.jl"
+find = 'oka = !(a > t)'
+replace = 'oka = !(a >= t)'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-x-domain-ok-beta"
+file = "src/gga/pbe_x.jl"
+find = 'okb = !(b > t)'
+replace = 'okb = !(b >= t)'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
 name = "pbe-c-cutoff-restricted"
 file = "src/gga/pbe_c.jl"
 find = '_cutoff(f::PBECorrelation, ρ::Real, σ::Real) = ρ < f.thresholds.density'
@@ -371,6 +392,27 @@ name = "pbe-c-domain-cutoff-restricted"
 file = "src/gga/pbe_c.jl"
 find = 'n < f.thresholds.density && return nothing'
 replace = 'n <= f.thresholds.density && return nothing'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-c-domain-cutoff-polarized"
+file = "src/gga/pbe_c.jl"
+find = 'a + b < thr.density && return nothing'
+replace = 'a + b <= thr.density && return nothing'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-c-domain-ok-restricted"
+file = "src/gga/pbe_c.jl"
+find = '(n < f.thresholds.density) |'
+replace = '(n <= f.thresholds.density) |'
+expect = "PBE domain limits|the input predicate agrees with the input checks"
+
+[[mutation]]
+name = "pbe-c-domain-ok-polarized"
+file = "src/gga/pbe_c.jl"
+find = '(a + b < thr.density) | t2ok'
+replace = '(a + b <= thr.density) | t2ok'
 expect = "PBE domain limits|the input predicate agrees with the input checks"
 
 [[mutation]]
