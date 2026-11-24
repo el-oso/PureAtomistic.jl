@@ -185,7 +185,9 @@ end
 # cancellation in ε_c + H.
 # `adjust` is applied to the series of ε_c before H is formed: `identity` for the energy; a change of
 # its coefficients by one ulp measures the sensitivity of the outputs to the rounding of ε_c.
-@inline function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine, adjust = identity)
+# `combine::C`: Julia does not specialize on a function argument that is only passed on, and the
+# call then allocates.
+@inline function _pbe_c_energy(f::PBECorrelation, ρ, σ, combine::C, adjust::A = identity) where {C, A}
     n = _raise(ρ, f.thresholds.density)
     g = _raise(σ, f.thresholds.sigma_floor)
     ε = adjust(_pw92_eps(f.pw, _seitz_radius(n)))
@@ -204,7 +206,7 @@ end
 # the input variables.
 @inline _energy_density(f::PBECorrelation, ρ::Tuple{Taylor, Taylor}, σ::NTuple{3, Taylor}) = _pbe_c_energy(f, ρ, σ, +)
 
-@inline function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine, adjust = identity) where {N, K}
+@inline function _pbe_c_energy(f::PBECorrelation, ρ::Tuple{Taylor{N, K}, Taylor{N, K}}, σ::NTuple{3, Taylor{N, K}}, combine::C, adjust::A = identity) where {N, K, C, A}
     thr = f.thresholds
     a = _raise(ρ[1], thr.density)
     b = _raise(ρ[2], thr.density)

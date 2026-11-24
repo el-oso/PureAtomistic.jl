@@ -228,7 +228,8 @@ end
 # the root's address range in the overlap check does not cover.
 @noinline _throw_view_bounds() = throw(ArgumentError("xc: an array view lies outside its parent"))
 
-_check_views_in_bounds(xs::Vararg{AbstractArray}) = (all(_views_in_bounds, xs) || _throw_view_bounds(); nothing)
+# `N` makes Julia specialize on the number of arrays; without it the call is dynamic and allocates.
+_check_views_in_bounds(xs::Vararg{AbstractArray, N}) where {N} = (all(_views_in_bounds, xs) || _throw_view_bounds(); nothing)
 
 # The next array of the parent chain of `a`, or `nothing` when `a` is its root: when it is its own
 # parent, or when its `parent` is not an `AbstractArray` (storage the checks cannot read). The

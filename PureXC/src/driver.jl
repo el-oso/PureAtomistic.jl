@@ -26,7 +26,9 @@ function _cutoff end
 
 @inline _number_type(::AbstractFunctional{T}) where {T} = T
 
-@inline _result_type(f::AbstractFunctional, x...) = promote_type(_number_type(f), map(_input_type, x)...)
+# `Vararg{Any, N}`, not `x...`: Julia compiles `x...` as one wide method, in which the `map` is
+# a dynamic call that allocates.
+@inline _result_type(f::AbstractFunctional, x::Vararg{Any, N}) where {N} = promote_type(_number_type(f), map(_input_type, x)...)
 @inline _input_type(x::Real) = typeof(x)
 @inline _input_type(x::Tuple) = promote_type(map(typeof, x)...)
 
