@@ -160,21 +160,24 @@ between the output and its root, whose indices repeat a value (a repeated vector
 step zero), or a root that defines `strides` with a stride of zero in a dimension of length greater
 than one, so that two points may write one address.
 
-Every argument is resolved through `parent` to its root array. When both roots have a known
-address range (an `Array` or `Memory` of a bits type, or a root of a bits type that defines
-`strides` and whose `pointer` returns a `Ptr`), arrays whose roots occupy disjoint address ranges
-are accepted, and arrays over one storage are accepted only when the test is exact: `Array`s and
-views of an `Array` indexed by integers and ranges whose address spans are disjoint, or views of
-the same `Array` whose integer or range indices are in bounds and select disjoint sets in some
-dimension (an `Array` stores each index at its own address), so disjoint rows or column blocks of
-one matrix are accepted. Any other array over the same storage is rejected, even when its elements
-are disjoint: a `reshape`, `transpose`, `OffsetArray` or other wrapper of one part of a
-buffer against another part, and views of one `Array` that differ only in vector or logical
-indices. When either root has no known address range, the two roots share memory when their
-`Base.dataids` have a value in common. An array type that holds memory it does not expose through
-`parent`, `pointer` and `strides` must therefore define `parent` or `Base.dataids`: without either,
-its `dataids` is its own `objectid`, and an overlap with its memory goes undetected. Two arrays over
-the same file mapped twice, at two addresses, cannot be detected.
+Every argument is resolved through `parent` to its root array: the array that is its own parent, or
+the last `AbstractArray` of the chain when a `parent` returns something that is not an
+`AbstractArray`. When both roots have a known address range (an `Array` or `Memory` of a bits type,
+or a root of a bits type that defines `strides` and whose `pointer` returns a `Ptr`), arrays whose
+roots occupy disjoint address ranges are accepted, and arrays over one storage are accepted only
+when the test is exact: `Array`s and views of an `Array` indexed by integers and ranges whose
+address spans are disjoint, or views of the same `Array` whose integer or range indices are in
+bounds and select disjoint sets in some dimension (an `Array` stores each index at its own address),
+so disjoint rows or column blocks of one matrix are accepted. Any other array over the same storage
+is rejected, even when its elements are disjoint: a `reshape`, `transpose`, `OffsetArray` or other
+wrapper of one part of a buffer against another part, and views of one `Array` that differ only in
+vector or logical indices. When either root has no known address range, the two roots share memory
+when their `Base.dataids` have a value in common. An array type that holds memory it does not expose
+through `parent`, `pointer` and `strides` must therefore define `parent` returning an
+`AbstractArray` over that memory, or `Base.dataids`: without either (a `parent` that returns
+something other than an `AbstractArray` counts as none), its `dataids` is its own `objectid`, and an
+overlap with its memory goes undetected. Two arrays over the same file mapped twice, at two
+addresses, cannot be detected.
 """
 function xc_evaluate!(out::NamedTuple, f::AbstractFunctional, k::Val, ρ::AbstractArray, σ::Vararg{AbstractArray, M}) where {M}
     _check_axes(ρ, σ...)
@@ -235,7 +238,8 @@ _views_in_bounds(a::SubArray) = checkbounds(Bool, parent(a), parentindices(a)...
 
 # Whether an output shares memory with an input or with another output, checked pair by pair. Each
 # array is first resolved through `parent`, repeatedly, to its root: the array that is its own parent,
-# which holds the elements of every wrapper and view above it.
+# which holds the elements of every wrapper and view above it, or the last `AbstractArray` of the
+# chain when its `parent` is not an `AbstractArray`.
 #
 # - When both roots have a known address range, roots whose ranges do not intersect share no
 #   memory. The range of an `Array` or `Memory` of a bits type is [pointer, pointer + length ·
@@ -316,10 +320,11 @@ function _shares(a, b)
     return !_views_disjoint(a, b)
 end
 
-# The array that is its own parent, reached through `parent`.
+# The root of an array, reached through `parent`: the array that is its own parent, or the last
+# array of the chain whose `parent` is not an `AbstractArray` (storage the check cannot read).
 _root(a) = _root(a, parent(a))
 _root(a::T, p::T) where {T} = p === a ? a : _root(p)
-_root(a, p) = _root(p)
+_root(a, p) = p isa AbstractArray ? _root(p) : a
 _root(a::Union{Array, Memory}) = a
 
 _ids_intersect(x::Tuple, y::Tuple) = any(i -> any(==(i), y), x)

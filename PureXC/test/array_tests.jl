@@ -738,6 +738,29 @@ end
     # SparseArrays defines Base.dataids of a SparseVector: its index and value arrays.
     s = sparsevec(collect(1:n), fill(42.0, n))
     rejects(merge(xc_outputs(f, Val(1), x), (; e = reshape(nonzeros(s), 1, n))), s)
+    # A matrix whose `parent` is not an array: the check stops at the matrix, which answers by its
+    # own Base.dataids. Without a dataids method that is its objectid, and the overlap with the
+    # memory it holds goes undetected, as the docstring states; with one, it is rejected.
+    struct Box
+        v::Vector{Float64}
+    end
+    Base.parent(b::Box) = b
+    struct BoxMat{D} <: AbstractMatrix{Float64}
+        b::Box
+    end
+    Base.size(w::BoxMat) = (1, length(w.b.v))
+    Base.getindex(w::BoxMat, i::Int, j::Int) = w.b.v[j]
+    Base.setindex!(w::BoxMat, v, i::Int, j::Int) = (w.b.v[j] = v)
+    Base.parent(w::BoxMat) = w.b
+    Base.dataids(w::BoxMat{true}) = Base.dataids(w.b.v)
+    docs = Base.Docs.meta(PureXC)[Base.Docs.Binding(PureXC, :xc_evaluate!)].docs
+    doc = replace(join(only(values(docs)).text), r"\s+" => " ")
+    @test occursin("the last `AbstractArray` of the chain when a `parent` returns something that is not an `AbstractArray`", doc)
+    @test occursin("(a `parent` that returns something other than an `AbstractArray` counts as none)", doc)
+    y = fill(42.0, n)
+    @test PureXC._root(BoxMat{false}(Box(y))) isa BoxMat{false}
+    @test !_overlaps(BoxMat{false}(Box(y)), y)
+    rejects((; e = BoxMat{true}(Box(y)), vrho = fill(42.0, 1, n)), y)
 end
 
 @testitem "array layer rejects views that leave their parent or overlap themselves" begin
