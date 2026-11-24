@@ -70,6 +70,8 @@ _plus(x::Tuple, y::Tuple) = ntuple(i -> x[i] + y[i], Val(length(x)))
 end
 @inline _term_outputs(f, k::Val, x::Vararg{Any, N}) where {N} = _evaluate_unrounded(f, k, x...)
 _term_outputs(::AbstractFunctional{<:Taylor}, ::Val, ::Vararg{Any, N}) where {N} = _throw_taylor_parameter()
+@inline _term_outputs(xc::XC, k::Val, x::Vararg{Any, N}) where {N} =
+    _has_taylor(xc) ? _throw_taylor_parameter() : _evaluate_unrounded(xc, k, x...)
 
 # The terms in the evaluation type S of the XC: unchanged where S is the result type R, each
 # converted to S otherwise (Float64 for a Float32 XC above `_float32_max_order`).
@@ -85,15 +87,18 @@ function xc_derivatives(xc::XC, k::Val, x::Vararg{Any, N}) where {N}
     return _xc_derivatives_unchecked(xc, k, x...)
 end
 
-# An XC with a term whose number type is a `Taylor` (its own number type is then that `Taylor` or,
-# mixed with plain terms, `Real`): Σ wᵢ·eᵢ over the energy densities of the terms, each a `Taylor`
-# in the parameters of its own term or a plain value. A weight scales a `Taylor` in its coefficient
-# type, which `*` converts it to. Every other XC sums its terms as `xc_derivatives` does.
+# An XC with a term whose number type is a `Taylor`, directly or inside an XC term (its own number
+# type is then that `Taylor` or, mixed with plain terms, `Real`): Σ wᵢ·eᵢ over the energy densities
+# of the terms, each a `Taylor` in the parameters of its own term or a plain value. A weight scales
+# a `Taylor` in its coefficient type, which `*` converts it to. Every other XC sums its terms as
+# `xc_derivatives` does, which refuses an XC term with a `Taylor`-typed term as it refuses that term.
 function energy_density(xc::XC, x::Vararg{Any, N}) where {N}
     any(_taylor_term, xc.terms) || return xc_derivatives(xc, Val(0), x...).e
     return _term_energy(xc.terms, x...)
 end
-_taylor_term(t::Tuple) = t[2] isa AbstractFunctional{<:Taylor}
+_taylor_term(t::Tuple) = _has_taylor(t[2])
+_has_taylor(f) = f isa AbstractFunctional{<:Taylor}
+_has_taylor(xc::XC) = any(_taylor_term, xc.terms)
 _term_energy(terms::Tuple{Any}, x::Vararg{Any, N}) where {N} = _scale_energy(terms[1][1], energy_density(terms[1][2], x...))
 _term_energy(terms::Tuple, x::Vararg{Any, N}) where {N} =
     _term_energy((terms[1],), x...) + _term_energy(Base.tail(terms), x...)

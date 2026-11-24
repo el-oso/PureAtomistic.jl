@@ -83,6 +83,9 @@ function run_workload()
     xc = XC(((1, f), (1, pbe_c())))
     energy_density(xc, 0.3, 0.02)
     energy_density(xc, (0.3, 0.1), (0.02, 0.005, 0.01))
+    nested = XC(((2, xc), (1, pbe_c())))
+    energy_density(nested, 0.3, 0.02)
+    energy_density(nested, (0.3, 0.1), (0.02, 0.005, 0.01))
     return nothing
 end
 

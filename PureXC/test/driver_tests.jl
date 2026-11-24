@@ -467,4 +467,20 @@ end
         @test derivatives(s, (1.0,)) == (0.5 * value(a) + 2 * b, 0.5 * derivatives(a, (1.0,))[2])
     end
     @test_throws "xc: ρ = -1.0 is negative" energy_density(XC(((1, fκ), (1, pbe_c()))), -1.0, 0.0)
+    # An XC term with a Taylor-typed term of its own makes the outer XC behave as a flat one: its
+    # energy_density is the weighted sum, and xc_derivatives refuses it.
+    inner = XC(((1, fκ), (1, pbe_c())))
+    nested = XC(((2, inner), (1, pbe_c())))
+    for (ρ, σ) in ((0.3, 0.02), ((0.1, 0.2), (0.01, 0.002, 0.03)))
+        a = energy_density(fκ, ρ, σ)
+        b = energy_density(pbe_c(), ρ, σ)
+        s = energy_density(nested, ρ, σ)
+        @test s isa Taylor
+        @test derivatives(s, (1.0,)) == (2 * (value(a) + b) + b, 2 * derivatives(a, (1.0,))[2])
+        @test derivatives(energy_density(XC(((1, xc),)), ρ, σ), (1.0,)) == derivatives(a, (1.0,))
+        @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(nested, Val(0), ρ, σ)
+        @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(nested, Val(1), ρ, σ)
+        @test_throws "xc: xc_derivatives needs a functional" xc_derivatives(XC(((1, xc),)), Val(1), ρ, σ)
+    end
+    @test_throws "xc: ρ = -1.0 is negative" energy_density(nested, -1.0, 0.0)
 end
