@@ -39,11 +39,11 @@ end
     @test element("Fe").mass_average == 55.845
     @test element("Kr").mass_average == 83.798
     # Most abundant isotope (AME2020): ¹H, ¹²C, ¹⁶O, ⁵⁶Fe, ⁸⁴Kr.
-    @test element("H").mass_most_abundant == 1.00782503223
+    @test element("H").mass_most_abundant == 1.007825031898
     @test element("C").mass_most_abundant == 12.0
-    @test element("O").mass_most_abundant == 15.99491461957
-    @test element("Fe").mass_most_abundant == 55.93493633
-    @test element("Kr").mass_most_abundant == 83.9114977282
+    @test element("O").mass_most_abundant == 15.99491461926
+    @test element("Fe").mass_most_abundant == 55.934935537
+    @test element("Kr").mass_most_abundant == 83.91149772708
     # Covalent radii (Cordero et al. 2008; C sp³, Mn/Fe/Co low spin).
     @test covalent_radius(element("H")) == 0.31
     @test covalent_radius(element("C")) == 0.76
