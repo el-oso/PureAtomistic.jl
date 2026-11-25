@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Create the `QuantumEngine/` sub-package of the PureAtomistic monorepo with every repository gate in place from the first task. It holds the core types, one units and element table, the input grammar (`.inp`, JSON, YAML after its decision, `.xyz/.pdb/.cif`), molecule and Molden IO, the logger, the error types and the parity harness against the Rust oracle `quantum_engine` (commit 4a78a1d). Nothing from steps 02–17 is in scope.
+**Goal:** Create the `QuantumEngine/` sub-package of the PureAtomistic monorepo with every repository gate in place from the first task. It holds the core types, one units and element table, the input grammar (`.inp`, JSON, any `AbstractDict`, YAML files through a package extension, `.xyz/.pdb/.cif`), molecule and Molden IO, the logger, the error types and the parity harness against the Rust oracle `quantum_engine` (commit 4a78a1d). Nothing from steps 02–17 is in scope.
 
 **Architecture:**
 - Modules, one directory each with entry file `<Name>.jl`: `Errors`, `Units`, `System`, `IO` and `Input`.
 - Layer graph: `Errors → ()`, `Units → ()`, `System → (Units,)`, `IO → (System, Units, Errors)`, `Input → (IO, System, Units, Errors)`.
 - The `.inp` parser is one line-driven pass with a `lenient` flag. Each place where the oracle silently accepts something is a single branch: strict mode throws an `InputError`, lenient mode records an `InputWarning` and takes the oracle's value.
-- JSON and YAML are converted to one concrete tree type (`Input.Node`) at once. A single schema walker reads every structured format.
+- JSON text and any `AbstractDict` (a YAML file arrives as one, read by YAML.jl in `QuantumEngineYAMLExt`) are converted to one concrete tree type (`Input.Node`) at once. A single schema walker reads every structured format.
 - The parity harness lives in `test/oracle/`. CI runs against stored references; the live `:oracle` items run only when a binary is named.
 
 **Tech Stack:**
-- Julia 1.13; StaticArrays 1.9 (SVector); JSON.jl 1.6; StrictMode 0.5.21; Printf (stdlib).
+- Julia 1.13; StaticArrays 1.9 (SVector); JSON.jl 1.6; StrictMode 0.5.21; Printf (stdlib). YAML.jl is a `[weakdeps]` entry, loaded only by the extension `QuantumEngineYAMLExt` (D1).
 - Tests: TestItems/TestItemRunner, StrictModeTest, TrimCheck 0.1.5, Aqua, ExplicitImports, OffsetArrays.
 - Docs: Documenter and DocumenterVitepress.
 - juliac: through PureMLIP's tool environment.
@@ -43,7 +43,7 @@ The research for this plan raised questions that the spec and the 2026-11-25 dec
 
 | # | Question | Default this plan implements | Blocks |
 |---|---|---|---|
-| D1 | Q-YAML: decided by the user; see "Decisions needed" and Task 11. YAML.jl (any version) is a weak dependency read in `QuantumEngineYAMLExt`, outside the core closure. | Task 11 | 11 |
+| D1 | Q-YAML: decided by the user; see "Decisions needed" and Task 11. YAML.jl (any version) is a weak dependency read in `QuantumEngineYAMLExt`, outside the core closure. | Task 11 | none |
 | D2 | JSON compat and route. | **Under "Decisions needed".** | 10 |
 | D3 | JSON duplicate keys. `JSON.parse` keeps the last value silently by default. The oracle reads `.json` through yaml-rust2 0.9, which rejects a repeated key with `"…: duplicated key in mapping"` (`yaml-rust2-0.9.0/src/yaml.rs:223-228`), so rejecting duplicates matches the oracle in both modes and needs no lenient case. | Detect duplicates through the D2 route and reject them in both modes. | 10 |
 | D4 | JSON reading and `--trim`. `JSON.parse` fails TrimCheck (`repr(::Symbol)` at JSON `parse.jl:191`), and the trim-safety of the route chosen under D2 is not measured. | Task 10 measures the chosen route with TrimCheck. If it fails, the JSON front end stays outside the trimmed entry (`juliac/entry.jl` reads `.inp` only), and the choice for the CLI goes to step 17. | 10 |
@@ -55,7 +55,7 @@ The research for this plan raised questions that the spec and the 2026-11-25 dec
 | D10 | Dead keywords: `diis_method` (copied into `ScfOptions`, never compared), `smearing`, `ts_target_mode`, `ts_trust_radius`, and `population`/`pop_analysis` (one field, `parser.rs:560`, with no consumer outside `src/input/` and the GUI). | Parse and store them with vocabulary checks (`diis_method ∈ {cdiis, ediis}`; each `population` entry ∈ {mulliken, lowdin}). Whether anything consumes them is decided by the later steps. | 7 |
 | D11 | `ccsd(t)`/`uccsd(t)`. The oracle maps them to plain CCSD. | A distinct `CCSD_T` method kind, so the request is not relabeled silently. | 7 |
 | D12 | `NotImplemented` clashes by name with TypeContracts 0.14.7's exported trait type. | Keep the spec's name, import TypeContracts only explicitly, and test that the two are different bindings. The alternative is to rename it `NotImplementedError`. | 1 |
-| D13 | Error message prefixes (AGENTS.md: an `ArgumentError` or a module prefix). | `input:`, `basis:`, `scf:`, `optimization:`, `not implemented (<spec section>):`, `functional:`, `numerical:` are printed by `showerror` for the error types. `units:`, `system:`, `io:` and `molden:` (for the Molden data-type constructors) prefix `ArgumentError`s. The file readers throw `InputError`s whose `msg` starts with the format: `xyz: `, `pdb: `, `cif: ` or `molden: `, printed as `input: <source>:<line>: xyz: expected the atom count`. The line number lives only in the `line` field, never inside `msg`. A reader that calls a `System` constructor catches its `ArgumentError` and rethrows it as an `InputError` with the line number and the format prefix. | 1, 4, 6 |
+| D13 | Error message prefixes (AGENTS.md: an `ArgumentError` or a module prefix). | `input:`, `basis:`, `scf:`, `optimization:`, `not implemented (<spec section>):`, `functional:`, `numerical:` are printed by `showerror` for the error types. `units:`, `system:`, `io:` and `molden:` (for the Molden data-type constructors) prefix `ArgumentError`s. The file readers throw `InputError`s whose `msg` starts with the format: `xyz: `, `pdb: `, `cif: ` or `molden: `, printed as `input: <source>:<line>: xyz: expected the atom count`. The line number lives only in the `line` field, never inside `msg`. A reader that catches a `System` `ArgumentError` rethrows `InputError(source, line, "<fmt>: " * <the message without its "system: " prefix>)`, so `system: unknown element symbol "Xx"` on line 3 of an xyz file prints `input: <source>:3: xyz: unknown element symbol "Xx"`. | 1, 4, 6 |
 | D14 | TypeContracts, `@verify_all` and the PureXC path dependency. Step 01 has no `@contract` and no XC call, and Aqua's stale-dependency check fails an unused `[deps]` entry. | Each enters with its first use: TypeContracts with the first `@contract` (step 03/04), PureXC at step 05. The contract test file is created then. | 1 |
 | D15 | Default `Atom.mass`. The oracle's `.inp` table mixes isotopic (Z ≤ 10) and average masses; its YAML table uses average masses. | Mass of the most abundant isotope (the vibrational-frequency convention). Step 08 states the oracle difference in its parity table. | 3 |
 | D16 | The oracle inputs in CI. The oracle declares Apache-2.0 in `Cargo.toml` and has no LICENSE file. | Vendor the input files verbatim into `QuantumEngine/test/oracle/inputs/` with the standard Apache-2.0 text and a README naming the source repository and commit (Task 1b, so that every later test reads them from the repository). | 1b |
@@ -97,13 +97,13 @@ Copied from `AGENTS.md` and from the rewrite decisions. Every task's requirement
   - "Comments describe the code as it is: invariants, non-obvious reasons, constraints. No history, plans, or task references." Code ported from MIT-licensed work carries an attribution comment. The oracle is Apache-2.0: its code is not copied; its input files are vendored as data (D16).
   - No fast-math anywhere.
 - **Name trap.** Inside `QuantumEngine` and its `IO` module the name `IO` is the submodule, so stream arguments are annotated `Base.IO`. Tests never write `using QuantumEngine.IO` as a bare statement: after it, `IO` is ambiguous between Base and the submodule (`UndefVarError: IO not defined … also exported by Base`, measured on Julia 1.13.4). They write `using QuantumEngine.IO: name1, name2` or qualify as `QuantumEngine.IO.name`.
-- **Logging.** Every module logs through `IO.Logger` (spec 01). The quality item "no bare printing to stdout" scans `QuantumEngine/src` outside `src/io/logger.jl` for the regex `\b(println|print|printstyled)\((\"|lazy\"|stdout)` and for `@show`, and fails on any match.
-- **Messages.** Error and warning messages are stored as `LazyString` (field type `msg::LazyString`), so that an interpolated `lazy"..."` message is not converted to a `String` when the error is built. Constructors take any `AbstractString` and convert with `LazyString(msg)`. The juliac entry prints a message by iterating its `parts`, as `PureAtomistic/juliac/entry.jl` does.
+- **Logging.** `IO` and every module above it log through `IO.Logger` (spec 01); `Errors`, `Units` and `System` sit below `IO` and do not print. The quality item "no bare printing to stdout" scans `QuantumEngine/src` outside `src/io/logger.jl` for the regex `\b(println|print|printstyled)\((\"|lazy\"|stdout)` and for `@show`, and fails on any match.
+- **Messages.** Error and warning messages are stored as `LazyString` (field type `msg::LazyString`), so that an interpolated `lazy"..."` message is not converted to a `String` when the error is built. Constructors take any `AbstractString` and convert with `LazyString(msg)`. A message is printed only by walking `msg.parts` in one helper, `Errors._print_message(io::Base.IO, m::LazyString)`, which writes each part with a call on its concrete type (`String`, nested `LazyString`, `SubString{String}`, `Symbol`, `Char`, `Bool`, `Int`, `Float64`) and throws for any other part type. `print(io, ::LazyString)` is never called: measured during Task 1, it fails the typestable and noboxing proofs. The `showerror` methods and `InputWarning`'s `show` print through this helper, and the juliac entry prints an error with `showerror`, so through it too.
 - **StrictMode.**
   - `@strict_policy (:typestable, :noalloc)` is the last statement of every module, preceded by the comment `# Last statement: the policy checks the methods defined above it.`
   - A module imports from StrictMode only the macros it uses: `using StrictMode: @strict_policy`, plus `@strict_exempt` in a module that has an exemption (ExplicitImports' stale-import check fails otherwise).
   - `@strict_exempt` is allowed only for entry points and allocating constructors, narrowed to `:noalloc`, with a present-tense reason naming its kind. Each exemption names its function, as `PureAtomistic/src/io/IO.jl` does: `@strict_exempt :noalloc read_xyz reason = "entry point: xyz reader"`. An allocating helper that only an entry point calls is exempted by name with a reason naming that entry point. Every allocating constructor is exempted in the task that writes it: `@strict_exempt :noalloc <Type> reason = "entry point: <kind> constructor"`, plus `@strict_exempt :noalloc :_ reason = "entry point: keyword body of the <Type> constructor"` where a constructor has keyword arguments.
-  - `Base.showerror` methods are swept with the module that defines them (measured: `test_compiled(Errors)` and `audit(Errors; sweep = true)` judge `showerror(::IOBuffer, ::InputError)`). Each is written from single-argument `write`/`print` calls, not one varargs `print(io, a, b, c, …)`, and is exempted `@strict_exempt :noalloc reason = "entry point: renders the error message"`. With that form the noboxing proof and scan pass and noalloc is exempt (measured with a `String` message; the `LazyString` field is measured in Task 1).
+  - `Base.showerror` methods and `InputWarning`'s `Base.show` are swept with the module that defines them (measured: `test_compiled(Errors)` and `audit(Errors; sweep = true)` judge `showerror(::IOBuffer, ::InputError)`). Each is written from single-argument `write`/`print` calls, not one varargs `print(io, a, b, c, …)`, prints the message through `Errors._print_message` (Messages), and is exempted `@strict_exempt :noalloc reason = "entry point: renders the error message"`. With that form the noboxing proof and scan pass and noalloc is exempt (measured with a `String` message; with the `LazyString` field, `print(io, e.msg)` fails typestable and noboxing, so the message goes through `_print_message`).
   - The methods `@enum` writes into the defining module (`Base.Enums.namemap`, `Base.Enums._enum_hash`, `instances`, `typemin`, `typemax`; measured on Julia 1.13.4) are skipped by `other_function` in `test/strict/check.jl`, with a comment saying that `@enum` writes them.
   - The items "StrictMode policy holds in QuantumEngine" and "StrictMode gates reject the failing control" run `test/strict/check.jl` in a fresh process after `test/strict/workload.jl`.
   - Each task adds its entry points to the workload, so that every exempted function has a compiled specialization.
@@ -122,7 +122,7 @@ Copied from `AGENTS.md` and from the rewrite decisions. Every task's requirement
 - **Run command.**
   - Full suite: `julia --check-bounds=yes --project=QuantumEngine -e 'using Pkg; Pkg.test()'`.
   - Selected items: prefix the full-suite command with `QUANTUMENGINE_ONLY=<stem>`, where `<stem>` is a test file's base name without `.jl` (Task 1 adds this filter; it matches `basename(ti.filename)` exactly, so `inp_tests` does not select `inp_fixture_tests`).
-- **Oracle input files.** Tests read the vendored oracle inputs (Task 1b) through the Fixtures helper `oracle_input(relpath)::String`, which reads `joinpath(pkgdir(QuantumEngine), "test", "oracle", "inputs", relpath)`. No test reads `QUANTUM_ENGINE_ORACLE_SRC`.
+- **Oracle input files.** Tests read the vendored oracle inputs (Task 1b) through the Fixtures helper `oracle_input(relpath)::String`, which reads `joinpath(pkgdir(QuantumEngine), "test", "oracle", "inputs", relpath)`. No test reads QUANTUM_ENGINE_ORACLE_SRC except the vendored-files check of Task 1b, tagged `:oracle_src`, which runs only when that variable is non-empty.
 - **Comparing parsed structs.** `XYZFrame`, `InputFile` and the other structs with `Vector` fields have no `==` method (the default falls back to `===`). Tests compare them with the Fixtures helper `fields_equal(a, b) = all(f -> getfield(a, f) == getfield(b, f), fieldnames(typeof(a)))`, applied recursively where a field is itself such a struct.
 - **Test item names.** Every `@testitem` a mutation `expect` or a `QUANTUMENGINE_ONLY` run refers to has the exact name the task gives.
 - **Formatting and commits.**
@@ -130,7 +130,7 @@ Copied from `AGENTS.md` and from the rewrite decisions. Every task's requirement
   - Use the repository's git identity; never change it.
   - Subject ≤ 72 characters (aim for 50). The body is for a reader with only the repository; `Refs #6.` is the last line of its last body paragraph.
   - Then a blank line, and the trailers alone in the final paragraph: `Assisted-by: Claude <model> <noreply@anthropic.com>` and `Claude-Session: <the executing session's URL>`.
-  - "No host machine names or local absolute paths in tracked files or commit messages." The oracle is reached only through the environment variables `QUANTUM_ENGINE_ORACLE`, `QUANTUM_ENGINE_ORACLE_BASIS` and `QUANTUM_ENGINE_ORACLE_SRC`.
+  - "No host machine names or local absolute paths in tracked files or commit messages." The oracle is reached only through the environment variables `QUANTUM_ENGINE_ORACLE`, `QUANTUM_ENGINE_ORACLE_BASIS`, `QUANTUM_ENGINE_ORACLE_SRC` and `QUANTUM_ENGINE_ORACLE_COMMIT` (the full hash `capture.jl` records, Task 13).
   - Never push (D20).
 - **Scratch and runs.** Julia runs in the foreground with at most 4 threads. Package probes go in throwaway environments outside the repository.
 
@@ -138,7 +138,7 @@ Copied from `AGENTS.md` and from the rewrite decisions. Every task's requirement
 
 These are the inputs most likely to bite a user that no requirement below would otherwise exercise. Each has its pinning test in the task named.
 
-1. **Duplicate keywords or blocks** (`charge 0` on line 2 and `charge 1` on line 9; two `geometry` blocks). Strict throws "keyword `charge` given twice (lines 2 and 9)"; lenient keeps the oracle's result and warns. Owner: Task 8.
+1. **Duplicate keywords or blocks** (`charge 0` on line 2 and `charge 1` on line 9; two `geometry` blocks). Strict throws "keyword `charge` given twice (lines 2 and 9)"; lenient keeps the oracle's result and warns (`:duplicate_keyword`, `:duplicate_block`). Owner: Task 8 (strict), Task 9 (lenient).
 2. **CRLF line endings, a UTF-8 BOM, and tabs between tokens** in `.inp` and `.xyz`. These parse exactly as the LF/space version. Owner: Tasks 4 and 8.
 3. **An empty file, or one with only comments or only keywords.** Strict throws "input: <file>: no atoms: the input has no geometry block". Owner: Task 8.
 4. **Non-finite numbers** (`scf_convergence nan`, `damping inf`, a NaN coordinate). Strict throws "expected a finite number"; lenient keeps the oracle's parsed value and warns. Owner: Task 8.
@@ -157,25 +157,28 @@ QuantumEngine/
   src/units/elements.jl             the H–Kr element table (data)
   src/system/System.jl              Atom, PointCharge, Molecule, electron counts, nuclear repulsion
   src/io/IO.jl                      module file
+  src/io/lines.jl                   input_line and reject_or_warn, shared by the readers and parsers
   src/io/format.jl                  Rust-compatible fixed/exponent formatting
   src/io/logger.jl                  Logger, verbosity, fixed oracle output lines, log paths
   src/io/xyz.jl  pdb.jl  cif.jl     molecule readers (strict/lenient), xyz writer
   src/io/molden.jl                  Molden data types, writer, reader
   src/input/Input.jl                module file
-  src/input/types.jl                enums, MethodSpec, InputFile, ParsedInput
+  src/input/types.jl                enums, MethodSpec, InputFile, ParsedInput, _finalize_input
   src/input/vocabulary.jl           method, run-mode, solvent, kernel and other word tables
   src/input/inp.jl                  the .inp parser (strict and lenient)
   src/input/node.jl                 Node tree type
   src/input/structured.jl           schema walker Node → InputFile
   src/input/json.jl                 JSON.jl → Node
+  src/input/dict.jl                 AbstractDict → Node, parse_dict, the parse_yaml stub
   src/input/dispatch.jl             parse_input(path), format by extension, geometry files
+  ext/QuantumEngineYAMLExt.jl       YAML.jl → Dict → parse_dict (YAML.jl is a weak dependency)
   test/Project.toml  runtests.jl
   test/quality_tests.jl  layers_tests.jl  strict_tests.jl  trim_tests.jl  juliac_tests.jl
   test/strict/{check.jl,workload.jl}
   test/coverage/{Project.toml,check.jl,thresholds.toml}
   test/mutation/{run.jl,mutations.toml}
   test/fixtures.jl                  @testmodule Fixtures
-  test/{errors,units,system,format,logger,xyz,pdb,cif,molden,input_types,inp,lenient,json,inp_fixture}_tests.jl
+  test/{errors,units,system,format,logger,xyz,pdb,cif,molden,input_types,inp,lenient,json,dict,yaml,inp_fixture}_tests.jl
   test/oracle/inputs/...            vendored oracle inputs + LICENSE + README.md (Task 1b) + EXPECTED.toml (Task 12b)
   test/oracle/{references.toml,tolerances.toml}
   test/oracle/captured/             logs, stdout and Molden files captured from the oracle
@@ -196,7 +199,7 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
   - `QuantumEngine/Project.toml`, `QuantumEngine/src/QuantumEngine.jl`, `QuantumEngine/src/errors/Errors.jl`.
   - Test project and items: `QuantumEngine/test/Project.toml`, `test/runtests.jl`, `test/quality_tests.jl`, `test/layers_tests.jl`, `test/strict_tests.jl`, `test/strict/check.jl`, `test/strict/workload.jl`, `test/trim_tests.jl`, `test/juliac_tests.jl`, `test/errors_tests.jl`.
   - Coverage and mutations: `test/coverage/{Project.toml,check.jl,thresholds.toml}`, `test/mutation/{run.jl,mutations.toml}`.
-  - Docs and juliac: `docs/{Project.toml,make.jl,package.json}`, `docs/src/{index.md,api.md}`, `juliac/{build.jl,entry.jl}`.
+  - Docs and juliac: `docs/{Project.toml,make.jl,package.json}`, `docs/src/{index.md,api.md,dependencies.md}` (`dependencies.md` is the closure record of every dependency, started with StrictMode's), `juliac/{build.jl,entry.jl}`.
 - Modify:
   - `.github/workflows/CI.yml`: line 19 and line 130 (append `QuantumEngine`); lines 154 and 161 (append `&& matrix.package != 'QuantumEngine'`); the comment on line 152 becomes `# PureTaylor, PureXC and QuantumEngine have no extension files.`
   - `.github/workflows/docs.yml`: line 25 (append); lines 38 and 51 (append `&& matrix.package != 'QuantumEngine'`); line 58 (append `|| matrix.package == 'QuantumEngine'`); the comment on lines 15–16 adds "and QuantumEngine's under QuantumEngine/", and the comment on lines 35–36 says "The PureTaylor, PureXC and QuantumEngine sites have no examples."
@@ -217,9 +220,13 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
   - Module `QuantumEngine`.
   - Module `QuantumEngine.Errors`, which exports `QuantumEngineError` (abstract, `<: Exception`), `InputError(source::String, line::Int, msg::LazyString)`, `BasisError(msg::LazyString)`, `SCFNotConverged(msg::LazyString)`, `OptimizationFailed(msg::LazyString)`, `NotImplemented(section::String, msg::LazyString)`, `FunctionalUnavailable(msg::LazyString)`, `NumericalError(msg::LazyString)` and `InputWarning(source::String, line::Int, case::Symbol, msg::LazyString)`. Each constructor takes any `AbstractString` for `msg` and converts with `LazyString(msg)` (Global Constraints, Messages). `QuantumEngine` re-exports all of them.
   - `Base.showerror` methods giving the D13 prefixes. `InputError` prints `input: <source>:<line>: <msg>`, or `input: <source>: <msg>` when `line == 0`; `NotImplemented` prints `not implemented (<section>): <msg>`.
+  - `Base.show(io::Base.IO, w::InputWarning)`, which prints the same text as `showerror` of the `InputError` with the same source, line and message. It is exempted `:noalloc` as an entry point.
+  - `Errors._print_message(io::Base.IO, m::LazyString)`, the one helper that prints a message by walking `m.parts` (Global Constraints, Messages).
+  - StrictMode: each error constructor is measured for allocation (Step 3), and each one that allocates is exempted by name.
   - In `test/runtests.jl`, the filter:
     - `:juliac` items run only with `QUANTUMENGINE_JULIAC_BUILD=1`;
     - `:oracle` items only when `QUANTUM_ENGINE_ORACLE` is non-empty;
+    - `:oracle_src` items only when `QUANTUM_ENGINE_ORACLE_SRC` is non-empty (the filter gains this line in Task 1b, with the first such item);
     - `:slow` items only with `QUANTUMENGINE_SLOW=1`;
     - `:blocked_on_purexc` items only with `QUANTUMENGINE_PUREXC_BLOCKED=1` (they wait for a PureXC functional; none exist in step 01);
     - `:gpu` items never in this suite;
@@ -232,10 +239,10 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
       - `const P = QuantumEngine`.
       - The module sweep runs over every submodule, `(Errors, Units, System, IO, Input)`, restricted to the modules that exist at each task. The top module `QuantumEngine` owns no functions (measured: `test_compiled(QuantumEngine)` checks 0 signatures and warns "green because it checked nothing"), so it is not swept.
       - The `CHECKED` count of each gate is summed over the swept modules, and each sum must be > 0. A module sweep is not required to be non-empty on its own.
-      - `OTHER_FUNCTIONS = (Base.showerror,)`, held to `:typestable` only, so the `GATES` tuple copied from PureXC drops `("other", "noalloc")` and `("other", "noboxing")` while every listed function is typestable-only. (The module sweep already holds `showerror` to all three guarantees, with `:noalloc` exempt; the listing judges it a second time.)
+      - `OTHER_FUNCTIONS = (Base.showerror, Base.show)`, held to `:typestable` only, so the `GATES` tuple copied from PureXC drops `("other", "noalloc")` and `("other", "noboxing")` while every listed function is typestable-only. (The module sweep already holds `showerror` and `show` to all three guarantees, with `:noalloc` exempt; the listing judges them a second time.)
       - `other_function` also returns `:skip` for the methods `@enum` writes (Global Constraints, StrictMode).
       - The control has two parts. The listing control is a method `Base.abs2(::_ControlReal)` (unlisted), defined only under `CONTROL`. The gate control is package-owned: under `CONTROL`, `@eval P.Errors` defines `struct _Control; x::Real; end` and `_control_value(c::_Control) = [c.x][1] * c.x` (abstract field: type-unstable, allocating and boxed), and the control workload calls it with `Base.invokelatest`, so every proof and scan gate reports a `FAIL` line for it.
-    - `trim_tests.jl`: in Task 1, `@validate` holds `Base.showerror(::IOBuffer, ::T)` for each error type and for `InputWarning`'s rendering, since the juliac entry prints these. Task 2 adds `element`.
+    - `trim_tests.jl`: in Task 1, `@validate` holds `Base.showerror(::IOBuffer, ::T)` for each error type and `Base.show(::IOBuffer, ::InputWarning)`, since the juliac entry prints these. Task 2 adds `element`.
     - `juliac_tests.jl`: builds `qe_inspect` (Task 1 builds it from a trivial entry; Task 8 makes it read `.inp`). The criteria are PureXC's: the build log has no line with "unresolved call" or "Error #"; the binary's output equals the untrimmed `juliac/entry.jl` run byte for byte; nothing goes to stderr. In Task 1 the item runs the binary twice: with no argument (expect exit 1 and the line `usage: qe_inspect <file.inp>`) and with the argument `x.inp` (expect exit 0 and `ok\n`).
   - **`layers_tests.jl`:**
     - `test_layers(QE => (QE.Errors, QE.Units, QE.System, QE.IO, QE.Input), QE.Errors => (), QE.Units => (), QE.System => (QE.Units,), QE.IO => (QE.System, QE.Units, QE.Errors), QE.Input => (QE.IO, QE.System, QE.Units, QE.Errors))`. Each task registers its module as it creates it; until then the line for that module is absent.
@@ -258,6 +265,12 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
         @test_throws "numerical: " throw(NumericalError("x"))
         @test all(T -> T <: QuantumEngineError, (InputError, BasisError, SCFNotConverged, OptimizationFailed, NotImplemented, FunctionalUnavailable, NumericalError))
     end
+    @testitem "InputWarning shows as the InputError of its source, line and message" begin
+        using QuantumEngine
+        @test sprint(show, InputWarning("a.inp", 3, :unknown_keyword, "unknown keyword `foo`")) == "input: a.inp:3: unknown keyword `foo`"
+        @test sprint(show, InputWarning("a.json", 0, :ignored_key, lazy"x = $(1 + 1)")) == "input: a.json: x = 2"
+        @test InputWarning("a.inp", 3, :c, "m").msg isa LazyString
+    end
     @testitem "NotImplemented is not TypeContracts' trait" begin
         using QuantumEngine, TypeContracts
         @test QuantumEngine.NotImplemented !== TypeContracts.NotImplemented
@@ -265,6 +278,7 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
     ```
     The second item needs TypeContracts in the test project only (D12, D14).
 - [ ] **Step 2: Run** the full suite. Expected: it fails because the package does not exist.
+- [ ] **Step 2b: Resolve the closure** of StrictMode 0.5.21 in a throwaway environment outside the repository, as Task 3 Step 0 does for StaticArrays (stop only on a non-stdlib `_jll` or an `Artifacts.toml`). Record the full package list and versions in the commit body and in `docs/src/dependencies.md`, which this task creates.
 - [ ] **Step 3: Implement** the package files.
   - **`Project.toml`:**
     - `name = "QuantumEngine"`, a fresh `uuid` (generated with `UUIDs.uuid4()`), `version = "0.1.0"`, `authors = ["el_oso"]`.
@@ -274,16 +288,17 @@ Modified shared files (Task 1): `.github/workflows/{CI,docs,mutation}.yml`, `AGE
     - compat: Aqua "0.8", ExplicitImports "1.15", OffsetArrays "1", StrictMode "0.5.21", StrictModeTest "0.5.19", TestItemRunner "1.3", TrimCheck "0.1.5", TypeContracts "0.14.7", and "1" or "1.0" for the stdlibs, as in PureXC;
     - `[preferences.StrictMode] checks_enabled = true`.
   - **Module shape:** `QuantumEngine.jl` holds `using StrictMode: @strict_policy`, `include("errors/Errors.jl")`, `using .Errors: ...`, the `export` list, the comment line and `@strict_policy (:typestable, :noalloc)`. `Errors.jl` has the same shape with `using StrictMode: @strict_exempt, @strict_policy`, since its `showerror` methods are exempted.
-  - **`showerror`:** each method writes its pieces with single-argument calls, e.g. `write(io, "input: "); write(io, e.source); write(io, ":"); print(io, e.line); write(io, ": "); print(io, e.msg)`, and carries `@strict_exempt :noalloc reason = "entry point: renders the error message"`. The `LazyString` field is not yet measured under this form: if the noboxing proof or scan of `Errors` fails on `print(io, ::LazyString)`, stop and report the finding.
+  - **`showerror` and `show`:** each method writes its pieces with single-argument calls, e.g. `write(io, "input: "); write(io, e.source); write(io, ":"); print(io, e.line); write(io, ": "); _print_message(io, e.msg)`, and carries `@strict_exempt :noalloc reason = "entry point: renders the error message"`. `print(io, ::LazyString)` fails the typestable and noboxing proofs of `Errors` (measured), so the message is printed only by `_print_message`, which walks `msg.parts` (Global Constraints, Messages). `Base.show(io::Base.IO, w::InputWarning)` writes the same pieces as `showerror` of `InputError`, through the same location and message helpers.
+  - **Constructor exemptions:** measure each error constructor (`InputError`, `BasisError`, `SCFNotConverged`, `OptimizationFailed`, `NotImplemented`, `FunctionalUnavailable`, `NumericalError`, `InputWarning`) with the StrictMode noalloc check, and exempt by name each that allocates: `@strict_exempt :noalloc <Type> reason = "entry point: error constructor"`. The commit body lists which constructors allocate.
   - **Coverage:** `test/coverage/check.jl` is PureXC's file with only its usage comment changed; `thresholds.toml` gets one row per `src` file (Step 4 says how).
   - **Mutation runner:** `test/mutation/run.jl` is PureXC's runner without the PureTaylor sibling copy, since step 01 has no path dependency; the copy returns with PureXC in step 05. `mutations.toml` holds the header comment only.
-  - **Docs:** `docs/make.jl` follows PureXC's with `sitename = "QuantumEngine"`, `modules = [QuantumEngine]`, `deploy_url = "https://el-oso.github.io/PureAtomistic.jl/QuantumEngine"` and `dirname = "QuantumEngine"`. The pages are Home and API for now. `docs/Project.toml` has Documenter "1.19", DocumenterVitepress "0.3", `julia = "1.13"` and `[sources] QuantumEngine = {path = ".."}`.
+  - **Docs:** `docs/make.jl` follows PureXC's with `sitename = "QuantumEngine"`, `modules = [QuantumEngine]`, `deploy_url = "https://el-oso.github.io/PureAtomistic.jl/QuantumEngine"` and `dirname = "QuantumEngine"`. The pages are Home, API and Dependencies for now. `docs/Project.toml` has Documenter "1.19", DocumenterVitepress "0.3", `julia = "1.13"` and `[sources] QuantumEngine = {path = ".."}`.
   - **juliac:** `juliac/build.jl` follows PureXC's with the output name `qe_inspect`. The interim `juliac/entry.jl` prints the usage line and exits 1 without an argument; given a path, it prints `ok`.
 - [ ] **Step 4: Run** the full suite under `--check-bounds=yes`.
   - Expected: every item passes, including "StrictMode gates reject the failing control" with a `FAIL` line for each gate.
   - Coverage, in this order: (1) run `julia --check-bounds=yes --project=QuantumEngine -e 'using Pkg; Pkg.test(coverage = true)'`; (2) run `julia --project=QuantumEngine/test/coverage QuantumEngine/test/coverage/check.jl` and read each file's figure from its report (it fails, since the rows are not written yet); (3) write each row at that figure rounded down to two decimals; (4) rerun `check.jl`. Expected: `PASS` for each file. Every later task that adds "the coverage row" follows the same four steps.
 - [ ] **Step 5: Run the juliac item** with `QUANTUMENGINE_JULIAC_BUILD=1 QUANTUMENGINE_ONLY=juliac_tests`. Expected: PASS.
-- [ ] **Step 6: Commit** with subject `Add the QuantumEngine package with its gates`. The body names the shared files touched, and the commit is not pushed (D20).
+- [ ] **Step 6: Commit** with subject `Add the QuantumEngine package with its gates`. The body names the shared files touched and records StrictMode's closure (Step 2b), and the commit is not pushed (D20).
 
 ### Task 1b: Vendor the oracle input files
 
@@ -294,7 +309,8 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - `QuantumEngine/test/oracle/inputs/`: every `*.inp`, `*.in`, `*.yaml`, `*.yml`, `*.json` and `*.xyz` under the oracle's `examples/` (including `legacy_inputs/`), `tests/`, `molecules/`, `benchmarks/` and `src/input/`, at the same relative paths, copied byte for byte from `$QUANTUM_ENGINE_ORACLE_SRC` at 4a78a1d. There are 72 such files at that commit (appendix E1).
   - `test/oracle/inputs/LICENSE` (the standard Apache-2.0 text) and `test/oracle/inputs/README.md` (the source repository URL, the commit and "copied unchanged").
   - `test/fixtures.jl`: `@testmodule Fixtures` with `oracle_input_path(relpath)::String` (the vendored file's path), `oracle_input(relpath)::String` (its text) and `fields_equal(a, b)` (Global Constraints). Task 3 adds the molecule fixtures to it.
-  - `test/oracle/vendored_tests.jl`: the item "vendored inputs are the oracle's files", which checks that the count is 72 and, when `QUANTUM_ENGINE_ORACLE_SRC` is set, that each file equals its source byte for byte (skipped otherwise).
+  - `test/oracle/vendored_tests.jl`: the item "vendored inputs: count", which checks that the files with the six extensions above number 72 (LICENSE, README.md and Task 12b's EXPECTED.toml are not counted); and the item "vendored inputs are the oracle's files", tagged `:oracle_src`, which checks that each file equals its source under `QUANTUM_ENGINE_ORACLE_SRC` byte for byte.
+- Modify: `test/runtests.jl` (the `:oracle_src` filter line of Task 1: such items run only when `QUANTUM_ENGINE_ORACLE_SRC` is non-empty).
 
 - [ ] **Step 1: Copy** the files with a shell loop over `find` (no editing), then write LICENSE and README.md.
 - [ ] **Step 2: Check for local paths.** `grep -rnE '/Users/|/home/|<host name>' QuantumEngine/test/oracle/inputs`. Expected: no match (none at 4a78a1d, appendix E1).
@@ -345,8 +361,8 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 ### Task 3: Atoms, molecules, electron counts and nuclear repulsion
 
 **Files:**
-- Create: `QuantumEngine/src/system/System.jl`, `QuantumEngine/test/system_tests.jl`, `QuantumEngine/docs/src/dependencies.md` (the closure record of every dependency).
-- Modify: `QuantumEngine/Project.toml` (StaticArrays "1.9"), `QuantumEngine/test/Project.toml` (StaticArrays, compat "1.9": the tests build `SVector`s), `test/fixtures.jl` (the molecule fixtures), `QuantumEngine.jl`, `layers_tests.jl`, workload, trim, coverage, mutations, `docs/make.jl` (the Dependencies page).
+- Create: `QuantumEngine/src/system/System.jl`, `QuantumEngine/test/system_tests.jl`.
+- Modify: `QuantumEngine/Project.toml` (StaticArrays "1.9"), `QuantumEngine/test/Project.toml` (StaticArrays, compat "1.9": the tests build `SVector`s), `test/fixtures.jl` (the molecule fixtures), `QuantumEngine.jl`, `layers_tests.jl`, workload, trim, coverage, mutations, `docs/src/dependencies.md` (Task 1's closure record; StaticArrays' closure).
 
 **Interfaces:**
 - Consumes: `Units.element`, `Units.Element`.
@@ -369,10 +385,10 @@ Every later task reads oracle inputs from the repository, so they are vendored b
     - `nelectrons(mol)::Int` is the sum of `Z` minus `charge`. It throws `"system: charge 3 exceeds the nuclear charge 2"` when the count is negative.
     - `nalpha(mol)::Int` and `nbeta(mol)::Int` are `(n ± (mult − 1)) / 2`. They throw an `ArgumentError` with `"system: 2 electrons cannot have multiplicity 2"` when `n − (mult − 1)` is odd or negative.
   - **`nuclear_repulsion(mol)::T`** is Σ_{i<j} Z_i Z_j / r_ij over the atoms with Z > 0, iterated with `eachindex`. It throws `"system: atoms 1 and 2 coincide"` for r = 0 between two such atoms; the indices are positions in `eachindex(atoms)`. Point charges are not included: the charge–charge and nucleus–charge terms belong to step 14 (docstring).
-- Produces, in `test/fixtures.jl`: `@testmodule Fixtures` with `h2()` (examples/h2.inp: H at z = ∓0.7 bohr), `water()` (examples/h2o_631g_sp.inp, Å converted with `Units.ANGSTROM_TO_BOHR`) and `o2_triplet()` (examples/o2_triplet.inp, multiplicity 3). Each returns a `Molecule{Float64}`, and the coordinates are copied verbatim from the files.
+- Produces, in `test/fixtures.jl`: `@testmodule Fixtures` with `h2()` (examples/h2.inp: H at z = ∓0.7 bohr), `water()` (examples/h2o_631g_sp.inp, Å converted with `Units.ANGSTROM_TO_BOHR`) and `o2_triplet()` (examples/o2_triplet.inp, multiplicity 3: O at (0, 0, 0) and (1.208, 0, 0) Å, converted with `Units.ANGSTROM_TO_BOHR` as in `water()`). Each returns a `Molecule{Float64}` with positions in bohr; the coordinates are copied verbatim from the files, and a file in Å is converted with `Units.ANGSTROM_TO_BOHR`.
 - StrictMode: `Atom` (symbol parsing allocates the `String`), `Molecule` and its keyword body (the default `PointCharge{T}[]`) are exempted as allocating constructors (Global Constraints).
 
-- [ ] **Step 0: Resolve the closure** of StaticArrays 1.9 in a throwaway environment outside the repository (`julia --project=<scratch>/sa -e 'using Pkg; Pkg.add(name = "StaticArrays", version = "1.9"); Pkg.status(mode = Pkg.PKGMODE_MANIFEST)'`). Inspect the Manifest for non-stdlib `_jll` packages and for `Artifacts.toml` in the package directories. Record the package list and versions in the commit body and in `docs/src/dependencies.md`. Expected: StaticArrays and StaticArraysCore plus stdlibs (not yet measured for this plan; stop and report if anything else appears).
+- [ ] **Step 0: Resolve the closure** of StaticArrays 1.9 in a throwaway environment outside the repository (`julia --project=<scratch>/sa -e 'using Pkg; Pkg.add(name = "StaticArrays", version = "1.9"); Pkg.status(mode = Pkg.PKGMODE_MANIFEST)'`). Inspect the Manifest for non-stdlib `_jll` packages and for `Artifacts.toml` in the package directories. Record the full closure found (every package with its version) in the commit body and in `docs/src/dependencies.md`. Non-stdlib packages without binaries (PrecompileTools, Preferences and the like) are recorded and accepted. Stop and report only on a non-stdlib `_jll` package or an `Artifacts.toml`.
 - [ ] **Step 1: Write the failing tests.** The items are named `"electron counts"`, `"nuclear repulsion"`, `"Float32 flows through"`, `"ghost atoms"`, `"system errors"`, `"system: generic indexing"` and `"system: allocation-free counts"`.
   ```julia
   @testitem "electron counts" setup = [Fixtures] begin
@@ -393,7 +409,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
     - Water: within `rtol = 8eps()` of a BigFloat recomputation written in the test from the literal Å coordinates and `big"0.529177210903"`, which is independent of the package code. Kind (b): 3 pairs of ≤ 4 roundings plus 1 ulp from the conversion.
   - **Float32 flows through.** `Molecule{Float32}` built from Float32 positions: `nuclear_repulsion` returns a `Float32` within `rtol = 8eps(Float32)` of the Float64 value.
   - **Ghosts.** `Atom("O@", [0,0,0])` gives `Z == 0`, `ghost == true`, `basis_element == 8` and `mass == 0`. `Atom("bq-h", …)` is a ghost of H. A ghost at a real atom's position: `nuclear_repulsion` is unchanged and nothing throws (Review Focus 5).
-  - **Errors:** "unknown element symbol", the Bq message, and "atoms 1 and 2 coincide" (Review Focus 5).
+  - **Errors:** "unknown element symbol", the Bq message, and "atoms 1 and 2 coincide" (Review Focus 5). `basis_element(Atom{Float64}(0, "Foo@", SVector(0.0, 0.0, 0.0), true, 0.0))` throws `"system: ghost atom \"Foo@\" stands for no element"` (the atom built with the inner constructor, as Task 9's `:ghost_unchecked` builds it).
   - **Generic indexing.** `Molecule(OffsetArray(atoms, -1:1))` and `Molecule(view(atoms, 1:3))` give the same `nuclear_repulsion` (`==`) and `nelectrons`. The coincidence message on the OffsetArray names the indices `-1 and 0`. `Atom("H", OffsetArray([0.0, 0.0, 1.0], 0:2))` has `position == SVector(0.0, 0.0, 1.0)`.
   - **`@test_noalloc`** on `nuclear_repulsion`, `nelectrons`, `nalpha` and `nbeta` for Float64 and Float32.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=system_tests`. Expected: FAIL.
@@ -411,7 +427,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 ### Task 4: Molecule files: xyz (multi-frame), pdb and cif
 
 **Files:**
-- Create: `QuantumEngine/src/io/IO.jl`, `src/io/xyz.jl`, `src/io/pdb.jl`, `src/io/cif.jl`, `test/xyz_tests.jl`, `test/pdb_tests.jl`, `test/cif_tests.jl`.
+- Create: `QuantumEngine/src/io/IO.jl`, `src/io/lines.jl`, `src/io/xyz.jl`, `src/io/pdb.jl`, `src/io/cif.jl`, `test/xyz_tests.jl`, `test/pdb_tests.jl`, `test/cif_tests.jl`.
 - Modify: `QuantumEngine.jl` (`public IO`; re-export the readers), layers, workload, trim, coverage.
 
 **Interfaces:**
@@ -428,12 +444,24 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **`read_cif(io::Base.IO; source, lenient, warnings)::Vector{Atom{Float64}}`** reads one `loop_` with `_atom_site_type_symbol` and `_atom_site_Cartn_x/y/z`.
     - Non-letter characters are stripped from the symbol (`Fe2+` → `Fe`).
     - A loop with fractional coordinates only throws `"cif: only Cartesian _atom_site coordinates are supported"`.
-  - Errors are `InputError(source, line, msg)` with `line` set and `msg` starting `xyz: `, `pdb: ` or `cif: ` (D13); the line number is never repeated inside `msg`. An `ArgumentError` from `System.Atom` is caught and rethrown as such an `InputError`.
-  - The lenient branches of these readers are cases L19a–L19f of Task 9, implemented here. Each pushes `InputWarning(source, line, case, msg)` and reproduces `io/molecule.rs:35-190` of the oracle.
-  - L19b (`:unknown_element`, lenient) builds the atom with the inner constructor `Atom{Float64}(1, symbol, position, false, element(1).mass_most_abundant)`: Z = 1, the symbol as written, not a ghost.
-  - StrictMode: `read_xyz`, `write_xyz`, `read_pdb`, `read_cif` and each allocating helper they call are exempted by name (Global Constraints); `XYZFrame` is exempted as an allocating constructor if its constructor checks its arguments.
+  - Errors are `InputError(source, line, msg)` with `line` set and `msg` starting `xyz: `, `pdb: ` or `cif: ` (D13); the line number is never repeated inside `msg`. An `ArgumentError` from `System.Atom` is caught and rethrown as `InputError(source, line, "<fmt>: " * <its message without the leading "system: ">)` (D13).
+  - **Shared helpers**, in `src/io/lines.jl`, declared `public` in `IO` because the `.inp` parser (Task 8, both helpers) and the structured walker (Task 10, `reject_or_warn`) in `Input` call them too (the public-read check of `layers_tests.jl`):
+    - `input_line(raw::AbstractString, n::Int)::Tuple{SubString{String}, Vector{SubString{String}}}`: the line with a leading UTF-8 BOM removed when `n == 1`, a trailing `\r` removed and surrounding whitespace stripped, and its tokens split on spaces and tabs. Every reader and parser cleans and tokenizes its lines through it; none strips a BOM or `\r` on its own.
+    - `reject_or_warn(source::AbstractString, line::Int, lenient::Bool, warnings::Vector{InputWarning}, case::Symbol, msg::AbstractString)::Nothing`: strict throws `InputError(source, line, msg)`; lenient pushes `InputWarning(source, line, case, msg)` and returns, and the caller then applies the oracle value. It is the only place that chooses between strict and lenient; the readers here, `parse_inp` and `parse_structured` all call it.
+  - **Lenient cases L19a–L19f**, specified and tested here; each calls `reject_or_warn` and reproduces `io/molecule.rs:35-190` of the oracle (the implementer cites the line in each test). Task 9 refers to these rows and does not repeat them.
 
-- [ ] **Step 1: Write the failing tests.** The items are named `"xyz: round trip"`, `"xyz: multi-frame"`, `"xyz: blank comment line"`, `"xyz: line endings"`, `"xyz: errors"`, `"xyz: oracle files"`, `"xyz: generic indexing"`, `"pdb: errors"`, `"cif: errors"`, plus one value item each for pdb and cif (`"pdb: values"`, `"cif: values"`, on small inline files). In the messages below, `<src>` is the `source` the test passes.
+    | case | input | strict message | lenient value |
+    |---|---|---|---|
+    | L19a `:xyz_count` | count 3, 2 atom lines | "declares 3 atoms but has 2" | 2 atoms |
+    | L19b `:unknown_element` | xyz `Xx 0 0 0` | "unknown element symbol" | built with the inner constructor `Atom{Float64}(1, symbol, position, false, element(1).mass_most_abundant)`: Z = 1, the symbol as written, not a ghost (verified: the oracle accepts the file and fails later at the basis lookup, appendix E2) |
+    | L19c `:pdb_short_line` | 40-column ATOM line | "shorter than 54 columns" | skipped |
+    | L19d `:pdb_element_columns` | no columns 77–78, atom name `CL` | "no element in columns 77–78" | C |
+    | L19e `:cif_row` | 3 values, 4 tags | "row has 3 values for 4 tags" | row skipped |
+    | L19f `:cif_coordinate` | coordinate `x` | "is not a number" | 0.0 |
+  - StrictMode: `read_xyz`, `write_xyz`, `read_pdb`, `read_cif` and each allocating helper they call are exempted by name (Global Constraints); `input_line` (it allocates the token vector) is exempted by name with the reason `"entry point helper: line reader of read_xyz, read_pdb, read_cif and parse_inp"`; `XYZFrame` is exempted as an allocating constructor if its constructor checks its arguments.
+
+- [ ] **Step 1: Write the failing tests.** The items are named `"xyz: round trip"`, `"xyz: multi-frame"`, `"xyz: blank comment line"`, `"xyz: line endings"`, `"xyz: errors"`, `"xyz: oracle files"`, `"xyz: generic indexing"`, `"pdb: errors"`, `"cif: errors"`, plus one value item each for pdb and cif (`"pdb: values"`, `"cif: values"`, on small inline files), and the lenient items `"xyz: lenient"`, `"pdb: lenient"` and `"cif: lenient"`. In the messages below, `<src>` is the `source` the test passes.
+  - **Lenient** (one `@testset` per L19 row of the table above): strict throws the row's message; lenient takes the row's value and records exactly one warning, whose `case` is the row's symbol.
   - **xyz round trip.** Water written and read back gives positions within `rtol = 4eps()` of the input. Kind (b): ×BOHR_TO_ANGSTROM, shortest-repr printing is exact, ×ANGSTROM_TO_BOHR, and the constants' product is within 1 ulp of 1. Symbols and the comment come back unchanged (`==`).
   - **Multi-frame.** Three frames written and read back give `length == 3`, each frame equal as above.
   - **Blank comment line.** A water frame with an empty line 2 reads 3 atoms, O first, in both modes (class B; the oracle reads 2 atoms, verified by probe).
@@ -441,7 +469,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **Errors (strict):**
     - `"input: <src>:1: xyz: expected the atom count"` for a non-integer count;
     - `"input: <src>:1: xyz: the frame declares 3 atoms but has 2"`;
-    - `"input: <src>:3: xyz: unknown element symbol \"Xx\""`;
+    - `"input: <src>:3: xyz: unknown element symbol \"Xx\""` (the rethrown `System` error: `system: ` replaced by `xyz: `, D13; the item also asserts that the message does not contain `"system: "`);
     - `"input: <src>:1: pdb: ATOM record shorter than 54 columns"`;
     - `"input: <src>:1: pdb: no element in columns 77–78"`;
     - `"input: <src>:7: cif: row has 3 values for 4 tags"`;
@@ -451,7 +479,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **Generic indexing.** `write_xyz` with an `OffsetArray` and with a `view` of the atoms writes the same bytes as with the `Vector`.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=xyz_tests` (then `pdb_tests`, `cif_tests`). Expected: FAIL.
 - [ ] **Step 3: Implement** the three readers and the writer.
-  - Strip the BOM and `\r`, and split tokens on any whitespace.
+  - `lines.jl` first: `input_line` and `reject_or_warn`. The readers clean and tokenize every line through `input_line` and make every strict-or-lenient choice through `reject_or_warn`.
   - Exempt the entry points and their allocating helpers by name (Global Constraints).
 - [ ] **Step 4: Run** the items, then the full suite. Expected: PASS. Add the entries to the workload and TrimCheck, and the coverage rows.
 - [ ] **Step 5: Commit** `Read and write xyz, read pdb and cif molecule files`.
@@ -460,7 +488,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 
 **Files:**
 - Create: `QuantumEngine/src/io/format.jl`, `src/io/logger.jl`, `test/format_tests.jl`, `test/logger_tests.jl`.
-- Modify: `QuantumEngine/Project.toml` (Printf, compat `"1.13"`), `IO.jl`, workload, trim, coverage, mutations.
+- Modify: `QuantumEngine/Project.toml` (Printf, with a `[compat]` entry whose value the implementer verifies Pkg accepts for a stdlib, by `Pkg.resolve()` in the package and the test project, and records in the commit body; `"1.13"` is unverified), `IO.jl`, workload, trim, coverage, mutations.
 
 **Interfaces:**
 - Produces, in `QuantumEngine.IO`:
@@ -482,7 +510,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **Paths.** `log_path(input_path::AbstractString, output::Union{Nothing,String})::String` returns `output` verbatim, or the input path with its extension replaced by `.log` (next to the input). `output_base(log_path)::String` strips the extension. These are the oracle's rules (`engine/mod.rs:34-43`).
   - StrictMode: `Logger`'s constructor (keyword `verbosity`) is exempted as a constructor with a keyword body; the logger functions and formatters, which build `String`s, are exempted by name as entry points.
 
-- [ ] **Step 1: Write the failing tests.** The oracle lines below are copied verbatim from `examples/h2o_pbe0_631g.log` in the oracle checkout. That file is an untracked oracle output of unknown date, so Task 13 re-pins these lines against a capture the user provides.
+- [ ] **Step 1: Write the failing tests.** The oracle lines below are copied verbatim from `examples/h2o_pbe0_631g.log` in the oracle checkout. That file is an untracked oracle output of unknown date, so Task 13 re-pins the atom-table row against a capture the user provides; the other lines stay pinned to this file.
   ```julia
   @testitem "Rust exponent format" begin
       using QuantumEngine.IO: fmt_exp, fmt_fixed
@@ -517,6 +545,8 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=format_tests` and `QUANTUMENGINE_ONLY=logger_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement** the formatters with Printf (`%.*f` and `%.*e`) and rewrite the exponent for `fmt_exp`. Exact decimal ties may round differently from Rust (not measured). The parity harness compares parsed numbers, not text, so a tie difference is cosmetic; the `fmt_fixed` docstring states this.
 - [ ] **Step 4: Run** the items, then the full suite. Expected: PASS.
+  - Add to the workload: each formatter, `Logger` construction, each logger function on a `Logger{IOBuffer, Base.DevNull}`, `verbosity_from_input`, `log_path` and `output_base`.
+  - Add the coverage rows for `format.jl` and `logger.jl`.
   - Run TrimCheck on `fmt_fixed`, `fmt_exp`, `print_total_energy`, `report_optimization_step` and `log_print` with `Logger{IOBuffer, Base.DevNull}`. If Printf fails TrimCheck, stop and report the finding chain, obtained with `TrimCheck.init_validation`/`validate_function` in process: TrimCheck 0.1.5 crashes while printing a failure on Julia 1.13.4 (`UndefVarError(:mapssavaluetypes)`).
 - [ ] **Step 5: Mutations:** one entry in `fmt_exp`'s exponent rewrite (keep the leading zero), `expect = "Rust exponent format"`.
 - [ ] **Step 6: Commit** `Add the logger and the oracle's fixed output formats`.
@@ -557,7 +587,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **Labels.** The l = 4 shell writes `g`, and l = 5 throws.
   - **Oracle file (added in Task 13).** `read_molden` reads `captured/water_pbe_631g.molden`, written by the oracle with Å coordinates and alpha only. The check is 3 atoms, the O position z = 0.22166487 bohr within 1e-6 (kind (a): the oracle prints Å with 6 decimals, ×1/0.529177 ≈ 1.9e-6, half-ulp of print 9.5e-7), and 13 AO coefficients per orbital.
   - **Errors:** each message above.
-  - **Generic indexing.** `MoldenOrbitals` with an `OffsetArray` coefficient matrix throws the `require_one_based_indexing` error.
+  - **Generic indexing.** `MoldenOrbitals` with an `OffsetArray` coefficient matrix throws `"offset arrays are not supported but got an array with index other than 1"` (the `ArgumentError` of `Base.require_one_based_indexing`, read in Julia 1.13.4 `base/abstractarray.jl:135`).
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=molden_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement** the types, writer and reader.
 - [ ] **Step 4: Run** the items, then the full suite. Expected: PASS. Add `write_molden` and `read_molden` to the workload and TrimCheck, and the coverage row.
@@ -570,7 +600,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 - Modify: `QuantumEngine.jl` (`public Input`; re-export `InputFile` and `ParsedInput`; `parse_inp` and `molecule` are exported in Task 8 and `parse_input` in Task 12a, where they are defined, since Aqua's undefined-exports check rejects an export without a binding), layers, workload, trim, coverage.
 
 **Interfaces:**
-- Consumes: `System.Atom`, `System.PointCharge`, `Errors.InputWarning`.
+- Consumes: `System.Atom`, `System.PointCharge`, `Errors.InputWarning`, `Units.ANGSTROM_TO_BOHR` (the `SolvationSpec.probe_radius` default).
 - Produces, in `QuantumEngine.Input`:
   - **Enums:**
     - `RunMode`: `SinglePoint, Optimization, TransitionState, NEB, Frequency, TDDFT, Spectroscopy, OptFreq, BSSE, NBO, Bands, DOS, NMR, QTAIM, IRC`;
@@ -594,12 +624,12 @@ Every later task reads oracle inputs from the repository, so they are vendored b
     - `Base.@kwdef struct SolvationSpec; model::SolvationModel = NoSolvation; solvent::Symbol = :water; epsilon::Float64 = 78.39; custom_epsilon::Bool = false; radii_scaling::Float64 = 1.2; grid_order::Int = 110; surface::PCMSurface = VdwSurface; probe_radius::Float64 = 0.40 * ANGSTROM_TO_BOHR; end`. The defaults come from `solvation/mod.rs:29-37` and `smd.rs:319-326`. Under SMD, `custom_epsilon == true` means a user `epsilon` replaces the named solvent's dielectric, the oracle's `Solvent::Custom` (D32).
   - **`Base.@kwdef struct InputFile`**, with the fields and defaults of the table below. All atom indices are 1-based: the oracle's 0-based indices are converted at parse time.
   - **`struct ParsedInput; input::InputFile; warnings::Vector{InputWarning}; end`.**
-  - StrictMode: the 13 enums add no unlisted method (Task 1's `@enum` skip). `InputFile`, `SolvationSpec` (each with its keyword body, `:_`), `ONIOMSpec`, `ParsedInput` and `HubbardU` are exempted as allocating constructors where their constructors allocate; the vocabulary functions are allocation-free and are not exempted.
-  - **Vocabulary functions**, each returning `nothing` for an unknown word so that the parser decides between strict and lenient. All lowercase their argument first. Each has a companion listing its accepted words for error messages: `accepted_run_modes`, `accepted_methods`, `accepted_solvation_models`, `accepted_solvents`, `accepted_vdw_kernels`, `accepted_tddft_methods`, `accepted_grids`, `accepted_irc_directions`, `accepted_compute_modes`, `accepted_diis_methods`, `accepted_populations` and `accepted_surfaces`, each `()::Vector{String}`.
+  - StrictMode: the 13 enums add no unlisted method (Task 1's `@enum` skip). `InputFile`, `SolvationSpec` (each with its keyword body, `:_`), `ONIOMSpec`, `ParsedInput` and `HubbardU` are exempted as allocating constructors where their constructors allocate; the vocabulary functions and the `accepted_*` functions are allocation-free and are not exempted. Any helper that must allocate is exempted by name, with a reason naming the entry point that calls it.
+  - **Vocabulary functions**, each returning `nothing` for an unknown word so that the parser decides between strict and lenient. Each compares its argument with the table case-insensitively without allocating: a byte-wise ASCII comparison, never `lowercase`. Each has a companion listing its accepted words for error messages: `accepted_run_modes`, `accepted_methods`, `accepted_solvation_models`, `accepted_solvents`, `accepted_vdw_kernels`, `accepted_tddft_methods`, `accepted_grids`, `accepted_irc_directions`, `accepted_compute_modes`, `accepted_diis_methods`, `accepted_populations` and `accepted_surfaces`, each `()::Vector{String}` returning a module-level `const` vector (no allocation per call).
     - `run_mode_word(w)::Union{Nothing,RunMode}`: the aliases of `parser.rs:64-81`.
     - `method_word(tokens::AbstractVector{<:AbstractString})::Union{Nothing,MethodSpec}`, with the reference rules below. It reads the tokens with `firstindex` and offsets from it, so a `view` of a token vector works.
     - `solvation_word(w)::Union{Nothing,SolvationModel}`: `pcm` and `true` → PCM; `smd` → SMD; `none` and `false` → NoSolvation (`parser.rs:202-211`).
-    - `solvent_word(w)::Union{Nothing,Symbol}`: normalized by stripping `-`, `_` and spaces; the list of `smd.rs:281-305`.
+    - `solvent_word(w)::Union{Nothing,Symbol}`: compared with the table while skipping the bytes `-`, `_` and space on both sides, without building a normalized string; the list of `smd.rs:281-305`.
     - `vdw_kernel_word(w)`, `tddft_method_word(w)`, `grid_word(w)`, `irc_direction_word(w)`, `compute_mode_word(w)`, `diis_word(w)`, `population_word(w)` and `surface_word(w)`.
 
 **`InputFile` fields.** Columns: the `.inp` keyword and its aliases; the tokens after the keyword, with the `parser.rs` line that reads them; the field with its concrete type and default. The defaults are `types.rs:228-311`. Every field is written `field::Type = default`, so `Base.@kwdef` never makes a field `Any`. Token notation: `Int`, `Float`, `Bool` (`true`/`false`, D8), `word` (one token), `1+ words`, `[x]` optional. Block contents are in Task 8.
@@ -679,7 +709,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - `eom-ccsd`/`eom_ccsd` and `pwdft`/`pw-dft`/`pw_dft`.
 - **Parameterized:**
   - `casscf(e,o)` → CASSCF with `ints = (e,o)`.
-  - `libxc_gga x c` and `libxc_mgga x c` take two Int32 IDs in `ints`. `libxc_hgga id exx` and `libxc_hmgga id exx` take one ID in `ints[1]` and the fraction in `exx`.
+  - `libxc_gga x c` and `libxc_mgga x c` take two `Int` IDs in `ints`. `libxc_hgga id exx` and `libxc_hmgga id exx` take one ID in `ints[1]` and the fraction in `exx`.
 
 - [ ] **Step 1: Write the failing tests.**
   - `InputFile()` has every default of the table (one `@test` per field group).
@@ -689,6 +719,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
     - `method_word(view(["x", "libxc_hgga", "402", "0.2"], 2:4))` equals the `Vector` result (`"input types: method words on a view"`).
   - **Other words.** `run_mode_word("counterpoise") == BSSE`, `solvation_word("true") == PCM`, `solvation_word("false") == NoSolvation`, `solvation_word("cosmo") === nothing`, `solvent_word("Di-chloro_methane") == :dcm` (normalization), `vdw_kernel_word("grimme-d2") == D2`, `vdw_kernel_word("pbe-vdw") === nothing`, `grid_word("ultrafine") == 3`.
   - **Coverage of the oracle lists.** Every alias listed in this task maps; the test holds the alias lists as literals.
+  - **Allocation-free words** (`"input types: allocation-free words"`). `@test_noalloc` on `run_mode_word("Counterpoise")`, `solvent_word("Di-chloro_methane")` and `accepted_methods()`.
   - **Concrete fields** (`"input types: concrete fields"`). `all(isconcretetype, fieldtypes(InputFile))` fails, because some fields are `Union{Nothing,T}`; the item instead asserts that no field type is `Any` or abstract except a `Union{Nothing,T}` with concrete `T`: `all(T -> isconcretetype(T) || (T isa Union && all(isconcretetype, Base.uniontypes(T))), fieldtypes(S))` for `S` in `InputFile`, `SolvationSpec`, `ONIOMSpec`, `MethodSpec`, `Constraint` and `ParsedInput`.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=input_types_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement** `types.jl` and `vocabulary.jl`. The word tables are tuples of `(word, value)` pairs, scanned linearly, so lookups are concrete and trimmable.
@@ -699,33 +730,34 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 
 **Files:**
 - Create: `QuantumEngine/src/input/inp.jl`, `test/inp_tests.jl`.
-- Modify: `Input.jl`, `QuantumEngine.jl` (export `parse_inp` and `molecule`), `juliac/entry.jl` (now: read the `.inp` given in ARGS with `parse_inp`, build the molecule, print `title`, `nelectrons`, `nalpha`, `nbeta` and `fmt_fixed(nuclear_repulsion, 20, 12)`, one per line; an error message is printed by iterating its `LazyString` parts), `juliac_tests.jl` (the run reads `Fixtures.oracle_input("examples/h2.inp")`), workload, trim, coverage, `docs/src/input.md`, `docs/make.jl` (the Input page).
+- Modify: `Input.jl`, `src/input/types.jl` (`_finalize_input`), `QuantumEngine.jl` (export `parse_inp` and `molecule`), `juliac/entry.jl` (now: read the `.inp` given in ARGS with `parse_inp`, build the molecule, print `title`, `nelectrons`, `nalpha`, `nbeta` and `fmt_fixed(nuclear_repulsion, 20, 12)`, one per line; an error is printed with `showerror`, so its message goes through `Errors._print_message`), `juliac_tests.jl` (the run reads `Fixtures.oracle_input("examples/h2.inp")`), workload, trim, coverage, `docs/src/input.md`, `docs/make.jl` (the Input page).
 - StrictMode: `parse_inp`, `molecule`, `accepted_keywords` and their allocating helpers are exempted by name as entry points; the parser's state struct is exempted as an allocating constructor if its constructor allocates.
 
 **Interfaces:**
-- Consumes: Task 7's types and words; `System.Atom`, `Molecule`, `nalpha`; `Units.ANGSTROM_TO_BOHR`; `Errors.InputError`, `InputWarning`.
+- Consumes: Task 7's types and words; `System.Atom`, `Molecule`, `nalpha`; `Units.ANGSTROM_TO_BOHR`; `Errors.InputError`, `InputWarning`; `IO.input_line`, `IO.reject_or_warn` (Task 4).
 - Produces:
   - **`parse_inp(text::AbstractString; source::AbstractString = "<string>", lenient::Bool = false)::ParsedInput`.**
+  - **`_finalize_input(inp::InputFile; source::AbstractString, lenient::Bool, warnings::Vector{InputWarning}, method_line::Int = 0, multiplicity_line::Int = 0)::InputFile`**, in `types.jl`: the checks every input format shares, run once after the parse: no atoms, a restricted reference with multiplicity ≠ 1 (`:rhf_open_shell`), and the electron parity. `parse_inp` (here) and `parse_structured` (Task 10) both call it; neither repeats these checks. Its messages are those of "After the file" below; the structured path passes line 0.
   - **`molecule(inp::InputFile)::Molecule{Float64, Vector{Atom{Float64}}}`.**
   - **`accepted_keywords()::Vector{String}`:** sorted, with every alias.
 
 **Strict grammar** (the lenient branches are Task 9's):
 - **Lines.** In this order, for each line:
-  1. Strip a leading BOM (first line only) and a trailing `\r`, then surrounding whitespace.
+  1. `IO.input_line(raw, n)`: strip a leading BOM (first line only) and a trailing `\r`, then surrounding whitespace; it also returns the tokens used in 3.
   2. Title rule, before any comment handling: if the line starts with `#` and no title has been set yet, `title = strip(line[nextind(line, 1):end])` (the oracle's `line[1..].trim()`, `parser.rs:43-47`); the line is then skipped. Any other line starting with `#` is skipped. A `title` keyword overrides the comment title wherever it appears.
   3. Split tokens on whitespace (spaces and tabs). A token starting with `#` ends the line (D9). A line that is empty after this is skipped.
 - **Keywords.** The keyword is token 1, lowercased.
   - Strict looks up keywords only outside blocks.
   - An unknown keyword throws `InputError(source, n, "unknown keyword `foo_bar`; accepted keywords: <accepted_keywords() joined by \", \">")`.
-  - The tokens each keyword takes are the "tokens" column of Task 7's table. A keyword that gets a different count throws `"`charge` takes 1 value, got 2"`; for an optional token the message names the range (`"`freeze_bond` takes 2 or 3 values, got 1"`); a `1+` keyword with none throws `"`kpath` needs a value"`.
+  - The tokens each keyword takes are the "tokens" column of Task 7's table. A keyword that gets a different count throws `"`charge` takes 1 value, got 2"`; for an optional token the message names the range (`"`freeze_bond` takes 2 or 3 values, got 1"`); a `1+` keyword with none throws `"`kpath` needs a value"`. A block opener that takes no value (`hubbard`, `cell`, `pbc`, `oniom`) and gets a token on its line throws exactly `"`hubbard` takes no value on its line"`, not the count template.
   - `title` takes the rest of the line, joined by single spaces, with one surrounding pair of `"` removed (D9).
   - `ecp` takes `true`, `false` or a name (D31).
 - **Value types.**
   - Bool: exactly `true` or `false` (D8).
   - Integer: Julia `parse(Int, …)`.
-  - Float: `parse(Float64, …)`, then `isfinite`, else `"expected a finite number, got \"nan\""` (Review Focus 4).
+  - Float: `parse(Float64, …)`, then `isfinite`, else `"expected a finite number, got \"nan\""` (Review Focus 4). A token that parses as a non-finite float (`nan`, `inf`) is the `:nonfinite` case for every keyword, checked before any per-keyword fallback (Task 9).
   - Word values go through Task 7's word functions. An unknown word throws `"unknown value `x` for `compute_mode`; accepted: cpu, gpu, hybrid"`.
-- **Duplicates.** A scalar keyword given twice throws `"keyword `charge` given twice (lines 2 and 9)"`, aliases included. The `freeze_*` keywords are repeatable. A second `geometry` or `product_geometry` block throws `"second geometry block (first at line 4)"` (Review Focus 1).
+- **Duplicates.** A scalar keyword given twice throws `"keyword `charge` given twice (lines 2 and 9)"`, aliases included. The `freeze_*` keywords are repeatable. A second `geometry` or `product_geometry` block throws `InputError(source, 9, "second geometry block (first at line 4)")`, which names both lines when printed: `input: <src>:9: second geometry block (first at line 4)` (Review Focus 1; the lenient case is `:duplicate_block`, Task 9).
 - **Blocks.** `geometry [unit]`, `product_geometry [unit]`, `charges [unit]`, `hubbard`, `fragments`, `cell`, `pbc` and `oniom` open a block, and each closes with `end` (D7).
   - The unit is `angstrom`, `ang`, `bohr` or `au`, case-insensitive, and the default is angstrom per block; no unit carries over (class B). The oracle's `charges` takes no unit and uses the last geometry block's unit; here `charges` takes an optional unit with the Å default (class B, D6).
   - A line inside a block that is not that block's content throws `"`charge` inside the geometry block opened at line 6; close the block with `end`"`. An unclosed block at the end of the file throws `"the geometry block opened at line 6 is not closed by `end`"`.
@@ -738,7 +770,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - pbc: one line of exactly 3 tokens, each `true` or `false` (D8; strict rejects the oracle's `1`, `0`, `T` and `F`, which are `:bool_fallback` in lenient mode).
   - oniom: the keywords `high`, `low`, `model_atoms`, `model_indices`, `model_charge` and `model_multiplicity`.
 - **The `fragments` keyword** with ≥ 2 non-empty fragments inline needs no block.
-- **After the file.**
+- **After the file.** The first two checks and the parity check below are `_finalize_input`'s; the solvation and F12 checks stay in `parse_inp`.
   - No atoms throws `InputError(source, 0, "no atoms: the input has no geometry block")` (Review Focus 3).
   - `rhf`, `rmp2` or `rccsd` with multiplicity ≠ 1 throws at the method line: `"method `rhf` requests a restricted reference, but multiplicity is 3"`.
   - Solvation resolves order-independently, so the line order of the solvation keywords never changes the result:
@@ -750,7 +782,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - The electron parity is checked through `nalpha(molecule(inp))`, with the `ArgumentError` rethrown as an `InputError` at the multiplicity line.
 - **Type confusion (D26).** A first keyword token that ends in `:`, or a line starting with `- `, throws `"`basis:` looks like YAML; .inp files use `keyword value` lines, and YAML input needs a .yaml or .yml extension"`.
 
-- [ ] **Step 1: Write the failing tests.** The items are named `"inp: h2.inp values"`, `"inp: units"`, `"inp: unknown keyword"`, `"inp: value counts"`, `"inp: value types"`, `"inp: duplicates"`, `"inp: blocks"`, `"inp: no atoms"`, `"inp: methods and references"`, `"inp: solvation"`, `"inp: f12 options"`, `"inp: type confusion"`, `"inp: line endings"`, `"inp: comments, title and quotes"`, `"inp: atom lines and blocks"` and `"inp: juliac entry"`. Each error item holds one message group of the grammar above.
+- [ ] **Step 1: Write the failing tests.** The items are named `"inp: h2.inp values"`, `"inp: units"`, `"inp: unknown keyword"`, `"inp: value counts"`, `"inp: value types"`, `"inp: duplicates"`, `"inp: blocks"`, `"inp: no atoms"`, `"inp: methods and references"`, `"inp: solvation"`, `"inp: f12 options"`, `"inp: type confusion"`, `"inp: line endings"`, `"inp: comments, title and quotes"`, `"inp: atom lines and blocks"`, `"inp: class B readings"` and `"inp: juliac entry"`. Each error item holds one message group of the grammar above.
   - **Values.** `Fixtures.oracle_input("examples/h2.inp")` parses to `title == "Hydrogen molecule"`, `charge 0`, `multiplicity 1`, `basis "sto-3g"`, `method.kind == HF`, `scf_convergence == 1e-6`, `max_iterations == 50`, and atoms H at (0, 0, ∓0.7) bohr (`==`: no conversion).
   - **Units.**
     - `geometry angstrom` with `O 0.0 0.0 0.1173` gives z == 0.1173 * ANGSTROM_TO_BOHR (`==`, one multiplication).
@@ -759,17 +791,21 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **Errors** (`@test_throws`): each message in the grammar above. The unknown-keyword message also contains `"accepted keywords: "` and `"scf_convergence"`.
   - **Solvation.** Each ordering of the `:order_dependent` rows of Task 9 gives the same strict result in both line orders: `epsilon 4.0` and `solvation pcm` give PCM with epsilon 4.0; `solvation smd` and `solvent dcm` give SMD with `:dcm`; `solvation smd`, `solvent dcm` and `epsilon 9.0` give SMD, `:dcm`, epsilon 9.0, `custom_epsilon == true`.
   - **Review Focus 1–4:**
-    - duplicates and second blocks;
+    - duplicates and second blocks: a second `geometry` block at line 9 after one at line 4 throws the full printed form `"input: <src>:9: second geometry block (first at line 4)"`, and likewise for `product_geometry`;
     - CRLF, BOM and tabs give the same `InputFile` as the LF version (`fields_equal`);
     - an empty file, a file of comments only, and a file of keywords only each throw "no atoms";
     - `scf_convergence nan` and `damping inf` throw "expected a finite number".
   - **Inline comments and quotes.** `charge 0 # neutral` parses; `title "H2O MP2-F12 Test"` gives `H2O MP2-F12 Test`; a `# first` line followed by `# second` gives title `first`; `# first` followed by `title second` gives `second`.
-  - **Atom lines.** `Bq 0 0 1 0.5` gives a point charge at z = 1 Å with q = 0.5. The cell block gives a `lattice` with rows in Å. The fragments block of `Fixtures.oracle_input("tests/stress_dimer_bsse.in")` gives `[[1,2,3],[4,5,6]]`. `ecp def2` gives `use_ecp == true`, `ecp_name == "def2"`.
+  - **Atom lines.** `Bq 0 0 1 0.5` gives a point charge at z = 1 Å with q = 0.5. The cell block gives a `lattice` with rows in Å. The fragments block of `Fixtures.oracle_input("tests/stress_dimer_bsse.in")` gives `[[1,2,3],[4,5,6]]`. `ecp def2` gives `use_ecp == true`, `ecp_name == "def2"`. `hubbard O:5.0` throws "`hubbard` takes no value on its line".
+  - **Class B readings** (`"inp: class B readings"`, D6; each holds in both modes with no warning):
+    - substring scans: text that contains `cell` or `pbc` without opening that block (for example `title supercell pbc test`; the implementer reads at `parser.rs:338, 622-657` which text the oracle's scans match, builds the inputs from it and cites the lines) leaves `lattice === nothing` and `pbc == (true, true, true)`;
+    - multi-line `fragments` block: lines `0,1,2` and `3,4,5` give `fragments == [[1,2,3],[4,5,6]]` (the oracle keeps only the last line).
   - **juliac.** The untrimmed `juliac/entry.jl` on `examples/h2.inp` prints 5 lines: `Hydrogen molecule`, `2`, `1`, `1` and `fmt_fixed(1/1.4, 20, 12)`.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=inp_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement** `inp.jl`.
   - One pass over the lines keeps a state struct: the open block, its start line, the first line of each keyword seen, the method line, and the solvation keywords seen (resolved after the pass).
-  - Each place where the oracle silently accepts something calls `_reject_or_warn(state, line, case::Symbol, msg)`. In strict mode it throws `InputError(state.source, line, msg)`; in lenient mode it pushes `InputWarning` and returns, and the caller then applies the oracle value (Task 9).
+  - Each line is cleaned and tokenized by `IO.input_line`. Each place where the oracle silently accepts something calls `IO.reject_or_warn(state.source, line, state.lenient, state.warnings, case::Symbol, msg)` (Task 4): in strict mode it throws `InputError(state.source, line, msg)`; in lenient mode it pushes `InputWarning` and returns, and the caller then applies the oracle value (Task 9).
+  - After the pass, `parse_inp` resolves solvation and the F12 options, then calls `_finalize_input` with the method and multiplicity lines.
 - [ ] **Step 4: Run** the items, then the full suite. Expected: PASS.
   - Add `parse_inp` to the workload and to TrimCheck.
   - Add the coverage row.
@@ -781,10 +817,10 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 
 **Files:**
 - Create: `QuantumEngine/test/lenient_tests.jl`.
-- Modify: `src/input/inp.jl` (the lenient branches); the readers of Task 4 already carry L19 (this task adds the tests); `docs/src/input.md` (the case table).
+- Modify: `src/input/inp.jl` (the lenient branches); `docs/src/input.md` (the case table, including Task 4's L19a–L19f and Task 12a's `:xyz_frames`); `coverage/thresholds.toml` (the `inp.jl` row). The readers of Task 4 carry L19a–L19f and their tests.
 
 **Interfaces:**
-- Consumes: `parse_inp(text; lenient = true)` and Task 4's readers with `lenient = true`.
+- Consumes: `parse_inp(text; lenient = true)`.
 - Produces: each case below is a `Symbol` in `InputWarning.case`. That list is the public record of lenient behavior.
 
 The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.rs` and the consumers named at 4a78a1d; the implementer cites the line in each test. For the cases marked "verified", the value was confirmed by running the oracle binary on a probe (appendix E2).
@@ -792,6 +828,9 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 **Assertions.** Unless a row says otherwise, each case gets one `@testitem "lenient: <case>"` with two assertions: strict throws the message substring; lenient gives the stated value, with exactly one warning of that case. The rows that do not fit that template state their own assertions in the table.
 
 **The per-keyword table.** This is the complete record of what `--lenient` does with a bad or missing value of each `.inp` keyword (D6). "bad" is a token that does not parse as the keyword's type (Task 7's tokens column) or a word outside its vocabulary; "missing" is no token. The values are the oracle's. In strict mode every "bad" and "missing" entry is an error, except the rows whose class is "oracle error", which are errors in both modes. The item `"lenient: per-keyword table"` holds this table as a literal and loops over it: for each row and each of "bad" (input `<keyword> zzz`, or for a list keyword one entry `zzz`) and "missing" (input `<keyword>` alone), strict throws, and lenient gives the stated value with one warning of case `:bool_fallback`, `:number_fallback`, `:unknown_value`, `:missing_value`, `:too_few_values` or `:bad_list_entry` (as named in the row), or, for an "oracle error" row, throws in lenient mode too.
+- A row whose bad column is `—` has no bad input; the loop runs only its "missing" half.
+- A row whose bad token is valid in strict mode is skipped by the strict half of the loop for that token: `ecp zzz` is an ECP name in both modes (D31), and the item asserts instead that it parses with `ecp_name == "zzz"` and no warning.
+- A token that parses as a non-finite float (`nan`, `inf`) goes to `:nonfinite` (case table) before any per-keyword fallback, so `damping inf` is `:nonfinite` with the parsed `Inf`, not `:number_fallback`. The loop's bad token `zzz` never parses as a float.
 
 | keyword (aliases) | `parser.rs` | bad (lenient) | missing (lenient) | case |
 |---|---|---|---|---|
@@ -844,9 +883,10 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | `:unclosed_block` | geometry with no `end` at EOF | "is not closed by `end`" | atoms kept |
 | `:hubbard_inline_argument` | `hubbard O:5.0` then `use_diis true` | "`hubbard` takes no value on its line" | Both modes throw. Assertions: strict throws "`hubbard` takes no value on its line"; lenient throws `"Invalid U value: true"` (verified: the next 2-token line is read as a U line). The warning is checked on the variant `hubbard O:5.0` followed by `end`: lenient gives `hubbard == []` with one `:hubbard_inline_argument` warning |
 | `:fragment_index` | `fragments 0,x;1,2` | "fragment index `x` is not an integer" | index dropped |
-| `:nonfinite` | `scf_convergence nan` | "expected a finite number" | NaN (Rust `f64` parses `nan`) |
+| `:nonfinite` | `scf_convergence nan`; `damping inf` | "expected a finite number" | the parsed value: NaN, Inf (Rust `f64` parses `nan` and `inf`) |
 | `:extra_values` | `charge 0 1`; `optimize now` | "`charge` takes 1 value, got 2" | 0; `run_mode == Optimization` |
 | `:duplicate_keyword` | `charge 0` … `charge 1` | "given twice" | 1 |
+| `:duplicate_block` | a second `geometry` block (line 9) after one at line 4; likewise `product_geometry` | `"input: <src>:9: second geometry block (first at line 4)"` (Task 8) | the oracle's result for a second block, which the implementer reads from `parser.rs:307-330`, cites in the test and states (atoms appended or replaced), with one warning |
 | `:order_dependent` (1) | `pcm_radii 1.1` before `solvation pcm` | none | Assertions: strict gives `radii_scaling == 1.1` with no warning; lenient gives 1.2 (the oracle ignores it before a PCM model) with one warning |
 | `:order_dependent` (2) | `epsilon 4.0` before `solvation pcm` | none | strict: epsilon 4.0, no warning; lenient: 78.39 (`solvation pcm` resets the options, `parser.rs:205`), one warning |
 | `:order_dependent` (3) | `solvation smd` after `solvent dcm` | none | strict: SMD, `:dcm`, no warning; lenient: SMD, `:water` (`solvation smd` resets the solvent, `parser.rs:207`), one warning |
@@ -859,13 +899,10 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | `:f12_option_alone` | `f12_gamma 0.9` alone | "needs `f12 true`" | gamma 0.9, `use_f12 == false` (`.inp` does not enable it) |
 | `:yaml_in_inp` | the content of `molecules/h2_ccsd.inp` | "looks like YAML" | Both modes throw. Assertions: strict throws "looks like YAML"; lenient throws `"no atoms"` (the oracle's outcome, verified). The warning is not checked: the lenient run returns no `ParsedInput` |
 | `:bool_fallback` (pbc) | `pbc` block line `1 T F` | "expected true or false" | `(true, true, false)` |
-| L19a `:xyz_count` | count 3, 2 atom lines | "declares 3 atoms but has 2" | 2 atoms |
-| L19b `:unknown_element` | xyz `Xx 0 0 0` | "unknown element symbol" | Z = 1 (Task 4's construction; verified: the oracle accepts the file and fails later at the basis lookup, appendix E2) |
-| L19c `:pdb_short_line` | 40-column ATOM line | "shorter than 54 columns" | skipped |
-| L19d `:pdb_element_columns` | no columns 77–78, atom name `CL` | "no element in columns 77–78" | C |
-| L19e `:cif_row` | 3 values, 4 tags | "row has 3 values for 4 tags" | row skipped |
-| L19f `:cif_coordinate` | coordinate `x` | "is not a number" | 0.0 |
-| `:xyz_frames` | 3-frame xyz given as input geometry | "has 3 frames; an input geometry needs exactly one" | first frame |
+
+The reader cases L19a–L19f (`:xyz_count`, `:unknown_element`, `:pdb_short_line`, `:pdb_element_columns`, `:cif_row`, `:cif_coordinate`) are specified and tested in Task 4. `:xyz_frames` belongs to `parse_input` and is specified and tested in Task 12a.
+
+**Unclosed blocks.** A block keyword that ends an unclosed block emits `:unclosed_block` and, if that keyword is also out of place, `:block_keyword`. The implementer confirms this rule against `parser.rs:563-618` and reports if the source disagrees. Step 1 also derives, from the oracle source with cited lines, the expected warning list (and, for a lenient error, its message) of `tests/o2_hubbard.in` and `tests/stress_h2o_complex.in`, and pins each in an item `"lenient: <file name> cases"`. Tasks 12a and 12b use the same lists.
 
 The inputs `dispersion False` (verified: lenient `dispersion == true`), `export_molden 1`, `compute_soc 1`, bare `nbo`, `damping abc`, `grid abc`, `irc_step abc`, `conv_tol_density abc`, `pw_cutoff abc`, `field 0.1 0.2`, `kpoints 2 2`, `freeze_bond 1`, `kpoints 2 2 x`, `model_atoms 0 x 2`, `compute_mode tpu`, `solvation cosmo`, `solvent foo`, `irc_direction sideways`, `tddft_method foo`, `vdw_kernel pbe-vdw`, `diis_method foo`, `population foo`, bare `title`, bare `run` and bare `output` are all instances of the per-keyword table; each is also kept as an explicit `@test` in `"lenient: per-keyword table"`, since `.inp` files in the oracle set use some of them.
 
@@ -874,24 +911,25 @@ The inputs `dispersion False` (verified: lenient `dispersion == true`), `export_
 The structured-input cases (wrong types, unknown keys, methods, modes, solvents and surfaces, a solvation block without a model, integer for float, top-level `f12_gamma`, constraint indices, units and missing coordinates) are Task 10's.
 
 - [ ] **Step 1: Write the failing tests**, one item per row as specified.
-- [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=lenient_tests`. Expected: FAIL on the rows whose lenient branch is not written yet.
-- [ ] **Step 3: Implement** each lenient branch at its `_reject_or_warn` call. The keyword-first rule inside blocks applies only in lenient mode: a line whose first token is a keyword is processed as that keyword, as `parser.rs:563-618` does.
-- [ ] **Step 4: Run** the items, then the full suite. Expected: PASS. Add one lenient `parse_inp` call to the workload.
+- [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=lenient_tests`. Expected: FAIL on each row whose lenient branch is not yet implemented; a row that already passes (its branch written in Task 8) is named in the task report.
+- [ ] **Step 3: Implement** each lenient branch at its `IO.reject_or_warn` call. The keyword-first rule inside blocks applies only in lenient mode: a line whose first token is a keyword is processed as that keyword, as `parser.rs:563-618` does.
+- [ ] **Step 4: Run** the items, then the full suite. Expected: PASS. Add one lenient `parse_inp` call to the workload, and update the `inp.jl` coverage row (the four steps of Task 1 Step 4).
 - [ ] **Step 5: Commit** `Accept the oracle's lenient cases under --lenient`.
 
 ### Task 10: Structured input: `Node`, the schema walker, and JSON
 
 **Files:**
 - Create: `QuantumEngine/src/input/node.jl`, `src/input/structured.jl`, `src/input/json.jl`, `test/json_tests.jl`.
-- Modify: `QuantumEngine/Project.toml` (JSON, compat per D2), `QuantumEngine/test/Project.toml` (JSON with the same compat, only if a test constructs or inspects JSON.jl objects directly; the planned tests do not), `Input.jl`, workload, trim, coverage, `docs/src/input.md`, `docs/src/dependencies.md`.
+- Modify: `QuantumEngine/Project.toml` (JSON, compat per D2), `QuantumEngine/test/Project.toml` (JSON with the same compat, only if a test constructs or inspects JSON.jl objects directly; the planned tests do not), `Input.jl`, `src/QuantumEngine.jl` (export `parse_json`), workload, trim, coverage, `docs/src/input.md`, `docs/src/dependencies.md`.
 
 **Interfaces:**
+- Consumes: Task 7's types and words; `IO.reject_or_warn` (Task 4); `_finalize_input` (Task 8).
 - Produces:
   - **The tree type.**
     - `@enum NodeKind NullNode BoolNode IntNode FloatNode StringNode ArrayNode MapNode` (covered by Task 1's `@enum` skip).
     - `struct Node; kind::NodeKind; b::Bool; i::Int; f::Float64; s::String; items::Vector{Node}; keys::Vector{String}; end`. A map holds `keys[k] => items[k]`, in order and without duplicates.
     - The constructors `Node(nothing)`, `Node(::Bool)`, `Node(::Int)`, `Node(::Float64)`, `Node(::String)`, `Node(items::Vector{Node})` and `Node(keys::Vector{String}, items::Vector{Node})`. The map constructor throws `ArgumentError("input: duplicate key \"a\"")`. Each constructor allocates (`Node[]`, `String[]`) and is exempted as an allocating constructor.
-  - **`parse_structured(root::Node; source::AbstractString, lenient::Bool = false)::ParsedInput`:** the schema of `parse_yaml_string` (`parser.rs:677-1076`), below.
+  - **`parse_structured(root::Node; source::AbstractString, lenient::Bool = false)::ParsedInput`:** the schema of `parse_yaml_string` (`parser.rs:677-1076`), below. Every strict-or-lenient choice goes through `IO.reject_or_warn` (Task 4), and the walk ends with `_finalize_input` (Task 8) at line 0, so the no-atoms, restricted-reference and parity checks and their messages are those of `.inp`.
   - **`json_node(text::AbstractString)::Node`:** built through the public JSON.jl route chosen in Step 0 (D2). Duplicate keys throw in both modes (D3: the oracle's yaml-rust2 rejects them too).
   - **`parse_json(text; source, lenient)::ParsedInput = parse_structured(json_node(text); source, lenient)`.**
 
@@ -952,7 +990,9 @@ Errors in both modes (as in the oracle): a missing atom `symbol`, fewer than 3 p
 - [ ] **Step 1: Write the failing tests.**
   - **`Fixtures.oracle_input("benchmarks/fe2_dmft.json")`**: 2 Fe atoms at z = ±1.89 Å (`== ±1.89 * ANGSTROM_TO_BOHR`); `basis == "sto-3g"`; `scf_convergence == 1e-6`; `max_iterations == 100`; `use_dmft`; `dmft_temperature == 1000.0`; `dmft_n_freq == 512`; `dmft_n_bath == 2`; `dmft_u == [HubbardU("Fe", 4.0)]`; `dmft_j == [HubbardU("Fe", 0.9)]`.
   - **Duplicates.** `{"a":1,"a":2}` throws `"input: duplicate key \"a\""`; the same holds nested.
-  - **One item per row of the table above**, strict and lenient. Each test builds its `Node` with the constructors, so YAML reuses the items.
+  - **One item per row of the table above**, strict and lenient. Each test builds its `Node` with the constructors, so the items test the walker that JSON text, `parse_dict` and the YAML extension (Task 11) all reach through `Node`.
+  - **Shared checks on the structured path** (`"json: shared checks"`), one `@test_throws` each, with the `.inp` messages at line 0: a document with no `geometry`/`atoms` throws `"no atoms: the input has no geometry block"`; `"method": "rhf"` with `"multiplicity": 3` throws "requests a restricted reference" (lenient: AutoReference with one `:rhf_open_shell` warning); H2 with `"multiplicity": 2` throws "2 electrons cannot have multiplicity 2".
+  - **Units, class B** (`"json: units au and ang"`, D6). `"unit": "au"` keeps the positions in bohr and `"unit": "ang"` multiplies them by `ANGSTROM_TO_BOHR` (`==`), in both modes with no warning.
   - **`json_node` scalar typing.** `1` is an `IntNode`; `1.0` and `1e-6` are `FloatNode`s; a string is a `StringNode`; `true` is a `BoolNode`; `null` is a `NullNode`.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=json_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement.** The walker reads only `Node`s, so it is concrete and trimmable. `json_node` uses the route of Step 0 and only public JSON.jl names, so ExplicitImports' public-access check passes.
@@ -969,18 +1009,20 @@ User decision D1: the reader that turns a file into a Dict is not this package's
 
 **Files:**
 - Create: `QuantumEngine/src/input/dict.jl`, `QuantumEngine/ext/QuantumEngineYAMLExt.jl`, `QuantumEngine/test/dict_tests.jl`, `QuantumEngine/test/yaml_tests.jl`.
-- Modify: `QuantumEngine/Project.toml` (`[weakdeps] YAML`, `[extensions] QuantumEngineYAMLExt = "YAML"`, `[compat] YAML` at the current release), `QuantumEngine/test/Project.toml` (YAML), `Input.jl`, workload, trim, coverage, `docs/src/input.md`, `docs/src/dependencies.md` (YAML.jl is outside the core closure; record its closure and that the "core closure is binary-free" item does not load the extension).
+- Modify: `QuantumEngine/Project.toml` (`[weakdeps] YAML`, `[extensions] QuantumEngineYAMLExt = "YAML"`, `[compat] YAML` at the current release), `QuantumEngine/test/Project.toml` (YAML), `Input.jl`, `src/QuantumEngine.jl` (export `parse_dict` and `parse_yaml`), workload, trim, coverage, `docs/src/input.md`, `docs/src/dependencies.md` (YAML.jl is outside the core closure; record its closure and that the "core closure is binary-free" item does not load the extension).
 
 **Interfaces:**
 - Consumes: Task 10's `Node` and `parse_structured`.
 - Produces:
   - `node(d::AbstractDict)::Node`, recursively: `AbstractDict` → map node, keys converted with `String` (a non-string key throws `InputError` naming it); `AbstractVector` → array node; `Bool`, `Integer` (in `Int` range), `AbstractFloat`, `AbstractString`, `nothing`/`missing` → the matching scalar node; anything else throws `InputError` naming the key path and the Julia type. Key order: the Dict's iteration order; the schema walker does not depend on order.
   - `parse_dict(d::AbstractDict; source, lenient = false)::ParsedInput = parse_structured(node(d); source, lenient)`, exported.
-  - In the extension: `QuantumEngine.parse_yaml(path_or_text; source, lenient)` reads with YAML.jl and calls `parse_dict`. Without YAML loaded, `.yaml`/`.yml` dispatch (Task 12a) throws `"input: reading YAML needs `using YAML` (QuantumEngineYAMLExt)"`.
-- Typing: the reader decides scalar types. Where YAML.jl's typing differs from the oracle's yaml-rust2 (appendix E5: for example `017`, `True`, `nan`), the schema walker's type checks decide: a value of the wrong type for its key is an `InputError` in strict mode and handled as Task 9's lenient table says. The differences found are listed in `docs/src/input.md`.
+  - In `Input` (`dict.jl`): `function parse_yaml end`, with its docstring (`parse_yaml(text::AbstractString; source::AbstractString = "<string>", lenient::Bool = false)::ParsedInput` reads YAML text; it has a method only when YAML.jl is loaded), exported. The core defines no method.
+  - In the extension: the method `Input.parse_yaml(text::AbstractString; source, lenient)`, which reads the text with YAML.jl into a Dict and calls `parse_dict`.
+  - In `Input` (`dict.jl`): `_yaml_unavailable(source::AbstractString)::InputError`, which returns `InputError(source, 0, "reading YAML needs `using YAML` (QuantumEngineYAMLExt)")`, printed `input: <source>: reading YAML needs `using YAML` (QuantumEngineYAMLExt)`. The `.yaml`/`.yml` dispatch (Task 12a) calls `parse_yaml` when `hasmethod(parse_yaml, Tuple{AbstractString})`, and otherwise throws `_yaml_unavailable(source)`, in both modes.
+- Typing: the reader decides scalar types. Where YAML.jl's Dict types a scalar differently from JSON.jl's (Step 2 measures `017`, `True`, `nan` and any other difference found), the schema walker's type checks decide: a value of the wrong type for its key is an `InputError` in strict mode and handled as Task 10's lenient table says. The differences found are listed in the task report and in `docs/src/input.md`.
 
-- [ ] **Step 1: Failing tests** in `dict_tests.jl`: `node` on every scalar kind, nested maps and vectors, a non-string key, an unsupported value type (`InputError` with the path), `missing`; `parse_dict` on a Dict built in the test equals `parse_json` on the same content (`Fixtures.fields_equal`).
-- [ ] **Step 2: Failing tests** in `yaml_tests.jl` (with `using YAML`): `tests/si.yaml`, `examples/legacy_inputs/input_hf.yaml`, `src/input/input.yaml` and the two YAML strings embedded in the oracle tests (`parser.rs:1257`, `tests/test_smd_solvation.rs:239`) give the oracle's values (Task 12b's rows); the two `.inp`-in-`.yaml` files throw "top-level YAML document is not a mapping; this file looks like .inp syntax" (D26); a repeated key throws in both modes (D3) if YAML.jl reports it, and otherwise the test records that YAML.jl keeps the last value and the docs say so; each typing difference of appendix E5 has one test stating the outcome.
+- [ ] **Step 1: Failing tests** in `dict_tests.jl`: `node` on every scalar kind, nested maps and vectors, a non-string key, an unsupported value type (`InputError` with the path), `missing`; `parse_dict` on a Dict built in the test equals `parse_json` on the same content (`Fixtures.fields_equal`); `"unit" => "au"` keeps the positions in bohr and `"unit" => "ang"` multiplies them by `ANGSTROM_TO_BOHR` (`==`), in both modes with no warning (class B, D6; `"dict: units au and ang"`); `_yaml_unavailable("a.yaml")` shown with `showerror` is `"input: a.yaml: reading YAML needs `using YAML` (QuantumEngineYAMLExt)"`.
+- [ ] **Step 2: Failing tests** in `yaml_tests.jl` (with `using YAML`): `tests/si.yaml`, `examples/legacy_inputs/input_hf.yaml`, `src/input/input.yaml` and the two YAML strings embedded in the oracle tests (`parser.rs:1257`, `tests/test_smd_solvation.rs:239`) give the oracle's values (Task 12b's rows); the two `.inp`-in-`.yaml` files throw "top-level YAML document is not a mapping; this file looks like .inp syntax" (D26); a repeated key throws in both modes (D3) if YAML.jl reports it, and otherwise the test records that YAML.jl keeps the last value and the docs say so. Measure each typing difference (`017`, `True`, `nan`, and others found) between YAML.jl's Dict and JSON.jl's, and record it in the task report and in docs/src/input.md; each difference found has one test stating the outcome.
 - [ ] **Step 3: Implement** `dict.jl` and the extension. TrimCheck `@validate` covers `parse_dict` on a concrete `Dict{String, Any}` input only if it passes; otherwise the result is recorded for step 17 (the trimmed CLI reads `.inp` and JSON).
 - [ ] **Step 4: Run** the new items and the closure item (the core closure still has no `_jll`).
 - [ ] **Step 5: Commit** `Read structured input from a Dict; YAML through an extension`.
@@ -996,13 +1038,13 @@ User decision D1: the reader that turns a file into a Dict is not this package's
   - **`input_format(path::AbstractString)::InputFormat`:** the extension, lowercased (`parser.rs:15-26`). `xyz`, `pdb` and `cif` are geometry files; `yaml` and `yml` are YAML; `json` is JSON; anything else is `.inp`.
   - **`parse_input(path::AbstractString; lenient::Bool = false)::ParsedInput`.** It reads the file and dispatches.
     - A geometry file gives an `InputFile` holding only its atoms, with every other field at its default, as in the oracle.
-    - A multi-frame xyz throws in strict mode (case `:xyz_frames`).
-    - `.yaml`/`.yml` goes to `parse_yaml` (Task 11). Without `using YAML` it throws Task 11's message in both modes.
+    - A multi-frame xyz is the case `:xyz_frames`, through `IO.reject_or_warn`: strict throws `InputError(source, 0, "xyz: the file has 3 frames; an input geometry needs exactly one")`; lenient takes the first frame (the oracle's `io/molecule.rs` reader; the implementer cites the line) with one `:xyz_frames` warning.
+    - `.yaml`/`.yml` goes to `parse_yaml` (Task 11) when the extension has added its method; otherwise it throws `_yaml_unavailable(path)` (Task 11) in both modes.
   - StrictMode: `parse_input` and `input_format` are exempted by name as entry points if they allocate.
 
 - [ ] **Step 1: Write the failing tests.** `inp_fixture_tests.jl` checks the six fixture files field by field, one item per file, named `"fixture: <relative path>"`. The expected values are read from `parser.rs` (cite the lines in comments; D30); every field not listed is the default, checked with `fields_equal` against an `InputFile` built with only the listed fields. Each file is read with `parse_input(Fixtures.oracle_input_path(relpath))`, a Fixtures helper that returns the vendored path.
   1. examples/h2.inp (strict): Task 8's values.
-  2. examples/h2o_631g_sp.inp (strict; depends on D28):
+  2. examples/h2o_631g_sp.inp (strict; `631-g` is accepted as an alias, D28 decided):
      - title `Water single-point PBE0/6-31G`; `basis == "631-g"`; method PBE0, Auto; `scf_convergence == 1e-10`; `max_iterations == 100`;
      - atoms O(0, 0, 0.1173), H(0, ±0.7572, −0.4692) Å × ANGSTROM_TO_BOHR.
   3. examples/o2_triplet.inp (lenient):
@@ -1012,8 +1054,9 @@ User decision D1: the reader that turns a file into a Dict is not this package's
   5. tests/h2o_dimer_bsse.inp (strict): title `Water Dimer BSSE Test`; `run_mode == BSSE`; 6 atoms; `fragments == [[1,2,3],[4,5,6]]`; `nbo == true`.
   6. tests/o2_hubbard.in (lenient):
      - title `O2 Hubbard Test`; `basis == "6-31g"`; method PBE; multiplicity 3; 2 atoms; `hubbard == [HubbardU("O", 4.0)]`;
-     - warnings `[:block_keyword]`; strict error at line 10.
-  - Dispatch items (`"dispatch: formats"`): `input_format` for each extension, case-insensitive; a vendored `.xyz` gives an `InputFile` with only atoms; the YAML placeholder message.
+     - warnings: the list Task 9 derived for this file from the oracle source (`"lenient: o2_hubbard.in cases"`); strict error at line 10.
+  - Dispatch items (`"dispatch: formats"`): `input_format` for each extension, case-insensitive; a vendored `.xyz` gives an `InputFile` with only atoms; the "needs `using YAML`" message, checked by calling `_yaml_unavailable` directly, not through whether YAML is loaded in the test process.
+  - **`:xyz_frames`** (`"dispatch: xyz frames"`): `parse_input` on the vendored `examples/legacy_inputs/neb_test.neb.xyz` (5 frames, appendix E1) throws `"xyz: the file has 5 frames; an input geometry needs exactly one"` in strict mode; lenient gives the first frame's 3 atoms with exactly one `:xyz_frames` warning.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=inp_fixture_tests`. Expected: FAIL.
 - [ ] **Step 3: Implement** `dispatch.jl`.
 - [ ] **Step 4: Run** the full suite. Expected: PASS. Add `parse_input` to the workload and TrimCheck (`.inp` path), and the coverage row.
@@ -1034,19 +1077,19 @@ User decision D1: the reader that turns a file into a Dict is not this package's
 
 - [ ] **Step 1: Write the failing tests.**
   - **Coverage of the vendored set.** "every vendored input has an expected outcome" enumerates the files: a file without a row fails, and so does a row without a file. For each file it then asserts the strict and lenient outcomes. No row is `"pending"`.
-  - **Outcomes known now** (the rest are `ok`/`ok`):
+  - **Outcomes known now** (the rest are seeded in Step 3):
     - `use_diis` (`:unknown_keyword`) in examples/{h2_ediis, h2o, h2o_test, h2o_cdiis, h2o_ediis, h2o_nodiss}.inp and legacy_inputs/water_ediis.inp: strict error, lenient ok.
     - examples/ch3_radical.inp and o2_triplet.inp: `:rhf_open_shell`.
     - legacy_inputs/h2o_opt.inp: `convergence` and `maxiter` are `:unknown_keyword`.
     - legacy_inputs/neb_test.inp: strict error at `END_GEOMETRY`. Lenient ok with both geometries of 3 atoms, `neb_images == 5`, `run_mode == NEB` and `charge == 1`, with warnings `:dropped_block_line` (×2), `:unknown_keyword` (`MAX_ITER`) and `:block_keyword`.
-    - tests/{argon_vdw, h2o, h2o_vdw, h2o_vdw_d2, o2_hubbard}.in: `:block_keyword`/`:unclosed_block`.
-    - tests/stress_h2o_complex.in: `:hubbard_inline_argument` and `:unknown_value` (`pbe-vdw`).
+    - tests/{argon_vdw, h2o, h2o_vdw, h2o_vdw_d2}.in: `:block_keyword`/`:unclosed_block`, by Task 9's unclosed-block rule.
+    - tests/o2_hubbard.in and tests/stress_h2o_complex.in: the lists Task 9 derived from the oracle source (`"lenient: <file name> cases"`), copied with their cited lines.
     - molecules/{h2_ccsd, oh_uccsd}.inp: strict "looks like YAML", lenient error "no atoms".
-    - examples/h2o_opt.inp and h2o_631g_sp.inp: `basis 631-g` parses (`basis == "631-g"`; D28: spec 01 calls it a typo that must fail, the oracle accepts it as a 6-31G alias; this row waits for the user's answer).
+    - examples/h2o_opt.inp and h2o_631g_sp.inp: `basis 631-g` parses (`basis == "631-g"`; D28, decided by the user: accepted as the oracle's 6-31G alias).
     - legacy_inputs/neb_test.neb.xyz: `:xyz_frames`.
     - The YAML files: their outcomes through Task 11's extension, with `using YAML` in the item.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=inputs_tests`. Expected: FAIL.
-- [ ] **Step 3: Fill `EXPECTED.toml`** for the files not listed above by running both modes. Each row whose outcome is an error is checked against the oracle source and the probes of appendix E2, and every such row carries a `# reason` comment. A row is never edited to make a failing parser pass.
+- [ ] **Step 3: Fill `EXPECTED.toml`** for the files not listed above. Each row, `ok`/`ok` rows included, is seeded from the oracle: the oracle source (cited lines in a `# reason` comment) or a captured oracle run (appendix E2, or Task 13's captures), never from the implementation's own output. Then run both modes against the rows. A row is never edited to make a failing parser pass; a disagreement is reported.
 - [ ] **Step 4: Run** the full suite. Expected: PASS.
 - [ ] **Step 5: Commit** `Pin the outcome of every vendored oracle input`.
 ### Task 13: The parity harness
@@ -1091,22 +1134,23 @@ User decision D1: the reader that turns a file into a Dict is not this package's
     - `mp2.energy = 1e-9`;
     - `uhf.energy = 1e-7`;
     - `geometry.angstrom = 1e-4`;
-    - `frequency.cm1 = 1.0`.
+    - `frequency.cm1 = 1.0`;
+    - `nuclear_repulsion.energy`: half a unit in the last digit the oracle prints (kind (a)); the implementer reads the printed digit count from the line `nuclear_repulsion_from` parses, cites the format's file:line, and writes the value.
     - The DFT rows are added by step 05 with its measured defect. Until then a DFT comparison throws the missing-row error.
 
 **Who provides oracle outputs (D17).** The user (or the owner of a built oracle binary) runs:
 ```
 QUANTUM_ENGINE_ORACLE=<binary> QUANTUM_ENGINE_ORACLE_BASIS=<basis_sets dir> \
 QUANTUM_ENGINE_ORACLE_COMMIT=<full hash> \
-julia --project=QuantumEngine/test QuantumEngine/test/oracle/capture.jl <case>...
+julia --project=QuantumEngine/test QuantumEngine/test/oracle/capture.jl [--fixtures] <case>...
 ```
-The script runs each case and writes `captured/<case>.log` and `.stdout` plus any exports. It removes the lines that name local paths ("Reading input:", "Logging to:"), which are rewritten to the case name, and the timing lines. It then updates `references.toml`. Agents never build the oracle. They run `capture.jl` only on a binary the user names, at the user's request. The captured files are committed and are the stored oracle outputs; CI parses them without a binary.
+The arguments are case names. `--fixtures` also runs the six fixture files of Task 12a, unchanged, and writes their `[fixture."<relative path>"]` tables. The script runs each case and writes `captured/<case>.log` and `.stdout` plus any exports. It removes the lines that name local paths ("Reading input:", "Logging to:"), which are rewritten to the case name, and the timing lines. It then updates `references.toml`. Agents never build the oracle. They run `capture.jl` only on a binary the user names, at the user's request. The captured files are committed and are the stored oracle outputs; CI parses them without a binary.
 
 **The step-01 capture list**, each input copied from the named oracle file. The tolerance column is each case's `tolerance` map; a row marked "(no row)" does not exist in step 01, so a comparison of that quantity throws the missing-row error until the step that owns it adds the row.
 
 | case | input | quantities | tolerance rows |
 |---|---|---|---|
-| `water_pbe_631g` | examples/h2o_631g_sp.inp with `method pbe` and `export_molden true` | total energy (00-overview: −76.299269743150), nuclear repulsion, the atom table, the Molden file | `total_energy = "dft_closed.energy"` (no row; step 05) |
+| `water_pbe_631g` | examples/h2o_631g_sp.inp with `method pbe` and `export_molden true` | total energy (00-overview: −76.299269743150), nuclear repulsion, the atom table, the Molden file | `total_energy = "dft_closed.energy"` (no row; step 05), `nuclear_repulsion = "nuclear_repulsion.energy"` |
 | `water_rhf_631g` | the same with `method rhf` | total energy −75.983974472322 | `total_energy = "hf.energy"` |
 | `water_mp2` | examples/legacy_inputs/test_mp2.inp | `mp2_correlation`; the total energy is the SCF energy (trap) | `mp2_correlation = "mp2.energy"`, `total_energy = "hf.energy"` |
 | `water_ccsd` | examples/legacy_inputs/h2o_ccsd_t.inp | `ccsd_correlation`; the total energy is the SCF energy (trap) | `ccsd_correlation = "ccsd.energy"` (no row; step 09), `total_energy = "hf.energy"` |
@@ -1115,7 +1159,7 @@ The script runs each case and writes `captured/<case>.log` and `.stdout` plus an
 | `o2_uhf_631g` | derived from examples/o2_triplet.inp: `basis 6-31g` and `method uhf` (the oracle maps `uhf` to `Method::RHF` and selects UHF by multiplicity, `parser.rs:1127`, so its result is the same as with `method rhf`) | total energy −149.545553662520; iteration lines without E_nuc | `total_energy = "uhf.energy"` |
 | `h2_qtaim` | examples/h2.inp with `run qtaim` | `ext_report` | each key `"qtaim.<key>"` (no row; step 13) |
 
-The six fixture files of Task 12a are captured too, unchanged, for their echoed settings (D30).
+The six fixture files of Task 12a are captured too, unchanged, for their echoed settings (D30), with `capture.jl --fixtures`.
 
 **How later steps plug in.**
 1. Add a `[case.<name>]` table to `references.toml`, with its `tolerance` map.
@@ -1127,7 +1171,8 @@ The six fixture files of Task 12a are captured too, unchanged, for their echoed 
 The live item re-runs the binary and checks that it still reproduces `references.toml`.
 
 - [ ] **Step 1: Write the failing tests.**
-  - **Self-test** (`harness_tests.jl`, `"harness: parses the stored water PBE log"`): `total_energy(read("captured/water_pbe_631g.log", String)) == reference("water_pbe_631g", "total_energy")`. This is `==` because the printed decimal is parsed and `capture.jl` stored the same parse; it tests the parser, not the oracle. Spec 01's "recovers −76.299269743150" is checked in Step 5, against the capture.
+  - **Self-test** (`harness_tests.jl`, `"harness: parses the stored water PBE log"`): `total_energy(read("captured/water_pbe_631g.log", String)) == reference("water_pbe_631g", "total_energy")`. This is `==` because the printed decimal is parsed and `capture.jl` stored the same parse; it tests the parser, not the oracle.
+  - **00-overview energies** (`harness_tests.jl`, `"harness: captured energies equal the 00-overview values"`): `total_energy` of the captured `water_pbe_631g` log `== -76.299269743150`, of `water_rhf_631g` `== -75.983974472322` and of `o2_uhf_631g` `== -149.545553662520`. Each literal carries a comment citing its source, the "Reference energies measured from the oracle" paragraph of `00-overview.md` (lines 189–195 when this plan was written). `==`: 00-overview quotes the oracle's printed 12-decimal value, and both sides parse the same decimal. This is spec 01's "recovers −76.299269743150".
   - **Case inputs parse strictly** (`"harness: case inputs parse strictly"`): every `[case]` input in `references.toml` parses with strict `parse_inp`, with no warning.
   - **The other reference energies.** `total_energy` of the `water_rhf_631g` and `o2_uhf_631g` logs `==` their `references.toml` values.
   - **Fixture cross-check** (`inp_fixture_tests.jl`, `"fixture: echoed settings match the oracle"`): for each `[fixture]` table, the Julia parse of that file (strict, or lenient where Task 12a says so) gives the same title, multiplicity, charge, basis, convergence and atom count, and a method that maps to the echoed `Method:` name (the oracle prints its own enum name, e.g. `RHF` for `hf`; the item holds that map as a literal).
@@ -1135,13 +1180,13 @@ The live item re-runs the binary and checks that it still reproduces `references
   - **Nuclear repulsion cross-check.** `|nuclear_repulsion(Fixtures.water()) − nuclear_repulsion_from(water_pbe log)| ≤ 2e-12`. Kind (a): two values printed at 12 decimals, each ±5e-13, plus a Float64 sum of 3 terms (~6e-15).
   - **Re-pins.** The Task 5 atom-table line is re-pinned to `captured/water_pbe_631g.log` (the same geometry), and the Task 6 Molden reader item reads `captured/water_pbe_631g.molden`.
   - **Missing tolerance.** `tolerance("water_pbe_631g", "total_energy")` throws the missing-row message; so does a quantity with no entry in the map.
-  - **Live** (`live_tests.jl`, tag `:oracle`): for each case, `run_oracle` gives `exitcode == 0` and every extracted value whose row exists within `tolerance(case, key)` of `references.toml`; a quantity without a row is listed and skipped by `@test_skip`, not compared. With `QUANTUM_ENGINE_ORACLE` set and the basis variable unset, `oracle_basis_dir()` throws its message.
+  - **Live** (`live_tests.jl`, tag `:oracle`): for each case, `run_oracle` gives `exitcode == 0`, and every compared quantity is looked up with `tolerance(case, key)` and asserted within it of `references.toml`. `tolerance` throws on a missing map entry or row, so no quantity is skipped silently: until its owning step adds the row, a "(no row)" quantity is an error of the live item, in its own `@testset` so that the other quantities are still compared. With `QUANTUM_ENGINE_ORACLE` set and the basis variable unset, `oracle_basis_dir()` throws its message.
 - [ ] **Step 2: Run** with `QUANTUMENGINE_ONLY=harness_tests`. Expected: FAIL (no captured files).
 - [ ] **Step 3: Implement** `harness.jl`, `capture.jl` and the TOML files with the eight cases' inputs and the six fixture entries.
-- [ ] **Step 4: USER STEP. Ask the user to run `capture.jl`** for the eight cases and the six fixture files, and to confirm the oracle commit. Nothing in this task proceeds until the files exist; the plan does not create, edit or synthesize any captured file.
+- [ ] **Step 4: USER STEP. Ask the user to run `capture.jl --fixtures`** with the eight case names (so the six fixture files run too), and to confirm the oracle commit. Nothing in this task proceeds until the files exist; the plan does not create, edit or synthesize any captured file.
 - [ ] **Step 5: Check the captures.**
   - Check that the captured files contain no local path (`grep` for `/Users/`, `/home/` and the host name; expect none).
-  - Compare the captured values with 00-overview: `water_pbe_631g` −76.299269743150, `water_rhf_631g` −75.983974472322, `o2_uhf_631g` −149.545553662520. Report any difference to the user, with both values; it is a fact about the oracle run, not a parser failure, and no test or tolerance is changed for it.
+  - Compare the captured values with 00-overview: `water_pbe_631g` −76.299269743150, `water_rhf_631g` −75.983974472322, `o2_uhf_631g` −149.545553662520. Report any difference to the user, with both values; it is a fact about the oracle run, not a parser failure, and no test or tolerance is changed for it (the item `"harness: captured energies equal the 00-overview values"` then fails until the user rules).
   - Run the harness items, then the full suite. Expected: PASS.
 - [ ] **Step 6: Document** `docs/src/parity.md`: the capture protocol, the plug-in steps, the traps (MP2/CCSD total = SCF energy; the UHF iteration lines and the `SCF converged` line exclude E_nuc; the CLI overrides `verbosity` and `tddft_states`) and the tolerance table.
 - [ ] **Step 7: Commit** `Add the oracle parity harness and captured references`.
@@ -1185,8 +1230,8 @@ No format is implemented until the user chooses one.
 **Files:**
 - Modify: `QuantumEngine/test/coverage/thresholds.toml` (final rows), `QuantumEngine/docs/src/index.md`, `api.md` (every exported and public name in an `@docs` block).
 
-- [ ] **Step 0: Preconditions.** every row under "Decisions needed" has the user's answer; the Task 14 Step 4 answer is recorded.
-- [ ] **Step 1: Run the full suite** under `--check-bounds=yes`. Expected: every item passes, with zero skipped outside `:juliac`, `:oracle`, `:slow` and `:gpu`.
+- [ ] **Step 0: Preconditions.** Every row under "Decisions needed" except D2 has the user's answer; D2's route is the one Task 10 Step 0 measured and recorded. The Task 14 Step 4 answer is recorded.
+- [ ] **Step 1: Run the full suite** under `--check-bounds=yes`. Expected: every item passes, with zero skipped outside the tagged groups of the `runtests.jl` filter (`:juliac`, `:oracle`, `:oracle_src`, `:slow`, `:blocked_on_purexc` and `:gpu`).
 - [ ] **Step 2: Run the juliac item** with `QUANTUMENGINE_JULIAC_BUILD=1`. Expected: PASS.
 - [ ] **Step 3: Check coverage.** Run `Pkg.test(coverage = true)`, then `check.jl`. Expected: PASS for every `src` file, each row at its measured floor.
 - [ ] **Step 4: Run the mutations** with `julia QuantumEngine/test/mutation/run.jl`. Expected: the control passes and every entry is killed by its `expect` item.
@@ -1227,7 +1272,7 @@ The figures the tasks rely on, with their source. "Read" means read in the oracl
 
 **E4. JSON.jl 1.6.1** (read: the package source). `src/JSON.jl:14-23` declares `parse`, `parse!`, `parsefile`, `parsefile!`, `lazy`, `lazyfile`, `LazyValue`, `isvalidjson`, `json`, `print`, `lower`, `lift`, `omit_null`, `omit_empty`, `Object`, `Null`, `Omit` and `JSONStyle` public; `applyobject` and `applyarray` are not. `parse.jl:221` takes a `dicttype` keyword. The difference in `applyobject`'s key conversion between 1.6.1 (`convert(String, k)`) and 1.13.4 (`String(k)`) is from earlier research; Task 10 Step 0 measures again.
 
-**E5. YAML** (read: the General registry and the oracle's crate source). `Y/YAML/Deps.toml`: versions 0.4 onward depend on Base64, Dates and Printf; StringEncodings is added from 0.4.7. yaml-rust2 0.9.0 `src/yaml.rs:223-228` returns `"…: duplicated key in mapping"` for a repeated key. The YAML.jl 0.4.6 TrimCheck count (6 findings) and its scalar bugs (folding, `0o17`) are from earlier research; Task 11 Step 1 measures the TrimCheck result again. The yaml-rust2 scalar typing table stated in Task 11 Step 3 is from earlier research; the addendum task for option (b) checks each rule against yaml-rust2 0.9.0's source before writing its tests.
+**E5. YAML** (read: the General registry and the oracle's crate source). `Y/YAML/Deps.toml`: versions 0.4 onward depend on Base64, Dates and Printf; StringEncodings is added from 0.4.7. yaml-rust2 0.9.0 `src/yaml.rs:223-228` returns `"…: duplicated key in mapping"` for a repeated key. The YAML.jl 0.4.6 TrimCheck count (6 findings) and its scalar bugs (folding, `0o17`) are from earlier research; no task relies on them, since YAML.jl is loaded only by `QuantumEngineYAMLExt` and the trimmed entry reads no YAML (D1). Task 11 Step 2 measures each scalar typing difference between YAML.jl's Dict and JSON.jl's (`017`, `True`, `nan` and any other found).
 
 **E6. StrictMode behavior** (run in a scratch module, StrictMode 0.5.21, StrictModeTest 0.5.19, Julia 1.13.4).
 - A module that owns no functions: `test_compiled` checks 0 signatures and warns "green because it checked nothing"; `audit(...; sweep = true)` returns 0 findings; `test_calls` returns 0.
