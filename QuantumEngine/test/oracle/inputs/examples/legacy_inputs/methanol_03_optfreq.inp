@@ -1,0 +1,15 @@
+title "Methanol Geometry Optimization & Frequencies (IR/Raman/VCD)"
+run_mode optfreq
+method pbe0
+basis def2-svp
+charge 0
+multiplicity 1
+
+geometry angstrom
+C  -0.046   0.658   0.000
+O  -0.046  -0.758   0.000
+H   0.985   1.037   0.000
+H  -0.546   1.037   0.887
+H  -0.546   1.037  -0.887
+H   0.871  -1.037   0.000
+end

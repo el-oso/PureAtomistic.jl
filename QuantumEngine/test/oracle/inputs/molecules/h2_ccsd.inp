@@ -1,0 +1,18 @@
+# H2 CCSD(T) Benchmark
+# Standard STO-3G basis with RI-Auxiliary
+
+molecule:
+  atoms:
+    - symbol: H
+      position: [0.0, 0.0, 0.0]
+    - symbol: H
+      position: [0.0, 0.0, 0.7414]
+  units: Angstrom
+
+settings:
+  basis: sto-3g
+  aux_basis: def2-SVP-JKFIT
+  method: ccsd
+  scf_max_iter: 50
+  scf_conv_tol: 1e-8
+  num_threads: 4

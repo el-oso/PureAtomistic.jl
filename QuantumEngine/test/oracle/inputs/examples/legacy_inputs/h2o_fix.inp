@@ -1,0 +1,19 @@
+title "H2O OptFreq"
+run_mode optfreq
+method pbe0
+basis 6-31g
+dispersion true
+grid fine
+charge 0
+multiplicity 1
+
+# Stability options
+auto_stabilize true
+robust_convergence true
+max_iterations 300
+
+geometry angstrom
+O    0.00000000    0.00000000    0.00000000
+H    0.00000000    0.75700000    0.58600000
+H    0.00000000   -0.75700000    0.58600000
+end

@@ -1,0 +1,25 @@
+{
+    "atoms": [
+        { "symbol": "Fe", "position": [0.0, 0.0, 1.89] },
+        { "symbol": "Fe", "position": [0.0, 0.0, -1.89] }
+    ],
+    "basis": "sto-3g",
+    "charge": 0,
+    "multiplicity": 1,
+    "scf": {
+        "conv_energy": 1e-6,
+        "max_iter": 100,
+        "use_dmft": true,
+        "dmft_options": {
+            "temperature": 1000.0,
+            "n_matsubara": 512,
+            "n_bath": 2,
+            "u_map": {
+                "Fe": 4.0
+            },
+            "j_map": {
+                "Fe": 0.9
+            }
+        }
+    }
+}

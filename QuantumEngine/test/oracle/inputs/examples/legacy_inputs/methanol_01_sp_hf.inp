@@ -1,0 +1,15 @@
+title "Methanol Single Point HF (Baseline)"
+run_mode sp
+method hf
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+C  -0.046   0.658   0.000
+O  -0.046  -0.758   0.000
+H   0.985   1.037   0.000
+H  -0.546   1.037   0.887
+H  -0.546   1.037  -0.887
+H   0.871  -1.037   0.000
+end

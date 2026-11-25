@@ -1,0 +1,16 @@
+title: "Silicon Crystal Band Structure"
+lattice:
+  - [0.0, 5.13, 5.13]
+  - [5.13, 0.0, 5.13]
+  - [5.13, 5.13, 0.0]
+atoms:
+  - symbol: Si
+    position: [0.0, 0.0, 0.0]
+  - symbol: Si
+    position: [2.565, 2.565, 2.565]
+pw_cutoff: 6.0
+k_grid: [1, 1, 1]
+k_path: ["G", "X", "W", "L", "G"]
+mode: bands
+max_iterations: 50
+scf_convergence: 1e-6

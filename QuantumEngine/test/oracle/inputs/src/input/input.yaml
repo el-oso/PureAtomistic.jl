@@ -1,0 +1,20 @@
+task:
+  compute_gradients: true
+  compute_hessian: false
+  compute_frequencies: false
+
+scf:
+  max_iter: 50
+  conv_energy: 1e-8
+  conv_density: 1e-6
+
+method: DFT
+
+dft:
+  functional: PBE
+  grid:
+    radial: 30
+    angular: 86
+
+basis: def2-svp
+

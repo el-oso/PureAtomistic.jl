@@ -1,0 +1,21 @@
+# H2O RHF/STO-3G - Water molecule optimization
+
+charge 0
+multiplicity 1
+
+geometry angstrom
+O   0.0000   0.0000   0.1173
+H   0.0000   0.7572  -0.4692
+H   0.0000  -0.7572  -0.4692
+end
+
+basis sto-3g
+
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+
+# Optional DFT
+# method lda
+# method pbe
+# method b3lyp

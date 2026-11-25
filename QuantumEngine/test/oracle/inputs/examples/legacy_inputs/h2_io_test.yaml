@@ -1,0 +1,13 @@
+# H2 test for I/O and Exports
+basis sto-3g
+method rhf
+output h2_test
+verbosity 2
+export_molden true
+export_cube true
+export_wfx true
+
+geometry angstrom
+H 0.0 0.0 0.0
+H 0.0 0.0 0.7408
+end

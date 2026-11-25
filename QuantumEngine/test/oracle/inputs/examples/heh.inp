@@ -1,0 +1,12 @@
+# HeH+ ion
+charge 1
+multiplicity 1
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+
+geometry bohr
+He 0.0 0.0 0.0
+H  1.4 0.0 0.0
+end

@@ -1,0 +1,18 @@
+# Ethanol Parallel Benchmark
+run_mode frequency
+method rhf
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+C 0.00 0.00 0.00
+C 1.54 0.00 0.00
+O 2.05 1.25 0.00
+H -0.35 -0.51 0.88
+H -0.35 -0.51 -0.88
+H -0.35 1.02 0.00
+H 1.89 -0.51 0.88
+H 1.89 -0.51 -0.88
+H 3.01 1.25 0.00
+end

@@ -1,0 +1,10 @@
+geometry angstrom
+O 0.000000 0.000000 0.11
+H 0.000000 0.70 -0.40
+H 0.000000 -0.70 -0.40
+end
+run opt
+method rhf
+basis sto-3g
+convergence 1e-8
+maxiter 100

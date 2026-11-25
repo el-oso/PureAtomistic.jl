@@ -1,0 +1,19 @@
+title H2O Dimer BSSE Stress Test
+method b3lyp
+basis 6-31g
+run_mode counterpoise
+
+geometry angstrom
+  O  0.0000  0.0000  0.0000
+  H  0.7570  0.5860  0.0000
+  H -0.7570  0.5860  0.0000
+  O  0.0000  0.0000  2.9030
+  H  0.7570  0.5860  2.9030
+  H -0.7570  0.5860  2.9030
+end
+
+fragments
+  0,1,2 ; 3,4,5
+end
+dispersion true
+verbosity 1

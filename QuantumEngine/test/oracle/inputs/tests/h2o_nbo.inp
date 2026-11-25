@@ -1,0 +1,10 @@
+title Water NBO Test
+method rhf
+basis sto-3g
+run nbo
+
+geometry angstrom
+  O  0.0000  0.0000  0.0000
+  H  0.7570  0.5860  0.0000
+  H -0.7570  0.5860  0.0000
+end

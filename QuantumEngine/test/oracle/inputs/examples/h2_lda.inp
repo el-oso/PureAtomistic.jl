@@ -1,0 +1,14 @@
+# H2 LDA calculation
+
+charge 0
+multiplicity 1
+
+geometry bohr
+H  0.0  0.0  -0.7
+H  0.0  0.0   0.7
+end
+
+basis sto-3g
+method lda
+scf_convergence 1e-6
+max_iterations 50

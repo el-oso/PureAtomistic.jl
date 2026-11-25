@@ -1,0 +1,24 @@
+# NEB Test Input
+title H3 Reaction Path
+charge 0
+multiplicity 1
+basis 3-21g
+method rhf
+run_mode neb
+neb_images 5
+neb_k 0.1
+climbing_image true
+
+# Reactant geometry
+geometry bohr
+  H   0.0   0.0  -1.5
+  H   0.0   0.0   0.0
+  H   0.0   0.0   1.5
+end
+
+# Product geometry
+product_geometry bohr
+  H   0.0   0.0  -2.5
+  H   0.0   0.0   0.0
+  H   0.0   0.0   2.5
+end

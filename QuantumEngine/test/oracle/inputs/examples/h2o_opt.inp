@@ -1,0 +1,15 @@
+# Water geometry optimization PBE0/STO-3G near-equilibrium geometry
+charge 0
+multiplicity 1
+optimize
+
+geometry angstrom
+O  0.0000  0.0000  0.1173
+H  0.0000  0.7572 -0.4692
+H  0.0000 -0.7572 -0.4692
+end
+
+basis 631-g
+method pbe0
+scf_convergence 1e-8
+max_iterations 50

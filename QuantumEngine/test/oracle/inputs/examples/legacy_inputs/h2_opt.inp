@@ -1,0 +1,13 @@
+# H2 geometry optimization RHF/STO-3G
+method rhf
+basis sto-3g
+charge 0
+multiplicity 1
+optimize
+scf_convergence 1e-10
+max_iterations 100
+
+geometry bohr
+H  0.0  0.0  0.0
+H  0.0  0.0  1.8
+end

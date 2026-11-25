@@ -1,0 +1,14 @@
+# Methyl radical - doublet state (UHF)
+charge 0
+multiplicity 2
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+
+geometry angstrom
+C   0.000000   0.000000   0.000000
+H   1.079000   0.000000   0.000000
+H  -0.539500   0.934614   0.000000
+H  -0.539500  -0.934614   0.000000
+end

@@ -1,0 +1,17 @@
+title "H2O CCSD-F12 Test"
+run_mode sp
+charge 0
+multiplicity 1
+basis sto-3g
+aux_basis def2-SVP-JKFIT
+method ccsd-f12
+f12_gamma 1.0
+f12_model F12b
+scf_convergence 1e-6
+max_iterations 100
+
+geometry angstrom
+O   0.000000   0.000000   0.117300
+H   0.000000   0.757200  -0.469200
+H   0.000000  -0.757200  -0.469200
+end

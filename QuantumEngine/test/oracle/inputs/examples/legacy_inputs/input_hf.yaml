@@ -1,0 +1,15 @@
+basis:
+  name: "sto-3g"
+
+scf:
+  max_iter: 100
+  conv_tol: 1.0e-8
+
+dft:  # Comentado = HF puro
+   xc:
+     method: "PBE"
+
+task:
+  compute_gradients: false
+  compute_hessian: false
+  compute_frequencies: false

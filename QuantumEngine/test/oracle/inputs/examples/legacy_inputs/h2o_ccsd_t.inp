@@ -1,0 +1,16 @@
+title "H2O CCSD(T) Test"
+
+run_mode sp
+charge 0
+multiplicity 1
+
+basis 6-31g
+method ccsd
+scf_convergence 1e-7
+max_iterations 100
+
+geometry angstrom
+O      0.000000     0.000000     0.117300
+H      0.000000     0.757200    -0.469200
+H      0.000000    -0.757200    -0.469200
+end

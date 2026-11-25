@@ -1,0 +1,12 @@
+title "H2O OptFreq Benchmark"
+run_mode optfreq
+method pbe0
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+O    0.00000000    0.00000000    0.00000000
+H    0.00000000    0.75700000    0.58600000
+H    0.00000000   -0.75700000    0.58600000
+end

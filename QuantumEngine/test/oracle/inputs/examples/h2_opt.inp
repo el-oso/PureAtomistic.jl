@@ -1,0 +1,13 @@
+# H2 geometry optimization
+
+charge 0
+multiplicity 1
+
+geometry bohr
+H  0.0  0.0  -0.8
+H  0.0  0.0   0.8
+end
+
+basis sto-3g
+method rhf
+optimize

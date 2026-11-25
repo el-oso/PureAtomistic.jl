@@ -1,0 +1,9 @@
+title Argon Dimer vdW Test
+basis 6-31G
+method pbe
+
+geometry angstrom
+Ar 0.0 0.0 0.0
+Ar 0.0 0.0 3.8
+
+vdw_kernel VV10

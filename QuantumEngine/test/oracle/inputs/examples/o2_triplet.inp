@@ -1,0 +1,12 @@
+# Oxygen molecule - triplet ground state (UHF)
+charge 0
+multiplicity 3
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+
+geometry angstrom
+O   0.000000   0.000000   0.000000
+O   1.208000   0.000000   0.000000
+end

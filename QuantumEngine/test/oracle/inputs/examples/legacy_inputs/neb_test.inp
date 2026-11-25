@@ -1,0 +1,26 @@
+# NEB Test: H3+ Linear Transfer
+TITLE H3+ Reaction Path
+BASIS sto-3g
+METHOD RHF
+RUN_MODE neb
+CHARGE 1
+MULTIPLICITY 1
+
+# Initial: H1-H2 (0.74), H3 far (2.0)
+GEOMETRY
+H  0.0  0.0  0.0
+H  0.0  0.0  0.74
+H  0.0  0.0  2.74
+END_GEOMETRY
+
+# Final: H1 far (2.0), H2-H3 (0.74)
+PRODUCT_GEOMETRY
+H  0.0  0.0  0.0
+H  0.0  0.0  2.0
+H  0.0  0.0  2.74
+END_PRODUCT_GEOMETRY
+
+NEB_IMAGES 5
+NEB_K 0.1
+MAX_ITER 10
+# We use low iterations for speed in verification

@@ -1,0 +1,14 @@
+# H2 with EDIIS
+charge 0
+multiplicity 1
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+use_diis true
+diis_method ediis
+
+geometry bohr
+H 0.0 0.0 0.0
+H 0.0 0.0 1.4
+end

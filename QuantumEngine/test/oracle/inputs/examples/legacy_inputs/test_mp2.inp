@@ -1,0 +1,12 @@
+# H2O RI-MP2 Test
+run_mode single_point
+method mp2
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+O 0.000 0.000 0.117
+H 0.000 0.757 -0.469
+H 0.000 -0.757 -0.469
+end

@@ -1,0 +1,17 @@
+title H2O Complex Features Stress Test
+method pbe
+basis 6-31g*
+run_mode spectroscopy
+
+geometry angstrom
+  O  0.00000000  0.00000000  0.11726921
+  H  0.75698224  0.00000000 -0.46907685
+  H -0.75698224  0.00000000 -0.46907685
+end
+
+hubbard O:5.0
+vdw_kernel pbe-vdw
+nbo true
+max_iterations 200
+damping 0.1
+verbosity 1

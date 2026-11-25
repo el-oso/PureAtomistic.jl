@@ -1,0 +1,13 @@
+# Water in Bohr
+charge 0
+multiplicity 1
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+
+geometry bohr
+O    0.000000    0.000000    0.000000
+H    1.430523    1.107379    0.000000
+H   -1.430523    1.107379    0.000000
+end

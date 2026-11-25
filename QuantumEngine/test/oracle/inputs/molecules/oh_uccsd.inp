@@ -1,0 +1,19 @@
+# OH Radical (Doublet) U-CCSD(T) Benchmark
+# Standard STO-3G basis
+
+molecule:
+  atoms:
+    - symbol: O
+      position: [0.0, 0.0, 0.0]
+    - symbol: H
+      position: [0.0, 0.0, 0.9697]
+  units: Angstrom
+  multiplicity: 2 # Doublet
+
+settings:
+  basis: sto-3g
+  aux_basis: def2-SVP-JKFIT
+  method: ccsd
+  scf_max_iter: 50
+  scf_conv_tol: 1e-8
+  num_threads: 4

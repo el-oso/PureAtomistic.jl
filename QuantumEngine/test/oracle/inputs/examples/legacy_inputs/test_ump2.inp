@@ -1,0 +1,11 @@
+# OH Radical U-MP2 Test
+run_mode single_point
+method mp2
+basis sto-3g
+charge 0
+multiplicity 2
+
+geometry angstrom
+O 0.000 0.000 0.000
+H 0.000 0.000 0.970
+end

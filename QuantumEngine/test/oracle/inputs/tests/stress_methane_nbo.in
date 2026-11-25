@@ -1,0 +1,16 @@
+title Methane NBO/Population Stress Test
+method pbe0
+basis 6-31g
+run_mode single_point
+
+geometry angstrom
+  C  0.000000  0.000000  0.000000
+  H  0.627600  0.627600  0.627600
+  H -0.627600 -0.627600  0.627600
+  H -0.627600  0.627600 -0.627600
+  H  0.627600 -0.627600 -0.627600
+end
+
+nbo true
+vdw_kernel b97x-d
+verbosity 1
