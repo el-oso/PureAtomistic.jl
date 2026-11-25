@@ -341,7 +341,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - **`AU_TO_DEBYE`** within `rtol = 1e-9` of the CODATA-derived 2.541746473. That is a kind (a) bound: the published value has 10 significant digits.
   - **Element spot checks.** Every value is a transcription check against the cited source; a mismatch is reported, never edited to pass. They use `==` against the literal of the source.
     - `mass_average` (IUPAC conventional or standard atomic weights): H 1.008, C 12.011, O 15.999, Fe 55.845, Kr 83.798.
-    - `mass_most_abundant` (AME2020): ¹H 1.00782503223, ¹²C 12.0, ¹⁶O 15.99491461957, ⁵⁶Fe 55.93493633, ⁸⁴Kr 83.9114977282.
+    - `mass_most_abundant` (AME2020): ¹H 1.007825031898, ¹²C 12.0, ¹⁶O 15.99491461926, ⁵⁶Fe 55.934935537, ⁸⁴Kr 83.91149772708 (the full digits of `mass_1.mas20.txt`).
     - Covalent radii (Cordero et al. 2008, C sp³, Mn/Fe/Co low spin): H 0.31, C 0.76, O 0.66, Fe 1.32, Kr 1.16.
     - Bragg–Slater (Slater 1964): H 0.25, C 0.70, O 0.60, Fe 1.40.
     - Bondi (1964): H 1.20, C 1.70, O 1.52, Kr 2.02.
