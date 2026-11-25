@@ -463,7 +463,7 @@ end
 
 # A system without atoms is at its minimum: one evaluation gives the energy, and the largest force
 # of no atoms is zero. TrustRegionLBFGS needs at least one atom.
-function _relax_without_atoms(sys::System{T}, potential::AbstractPotential, fmax::Real, maxsteps::Integer) where {T}
+@noinline function _relax_without_atoms(sys::System{T}, potential::AbstractPotential, fmax::Real, maxsteps::Integer) where {T}
     _check_relax_arguments(sys, potential, fmax, maxsteps)
     _evaluate!(potential, sys)
     fm, E = _status(potential, 0)
