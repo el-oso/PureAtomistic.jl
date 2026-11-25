@@ -6,7 +6,7 @@ using TypeContracts: @contract, @verify, Self
 using LinearAlgebra: I, Diagonal, Symmetric, cholesky!, issuccess, dot, mul!
 import PureDAQP
 using PureDAQP: ActiveSet
-using StrictMode: @strict_exempt
+using StrictMode: @strict_exempt, @strict_policy
 
 export AbstractIntegrator, VelocityVerlet, advance!
 export FIRE, RelaxResult, relax!
@@ -33,5 +33,8 @@ include("../optimize/neb.jl")
 @strict_exempt :noalloc _frozen_rows reason = "entry point: builds the frozen-direction rows of the trust-region constructors and `neb`"
 @strict_exempt :noalloc neb reason = "entry point: builds the band of a nudged-elastic-band run"
 @strict_exempt :noalloc _default_relaxer reason = "workspace: builds the relaxer state of `relax!(sys, potential)`"
+
+# Last, so that it checks every method defined above.
+@strict_policy (:typestable, :noalloc)
 
 end

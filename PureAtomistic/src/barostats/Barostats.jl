@@ -2,6 +2,7 @@ module Barostats
 
 using ..Systems: System, EV_PER_A3_IN_GPA, pressure
 using ..Potentials: AbstractStressPotential, stress
+using StrictMode: @strict_policy
 using TypeContracts: @contract, @verify, Self
 
 export AbstractBarostat, BerendsenBarostat, scale_factor, rescale!
@@ -58,5 +59,8 @@ end
 
 # Checked at precompile time: every barostat has the contract's method and it infers a float.
 @verify BerendsenBarostat trim_compat = true
+
+# Last, so that it checks every method defined above.
+@strict_policy (:typestable, :noalloc)
 
 end

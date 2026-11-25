@@ -55,4 +55,7 @@ StrictMode.@strict_exempt :noalloc _config_int reason = "entry point: reads an i
 StrictMode.@strict_exempt :noalloc _config_float reason = "entry point: reads a number of the `run_md` config"
 StrictMode.@strict_exempt :noalloc _config_size reason = "entry point: reads the lattice size of the `run_md` config"
 
+# Last, so that it checks every method defined above.
+StrictMode.@strict_policy (:typestable, :noalloc)
+
 end

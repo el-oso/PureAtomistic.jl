@@ -3,6 +3,7 @@ module Thermostats
 import Random
 using ..Systems: System, AMU_IN_EV_FS2_PER_A2, KB_EV_PER_K, natoms, kinetic_energy, kick!, drift!, no_hook
 using ..Potentials: AbstractPotential, prepare!, energy_forces!
+using StrictMode: @strict_policy
 using TypeContracts: @contract, @verify, Self
 
 export AbstractThermostat, LangevinBAOAB, BussiThermostat, thermostat_step!, randgamma
@@ -51,5 +52,8 @@ end
 # Checked at precompile time: every thermostat has the contract's method and it infers `Nothing`.
 @verify LangevinBAOAB trim_compat = true
 @verify BussiThermostat trim_compat = true
+
+# Last, so that it checks every method defined above.
+@strict_policy (:typestable, :noalloc)
 
 end

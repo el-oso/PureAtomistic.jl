@@ -17,7 +17,7 @@
         # Each module's sweep judged something, in both guarantees.
         @test all(>(0), checked[name])
     end
-    for name in ("Systems", "IO", "Analysis")
+    for name in ("PureAtomistic", "Systems", "Potentials", "Integrators", "Thermostats", "Barostats", "IO", "Analysis")
         @test declared[name] == "typestable,noalloc"
     end
     # `relax!` is judged, not exempt: its keyword bodies with each relaxer state and the one that
@@ -34,10 +34,9 @@
 end
 
 # `@contract` defines a method of `TypeContracts._contract_specs` in the module that declares the
-# contract. Potentials, Integrators, Thermostats, Barostats and the top module (whose policy check
-# covers its submodules) declare contracts and carry no `@strict_policy (…, :noalloc)`; their code
-# is held to the policy by the item above all the same. This item checks that the generated specs
-# allocate nothing, which a `:noalloc` policy on those modules requires.
+# contract. Potentials, Integrators, Thermostats, Barostats and the top module declare contracts and
+# carry `@strict_policy (:typestable, :noalloc)`, so the generated specs must allocate nothing. This
+# item checks that they do.
 @testitem "TypeContracts specs pass the allocation scan" tags = [:checks] begin
     using StrictMode, TypeContracts
     fs = StrictMode.findings(

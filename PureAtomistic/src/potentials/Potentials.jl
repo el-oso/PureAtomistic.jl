@@ -3,7 +3,7 @@ module Potentials
 using PureMLIP: MACEModel, MACEResult, MACEWorkspace, NeighborList, mace_energy_forces!, neighbor_list, try_neighbor_list!
 using ..Systems: cell_volume
 using TypeContracts: @contract, @verify, Self
-using StrictMode: @strict_exempt
+using StrictMode: @strict_exempt, @strict_policy
 
 export AbstractPotential, AbstractStressPotential, PotentialResult
 export n_atoms, cutoff, prepare!, energy_forces!, stress, node_energies
@@ -28,5 +28,8 @@ end
 @strict_exempt :noalloc _sized_list reason = "workspace: builds a neighbor list"
 @strict_exempt :noalloc _regrow! reason = "workspace: rebuilds the neighbor list and buffers when the edges outgrow them"
 @strict_exempt :noalloc _log_regrow reason = "workspace: reports a rebuild of the neighbor list"
+
+# Last, so that it checks every method defined above.
+@strict_policy (:typestable, :noalloc)
 
 end
