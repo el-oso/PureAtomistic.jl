@@ -63,12 +63,15 @@ nelements() = 36
 
 The table row of atomic number `Z`, or of the element symbol `symbol`, which is matched without
 regard to case (`"fe"`, `"Fe"` and `"FE"` are iron). Throws an `ArgumentError` for a `Z` outside
-1 to 36 or an unknown symbol.
+1 to 36, a `Bool` `Z`, or an unknown symbol.
 """
 function element(Z::Integer)
     1 <= Z <= nelements() || throw(ArgumentError(lazy"units: no element with Z = $(Z) in the table (H–Kr)"))
     return ELEMENTS[Int(Z)]
 end
+
+# `Bool <: Integer`, but a Bool is not an atomic number (Base likewise rejects a Bool index).
+element(Z::Bool) = throw(ArgumentError(lazy"units: atomic number must be an integer, got the Bool $(Z)"))
 
 function element(symbol::AbstractString)
     for e in ELEMENTS

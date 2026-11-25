@@ -76,6 +76,7 @@ end
     @test_throws "units: unknown element symbol \"Fé\"" element("Fé")
     @test_throws "units: no element with Z = 0 in the table (H–Kr)" element(0)
     @test_throws "units: no element with Z = 37 in the table (H–Kr)" element(37)
+    @test_throws "units: atomic number must be an integer, got the Bool true" element(true)
     @test_throws "units: Bondi (1964) lists no van der Waals radius for Sc" bondi_radius(element("Sc"))
     @test_throws "units: Slater (1964) lists no Bragg–Slater radius for He" bragg_slater_radius(element("He"))
     @test_throws ArgumentError element("Xx")
