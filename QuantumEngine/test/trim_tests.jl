@@ -10,6 +10,7 @@
         init = begin
             using QuantumEngine
             new_atom(symbol, position) = Atom(symbol, position)
+            new_atom_mass(symbol, position, mass) = Atom(symbol, position; mass)
             new_molecule(atoms) = Molecule(atoms)
         end,
         Base.showerror(IOBuffer, InputError),
@@ -24,6 +25,10 @@
         QuantumEngine.element(Int),
         new_atom(String, Vector{Float64}),
         new_atom(String, Vector{Float32}),
+        new_atom(SubString{String}, Vector{Float64}),
+        new_atom(SubString{String}, Vector{Float32}),
+        new_atom_mass(String, Vector{Float64}, Float64),
+        new_atom_mass(String, Vector{Float32}, Float32),
         new_molecule(Vector{Atom{Float64}}),
         new_molecule(Vector{Atom{Float32}}),
         QuantumEngine.basis_element(Atom{Float64}),

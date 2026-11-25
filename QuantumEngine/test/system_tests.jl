@@ -38,6 +38,13 @@ end
         @test isapprox(nuclear_repulsion(Fixtures.water()), Float64(exact); rtol = 8eps())
     end
     @test nuclear_repulsion(h2) isa Float64
+    # Two H atoms 300 bohr apart in Float16, where the plain sum of squares overflows (300^2 is
+    # past floatmax(Float16)). Oracle: the closed form 1/R. Tolerance (b): the subtraction, the
+    # scaling division, the square root, the rescaling product and the final division, each at
+    # most 1 ulp: 5 eps(Float16).
+    far = Molecule([Atom("H", Float16[0, 0, -150]), Atom("H", Float16[0, 0, 150])])
+    @test nuclear_repulsion(far) isa Float16
+    @test isapprox(nuclear_repulsion(far), 1 / 300; rtol = 5eps(Float16))
     # A molecule with one real atom has no pair.
     @test nuclear_repulsion(Molecule([Atom("He", [0.0, 0.0, 0.0])])) === 0.0
 end

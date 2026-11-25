@@ -6,6 +6,7 @@ Positions are in bohr and masses in amu.
 """
 module System
 
+using LinearAlgebra: norm
 using StaticArrays: SVector
 using StrictMode: @strict_exempt, @strict_policy
 using ..Units: Units
@@ -205,7 +206,9 @@ function nuclear_repulsion(mol::Molecule{T}) where {T}
         Z_i = atoms[i].Z
         Z_j = atoms[j].Z
         (Z_i > 0 && Z_j > 0) || continue
-        r = sqrt(sum(abs2, atoms[i].position - atoms[j].position))
+        # `norm` rescales when the plain sum of squares overflows or underflows, so a distance of a
+        # few hundred bohr stays finite in Float16.
+        r = norm(atoms[i].position - atoms[j].position)
         iszero(r) && throw(ArgumentError(lazy"system: atoms $(i) and $(j) coincide"))
         e += Z_i * Z_j / r
     end
@@ -219,7 +222,7 @@ export Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta, nu
 # names the `SubString{String}` signature of the keyword body only, and holds whichever of the two
 # is compiled first. The keyword body of `Molecule` allocates nothing (its default point-charge
 # vector is built by the methods that call it), so `Molecule` has no exemption.
-@strict_exempt :noalloc types = (Any, Type{Atom}, SubString{String}, AbstractVector) Atom reason = "entry point: atom constructor"
+@strict_exempt :noalloc types = (Any, Type{Atom}, SubString{String}, AbstractVector) Atom reason = "entry point: keyword body of the Atom constructor"
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)
 

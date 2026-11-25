@@ -33,7 +33,8 @@ function run_workload()
     # Real atoms and each ghost spelling, built from Float64 and Float32 positions, and a molecule
     # of each with the default keywords and with a charge and multiplicity. The symbols are
     # `SubString`s, as a reader passes its tokens: their conversion to `String` is the allocation
-    # the exemption of `Atom` names.
+    # the exemption of `Atom` names. A real atom, one with a mass and a ghost are also built from
+    # `String` symbols, whose keyword body allocates nothing and is held to `:noalloc`.
     sym(s) = SubString(s, 1, ncodeunits(s))
     for T in (Float64, Float32)
         atoms = [
@@ -42,6 +43,7 @@ function run_workload()
             Atom(sym("BqH"), T[0, 1, 3]), Atom(sym("Bq-H"), T[0, -1, 3]),
         ]
         foreach(basis_element, atoms)
+        foreach(basis_element, (Atom("O", T[0, 0, 0]), Atom("H", T[0, 0, 1]; mass = 2), Atom("O@", T[0, 0, 2])))
         for mol in (Molecule(atoms), Molecule(atoms; charge = 1, multiplicity = 2))
             nuclear_repulsion(mol)
             nelectrons(mol)
