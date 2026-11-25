@@ -17,7 +17,7 @@
 # `[✗ <guarantee> <code>]`:
 #   POLICY <module> <declared guarantees>
 #   FAIL <engine> <guarantee> <finding>
-#   CHECKED <engine> <guarantee> <judged signatures>
+#   CHECKED <engine> <guarantee> <signatures judged and passing; exempt ones are not counted>
 #   FAIL other <guarantee> <specialization> | <finding>
 #   FAIL unlisted other <method signature>
 #   CHECKED other <guarantee> <specializations>
@@ -64,7 +64,7 @@ for g in GUARANTEES
     n = 0
     for M in MODULES
         n += try
-            length(test_compiled(M; guarantees = (g,)))
+            count(f -> f.status === :pass, test_compiled(M; guarantees = (g,)))
         catch err
             err isa StrictMode.StrictViolation || rethrow()
             println("FAIL proof ", g, " ", oneline(err))
@@ -89,7 +89,7 @@ end
 # Every function of another package the package adds methods to, with the guarantees its methods
 # are held to here. A method of a function missing here fails the item, so a new one is listed when
 # it is written. The module sweeps already hold `showerror` and `show` to every guarantee, with
-# `:noalloc` exempt; this listing judges their type stability a second time.
+# `:noalloc` and `:noboxing` exempt; this listing judges their type stability a second time.
 const OTHER_FUNCTIONS = (Base.showerror, Base.show)
 const OTHER_GUARANTEES = (:typestable,)
 const OTHER_METHODS = Dict{Any, Tuple{Vararg{Symbol}}}(f => OTHER_GUARANTEES for f in OTHER_FUNCTIONS)

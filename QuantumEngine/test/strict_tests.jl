@@ -30,10 +30,10 @@ end
     end
     n = checked(out)
     for gate in GATES
-        # Each gate judged something, summed over the swept modules. Every function in Errors is an
-        # exempted entry point, so the noalloc scan judges nothing until a module with
-        # allocation-free functions is swept.
-        if gate == ("scan", "noalloc")
+        # Each gate judged and passed something, summed over the swept modules. Every function in
+        # Errors is an exempted entry point for `:noalloc`, so the noalloc proof and scan judge
+        # nothing until a module with allocation-free functions is swept.
+        if gate in (("proof", "noalloc"), ("scan", "noalloc"))
             @test_broken get(n, gate, 0) > 0
         else
             @test get(n, gate, 0) > 0

@@ -101,7 +101,7 @@ end
 The record of one input that lenient mode accepted where strict mode throws an `InputError`:
 the file `source`, the line `line` (0 when there is none), the `case` that names the accepted
 behavior, and the message. It is not an exception; `show` prints it as the `InputError` with the
-same source, line and message would be shown: `input: <source>:<line>: <msg>`, or
+same source, line and message is shown: `input: <source>:<line>: <msg>`, or
 `input: <source>: <msg>` for line 0.
 """
 struct InputWarning
@@ -214,7 +214,7 @@ export QuantumEngineError, InputError, BasisError, SCFNotConverged, Optimization
     NotImplemented, FunctionalUnavailable, NumericalError, InputWarning
 
 @strict_exempt :noalloc :noboxing showerror reason = "entry point: renders a LazyString message, whose parts are an abstract Tuple"
-@strict_exempt :noalloc :noboxing show reason = "entry point: renders a LazyString message, whose parts are an abstract Tuple"
+@strict_exempt :noalloc :noboxing types = (Base.IO, InputWarning) show reason = "entry point: renders a LazyString message, whose parts are an abstract Tuple"
 @strict_exempt :noalloc _write_location reason = "entry point: writes the location of the `showerror` and `show` messages"
 @strict_exempt :noalloc :noboxing _print_message reason = "entry point: renders the LazyString message for showerror and show"
 @strict_exempt :noalloc InputError reason = "entry point: error constructor"
