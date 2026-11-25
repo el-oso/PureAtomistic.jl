@@ -2,3 +2,6 @@
 # A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
 "src/QuantumEngine.jl" = 1.00
 "src/errors/Errors.jl" = 1.00
+# `nelements()` is folded to its constant at every call site, so its line never records a hit.
+"src/units/Units.jl" = 0.96
+"src/units/elements.jl" = 1.00

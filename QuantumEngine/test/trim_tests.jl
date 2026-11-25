@@ -16,3 +16,15 @@
         Base.show(IOBuffer, InputWarning),
     )
 end
+
+# The element lookups, by symbol and by atomic number.
+@testitem "TrimCheck: element lookup" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+        end,
+        QuantumEngine.element(String),
+        QuantumEngine.element(Int),
+    )
+end

@@ -5,7 +5,8 @@
 using QuantumEngine
 
 # Every error type and `InputWarning`, each built from a `String` and from a `LazyString` message,
-# rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning).
+# rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
+# element lookups and radius accessors of `Units`.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -20,5 +21,13 @@ function run_workload()
         show(io, InputWarning("a.inp", 3, :case, msg))
         show(io, InputWarning("a.inp", 0, :case, msg))
     end
+    # The element lookups by symbol (String and SubString) and by Z, and the radius accessors.
+    Units = QuantumEngine.Units
+    for e in (element("Fe"), element("fe"), element(SubString("xCu", 2, 3)), element(26), element(Int32(6)))
+        Units.covalent_radius(e)
+        Units.bragg_slater_radius(e)
+    end
+    Units.bondi_radius(element("C"))
+    Units.nelements()
     return take!(io)
 end

@@ -3,8 +3,9 @@
     using StrictModeTest
     QE = QuantumEngine
     test_layers(
-        QE => (QE.Errors,),
+        QE => (QE.Errors, QE.Units),
         QE.Errors => (),
+        QE.Units => (),
     )
 end
 
@@ -12,7 +13,7 @@ end
 @testitem "submodules read only each other's public names" tags = [:checks] begin
     using ExplicitImports
     QE = QuantumEngine
-    for M in (QE, QE.Errors)
+    for M in (QE, QE.Errors, QE.Units)
         @test isnothing(
             check_all_qualified_accesses_are_public(
                 M, pathof(QE); from = (QE,), allow_internal_accesses = false
@@ -27,7 +28,7 @@ end
     using StrictModeTest
     include(joinpath(pkgdir(QuantumEngine), "test", "strict", "workload.jl"))
     run_workload()
-    for M in (QuantumEngine.Errors,)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units)
         @test length(test_calls(M)) > 0
     end
 end
@@ -37,7 +38,7 @@ end
     using StrictMode, StrictModeTest
     include(joinpath(pkgdir(QuantumEngine), "test", "strict", "workload.jl"))
     run_workload()
-    for M in (QuantumEngine.Errors,)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units)
         @test isempty(test_exemptions(M))
     end
     @test all(e -> !isempty(e.reason), StrictMode.exemptions())

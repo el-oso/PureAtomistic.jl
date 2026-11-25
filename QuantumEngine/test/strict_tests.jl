@@ -16,7 +16,7 @@
         ("other", "typestable"),
     )
     const OTHER = ("showerror", "show")
-    const MODULES = ("Errors",)
+    const MODULES = ("Errors", "Units")
 end
 
 @testitem "StrictMode policy holds in QuantumEngine" tags = [:checks] setup = [StrictRun] begin
@@ -30,14 +30,8 @@ end
     end
     n = checked(out)
     for gate in GATES
-        # Each gate judged and passed something, summed over the swept modules. Every function in
-        # Errors is an exempted entry point for `:noalloc`, so the noalloc proof and scan judge
-        # nothing until a module with allocation-free functions is swept.
-        if gate in (("proof", "noalloc"), ("scan", "noalloc"))
-            @test_broken get(n, gate, 0) > 0
-        else
-            @test get(n, gate, 0) > 0
-        end
+        # Each gate judged and passed something, summed over the swept modules.
+        @test get(n, gate, 0) > 0
     end
     # Every function of another package that the package extends had a specialization judged.
     judged = Set(m[1] for m in eachmatch(r"^JUDGED other (\S+)$"m, out))

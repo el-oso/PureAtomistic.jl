@@ -1,3 +1,12 @@
 # Deliberate bugs for the mutation smoke check (see run.jl). `file` is relative to QuantumEngine/;
 # `find` must occur exactly once in it; `expect` is a regex matched against the names of the test
 # items expected to fail.
+
+# Unit conversions.
+
+[[mutation]]
+name = "angstrom-to-bohr-inverse"
+file = "src/units/Units.jl"
+find = 'const ANGSTROM_TO_BOHR = 1 / BOHR_TO_ANGSTROM'
+replace = 'const ANGSTROM_TO_BOHR = 1 * BOHR_TO_ANGSTROM'
+expect = "units: constants"
