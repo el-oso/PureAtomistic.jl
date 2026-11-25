@@ -1,8 +1,8 @@
 # The rendering of every error type and of `InputWarning` into an `IOBuffer`, which the juliac entry
 # prints; the element lookups by symbol and by atomic number; and the atom and molecule
-# constructors, the electron counts and the nuclear repulsion in Float64 and Float32; and the xyz
-# writer and the xyz, PDB and CIF readers, through their default and their full keyword calls,
-# with the line helpers they share. The constructors are validated through the functions
+# constructors, the element-number lookup, the electron counts and the nuclear repulsion in Float64
+# and Float32; and the xyz writer and the xyz, PDB and CIF readers, through their default and their
+# full keyword calls, with the line helpers they share. The constructors are validated through the functions
 # `new_atom` and `new_molecule`: the verifier builds no entry point for a call whose callee is a
 # `UnionAll` type (`unresolved ccallable for Tuple{UnionAll, ...}`).
 @testitem "TrimCheck: error rendering, element lookup, System and molecule files" tags = [:checks] begin
@@ -36,6 +36,8 @@
         new_atom_mass(String, Vector{Float32}, Float32),
         new_molecule(Vector{Atom{Float64}}),
         new_molecule(Vector{Atom{Float32}}),
+        QuantumEngine.System.element_number(String),
+        QuantumEngine.System.element_number(SubString{String}),
         QuantumEngine.basis_element(Atom{Float64}),
         QuantumEngine.basis_element(Atom{Float32}),
         QuantumEngine.nuclear_repulsion(Molecule{Float64, Vector{Atom{Float64}}}),

@@ -3,13 +3,14 @@
 
 The atoms of the `ATOM  ` and `HETATM` records of the PDB text in `io`; other records are
 ignored. The coordinates are the Å fields of columns 31–38, 39–46 and 47–54, converted to bohr,
-and the element is read from columns 77–78.
+and the element is read from columns 77–78, right- or left-justified.
 
 Errors are `InputError`s naming `source` and the line; a file without a record is an error. In
-lenient mode (`lenient = true`) a record shorter than 54 columns is skipped, a record without an
-element in columns 77–78 takes the first character of its atom name (columns 13–16), and an
-unknown element symbol is read as Z = 1, as the oracle reads them, and an `InputWarning` is pushed
-onto `warnings` for each.
+lenient mode (`lenient = true`) a record shorter than 54 columns is skipped; a record without an
+element in columns 77–78 takes the first character of its atom name (columns 13–16) when it is
+shorter than 78 columns, and the empty symbol with Z = 1 when it is 78 columns or longer with
+those columns blank; an unknown element symbol is read as Z = 1, and a non-finite coordinate is
+kept. These are the oracle's values, and an `InputWarning` is pushed onto `warnings` for each.
 """
 function read_pdb(
         io::Base.IO; source::AbstractString = "<stream>", lenient::Bool = false,
@@ -29,12 +30,22 @@ function read_pdb(
             continue
         end
         p = SVector(
-            _pdb_coordinate(source, n, line, 31), _pdb_coordinate(source, n, line, 39),
-            _pdb_coordinate(source, n, line, 47),
+            _pdb_coordinate(source, n, lenient, warnings, line, 31),
+            _pdb_coordinate(source, n, lenient, warnings, line, 39),
+            _pdb_coordinate(source, n, lenient, warnings, line, 47),
         )
-        symbol = ncodeunits(line) >= 78 ? strip(SubString(line, 77, 78)) : SubString(line, 1, 0)
+        # `line` has lost its trailing blanks, so columns past its end are blank.
+        w = ncodeunits(line)
+        symbol = w >= 77 ? strip(SubString(line, 77, min(78, w))) : SubString(line, 1, 0)
         if isempty(symbol)
             reject_or_warn(source, n, lenient, warnings, :pdb_element_columns, "pdb: no element in columns 77–78")
+            # The oracle reads blank columns 77–78 of a record of 78 columns or more, counted with
+            # its trailing blanks, as the empty symbol, Z = 1, and takes the first character of the
+            # atom name for a shorter record.
+            if w + ncodeunits(raw) - ncodeunits(rstrip(raw)) >= 78
+                push!(atoms, Atom{Float64}(1, "", p, false, element(1).mass_most_abundant))
+                continue
+            end
             name = strip(SubString(line, 13, 16))
             symbol = isempty(name) ? SubString("H") : SubString(name, 1, 1)
         end
@@ -44,10 +55,17 @@ function read_pdb(
     return atoms
 end
 
-# The coordinate in columns `c:c+7` of the ASCII record `line` (line `n`), converted from Å to bohr.
-function _pdb_coordinate(source::AbstractString, n::Int, line::SubString{String}, c::Int)
+# The coordinate in columns `c:c+7` of the ASCII record `line` (line `n`), converted from Å to bohr;
+# in lenient mode a non-finite value (`nan`, `inf`) is kept.
+function _pdb_coordinate(
+        source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, line::SubString{String},
+        c::Int,
+    )
     t = strip(SubString(line, c, c + 7))
     x = tryparse(Float64, t)
     isnothing(x) && throw(InputError(source, n, lazy"pdb: coordinate \"$(t)\" is not a number"))
+    isfinite(x) || reject_or_warn(
+        source, n, lenient, warnings, :nonfinite, lazy"pdb: expected a finite number, got \"$(t)\""
+    )
     return x * ANGSTROM_TO_BOHR
 end

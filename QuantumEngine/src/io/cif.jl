@@ -10,10 +10,11 @@ lines outside a loop, and `#` comment lines are ignored; a tag line after a loop
 
 Errors are `InputError`s naming `source` and the line. A loop with fractional coordinates and no
 Cartesian ones throws `"cif: only Cartesian _atom_site coordinates are supported"`, and a file
-without an atom is an error. In lenient mode (`lenient = true`) a row whose value count differs
-from the tag count is skipped, a coordinate that is not a number reads as 0.0, and an unknown
-element symbol is read as Z = 1, as the oracle reads them, and an `InputWarning` is pushed onto
-`warnings` for each.
+without an atom is an error. In lenient mode (`lenient = true`) an `_atom_site` loop with
+coordinate tags but without the type symbol or one of the Cartesian coordinates is skipped, a row
+whose value count differs from the tag count is skipped, a coordinate that is not a number reads
+as 0.0, a non-finite coordinate is kept, and an unknown element symbol is read as Z = 1, as the
+oracle reads them, and an `InputWarning` is pushed onto `warnings` for each.
 """
 function read_cif(
         io::Base.IO; source::AbstractString = "<stream>", lenient::Bool = false,
@@ -23,6 +24,10 @@ function read_cif(
     tags = String[]
     in_loop = false
     in_rows = false
+    # Whether the rows of the current loop are atoms, and the columns of the type symbol and of
+    # the Cartesian x, y and z; set at the loop's first row.
+    atom_rows = false
+    sym, x, y, z = 0, 0, 0, 0
     for (n, raw) in enumerate(eachline(io))
         line, tokens = input_line(raw, n)
         (isempty(line) || startswith(line, '#')) && continue
@@ -42,9 +47,21 @@ function read_cif(
             end
             continue
         end
-        in_rows = true
-        _is_coordinate_loop(tags) || continue
-        sym, x, y, z = _cif_columns(source, n, tags)
+        if !in_rows
+            in_rows = true
+            atom_rows = _is_coordinate_loop(tags)
+            if atom_rows
+                sym, x, y, z = _cif_columns(source, n, tags)
+                if iszero(sym) || iszero(x) || iszero(y) || iszero(z)
+                    reject_or_warn(
+                        source, n, lenient, warnings, :cif_columns,
+                        "cif: the _atom_site loop needs _atom_site_type_symbol and _atom_site_Cartn_x, _y and _z",
+                    )
+                    atom_rows = false
+                end
+            end
+        end
+        atom_rows || continue
         if length(tokens) != length(tags)
             reject_or_warn(
                 source, n, lenient, warnings, :cif_row,
@@ -70,25 +87,22 @@ _is_coordinate_loop(tags::Vector{String}) = any(
     tags,
 )
 
-# The columns of the type symbol and of the Cartesian x, y and z in `tags`; throws, naming the
-# first row (line `n`), when one is missing.
+# The columns of the type symbol and of the Cartesian x, y and z in `tags`, each 0 when missing;
+# throws, naming the first row (line `n`), for fractional coordinates without Cartesian ones.
 function _cif_columns(source::AbstractString, n::Int, tags::Vector{String})
-    sym = findfirst(==("_atom_site_type_symbol"), tags)
-    x = findfirst(==("_atom_site_cartn_x"), tags)
-    y = findfirst(==("_atom_site_cartn_y"), tags)
-    z = findfirst(==("_atom_site_cartn_z"), tags)
-    if isnothing(x) || isnothing(y) || isnothing(z)
+    sym = something(findfirst(==("_atom_site_type_symbol"), tags), 0)
+    x = something(findfirst(==("_atom_site_cartn_x"), tags), 0)
+    y = something(findfirst(==("_atom_site_cartn_y"), tags), 0)
+    z = something(findfirst(==("_atom_site_cartn_z"), tags), 0)
+    if iszero(x) || iszero(y) || iszero(z)
         any(t -> startswith(t, "_atom_site_fract_"), tags) &&
             throw(InputError(source, n, "cif: only Cartesian _atom_site coordinates are supported"))
     end
-    (isnothing(sym) || isnothing(x) || isnothing(y) || isnothing(z)) && throw(
-        InputError(source, n, "cif: the _atom_site loop needs _atom_site_type_symbol and _atom_site_Cartn_x, _y and _z")
-    )
     return sym, x, y, z
 end
 
 # The coordinate token `t` of line `n`, converted from Å to bohr; in lenient mode a token that is
-# not a number reads as 0.0.
+# not a number reads as 0.0 and a non-finite value (`nan`, `inf`) is kept.
 function _cif_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
     )
@@ -97,5 +111,8 @@ function _cif_coordinate(
         reject_or_warn(source, n, lenient, warnings, :cif_coordinate, lazy"cif: coordinate \"$(t)\" is not a number")
         return 0.0
     end
+    isfinite(x) || reject_or_warn(
+        source, n, lenient, warnings, :nonfinite, lazy"cif: expected a finite number, got \"$(t)\""
+    )
     return x * ANGSTROM_TO_BOHR
 end

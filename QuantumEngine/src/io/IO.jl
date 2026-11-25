@@ -11,8 +11,8 @@ module IO
 using StaticArrays: SVector
 using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: InputError, InputWarning
-using ..Units: ANGSTROM_TO_BOHR, BOHR_TO_ANGSTROM, element, nelements
-using ..System: Atom
+using ..Units: ANGSTROM_TO_BOHR, BOHR_TO_ANGSTROM, element
+using ..System: System, Atom
 
 include("lines.jl")
 include("xyz.jl")
@@ -27,7 +27,7 @@ public input_line, reject_or_warn
 @strict_exempt :noalloc read_pdb reason = "entry point: PDB reader"
 @strict_exempt :noalloc read_cif reason = "entry point: CIF reader"
 @strict_exempt :noalloc input_line reason = "entry point helper: line reader of read_xyz, read_pdb, read_cif and parse_inp"
-@strict_exempt :noalloc reject_or_warn reason = "entry point helper: strict-or-lenient choice of the file readers and parsers"
+@strict_exempt :noalloc reject_or_warn reason = "entry point helper: strict-or-lenient choice of read_xyz, read_pdb, read_cif, parse_inp and parse_structured"
 @strict_exempt :noalloc _atom reason = "entry point helper: atom builder of read_xyz, read_pdb and read_cif"
 @strict_exempt :noalloc _xyz_coordinate reason = "entry point helper: coordinate parser of read_xyz"
 @strict_exempt :noalloc _pdb_coordinate reason = "entry point helper: coordinate parser of read_pdb"

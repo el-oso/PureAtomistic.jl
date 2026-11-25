@@ -50,15 +50,27 @@ function Atom(symbol::AbstractString, position::AbstractVector; mass = nothing)
     return Atom{T}(z, String(symbol), p, false, m)
 end
 
-# The element number named by `symbol` and whether it names a ghost; throws for a bare `Bq` and
-# for a symbol that names no element.
-function _parse_symbol(symbol::AbstractString)
+"""
+    element_number(symbol::AbstractString) -> Int
+
+The atomic number of the element that `symbol` names under the spelling `Atom` reads (`El`, or
+the ghosts `El@`, `BqEl` and `Bq-El`, in any case), or 0 when it names no element. Throws an
+`ArgumentError` for a bare `Bq`, which is malformed rather than unknown, with the message `Atom`
+throws for it.
+"""
+function element_number(symbol::AbstractString)
     lo, hi, ghost = _symbol_body(symbol)
     ghost && lo > hi && _is_bq_prefix(symbol) &&
         throw(ArgumentError("system: a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`"))
-    z = _element_number(symbol, lo, hi)
+    return _element_number(symbol, lo, hi)
+end
+
+# The element number named by `symbol` and whether it names a ghost; throws for a bare `Bq` and
+# for a symbol that names no element.
+function _parse_symbol(symbol::AbstractString)
+    z = element_number(symbol)
     z == 0 && throw(ArgumentError(lazy"system: unknown element symbol \"$(symbol)\""))
-    return z, ghost
+    return z, _symbol_body(symbol)[3]
 end
 
 # The code units `lo:hi` of `symbol` that spell its element, and whether the symbol marks a
@@ -216,6 +228,7 @@ function nuclear_repulsion(mol::Molecule{T}) where {T}
 end
 
 export Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta, nuclear_repulsion
+public element_number
 
 # The keyword body of `Atom` allocates the `String` of a `SubString` symbol, the token a reader
 # passes; with a `String` symbol it allocates nothing and is held to `:noalloc`. So the exemption

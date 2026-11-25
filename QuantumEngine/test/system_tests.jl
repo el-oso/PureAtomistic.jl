@@ -110,6 +110,21 @@ end
     @test_throws "system: ghost atom \"Foo@\" stands for no element" basis_element(Atom{Float64}(0, "Foo@", SVector(0.0, 0.0, 0.0), true, 0.0))
 end
 
+@testitem "system: element_number" begin
+    using QuantumEngine.System: element_number
+    @test element_number("O") == 8
+    @test element_number("fe") == 26
+    @test element_number(SubString("xCl", 2)) == 17
+    @test element_number("O@") == 8
+    @test element_number("bqh") == 1
+    @test element_number("Bq-He") == 2
+    @test element_number("Xx") == 0
+    @test element_number("Bq@") == 0
+    @test element_number("") == 0
+    @test_throws "system: a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`" element_number("Bq")
+    @test_throws "system: a Bq atom needs an element" element_number("bq-")
+end
+
 @testitem "system: generic indexing" setup = [Fixtures] begin
     using QuantumEngine, OffsetArrays
     using StaticArrays: SVector

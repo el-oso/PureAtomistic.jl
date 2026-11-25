@@ -103,11 +103,18 @@ end
     @test_throws "input: t.xyz:3: xyz: expected a symbol and three coordinates" XYZFiles.frames("1\nc\nH 0 0\n")
     @test_throws "input: t.xyz: xyz: the file has no frame" XYZFiles.frames("\n\n")
     @test_throws "io: an xyz comment is one line" XYZFiles.xyz_text([Atom("H", [0.0, 0.0, 0.0])]; comment = "a\nb")
+    # `read_xyz` strips the comment line, so a comment with surrounding blanks would not read back.
+    for c in ("  hi", "hi ", "\thi")
+        @test_throws "io: an xyz comment has no leading or trailing whitespace" XYZFiles.xyz_text(
+            [Atom("H", [0.0, 0.0, 0.0])]; comment = c
+        )
+    end
+    @test XYZFiles.frames(XYZFiles.xyz_text([Atom("H", [0.0, 0.0, 0.0])]; comment = "a  b"))[1].comment == "a  b"
 end
 
 @testitem "xyz: lenient" setup = [XYZFiles] begin
     using QuantumEngine.Units: ANGSTROM_TO_BOHR
-    @testset "L19a :xyz_count" begin
+    @testset ":xyz_count, a frame shorter than its count" begin
         # Oracle: io/molecule.rs:50-51 stops at the end of the atom lines and returns the atoms read.
         text = "3\nc\nH 0 0 0\nH 0 0 1\n"
         @test_throws "input: t.xyz:1: xyz: the frame declares 3 atoms but has 2" XYZFiles.frames(text)
@@ -118,7 +125,7 @@ end
         @test w[1].case === :xyz_count
         @test w[1].line == 1
     end
-    @testset "L19b :unknown_element" begin
+    @testset ":unknown_element, the symbol Xx" begin
         # Oracle: io/molecule.rs:66 gives an unknown symbol Z = 1 (`unwrap_or(1)`).
         text = "1\nc\nXx 0 0 0.5\n"
         @test_throws "input: t.xyz:3: xyz: unknown element symbol \"Xx\"" XYZFiles.frames(text)
@@ -142,6 +149,22 @@ end
             @test isempty(w)
         end
         @test_throws "input: t.xyz:3: xyz: unknown element symbol \"Bq@\"" XYZFiles.frames("1\nc\nBq@ 0 0 0\n")
+    end
+    @testset ":nonfinite, the coordinate nan" begin
+        # Oracle: io/molecule.rs:58-60 parses each coordinate as an `f64`, which reads `nan` and `inf`.
+        text = "1\nc\nH nan 0 0.5\n"
+        @test_throws "input: t.xyz:3: xyz: expected a finite number, got \"nan\"" XYZFiles.frames(text)
+        w = InputWarning[]
+        a = only(XYZFiles.frames(text; lenient = true, warnings = w)[1].atoms)
+        @test isnan(a.position[1])
+        @test a.position[3] == 0.5 * ANGSTROM_TO_BOHR
+        @test length(w) == 1
+        @test w[1].case === :nonfinite
+        @test w[1].line == 3
+        @test_throws "input: t.xyz:3: xyz: expected a finite number, got \"-inf\"" XYZFiles.frames("1\nc\nH 0 0 -inf\n")
+        w = InputWarning[]
+        @test only(XYZFiles.frames("1\nc\nH 0 0 -inf\n"; lenient = true, warnings = w)[1].atoms).position[3] == -Inf
+        @test length(w) == 1
     end
 end
 

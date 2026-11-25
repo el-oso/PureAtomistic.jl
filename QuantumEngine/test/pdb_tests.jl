@@ -36,6 +36,19 @@ end
     # CRLF endings read the same atoms.
     b = PDBFiles.atoms(replace(text, "\n" => "\r\n"))
     @test [x.position for x in b] == [x.position for x in a]
+    # A left-justified element ("C " in columns 77–78) is read in both modes, with no warning,
+    # whether or not the line keeps its trailing blank; the oracle trims the two columns
+    # (io/molecule.rs:95-96).
+    left = r("ATOM  ", " C1", "0.000", "0.000", "0.000", "C ")
+    for text in (left, left * "\nEND", rstrip(left))
+        for lenient in (false, true)
+            w = InputWarning[]
+            c = only(PDBFiles.atoms(text; lenient, warnings = w))
+            @test c.symbol == "C"
+            @test c.Z == 6
+            @test isempty(w)
+        end
+    end
 end
 
 @testitem "pdb: errors" setup = [PDBFiles] begin
@@ -52,7 +65,7 @@ end
 
 @testitem "pdb: lenient" setup = [PDBFiles] begin
     r = PDBFiles.record
-    @testset "L19c :pdb_short_line" begin
+    @testset ":pdb_short_line, a 40-column ATOM record" begin
         # Oracle: io/molecule.rs:79 skips an ATOM record shorter than 54 columns.
         text = first(r("ATOM  ", " O", "0.000", "0.000", "0.000", "O"), 40) * "\n" *
             r("ATOM  ", " H", "0.000", "0.000", "1.000", "H")
@@ -64,7 +77,7 @@ end
         @test w[1].case === :pdb_short_line
         @test w[1].line == 1
     end
-    @testset "L19d :pdb_element_columns" begin
+    @testset ":pdb_element_columns, a 66-column record with atom name CL" begin
         # Oracle: io/molecule.rs:95-102 takes the first character of the atom name when the line
         # has no columns 77–78.
         text = first(r("ATOM  ", "CL", "0.000", "0.000", "0.000", "CL"), 66)
@@ -75,6 +88,35 @@ end
         @test a.Z == 6
         @test length(w) == 1
         @test w[1].case === :pdb_element_columns
+        @test w[1].line == 1
+    end
+    @testset ":pdb_element_columns, a 78-column record with blank columns 77–78" begin
+        # Oracle: io/molecule.rs:95-96,106 reads columns 77–78 of a record of 78 columns or more,
+        # counted with its trailing blanks, and gives the empty symbol Z = 1.
+        line = r("ATOM  ", "CL", "0.000", "0.000", "0.000", "  ")
+        for text in (line, line * "\nEND", line * "   ")
+            @test_throws "input: t.pdb:1: pdb: no element in columns 77–78" PDBFiles.atoms(text)
+            w = InputWarning[]
+            a = only(PDBFiles.atoms(text; lenient = true, warnings = w))
+            @test a.symbol == ""
+            @test a.Z == 1
+            @test !a.ghost
+            @test a.mass == element(1).mass_most_abundant
+            @test length(w) == 1
+            @test w[1].case === :pdb_element_columns
+            @test w[1].line == 1
+        end
+    end
+    @testset ":nonfinite, the coordinate nan" begin
+        # Oracle: io/molecule.rs:89-91 parses each coordinate field as an `f64`, which reads `nan`.
+        text = r("ATOM  ", " O", "nan", "0.000", "0.000", "O")
+        @test_throws "input: t.pdb:1: pdb: expected a finite number, got \"nan\"" PDBFiles.atoms(text)
+        w = InputWarning[]
+        a = only(PDBFiles.atoms(text; lenient = true, warnings = w))
+        @test isnan(a.position[1])
+        @test a.Z == 8
+        @test length(w) == 1
+        @test w[1].case === :nonfinite
         @test w[1].line == 1
     end
 end

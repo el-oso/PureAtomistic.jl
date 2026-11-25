@@ -18,8 +18,12 @@ which are converted to bohr; columns after the fourth are ignored. Blank lines b
 lines and between frames are skipped.
 
 Errors are `InputError`s naming `source` and the line. In lenient mode (`lenient = true`) a frame
-with fewer atom lines than its count, and an unknown element symbol, are read as the oracle reads
-them, and an `InputWarning` is pushed onto `warnings` for each.
+with fewer atom lines than its count, an unknown element symbol and a non-finite coordinate are
+read as the oracle reads them, and an `InputWarning` is pushed onto `warnings` for each.
+
+Lenient mode does not reproduce the oracle for a frame with more atom lines than its count: the
+oracle reads one frame and ignores the lines after it, while this reader reads the next line as
+the count of the next frame, an error in both modes when it is not one.
 """
 function read_xyz(
         io::Base.IO; source::AbstractString = "<stream>", lenient::Bool = false,
@@ -51,8 +55,9 @@ function read_xyz(
             length(tokens) >= 4 ||
                 throw(InputError(source, n, "xyz: expected a symbol and three coordinates"))
             p = SVector(
-                _xyz_coordinate(source, n, tokens[2]), _xyz_coordinate(source, n, tokens[3]),
-                _xyz_coordinate(source, n, tokens[4]),
+                _xyz_coordinate(source, n, lenient, warnings, tokens[2]),
+                _xyz_coordinate(source, n, lenient, warnings, tokens[3]),
+                _xyz_coordinate(source, n, lenient, warnings, tokens[4]),
             )
             push!(atoms, _atom("xyz: ", source, n, lenient, warnings, tokens[1], p))
             if length(atoms) == natoms
@@ -77,10 +82,16 @@ function read_xyz(
     return frames
 end
 
-# The coordinate token `t` of line `n`, converted from Å to bohr.
-function _xyz_coordinate(source::AbstractString, n::Int, t::SubString{String})
+# The coordinate token `t` of line `n`, converted from Å to bohr; in lenient mode a non-finite
+# value (`nan`, `inf`) is kept.
+function _xyz_coordinate(
+        source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
+    )
     x = tryparse(Float64, t)
     isnothing(x) && throw(InputError(source, n, lazy"xyz: coordinate \"$(t)\" is not a number"))
+    isfinite(x) || reject_or_warn(
+        source, n, lenient, warnings, :nonfinite, lazy"xyz: expected a finite number, got \"$(t)\""
+    )
     return x * ANGSTROM_TO_BOHR
 end
 
@@ -89,11 +100,14 @@ end
 
 Writes one xyz frame: the atom count, the `comment` line, and `<symbol> <x> <y> <z>` per atom
 with the coordinates in Å, each the shortest decimal that reads back as the same `Float64`,
-separated by single spaces. Throws an `ArgumentError` for a `comment` with a line break.
+separated by single spaces. Throws an `ArgumentError` for a `comment` with a line break or with
+leading or trailing whitespace, neither of which `read_xyz` reads back.
 """
 function write_xyz(io::Base.IO, atoms::AbstractVector{<:Atom}; comment::AbstractString = "")
     (occursin('\n', comment) || occursin('\r', comment)) &&
         throw(ArgumentError("io: an xyz comment is one line"))
+    (!isempty(comment) && (isspace(first(comment)) || isspace(last(comment)))) &&
+        throw(ArgumentError("io: an xyz comment has no leading or trailing whitespace"))
     print(io, length(atoms))
     write(io, '\n')
     write(io, comment)
