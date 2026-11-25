@@ -1,0 +1,4 @@
+# Minimum line coverage per source file (covered / coverable lines), checked by check.jl.
+# A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
+"src/QuantumEngine.jl" = 1.00
+"src/errors/Errors.jl" = 1.00

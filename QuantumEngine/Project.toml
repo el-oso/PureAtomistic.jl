@@ -1,0 +1,11 @@
+name = "QuantumEngine"
+uuid = "5d0a10cf-6393-458b-a3a8-70ec4cff3756"
+version = "0.1.0"
+authors = ["el_oso"]
+
+[deps]
+StrictMode = "0e98b4f4-d0e6-42ac-af0a-707c24852f32"
+
+[compat]
+StrictMode = "0.5.21"
+julia = "1.13"

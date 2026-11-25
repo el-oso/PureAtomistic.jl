@@ -11,6 +11,8 @@ A monorepo for pure-Julia atomistic simulation packages.
 - `PureXC/` holds exchange-correlation functionals (LDA exchange, Perdew–Wang 1992 correlation,
   PBE exchange and correlation), spin-restricted and spin-polarized, with their derivatives to
   any order through PureTaylor. Libxc is its test oracle only. It requires Julia 1.13.
+- `QuantumEngine/` is a quantum-chemistry program, a pure-Julia rewrite of the Rust
+  `quantum_engine`, whose outputs are its test oracle. It requires Julia 1.13.
 
 Goals for every package here:
 

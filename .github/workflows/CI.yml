@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
+        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC, QuantumEngine]
         # Every package requires Julia 1.13.
         version: ['1.13']
     steps:
@@ -127,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
+        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC, QuantumEngine]
     steps:
       - uses: actions/checkout@v4
       - name: Set the checkpoint cache
@@ -149,14 +149,14 @@ jobs:
         run: julia --project=${{ matrix.package }}/test/coverage -e 'using Pkg; Pkg.instantiate()'
       - name: Check per-file coverage thresholds
         run: julia --project=${{ matrix.package }}/test/coverage ${{ matrix.package }}/test/coverage/check.jl
-      # PureTaylor and PureXC have no extension files.
+      # PureTaylor, PureXC and QuantumEngine have no extension files.
       - name: Run the :gpu items on the CPU backend for the extension files
-        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         env:
           PUREMLIP_GPU_BACKEND: CPU
         run: |
           julia --project=${{ matrix.package }}/test/gpu/cpu -e 'using Pkg; Pkg.instantiate()'
           julia --check-bounds=yes --code-coverage=user --project=${{ matrix.package }}/test/gpu/cpu ${{ matrix.package }}/test/gpu/runtests.jl
       - name: Check per-file coverage thresholds of the extensions
-        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         run: julia --project=${{ matrix.package }}/test/coverage ${{ matrix.package }}/test/coverage/check.jl --root ext/${{ matrix.package }}GPUExt --thresholds thresholds_gpu.toml

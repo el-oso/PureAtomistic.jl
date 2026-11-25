@@ -13,7 +13,7 @@ permissions:
   pull-requests: write
 jobs:
   # PureMLIP's site is built at the root of gh-pages, PureAtomistic's under PureAtomistic/,
-  # PureTaylor's under PureTaylor/ and PureXC's under PureXC/.
+  # PureTaylor's under PureTaylor/, PureXC's under PureXC/ and QuantumEngine's under QuantumEngine/.
   docs:
     name: Documentation (${{ matrix.package }})
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
       # All sites push to the same gh-pages branch.
       max-parallel: 1
       matrix:
-        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC]
+        package: [PureMLIP, PureAtomistic, PureTaylor, PureXC, QuantumEngine]
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -33,9 +33,9 @@ jobs:
         with:
           node-version: '20'
       # GLMakie renders the example animations through OpenGL: Xvfb provides the display and
-      # Mesa the software OpenGL driver. The PureTaylor and PureXC sites have no examples.
+      # Mesa the software OpenGL driver. The PureTaylor, PureXC and QuantumEngine sites have no examples.
       - name: Install OpenGL and a virtual display
-        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 mesa-utils xorg-dev
@@ -48,14 +48,14 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
         run: julia --project=PureMLIP/docs -e 'using PureMLIP; include(pkgdir(PureMLIP, "test", "reference", "checkpoints.jl")); println(checkpoint_path(:mpa0))'
       - name: Build and deploy
-        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
         run: xvfb-run -s '-screen 0 1024x768x24' julia --project=${{ matrix.package }}/docs ${{ matrix.package }}/docs/make.jl
       - name: Build and deploy (no examples)
-        if: matrix.package == 'PureTaylor' || matrix.package == 'PureXC'
+        if: matrix.package == 'PureTaylor' || matrix.package == 'PureXC' || matrix.package == 'QuantumEngine'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

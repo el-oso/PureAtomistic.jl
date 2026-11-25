@@ -11,3 +11,5 @@ node_modules
 PureAtomistic/juliac/build/
 LocalPreferences.toml
 PureXC/juliac/build/
+QuantumEngine/docs/build
+QuantumEngine/juliac/build/

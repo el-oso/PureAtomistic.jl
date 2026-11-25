@@ -3,7 +3,7 @@ name: Mutation
 # included, so its 163 entries are split into four shards of about 41 entries (about 200 minutes
 # each, under the 360-minute job limit). PureXC takes about 14 minutes per entry on an Apple
 # M-series machine with five other runs in parallel (not measured on the CI runner), so its 78
-# entries are split into five shards.
+# entries are split into five shards. QuantumEngine runs unsharded.
 on:
   workflow_dispatch:
 jobs:
@@ -26,6 +26,7 @@ jobs:
           - {package: PureXC, shard: 3/5}
           - {package: PureXC, shard: 4/5}
           - {package: PureXC, shard: 5/5}
+          - {package: QuantumEngine, shard: ''}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -40,9 +41,9 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
           MUTATION_SHARD: ${{ matrix.shard }}
         run: julia ${{ matrix.package }}/test/mutation/run.jl
-      # PureTaylor and PureXC have no extension files.
+      # PureTaylor, PureXC and QuantumEngine have no extension files.
       - name: Apply each extension mutation and run the :gpu items on the CPU backend
-        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC'
+        if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         env:
           MUTATION_SUITE: gpu
           MUTATION_SHARD: ${{ matrix.shard }}
