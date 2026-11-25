@@ -186,3 +186,17 @@ grep "Trim verify finished" build.log
 
 The `dicttype` and lazy reading programs are one way each to write those routes; another way
 of writing them may build clean, which was not checked.
+
+## Decision (the user's, 2026-11-25)
+
+1. **Format:** "own flat binary, but make it hdf5-like in pure julia". The checkpoint is an own
+   binary format written and read in pure Julia, structured like HDF5: a self-describing tree of
+   named groups holding named, typed n-dimensional datasets and small attributes, with a fixed
+   header (magic, version) and an index of the tree, so that a reader can list and read one
+   dataset without knowing the layout in advance. It is not the HDF5 file format and needs no
+   HDF5 library; it builds under `--trim=safe` and round-trips exactly.
+2. **Contents:** the oracle's fields, plus P_α and P_β stored separately, the beta MO
+   coefficients, energies and occupations, the geometry, charge and multiplicity, and a basis
+   record.
+3. **Exports:** Molden only.
+4. **A failed load:** an error; `--lenient` restores the oracle's warning and default guess.
