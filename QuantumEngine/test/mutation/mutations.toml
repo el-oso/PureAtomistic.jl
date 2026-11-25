@@ -11,6 +11,20 @@ find = 'const ANGSTROM_TO_BOHR = 1 / BOHR_TO_ANGSTROM'
 replace = 'const ANGSTROM_TO_BOHR = 1 * BOHR_TO_ANGSTROM'
 expect = "units: constants"
 
+[[mutation]]
+name = "au-to-debye-power"
+file = "src/units/Units.jl"
+find = 'SPEED_OF_LIGHT * 1.0e21'
+replace = 'SPEED_OF_LIGHT * 1.0e20'
+expect = "units: constants"
+
+[[mutation]]
+name = "gas-constant-product"
+file = "src/units/Units.jl"
+find = 'const GAS_CONSTANT_R = AVOGADRO_NA * BOLTZMANN_K'
+replace = 'const GAS_CONSTANT_R = AVOGADRO_NA / BOLTZMANN_K'
+expect = "units: constants"
+
 # Electron counts and nuclear repulsion.
 
 [[mutation]]

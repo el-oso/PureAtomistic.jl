@@ -6,7 +6,7 @@
 # - mass_most_abundant: the atomic mass of the most abundant isotope (named at the end of each row),
 #   from the Atomic Mass Evaluation 2020: W. J. Huang, M. Wang, F. G. Kondev, G. Audi and S. Naimi,
 #   Chin. Phys. C 45, 030002 (2021), and M. Wang, W. J. Huang, F. G. Kondev, G. Audi and S. Naimi,
-#   Chin. Phys. C 45, 030003 (2021), file mass.mas20.
+#   Chin. Phys. C 45, 030003 (2021), file mass_1.mas20.txt.
 # - mass_average: the CIAAW standard atomic weight (T. Prohaska et al., "Standard atomic weights of
 #   the elements 2021 (IUPAC Technical Report)", Pure Appl. Chem. 94, 573 (2022)); for an element
 #   whose standard atomic weight is an interval, its conventional value from the same report.

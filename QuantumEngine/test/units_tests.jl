@@ -74,6 +74,8 @@ end
     @test element(Int8(8)) === element("O")
     @test_throws "units: unknown element symbol \"Xx\"" element("Xx")
     @test_throws "units: unknown element symbol \"Fé\"" element("Fé")
+    @test_throws "units: unknown element symbol \"\\ufeffFe\"" element("\ufeffFe")
+    @test_throws "units: unknown element symbol \"Fe\\r\"" element("Fe\r")
     @test_throws "units: no element with Z = 0 in the table (H–Kr)" element(0)
     @test_throws "units: no element with Z = 37 in the table (H–Kr)" element(37)
     @test_throws "units: atomic number must be an integer, got the Bool true" element(true)

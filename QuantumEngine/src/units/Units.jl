@@ -26,7 +26,7 @@ const AVOGADRO_NA = 6.02214076e23
 const SPEED_OF_LIGHT = 299792458.0
 
 const GAS_CONSTANT_R = AVOGADRO_NA * BOLTZMANN_K
-# One debye is 1e-21 / c coulomb metre, and the atomic unit of dipole moment e·a₀.
+# One debye is 1e-21 / c coulomb meter, and the atomic unit of dipole moment e·a₀.
 const AU_TO_DEBYE = ELEMENTARY_CHARGE * BOHR_TO_METER * SPEED_OF_LIGHT * 1.0e21
 
 """
@@ -77,7 +77,7 @@ function element(symbol::AbstractString)
     for e in ELEMENTS
         _same_symbol(e.symbol, symbol) && return e
     end
-    throw(ArgumentError(lazy"units: unknown element symbol \"$(symbol)\""))
+    throw(ArgumentError(lazy"units: unknown element symbol $(repr(symbol))"))
 end
 
 # Whether `s` spells the table symbol `ref` (ASCII) in any case, compared code unit by code unit
