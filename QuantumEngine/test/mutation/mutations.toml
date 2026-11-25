@@ -10,3 +10,26 @@ file = "src/units/Units.jl"
 find = 'const ANGSTROM_TO_BOHR = 1 / BOHR_TO_ANGSTROM'
 replace = 'const ANGSTROM_TO_BOHR = 1 * BOHR_TO_ANGSTROM'
 expect = "units: constants"
+
+# Electron counts and nuclear repulsion.
+
+[[mutation]]
+name = "nalpha-divisor"
+file = "src/system/System.jl"
+find = 'Int((n + u) / 2)'
+replace = 'Int((n + u) / 3)'
+expect = "electron counts"
+
+[[mutation]]
+name = "nuclear-repulsion-charge-product"
+file = "src/system/System.jl"
+find = 'Z_i * Z_j'
+replace = 'Z_i + Z_j'
+expect = "nuclear repulsion"
+
+[[mutation]]
+name = "spin-parity-check"
+file = "src/system/System.jl"
+find = 'isodd(d)'
+replace = 'iseven(d)'
+expect = "electron counts"
