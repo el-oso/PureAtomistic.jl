@@ -1207,7 +1207,7 @@ No format is implemented until the user chooses one.
 - [ ] **Step 1: Write the comparison document** from the Step 0 measurements and the oracle source. It states:
   - **What the oracle stores:** `ScfSnapshot {energy, density (total P), density_beta, mo_coeffs (alpha), mo_energies (alpha), n_iter, is_unrestricted}` in bincode.
     - It is written only on convergence (`scf_cycle.rs:626-640`, `uhf.rs:345-358`, `aim.rs:800-809`).
-    - A restart reads only the densities (`engine/config.rs:320-342`), tells total P from P_α by a trace heuristic (`uhf.rs:33-46`), and falls back silently on a failed load.
+    - A restart reads only the densities (`engine/config.rs:320-342`) and tells total P from P_α by a trace heuristic (`uhf.rs:33-46`); a failed load does not stop the run: the SCF path warns through `writer.warn` and continues with the default guess (`engine/config.rs:341`), and the AIM path drops the load silently and runs the SCF again (`aim.rs:774`).
     - There is no geometry, basis, charge, multiplicity, occupations or magic, so the AIM path needs the matching `.inp`.
     - Rust `.chk` compatibility is out of scope (00, 13).
   - **The comparison table**, with each option's line estimate (marked as an estimate), closure, trim result, Julia-version stability, the programs that read it, and its fidelity to the oracle checkpoint. The closure and trim cells are the Step 0 results; the expectations below come from the earlier research (appendix E3) and are replaced by the measurement:
