@@ -214,10 +214,12 @@ end
 
 export Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta, nuclear_repulsion
 
-# The keyword body of `Atom` allocates the `String` of a symbol given as any other string type. The
-# keyword body of `Molecule` allocates nothing (its default point-charge vector is built by the
-# methods that call it), so `Molecule` is held to `:noalloc` and has no exemption.
-@strict_exempt :noalloc Atom reason = "entry point: atom constructor"
+# The keyword body of `Atom` allocates the `String` of a `SubString` symbol, the token a reader
+# passes; with a `String` symbol it allocates nothing and is held to `:noalloc`. So the exemption
+# names the `SubString{String}` signature of the keyword body only, and holds whichever of the two
+# is compiled first. The keyword body of `Molecule` allocates nothing (its default point-charge
+# vector is built by the methods that call it), so `Molecule` has no exemption.
+@strict_exempt :noalloc types = (Any, Type{Atom}, SubString{String}, AbstractVector) Atom reason = "entry point: atom constructor"
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)
 

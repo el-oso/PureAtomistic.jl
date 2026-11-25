@@ -34,10 +34,17 @@ end
     end
 end
 
-# Every exemption is still needed, has a compiled specialization, and states its reason.
+# Every exemption is still needed, has a compiled specialization, and states its reason. Atoms built
+# from `String` symbols compile the keyword body of `Atom` that allocates nothing, which the
+# exemption of `Atom` must not cover.
 @testitem "every exemption is used and reasoned" tags = [:checks] begin
     using StrictMode, StrictModeTest
     include(joinpath(pkgdir(QuantumEngine), "test", "strict", "workload.jl"))
+    for T in (Float64, Float32)
+        Atom("O", T[0, 0, 0])
+        Atom("H", T[0, 0, 1]; mass = 2)
+        Atom("O@", T[0, 0, 2])
+    end
     run_workload()
     for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System)
         @test isempty(test_exemptions(M))
