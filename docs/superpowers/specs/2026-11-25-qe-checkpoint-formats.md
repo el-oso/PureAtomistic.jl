@@ -80,8 +80,10 @@ carries the geometry, basis and MOs to other programs.
    precision (shortest round trip, decision D18 of the step-01 plan in
    `docs/superpowers/plans/`); whether that is kept when the harness compares with the oracle's
    Molden files.
-5. **A failed load (Q-LENIENT):** whether a failed load throws, and whether `--lenient`
-   restores the oracle's behavior of a warning and the default guess.
+5. **A failed load (Q-LENIENT, decision D6 of the step-01 plan in `docs/superpowers/plans/`:
+   unknown keywords and bad values are errors unless `--lenient` is given):** whether a failed
+   load throws, and whether `--lenient` restores the oracle's behavior of a warning and the
+   default guess.
 
 ## AO order
 
@@ -129,8 +131,9 @@ juliac driver is JuliaC.jl 0.3.12 from `PureMLIP/juliac/toolenv`.
 
 ### Programs
 
-Each program defines the struct below, writes it to the file named by its argument, reads it
-back, and prints `roundtrip exact` (exit 0) when every field is `===`/`==` equal.
+Each program defines the struct below and writes it to the file named by its argument. Every
+program except JSON writing then reads it back and prints `roundtrip exact` (exit 0) when every
+field is `===`/`==` equal; the JSON-writing program writes only and prints `written`.
 
 ```julia
 struct Snap
@@ -157,8 +160,9 @@ end
 - JSON, typed reading: `JSON.parse(text, SnapJ)`, where `SnapJ` is `Snap` with the density as
   `Vector{Vector{Float64}}`.
 
-Every program prints `roundtrip exact` when run untrimmed (`julia --project=<env> entry.jl
-out.chk`).
+Every program except JSON writing prints `roundtrip exact` when run untrimmed (`julia
+--project=<env> entry.jl out.chk`); the JSON-writing program prints `written`, and its trimmed
+output file is checked with `cmp` against the untrimmed run's.
 
 ### Build and count
 
