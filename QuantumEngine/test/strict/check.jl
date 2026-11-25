@@ -28,7 +28,7 @@ include(joinpath(@__DIR__, "workload.jl"))
 
 const CONTROL = "control" in ARGS
 const P = QuantumEngine
-const MODULES = (P.Errors, P.Units, P.System)
+const MODULES = (P.Errors, P.Units, P.System, P.IO)
 const GUARANTEES = (:typestable, :noalloc, :noboxing)
 oneline(err) = replace(sprint(showerror, err), '\n' => " | ")
 

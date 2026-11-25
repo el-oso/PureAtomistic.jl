@@ -7,7 +7,8 @@ using QuantumEngine
 # Every error type and `InputWarning`, each built from a `String` and from a `LazyString` message,
 # rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
 # element lookups and radius accessors of `Units`; then the atom and molecule constructors, the
-# electron counts and the nuclear repulsion of `System` in Float64 and Float32.
+# electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
+# writer and the xyz, PDB and CIF readers of `IO`.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -50,6 +51,30 @@ function run_workload()
             nalpha(mol)
             nbeta(mol)
         end
+    end
+    # The molecule files: an xyz frame written from Float64 and from Float32 atoms; an xyz, a PDB
+    # and a CIF file read strictly and, with every lenient case, leniently; then the error of an
+    # unknown element in strict mode, rendered.
+    for T in (Float64, Float32)
+        write_xyz(io, [Atom("O", T[0, 0, 0.2]), Atom("H", T[0, 1.4, -0.9])]; comment = "w")
+    end
+    pdb_record(name, el) = "ATOM      1 " * rpad(name, 4) * " WAT A   1       0.000   0.000   0.117  1.00  0.00" * " "^10 * el
+    pdb = join([pdb_record(" O", " O"), pdb_record(" H", " H")], "\n")
+    pdb_lenient = join([first(pdb_record(" O", " O"), 40), first(pdb_record("CL", "CL"), 66), pdb_record(" X", "Xx")], "\n")
+    cif = "data_t\nloop_\n_atom_site_type_symbol\n_atom_site_Cartn_x\n_atom_site_Cartn_y\n_atom_site_Cartn_z\n"
+    xyz = "2\r\nw\r\nO\t0 0 0.2\r\nH 0 1.4 -0.9\r\n"
+    read_xyz(IOBuffer("\ufeff" * xyz * xyz))
+    read_pdb(IOBuffer(pdb))
+    read_cif(IOBuffer(cif * "Fe2+ 0.0 0.0 0.0\nO 1.5 0 0\n"))
+    w = InputWarning[]
+    read_xyz(IOBuffer("3\n\nXx 0 0 0\nH 0 0 1\n"); source = "a.xyz", lenient = true, warnings = w)
+    read_pdb(IOBuffer(pdb_lenient); source = "a.pdb", lenient = true, warnings = w)
+    read_cif(IOBuffer(cif * "O 0 0\nO x 0 0\nXx 0 0 0\n"); source = "a.cif", lenient = true, warnings = w)
+    try
+        read_xyz(IOBuffer("1\nw\nXx 0 0 0\n"))
+    catch e
+        e isa InputError || rethrow()
+        showerror(io, e)
     end
     return take!(io)
 end
