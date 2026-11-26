@@ -104,10 +104,16 @@ end
     @test_throws "system: a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`" Atom("bq-", [0.0, 0.0, 0.0])
     @test_throws "system: an atom position has 3 coordinates, got 2" Atom("H", [0.0, 0.0])
     @test_throws "system: a ghost atom has no mass, got 2.0" Atom("H@", [0.0, 0.0, 0.0]; mass = 2.0)
+    @test_throws "system: unknown element symbol \"H\\r\"" Atom("H\r", [0.0, 0.0, 0.0])
+    @test_throws "system: unknown element symbol \"\\ufeffH\"" Atom("\ufeffH", [0.0, 0.0, 0.0])
+    @test_throws "system: an atom mass must be finite and positive, got -1.0" Atom("H", [0.0, 0.0, 0.0]; mass = -1.0)
+    @test_throws "system: an atom mass must be finite and positive, got NaN" Atom("H", [0.0, 0.0, 0.0]; mass = NaN)
+    @test Atom("H", [0.0, 0.0, 0.0]; mass = 2.014).mass == 2.014
     @test_throws ArgumentError Atom("Foo", [0.0, 0.0, 0.0])
     coincide = Molecule([Atom("H", [0.0, 0.0, 0.0]), Atom("H", [0.0, 0.0, 0.0])])
     @test_throws "system: atoms 1 and 2 coincide" nuclear_repulsion(coincide)
     @test_throws "system: ghost atom \"Foo@\" stands for no element" basis_element(Atom{Float64}(0, "Foo@", SVector(0.0, 0.0, 0.0), true, 0.0))
+    @test_throws "system: ghost atom \"Foo\\r@\" stands for no element" basis_element(Atom{Float64}(0, "Foo\r@", SVector(0.0, 0.0, 0.0), true, 0.0))
 end
 
 @testitem "system: element_number" begin

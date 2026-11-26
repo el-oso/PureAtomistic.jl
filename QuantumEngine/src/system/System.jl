@@ -24,7 +24,7 @@ builds an atom with `T = float(eltype(position))` from a `position` of length 3.
 matched without regard to case: `El` is an atom of element `El`, and `El@`, `BqEl` and `Bq-El` are
 ghosts of `El`. The default `mass` is that of the most abundant isotope. Throws an
 `ArgumentError` for a position whose length is not 3, a bare `Bq`, a symbol that names no element,
-and a `mass` given for a ghost.
+a `mass` given for a ghost, and a `mass` that is not finite and positive.
 """
 struct Atom{T <: Real}
     Z::Int
@@ -46,6 +46,8 @@ function Atom(symbol::AbstractString, position::AbstractVector; mass = nothing)
         isnothing(mass) || throw(ArgumentError(lazy"system: a ghost atom has no mass, got $(mass)"))
         return Atom{T}(0, String(symbol), p, true, zero(T))
     end
+    isnothing(mass) || (isfinite(mass) && mass > 0) ||
+        throw(ArgumentError(lazy"system: an atom mass must be finite and positive, got $(mass)"))
     m = isnothing(mass) ? Units.element(z).mass_most_abundant : mass
     return Atom{T}(z, String(symbol), p, false, m)
 end
@@ -69,7 +71,7 @@ end
 # for a symbol that names no element.
 function _parse_symbol(symbol::AbstractString)
     z = element_number(symbol)
-    z == 0 && throw(ArgumentError(lazy"system: unknown element symbol \"$(symbol)\""))
+    z == 0 && throw(ArgumentError(lazy"system: unknown element symbol $(repr(symbol))"))
     return z, _symbol_body(symbol)[3]
 end
 
@@ -148,7 +150,7 @@ function basis_element(a::Atom)
     a.ghost || return a.Z
     lo, hi, _ = _symbol_body(a.symbol)
     z = _element_number(a.symbol, lo, hi)
-    z == 0 && throw(ArgumentError(lazy"system: ghost atom \"$(a.symbol)\" stands for no element"))
+    z == 0 && throw(ArgumentError(lazy"system: ghost atom $(repr(a.symbol)) stands for no element"))
     return z
 end
 
