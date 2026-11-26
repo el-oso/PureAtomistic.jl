@@ -42,6 +42,18 @@ end
 
 @testitem "format: errors" begin
     using QuantumEngine.IO: fmt_exp, fmt_fixed
-    @test_throws "io: precision must be ≥ 0, got -1" fmt_fixed(1.0, 4, -1)
-    @test_throws "io: precision must be ≥ 0, got -2" fmt_exp(1.0, -2)
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got -1" fmt_fixed(1.0, 4, -1)
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got -2" fmt_exp(1.0, -2)
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got 9" fmt_fixed(1.0, 4, 9)
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got 16" fmt_exp(1.0, 16)
+    # The precision is checked before a non-finite value returns early.
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got 11" fmt_fixed(Inf, 4, 11)
+    @test_throws "io: precision must be one of 0 to 8, 10, 12 and 15, got 13" fmt_exp(NaN, 13)
+end
+
+# Each precision has its own Printf call: 1/3 shows how many digits each one writes.
+@testitem "format: every precision" begin
+    using QuantumEngine.IO: fmt_exp, fmt_fixed, FORMAT_PRECISIONS
+    @test [fmt_fixed(1 / 3, 0, p) for p in FORMAT_PRECISIONS] == [p == 0 ? "0" : "0." * "3"^p for p in FORMAT_PRECISIONS]
+    @test [fmt_exp(1 / 3, p) for p in FORMAT_PRECISIONS] == [(p == 0 ? "3" : "3." * "3"^p) * "e-1" for p in FORMAT_PRECISIONS]
 end

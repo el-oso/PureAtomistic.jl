@@ -106,8 +106,9 @@ end
 """
     print_atom_table(lg::Logger, atoms::AbstractVector{<:Atom}) -> nothing
 
-Writes the oracle's atom table at level `Normal`: a header line, a rule, and one row per atom with
-its number (counting from 1 in iteration order), its symbol and its position in bohr and in Å.
+Writes the oracle's atom table at level `Normal`: a header line, a rule, one row per atom with
+its number (counting from 1 in iteration order), its symbol and its position in bohr and in Å,
+and a blank line.
 """
 function print_atom_table(lg::Logger, atoms::AbstractVector{<:Atom})
     log_print(
@@ -125,6 +126,7 @@ function print_atom_table(lg::Logger, atoms::AbstractVector{<:Atom})
         end
         log_print(lg, Normal, row)
     end
+    log_print(lg, Normal, "")
     return nothing
 end
 

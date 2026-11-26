@@ -53,6 +53,6 @@ expect = "electron counts"
 [[mutation]]
 name = "exponent-leading-zero"
 file = "src/io/format.jl"
-find = "lstrip(exp_digits, '0')"
-replace = "exp_digits"
+find = "while j < ncodeunits(s) && codeunit(s, j) == UInt8('0')"
+replace = "while false"
 expect = "Rust exponent format"

@@ -28,7 +28,7 @@ export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
 export Verbosity, Silent, Low, Normal, High, verbosity_from_input, Logger, log_print, log_success,
     log_warning, log_error, log_heading, log_section, print_atom_table, print_total_energy,
     report_optimization_step
-public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, log_path, output_base
+public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
 
 @strict_exempt :noalloc read_xyz reason = "entry point: xyz reader"
 @strict_exempt :noalloc write_xyz reason = "entry point: xyz writer"
@@ -47,6 +47,9 @@ public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, log_pat
 @strict_exempt :noalloc fmt_str reason = "entry point: Rust-compatible formatter, builds a String"
 @strict_exempt :noalloc _pad_left reason = "entry point helper: padding of fmt_fixed, fmt_exp and fmt_int"
 @strict_exempt :noalloc _pad_right reason = "entry point helper: padding of fmt_str"
+@strict_exempt :noalloc _printf_fixed reason = "entry point helper: Printf conversion of fmt_fixed, builds a String"
+@strict_exempt :noalloc _printf_exp reason = "entry point helper: Printf conversion of fmt_exp, builds a String"
+@strict_exempt :noalloc _precision_error reason = "entry point: error constructor"
 @strict_exempt :noalloc types = (IOBuffer, AbstractString) _write_line reason = "entry point helper: line writer of log_print"
 @strict_exempt :noalloc log_print reason = "entry point: logger output line"
 @strict_exempt :noalloc log_success reason = "entry point: logger output line, builds a String"

@@ -7,9 +7,28 @@ _pad_right(s::AbstractString, width::Int) = String(s) * " "^max(0, width - lengt
 
 _nonfinite(x::Real) = isnan(x) ? "NaN" : x > 0 ? "inf" : "-inf"
 
+# The precisions of `fmt_fixed` and `fmt_exp`: every precision the oracle's format strings use.
+# Each has its own `@sprintf` call with a literal precision in `_printf_fixed` and `_printf_exp`:
+# a run-time precision (`%.*f`) makes Printf read its arguments from the mixed tuple
+# `(Int, Float64)` at a run-time index, which boxes.
+const FORMAT_PRECISIONS = (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15)
+
+function _precision_error(prec::Int)
+    return ArgumentError(lazy"io: precision must be one of 0 to 8, 10, 12 and 15, got $(prec)")
+end
+
 function _check_precision(prec::Int)
-    prec >= 0 || throw(ArgumentError(lazy"io: precision must be ≥ 0, got $(prec)"))
+    prec in FORMAT_PRECISIONS || throw(_precision_error(prec))
     return nothing
+end
+
+for (name, conversion) in ((:_printf_fixed, 'f'), (:_printf_exp, 'e'))
+    body = :(throw(_precision_error(prec)))
+    for p in reverse(FORMAT_PRECISIONS)
+        spec = "%.$(p)$(conversion)"
+        body = :(prec == $p ? @sprintf($spec, x) : $body)
+    end
+    @eval $name(x::Real, prec::Int) = $body
 end
 
 """
@@ -17,17 +36,17 @@ end
 
 `x` with `prec` digits after the decimal point, right-aligned in `width` characters, as Rust's
 `{:width.prec}`: `fmt_fixed(-76.301896228438, 20, 12) == "    -76.301896228438"`. Throws an
-`ArgumentError` for a negative `prec`.
+`ArgumentError` for a `prec` not in `FORMAT_PRECISIONS` (0 to 8, 10, 12 and 15).
 
-The digits come from Printf's `%.*f`, which rounds the exact binary value. Where that value is
-an exact decimal tie, both Printf and Rust round to even on the ties the item "Rust fixed,
-integer and string formats" pins; other ties are not checked, and Rust may round them the other
-way. The parity harness compares parsed numbers, not text, so such a difference is cosmetic.
+The digits come from Printf's `%.<prec>f`, which rounds the exact binary value. Where that value
+is an exact decimal tie, both Printf and Rust round to even on the ties the item "Rust fixed,
+integer and string formats" pins; other ties are not checked, and Rust may round them the
+other way. The parity harness compares parsed numbers, not text, so such a difference is cosmetic.
 """
 function fmt_fixed(x::Real, width::Int, prec::Int)
     _check_precision(prec)
     isfinite(x) || return _pad_left(_nonfinite(x), width)
-    return _pad_left(@sprintf("%.*f", prec, x), width)
+    return _pad_left(_printf_fixed(x, prec), width)
 end
 
 """
@@ -35,25 +54,26 @@ end
 
 `x` in scientific notation with `prec` digits after the decimal point, right-aligned in `width`
 characters, as Rust's `{:width.prece}`: the exponent has no `+` and no leading zeros, as in
-`5.369e-1`, `0.000e0` and `1.260e0`. Throws an `ArgumentError` for a negative `prec`. Decimal
-ties round as in [`fmt_fixed`](@ref).
+`5.369e-1`, `0.000e0` and `1.260e0`. Throws an `ArgumentError` for a `prec` not in
+`FORMAT_PRECISIONS`. Decimal ties round as in [`fmt_fixed`](@ref).
 """
 function fmt_exp(x::Real, prec::Int; width::Int = 0)
     _check_precision(prec)
     isfinite(x) || return _pad_left(_nonfinite(x), width)
-    s = @sprintf("%.*e", prec, x)
-    # Printf writes the ASCII `<mantissa>e<sign><at least two digits>`. The `e` is found by a
-    # byte loop: `findlast(::Char, ::String)` leaves an unresolved call under `--trim`.
+    s = _printf_exp(x, prec)
+    # Printf writes the ASCII `<mantissa>e<sign><at least two digits>`; Rust drops a `+` sign
+    # and the leading zeros of the exponent. The scans read bytes: `findlast(::Char, ::String)`
+    # leaves an unresolved call under `--trim`, and `*` of a `SubString` and a `String` boxes.
     k = lastindex(s)
     while codeunit(s, k) != UInt8('e')
         k -= 1
     end
-    mantissa = SubString(s, 1, k)
-    minus = s[k + 1] == '-' ? "-" : ""
-    exp_digits = SubString(s, k + 2)
-    e10 = lstrip(exp_digits, '0')
-    power = isempty(e10) ? "0" : String(e10)
-    return _pad_left(mantissa * minus * power, width)
+    j = k + 2
+    while j < ncodeunits(s) && codeunit(s, j) == UInt8('0')
+        j += 1
+    end
+    head = codeunit(s, k + 1) == UInt8('-') ? SubString(s, 1, k + 1) : SubString(s, 1, k)
+    return _pad_left(head * SubString(s, j), width)
 end
 
 """
