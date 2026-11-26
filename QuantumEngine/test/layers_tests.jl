@@ -1,7 +1,13 @@
 # The layer graph of the submodules. Each module lists every module beneath it that it may extend.
+# The graph is judged in a fresh process: `test_layers` reads the method census of the session, and
+# with YAML.jl loaded by an earlier item it attributes the methods of `QuantumEngineYAMLExt` to the
+# declared modules (SM0205). The child requires the extension to be absent, so the gate judges the
+# package alone whichever items ran before it.
 @testitem "layer graph holds" tags = [:checks] begin
-    using StrictModeTest
+    code = """
+    using QuantumEngine, StrictModeTest
     QE = QuantumEngine
+    Base.get_extension(QE, :QuantumEngineYAMLExt) === nothing || error("the YAML extension is loaded")
     test_layers(
         QE => (QE.Errors, QE.Units, QE.System, QE.IO, QE.Input),
         QE.Errors => (),
@@ -10,6 +16,16 @@
         QE.IO => (QE.System, QE.Units, QE.Errors),
         QE.Input => (QE.IO, QE.System, QE.Units, QE.Errors),
     )
+    println("LAYERS OK")
+    """
+    cmd = `$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project()) -e $code`
+    cmd = addenv(cmd, "JULIA_LOAD_PATH" => join(LOAD_PATH, Sys.iswindows() ? ";" : ":"))
+    out = IOBuffer()
+    ok = success(pipeline(ignorestatus(cmd); stdout = out, stderr = out))
+    text = String(take!(out))
+    ok || print(text)
+    @test ok
+    @test occursin(r"^LAYERS OK$"m, text)
 end
 
 # Package source may read only the `export`ed or `public` names of QuantumEngine's modules.

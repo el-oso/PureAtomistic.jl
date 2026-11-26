@@ -1088,7 +1088,7 @@ User decision D1: the reader that turns a file into a Dict is not this package's
     - `use_diis` (`:unknown_keyword`) in examples/{h2_ediis, h2o, h2o_test, h2o_cdiis, h2o_ediis, h2o_nodiss}.inp and legacy_inputs/water_ediis.inp: strict error, lenient ok.
     - examples/ch3_radical.inp and o2_triplet.inp: `:rhf_open_shell`.
     - legacy_inputs/h2o_opt.inp: `convergence` and `maxiter` are `:unknown_keyword`.
-    - legacy_inputs/neb_test.inp: strict error at `END_GEOMETRY`. Lenient ok with both geometries of 3 atoms, `neb_images == 5`, `run_mode == NEB` and `charge == 1`, with warnings `:dropped_block_line` (×2), `:unknown_keyword` (`MAX_ITER`) and `:block_keyword`.
+    - legacy_inputs/neb_test.inp: strict error at `END_GEOMETRY`. Lenient ok with both geometries of 3 atoms, `neb_images == 5`, `run_mode == NEB` and `charge == 1`, with warnings `:block_keyword` (×3: `PRODUCT_GEOMETRY`, `NEB_IMAGES`, `NEB_K`), `:dropped_block_line` (×3: `END_GEOMETRY`, `END_PRODUCT_GEOMETRY`, `MAX_ITER`) and `:unclosed_block` (×2: the geometry block at `PRODUCT_GEOMETRY`, the product_geometry block at the end of the file). No `end` closes either block, so `MAX_ITER` is a dropped block line (parser.rs:563-618, :576), and `PRODUCT_GEOMETRY` ends the open geometry block (parser.rs:319-322) under Task 9's unclosed-block rule.
     - tests/{argon_vdw, h2o, h2o_vdw, h2o_vdw_d2}.in: `:block_keyword`/`:unclosed_block`, by Task 9's unclosed-block rule.
     - tests/o2_hubbard.in and tests/stress_h2o_complex.in: the lists Task 9 derived from the oracle source (`"lenient: <file name> cases"`), copied with their cited lines.
     - molecules/{h2_ccsd, oh_uccsd}.inp: strict "looks like YAML", lenient error "no atoms".

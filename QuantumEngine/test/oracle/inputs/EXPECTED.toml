@@ -346,12 +346,20 @@ lenient_warnings = []
 ["examples/legacy_inputs/neb_test.inp"]
 # Keywords are matched lowercased (parser.rs:55). The geometry block of line 10 is not closed:
 # `END_GEOMETRY` (line 14) matches no arm and, with fewer than 4 tokens, no block-line branch
-# (parser.rs:563-618), so it is dropped. Lenient mode keeps both geometries of 3 atoms,
-# NEB_IMAGES 5 (:98-100), RUN_MODE neb (:61-68) and CHARGE 1 (:270-274).
+# (parser.rs:563-618), so it is dropped. `PRODUCT_GEOMETRY` (line 17) ends the open geometry
+# block (:319-322): :block_keyword and :unclosed_block. No `end` follows, so the product_geometry
+# block stays open to the end of the file: `END_PRODUCT_GEOMETRY` (line 21) and `MAX_ITER` (line
+# 25, 2 tokens, :576) are dropped block lines, `NEB_IMAGES` and `NEB_K` are keywords inside the
+# block (:block_keyword), and the end of the file leaves a second :unclosed_block. Lenient mode
+# keeps both geometries of 3 atoms, NEB_IMAGES 5 (:98-100), RUN_MODE neb (:61-68) and CHARGE 1
+# (:270-274).
 strict = "error"
 strict_message = "neb_test.inp:14: `END_GEOMETRY` inside the geometry block opened at line 10"
 lenient = "ok"
-lenient_warnings = ["block_keyword", "dropped_block_line", "dropped_block_line", "unknown_keyword"]
+lenient_warnings = [
+    "block_keyword", "block_keyword", "block_keyword", "dropped_block_line", "dropped_block_line",
+    "dropped_block_line", "unclosed_block", "unclosed_block",
+]
 
 ["examples/legacy_inputs/neb_test.neb.xyz"]
 # A trajectory of 5 frames of 3 atoms. molecule.rs:50-51 reads the atom lines of the first frame

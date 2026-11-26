@@ -83,8 +83,11 @@ end
     inp = p.input
     @test (length(inp.atoms), length(inp.product_atoms)) == (3, 3)
     @test (inp.neb_images, inp.run_mode, inp.charge) == (5, NEB, 1)
-    @test OracleInputs.cases(p) == ["block_keyword", "dropped_block_line", "dropped_block_line", "unknown_keyword"]
-    @test any(w -> w.case === :unknown_keyword && w.line == 25, p.warnings)
+    @test [(w.case, w.line) for w in p.warnings if w.case !== :unclosed_block] == [
+        (:dropped_block_line, 14), (:block_keyword, 17), (:dropped_block_line, 21),
+        (:block_keyword, 23), (:block_keyword, 24), (:dropped_block_line, 25),
+    ]
+    @test count(w -> w.case === :unclosed_block, p.warnings) == 2
 
     # The unclosed geometry blocks of the tests/ inputs.
     for rel in ("tests/argon_vdw.in", "tests/h2o.in", "tests/h2o_vdw.in", "tests/h2o_vdw_d2.in")
