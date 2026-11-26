@@ -229,6 +229,9 @@ end
     # @test_noalloc throws a StrictViolation unless AllocCheck proves the call allocation-free.
     @test (@test_noalloc run_mode_word("Counterpoise")) == BSSE
     @test (@test_noalloc solvent_word("Di-chloro_methane")) == :dcm
+    # `solvent_word` returns `Union{Nothing,Symbol}`; neither branch allocates.
+    @test (@test_noalloc solvent_word("cosmo")) === nothing
+    @test (@test_noalloc solvent_word(SubString("xDMSO", 2))) == :dmso
     @test (@test_noalloc accepted_methods()) === accepted_methods()
 end
 

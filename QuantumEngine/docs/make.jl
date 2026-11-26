@@ -22,6 +22,7 @@ makedocs(;
         "Home" => "index.md",
         "API" => "api.md",
         "Dependencies" => "dependencies.md",
+        "Parity with the oracle" => "parity.md",
     ],
 )
 

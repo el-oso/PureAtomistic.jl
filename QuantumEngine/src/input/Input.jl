@@ -52,6 +52,7 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
 @strict_exempt :noalloc ONIOMSpec reason = "entry point: ONIOMSpec constructor"
 @strict_exempt :noalloc ParsedInput reason = "entry point: ParsedInput constructor"
 @strict_exempt :noalloc HubbardU reason = "entry point: HubbardU constructor"
+@strict_exempt :typestable types = (AbstractString,) solvent_word reason = "returns a Symbol or nothing for an unknown word; the union is split at every call site and allocates nothing"
 @strict_exempt :noalloc _fraction reason = "entry point helper: exact-exchange fraction reader of method_word, calls the C number parser"
 
 # Last statement: the policy checks the methods defined above it.
