@@ -285,14 +285,13 @@ end
 # A Libxc ID: a signed 32-bit decimal integer.
 _libxc_id(s::AbstractString) = _decimal_int(s, 1, ncodeunits(s), true, Int(typemax(Int32)))
 
-# A fraction as Julia's `Float64` parser reads it, except that a hexadecimal float is rejected.
-# Its `ccall` is judged an allocation, so the function stays a call of its own and is exempted.
-@noinline function _fraction(s::AbstractString)
+# A fraction as Parsers.jl reads a `Float64`, except that a hexadecimal float is rejected.
+function _fraction(s::AbstractString)
     i = 1
     n = ncodeunits(s)
     i <= n && (codeunit(s, i) == UInt8('+') || codeunit(s, i) == UInt8('-')) && (i += 1)
     i + 1 <= n && codeunit(s, i) == UInt8('0') && _lower(codeunit(s, i + 1)) == UInt8('x') && return nothing
-    return tryparse(Float64, s)
+    return Parsers.tryparse(Float64, s)
 end
 
 # `casscf(e,o)` in any ASCII case, with `e` and `o` unsigned decimal integers.

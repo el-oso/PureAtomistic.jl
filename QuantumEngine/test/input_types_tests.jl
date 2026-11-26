@@ -77,6 +77,15 @@ end
     @test method_word(["libxc_gga", "101", "130"]) == MethodSpec(LIBXC_GGA, AutoReference, (101, 130), 0.0)
     @test method_word(["LIBXC_MGGA", "263", "267"]) == MethodSpec(LIBXC_MGGA, AutoReference, (263, 267), 0.0)
     @test method_word(["libxc_hmgga", "+450", "1e-1"]) == MethodSpec(LIBXC_HMGGA, AutoReference, (450, 0), 0.1)
+    # The fraction reads as Julia's `Float64` parser reads it, except for a hexadecimal float and C's
+    # `nan(…)` spelling, which are rejected.
+    for s in (
+            "0.2", "-0.5", ".5", "5.", "1E2", " 0.2", "nan", "-Inf", "infinity", "2.2250738585072011e-308",
+            "1.00000000000000011102230246251565404236316680908203125", "1e400", "1e-400", "1f2", "1d2", "1_0", "",
+        )
+        @test isequal(something(method_word(["libxc_hgga", "402", s]), (; exx = nothing)).exx, tryparse(Float64, s))
+    end
+    @test method_word(["libxc_hgga", "402", "nan(1)"]) === nothing
     # The number of the following tokens is the caller's to check.
     @test method_word(["hf", "extra"]) == MethodSpec(HF, AutoReference, (0, 0), 0.0)
     # Malformed parameterized forms and an empty token list.
@@ -232,6 +241,13 @@ end
     # `solvent_word` returns `Union{Nothing,Symbol}`; neither branch allocates.
     @test (@test_noalloc solvent_word("cosmo")) === nothing
     @test (@test_noalloc solvent_word(SubString("xDMSO", 2))) == :dmso
+    # The exact-exchange fraction is read without allocating: a value that the 64-bit tiers of the
+    # decimal parser place, and an exact halfway case between two `Float64` values, which they cannot.
+    toks = ["libxc_hgga", "402", "0.25"]
+    @test (@test_noalloc method_word(toks)) == MethodSpec(LIBXC_HGGA, AutoReference, (402, 0), 0.25)
+    half = "179769313486227589113109901965680102334508059032905692033652908065361963198279876522865280049455637180399301145290709226052867162861452457754680701484184342338312332337867743664927952674464676456321587004295704548857877871774856253198950593195697515008537272356050496462528960047616223376052419489884318728192"
+    toks = split("libxc_hmgga 450 " * half)
+    @test (@test_noalloc method_word(toks)).exx == tryparse(Float64, half)
     @test (@test_noalloc accepted_methods()) === accepted_methods()
 end
 

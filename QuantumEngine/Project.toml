@@ -5,12 +5,17 @@ authors = ["el_oso"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StrictMode = "0e98b4f4-d0e6-42ac-af0a-707c24852f32"
 
+[sources]
+Parsers = {rev = "8e96cbd8757bd5544d1e79845eadc514afd11f6c", url = "https://github.com/el-oso/Parsers.jl"}
+
 [compat]
 LinearAlgebra = "1.13"
+Parsers = "3"
 Printf = "1.11"
 StaticArrays = "1.9"
 StrictMode = "0.5.21"
