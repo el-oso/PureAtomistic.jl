@@ -256,6 +256,15 @@ end
     @test InpText.parse("grid 3\n" * w).grid_level == 3
     @test_throws "unknown value `9` for `grid`" InpText.parse("grid 9\n" * w)
     @test_throws "`freeze_atom`: expected an atom index (an integer ≥ 0), got \"-1\"" InpText.parse("freeze_atom -1\n" * w)
+    # The 1-based index of typemax(Int) is not an Int: an error in both modes.
+    for lenient in (false, true)
+        @test_throws "`freeze_atom`: expected an atom index (an integer ≥ 0), got \"9223372036854775807\"" InpText.parse(
+            "freeze_atom 9223372036854775807\n" * w; lenient,
+        )
+        @test_throws "`model_atoms`: expected an atom index (an integer ≥ 0), got \"9223372036854775807\"" InpText.parse(
+            "oniom\nmodel_atoms 0 9223372036854775807\nend\n" * w; lenient,
+        )
+    end
     @test_throws "`freeze_bond`: expected a number, got \"x\"" InpText.parse("freeze_bond 0 1 x\n" * w)
     @test_throws "`kpoints`: expected an integer, got \"x\"" InpText.parse("kpoints 2 2 x\n" * w)
 end

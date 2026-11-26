@@ -219,13 +219,14 @@ function parse_structured(root::Node; source::AbstractString, lenient::Bool = fa
     _scf!(w, d, doc)
     _solvation!(w, d, doc)
     o = _at(doc, "oniom")
+    on = o.present ? _oniom(w, o) : nothing
     _tddft!(w, d, doc)
     _exports!(w, d, doc)
     _f12!(w, d, doc)
     _geometry!(w, d, doc)
     _irc!(w, d, doc)
     _constraints!(w, d, doc)
-    inp = o.present ? _input(d, _oniom(w, o)) : _input(d, nothing)
+    inp = _input(d, on)
     return ParsedInput(_finalize_input(inp; source = w.source, lenient, warnings = w.warnings), w.warnings)
 end
 
@@ -516,8 +517,13 @@ function _oniom(w::_Walk, o::_At)
     a = _at(o, "model_atoms")
     if _slist(w, a)
         for k in 1:length(a.node.items)
-            x = _suint(w, _item(a, k))
-            isnothing(x) || push!(atoms, x + 1)
+            e = _item(a, k)
+            x = _suint(w, e)
+            isnothing(x) && continue
+            # The 1-based index of `typemax(Int)` is not an `Int`.
+            x == typemax(Int) &&
+                throw(InputError(w.source, 0, lazy"$(e.path): expected an atom index (an integer ≥ 0), got $(x)"))
+            push!(atoms, x + 1)
         end
     end
     return ONIOMSpec(
@@ -693,7 +699,9 @@ function _constraint_index(w::_Walk, a::_At, fallback::Int)
         return fallback + 1
     end
     x = a.node.i
-    x < 0 && throw(InputError(w.source, 0, lazy"$(a.path): expected an atom index (an integer ≥ 0), got $(x)"))
+    # A negative index, and `typemax(Int)`, whose 1-based index is not an `Int`, fail in both modes.
+    (x < 0 || x == typemax(Int)) &&
+        throw(InputError(w.source, 0, lazy"$(a.path): expected an atom index (an integer ≥ 0), got $(x)"))
     return x + 1
 end
 

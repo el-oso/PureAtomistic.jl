@@ -342,6 +342,9 @@ function _index(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
         _reject(st, n, case, lazy"`$(kw)`: expected an atom index (an integer ≥ 0), got $(repr(t))")
         return nothing
     end
+    # The 1-based index of `typemax(Int)` is not an `Int`; it fails in both modes.
+    x == typemax(Int) &&
+        throw(InputError(st.source, n, lazy"`$(kw)`: expected an atom index (an integer ≥ 0), got $(repr(t))"))
     return x + 1
 end
 

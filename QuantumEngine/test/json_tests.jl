@@ -120,6 +120,17 @@ end
         @test_throws "input: t.json: constraints[1].freeze_atom: expected an atom index (an integer ≥ 0), got -1" run(
             nd("geometry" => H2, "constraints" => [nd("freeze_atom" => -1)]), lenient,
         )
+        # The 1-based index of typemax(Int) is not an Int.
+        @test_throws "input: t.json: constraints[1].freeze_atom: expected an atom index (an integer ≥ 0), got 9223372036854775807" run(
+            nd("geometry" => H2, "constraints" => [nd("freeze_atom" => typemax(Int))]), lenient,
+        )
+        @test_throws "input: t.json: oniom.model_atoms[2]: expected an atom index (an integer ≥ 0), got 9223372036854775807" run(
+            nd("geometry" => H2, "oniom" => nd("model_atoms" => [0, typemax(Int)])), lenient,
+        )
+        # The oracle reads `oniom` before `geometry`, so its error comes first.
+        @test_throws "input: t.json: unknown value `zzz` for `oniom.high`" run(
+            nd("oniom" => nd("high" => "zzz"), "geometry" => [nd("symbol" => "Xx", "position" => [0.0, 0.0, 0.0])]), lenient,
+        )
     end
     # A malformed CASSCF active space in an ONIOM method: strict rejects its shape, and the oracle fails.
     @test_throws "input: t.json: oniom.high: casscf needs (electrons,orbitals), got `casscf(x,2)`" run(
