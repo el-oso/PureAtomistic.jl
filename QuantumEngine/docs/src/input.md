@@ -4,7 +4,9 @@
 and `.cif` are molecule files, read into an `InputFile` holding only their atoms; `.json` goes to
 `parse_json`, `.yaml` and `.yml` to `parse_yaml` (with YAML.jl loaded); any other extension is the
 `.inp` format. An xyz file given as an input must hold one frame (lenient reading takes the first of
-several, with an `:xyz_frames` warning).
+several, with an `:xyz_frames` warning) and at least one atom (lenient reading keeps a frame of
+none, with an `:xyz_no_atoms` warning). A path that ends in a separator (`d.xyz/`) has no extension, so
+it is read as `.inp`; the oracle reads it as xyz.
 
 ```@docs
 QuantumEngine.parse_input
@@ -209,6 +211,7 @@ oracle; and `pbc` is not a keyword of the oracle, which finds the `pbc` line by 
 |---|---|---|
 | `:xyz_count` | an xyz frame of count 3 with 2 atom lines | the 2 atoms |
 | `:xyz_frames` | an xyz file of several frames given as an input geometry | the first frame |
+| `:xyz_no_atoms` | an xyz file whose frame has no atoms, given as an input geometry | no atoms |
 | `:unknown_element` | `Xx 0 0 0` in an xyz, pdb or cif file | Z = 1, the symbol as written, not a ghost, the mass of ¹H |
 | `:pdb_short_line` | an ATOM record shorter than 54 columns | skipped |
 | `:pdb_element_columns` | no element in columns 77–78 | the first character of the atom name for a record shorter than 78 columns; an empty symbol (Z = 1) for a wider record whose columns 77–78 are blank |

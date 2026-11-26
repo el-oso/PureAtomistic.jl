@@ -226,6 +226,13 @@ end
     # Errors of the geometry readers name the path.
     write(xyz, "x\n")
     @test_throws "input: $xyz:1: xyz: expected the atom count" parse_input(xyz)
+    # The oracle reads an xyz frame of no atoms (io/molecule.rs:39-51); strict reading rejects it.
+    write(xyz, "0\nempty\n")
+    @test_throws "input: $xyz: no atoms: the molecule file has no atoms" parse_input(xyz)
+    p = parse_input(xyz; lenient = true)
+    @test isempty(p.input.atoms)
+    @test [(w.case, w.line) for w in p.warnings] == [(:xyz_no_atoms, 0)]
+    @test Fixtures.fields_equal(p.input, InputFile())
     # The message of a YAML file read without YAML.jl loaded.
     e = _yaml_unavailable("a.yaml")
     @test e isa InputError

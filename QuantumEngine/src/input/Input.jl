@@ -188,7 +188,9 @@ export input_format, parse_input
 @strict_exempt :typestable :noalloc :noboxing types = (AbstractDict,) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
 @strict_exempt :typestable :noalloc :noboxing types = (AbstractString, Bool, typeof(parse_dict), AbstractDict) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
 @strict_exempt :noalloc _yaml_unavailable reason = "entry point: error constructor"
-@strict_exempt :noalloc parse_input reason = "entry point: input file reader"
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractString,) parse_input reason = "dispatches to the readers of untyped values (parse_json, parse_yaml); not on the trimmed path"
+@strict_exempt :typestable :noalloc :noboxing types = (Bool, typeof(parse_input), AbstractString) parse_input reason = "dispatches to the readers of untyped values (parse_json, parse_yaml); not on the trimmed path"
+@strict_exempt :noalloc _read_file reason = "entry point helper: file reader of parse_input, builds a String"
 @strict_exempt :noalloc _inp_file reason = "entry point helper: .inp file reader of parse_input"
 @strict_exempt :noalloc _molecule_input reason = "entry point helper: molecule file reader of parse_input"
 
