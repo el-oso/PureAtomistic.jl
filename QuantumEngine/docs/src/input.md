@@ -395,10 +395,13 @@ order of the file and with any repeated key, and calls `parse_dict`. A key given
 mapping is an error in both modes, as the oracle's reader (yaml-rust2) rejects it; YAML.jl itself
 logs an error and keeps the last value, and its log message appears before the error. An empty
 document is `the document is empty` in both modes. A document that is not a mapping is
-`top-level YAML document is not a mapping` in strict mode, with `; this file looks like .inp
-syntax` when it is a single string (an `.inp` file read as YAML), and in lenient mode, as the
-oracle reads a document without keys, `no atoms: the input has no geometry block`. Of several
-documents, the first is read, as the oracle reads it. Text that is not YAML is YAML.jl's error.
+`top-level YAML document is not a mapping` in strict mode, and in lenient mode, as the oracle
+reads a document without keys, `no atoms: the input has no geometry block`. Of several documents,
+the first is read, as the oracle reads it. Text that YAML.jl's parser rejects is, in both modes,
+`not valid YAML (<YAML.jl's message>)`; YAML.jl's other errors (a scanner error, such as an
+unterminated quoted string) are its own. Either message ends in `; this file looks like .inp
+syntax` when the first line that is neither blank nor a `#` comment is a `keyword value` line (a
+word that starts with a letter, then whitespace and a value), as in an `.inp` file read as YAML.
 
 YAML.jl decides the type of each scalar. Where it differs from yaml-rust2 0.9.0, which the oracle
 uses for `.yaml`, `.yml` and `.json` files, the schema's type checks decide: a value of the wrong

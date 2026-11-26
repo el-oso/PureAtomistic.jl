@@ -136,29 +136,46 @@ end
     @test (i.method.kind, i.method.reference, i.basis) == (HF, AutoReference, "sto-3g")
 end
 
-# The two files in `.inp` syntax with a `.yaml` extension. YAML.jl reads h2_io_test.yaml as one
+# The two files in `.inp` syntax with a `.yaml` extension; both give the `.inp` hint, whose test
+# reads the first line that is neither blank nor a comment. YAML.jl reads h2_io_test.yaml as one
 # plain scalar: strict mode names the mismatch, and lenient mode, as the oracle, reads a document
 # without keys and so without atoms. test_neb.yaml is not YAML: the comment after its first lines ends
-# the scalar, and the next line starts a second document without `---`; YAML.jl throws its parser
-# error, as yaml-rust2 does ("did not find expected <document start>", parser.rs:603 of yaml-rust2).
+# the scalar, and the next line starts a second document without `---`. YAML.jl throws its parser
+# error there, as yaml-rust2 does ("did not find expected <document start>", parser.rs:603 of
+# yaml-rust2), and the error carries its message in both modes.
 @testitem "yaml: .inp syntax in a .yaml file" setup = [Fixtures] begin
     using QuantumEngine, YAML
-    msg = "top-level YAML document is not a mapping; this file looks like .inp syntax"
+    hint = "; this file looks like .inp syntax"
     f = "examples/legacy_inputs/h2_io_test.yaml"
     text = Fixtures.oracle_input(f)
-    @test_throws "input: $f: $msg" parse_yaml(text; source = f)
+    @test_throws "input: $f: top-level YAML document is not a mapping$hint" parse_yaml(text; source = f)
     @test_throws "input: $f: no atoms: the input has no geometry block" parse_yaml(text; source = f, lenient = true)
     f = "examples/legacy_inputs/test_neb.yaml"
     text = Fixtures.oracle_input(f)
     for lenient in (false, true)
-        @test_throws "expected '<document start>'" parse_yaml(text; source = f, lenient)
-        @test_broken try
-            parse_yaml(text; source = f, lenient)
-            false
-        catch e
-            occursin(msg, sprint(showerror, e))
-        end
+        @test_throws(
+            "input: $f: not valid YAML (expected '<document start>' but found YAML.ScalarToken at nothing)$hint",
+            parse_yaml(text; source = f, lenient),
+        )
     end
+end
+
+@testitem "yaml: text that is not YAML" setup = [YAMLText] begin
+    using QuantumEngine, YAML
+    using .YAMLText: strict, lenient
+    # A parser error without the `.inp` hint, in both modes.
+    msg = "input: t.yaml: not valid YAML (while parsing a flow sequence at line 1, column 3: expected ',' or ']', but got YAML.StreamEndToken at line 2, column 0)"
+    for run in (strict, lenient)
+        e = try
+            run("a: [1\n")
+        catch e
+            e
+        end
+        @test e isa InputError && sprint(showerror, e) == msg
+    end
+    # YAML.jl's errors other than a parser error are its own.
+    @test_throws YAML.ScannerError strict("\"abc\n")
+    @test_throws YAML.ScannerError lenient("\"abc\n")
 end
 
 @testitem "yaml: documents that are not a mapping" setup = [YAMLText] begin

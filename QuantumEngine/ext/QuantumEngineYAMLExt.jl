@@ -32,15 +32,32 @@ function Base.setindex!(m::_YAMLMap, v, k)
     return m
 end
 
+# Whether `text` reads as `.inp` syntax: its first line that is neither blank nor a `#` comment is a
+# `keyword value` line, a word that starts with a letter and does not end in `:`, then a value.
+function _looks_like_inp(text::AbstractString)
+    for l in eachline(IOBuffer(text))
+        s = lstrip(l)
+        (isempty(s) || startswith(s, '#')) && continue
+        return occursin(r"^[A-Za-z][A-Za-z0-9_-]*[ \t]+[^ \t]", s)
+    end
+    return false
+end
+
+_inp_hint(text::AbstractString) = _looks_like_inp(text) ? "; this file looks like .inp syntax" : ""
+
 function Input.parse_yaml(text::AbstractString; source::AbstractString = "<string>", lenient::Bool = false)
-    doc = YAML.load(text; dicttype = _YAMLMap)
+    doc = try
+        YAML.load(text; dicttype = _YAMLMap)
+    catch e
+        # A parser error, in either mode; YAML.jl's other errors propagate unchanged.
+        e isa YAML.ParserError || rethrow()
+        throw(InputError(source, 0, "not valid YAML ($(sprint(showerror, e)))$(_inp_hint(text))"))
+    end
     doc isa AbstractDict && return parse_dict(doc; source, lenient)
     doc === nothing && return parse_structured(Node(nothing); source, lenient)
     # The oracle reads a document that is not a mapping as one without any key, so it has no atoms.
     lenient && return parse_dict(_YAMLMap(); source, lenient)
-    doc isa AbstractString &&
-        throw(InputError(source, 0, "top-level YAML document is not a mapping; this file looks like .inp syntax"))
-    throw(InputError(source, 0, "top-level YAML document is not a mapping"))
+    throw(InputError(source, 0, "top-level YAML document is not a mapping$(_inp_hint(text))"))
 end
 
 end
