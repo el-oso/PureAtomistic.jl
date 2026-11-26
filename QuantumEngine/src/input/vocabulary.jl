@@ -264,7 +264,7 @@ The cavity surface `w` names (`vdw`, `sas`, `smd`), or `nothing`.
 surface_word(w::AbstractString) = _lookup(w, SURFACE_WORDS)
 
 # The decimal integer spelled by the code units `lo:hi` of `s` (an optional sign when `signed`,
-# then one or more ASCII digits) when it lies in `-limit:limit`, or `nothing`.
+# then one or more ASCII digits) when it lies in `-(limit + 1):limit`, or `nothing`.
 function _decimal_int(s::AbstractString, lo::Int, hi::Int, signed::Bool, limit::Int)
     neg = false
     if signed && lo <= hi && (codeunit(s, lo) == UInt8('+') || codeunit(s, lo) == UInt8('-'))
@@ -277,7 +277,7 @@ function _decimal_int(s::AbstractString, lo::Int, hi::Int, signed::Bool, limit::
         c = codeunit(s, i)
         UInt8('0') <= c <= UInt8('9') || return nothing
         v = 10 * v + Int(c - UInt8('0'))
-        v > limit && return nothing
+        v > limit + neg && return nothing
     end
     return neg ? -v : v
 end
@@ -285,10 +285,15 @@ end
 # A Libxc ID: a signed 32-bit decimal integer.
 _libxc_id(s::AbstractString) = _decimal_int(s, 1, ncodeunits(s), true, Int(typemax(Int32)))
 
-# A fraction as Parsers.jl reads a `Float64`, except that a hexadecimal float is rejected.
+# An ASCII whitespace code unit: tab, line feed, vertical tab, form feed, carriage return or space.
+_is_ascii_space(c::UInt8) = UInt8('\t') <= c <= UInt8('\r') || c == UInt8(' ')
+
+# A fraction as Parsers.jl reads a `Float64`, except that a hexadecimal float and a token with
+# leading or trailing ASCII whitespace, which Parsers.jl skips, are rejected.
 function _fraction(s::AbstractString)
     i = 1
     n = ncodeunits(s)
+    n >= 1 && (_is_ascii_space(codeunit(s, 1)) || _is_ascii_space(codeunit(s, n))) && return nothing
     i <= n && (codeunit(s, i) == UInt8('+') || codeunit(s, i) == UInt8('-')) && (i += 1)
     i + 1 <= n && codeunit(s, i) == UInt8('0') && _lower(codeunit(s, i + 1)) == UInt8('x') && return nothing
     return Parsers.tryparse(Float64, s)

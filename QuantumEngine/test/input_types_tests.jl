@@ -75,12 +75,14 @@ end
     # The parameterized forms.
     @test method_word(["CASSCF(10,8)"]) == MethodSpec(CASSCF, AutoReference, (10, 8), 0.0)
     @test method_word(["libxc_gga", "101", "130"]) == MethodSpec(LIBXC_GGA, AutoReference, (101, 130), 0.0)
+    # A Libxc ID spans the signed 32-bit range.
+    @test method_word(["libxc_gga", "-2147483648", "2147483647"]).ints == (-2147483648, 2147483647)
     @test method_word(["LIBXC_MGGA", "263", "267"]) == MethodSpec(LIBXC_MGGA, AutoReference, (263, 267), 0.0)
     @test method_word(["libxc_hmgga", "+450", "1e-1"]) == MethodSpec(LIBXC_HMGGA, AutoReference, (450, 0), 0.1)
-    # The fraction reads as Julia's `Float64` parser reads it, except for a hexadecimal float and C's
-    # `nan(…)` spelling, which are rejected.
+    # The fraction reads as Julia's `Float64` parser reads it, except for a hexadecimal float, C's
+    # `nan(…)` spelling and a token with leading or trailing whitespace, which are rejected.
     for s in (
-            "0.2", "-0.5", ".5", "5.", "1E2", " 0.2", "nan", "-Inf", "infinity", "2.2250738585072011e-308",
+            "0.2", "-0.5", ".5", "5.", "1E2", "nan", "-Inf", "infinity", "2.2250738585072011e-308",
             "1.00000000000000011102230246251565404236316680908203125", "1e400", "1e-400", "1f2", "1d2", "1_0", "",
         )
         @test isequal(something(method_word(["libxc_hgga", "402", s]), (; exx = nothing)).exx, tryparse(Float64, s))
@@ -93,7 +95,9 @@ end
             String[], ["casscf"], ["casscf()"], ["casscf(4,)"], ["casscf(,4)"], ["casscf(4,4"],
             ["casscf(+4,4)"], ["casscf(4,4,4)"], ["casscf(a,4)"], ["casscf(99999999999,4)"],
             ["libxc_gga", "101"], ["libxc_gga", "101", "x"], ["libxc_gga", "0x65", "130"],
-            ["libxc_gga", "3000000000", "1"], ["libxc_hgga", "402"], ["libxc_hgga", "402", "0x1p-2"],
+            ["libxc_gga", "3000000000", "1"], ["libxc_gga", "-2147483649", "1"], ["libxc_gga", "2147483648", "1"],
+            ["libxc_hgga", "402"], ["libxc_hgga", "402", "0x1p-2"], ["libxc_hgga", "402", " 0x1p-2"],
+            ["libxc_hgga", "402", "\t0x1p-2"], ["libxc_hgga", "402", " 0.2"], ["libxc_hgga", "402", "0.2\n"],
             ["libxc_hgga", "4.5", "0.2"], ["libxc_hgga", "402", "a"],
         )
         @test method_word(toks) === nothing

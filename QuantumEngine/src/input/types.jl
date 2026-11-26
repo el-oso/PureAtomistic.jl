@@ -177,8 +177,8 @@ end
 Every setting of an input file, each keyword argument a field with the oracle's default. Atom
 positions are in bohr, and every atom index (`constraints`, `fragments`, the ONIOM model atoms) is
 1-based. `lattice` holds the cell vectors as rows, in Å whatever the geometry unit; `freeze_bond`
-targets are in bohr and angle targets in radians. `basis` is lowercased as written; alias
-resolution belongs to the basis-set reader. `dos_sigma` is in eV.
+targets are in bohr and angle targets in radians. `basis` holds the basis-set name in lowercase;
+alias resolution belongs to the basis-set reader. `dos_sigma` is in eV.
 """
 Base.@kwdef struct InputFile
     atoms::Vector{Atom{Float64}} = Atom{Float64}[]
