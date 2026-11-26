@@ -10,7 +10,7 @@ coefficients are stored as given; their normalization is the caller's. Without a
 0:4, an `atom` below 1, no primitive, vectors of different lengths, offset vectors, an exponent
 that is not finite and positive, and a coefficient that is not finite.
 """
-struct MoldenShell{T <: AbstractFloat}
+struct MoldenShell{T}
     atom::Int
     l::Int
     exponents::Vector{T}
@@ -43,7 +43,7 @@ in the order of the shells. Without a type parameter, `T` is the floating-point 
 three arrays. Throws an `ArgumentError` for offset arrays, sizes that disagree, and a value that
 is not finite.
 """
-struct MoldenOrbitals{T <: AbstractFloat}
+struct MoldenOrbitals{T}
     energies::Vector{T}
     occupations::Vector{T}
     coefficients::Matrix{T}
@@ -75,10 +75,12 @@ The contents of a Molden file: a one-line `title`, the `atoms` (positions in boh
 restricted wave function). The coefficient matrices have one row per Cartesian atomic orbital of
 the shells, (l + 1)(l + 2)/2 per shell. Throws an `ArgumentError` for a title with a line break,
 with leading or trailing whitespace or starting with `[`, none of which a Molden file can hold;
-an offset vector; an atom with a non-finite position; a shell on an atom that does not exist; shells
-out of atom order; and a coefficient matrix whose row count is not the number of atomic orbitals.
+an offset vector; no atoms; an atom with a non-finite position; a shell on an atom that does not
+exist; shells out of atom order; no alpha orbitals; and a coefficient matrix whose row count is
+not the number of atomic orbitals. (`read_molden` rejects a file with no atoms or no alpha
+orbitals.)
 """
-struct MoldenData{T <: AbstractFloat}
+struct MoldenData{T}
     title::String
     atoms::Vector{Atom{T}}
     shells::Vector{MoldenShell{T}}
@@ -92,6 +94,7 @@ struct MoldenData{T <: AbstractFloat}
                 throw(ArgumentError("molden: a title has no leading or trailing whitespace"))
             first(title) == '[' && throw(ArgumentError("molden: a title does not start with ["))
         end
+        isempty(atoms) && throw(ArgumentError("molden: the data has no atoms"))
         for i in eachindex(atoms)
             all(isfinite, atoms[i].position) ||
                 throw(ArgumentError(lazy"molden: atom $(i) has a non-finite position"))
@@ -107,6 +110,7 @@ struct MoldenData{T <: AbstractFloat}
             prev = a
             nao += _ncartesian(shells[k].l)
         end
+        isempty(alpha.energies) && throw(ArgumentError("molden: the data has no alpha orbitals"))
         _check_rows("alpha", alpha, nao)
         isnothing(beta) || _check_rows("beta", beta, nao)
         return new{T}(title, atoms, shells, alpha, beta)
@@ -140,7 +144,8 @@ primitive, then a blank line; and `[MO]` with, per orbital, alpha before beta, t
 `Sym= A`, `Ene= <energy>`, `Spin= Alpha` or `Spin= Beta`, `Occup= <occupation>` and one
 `<ao> <coefficient>` line per atomic orbital. Every number is written as the shortest decimal
 that reads back as the same `Float64` (`string(::Float64)`), so `read_molden` reads back the
-values written. The coefficients are written as given.
+values written. The coefficients are written as given. Atomic masses are not written, since a
+Molden file has no field for them; `read_molden` gives each atom its default mass.
 
 There is no `[5D]` line, so a reader takes every shell as Cartesian. Within a shell the atomic
 orbitals are expected in the order of the Molden format:
@@ -336,8 +341,7 @@ function read_molden(io::Base.IO; source::AbstractString = "<stream>")
                     nao += _ncartesian(sh.l)
                 end
             elseif s === :title
-                isempty(atoms) && !(:atoms in seen) ||
-                    throw(InputError(source, n, "molden: [Title] comes before [Atoms]"))
+                :atoms in seen && throw(InputError(source, n, "molden: [Title] comes before [Atoms]"))
             end
             section = s === :title ? :title_line : s
             continue
@@ -378,7 +382,7 @@ function read_molden(io::Base.IO; source::AbstractString = "<stream>")
                     exps = Float64[]
                     coefs = Float64[]
                 end
-            elseif length(tokens) == 2 && !isnothing(tryparse(Int, tokens[1]))
+            elseif length(tokens) == 2 && _is_decimal_int(tokens[1])
                 a = _molden_int(source, n, tokens[1])
                 _molden_int(source, n, tokens[2]) == 0 ||
                     throw(InputError(source, n, "molden: an atom line of [GTO] is <atom> 0"))
@@ -489,8 +493,21 @@ function _record_orbital(
     return nothing
 end
 
+# Whether `t` is a decimal integer: an optional sign, then one or more ASCII digits. `tryparse(Int, _)`
+# alone also accepts base prefixes such as `0x1`.
+function _is_decimal_int(t::AbstractString)
+    n = ncodeunits(t)
+    i = 1
+    n >= 1 && (codeunit(t, 1) == UInt8('+') || codeunit(t, 1) == UInt8('-')) && (i = 2)
+    i <= n || return false
+    for k in i:n
+        UInt8('0') <= codeunit(t, k) <= UInt8('9') || return false
+    end
+    return true
+end
+
 function _molden_int(source::AbstractString, n::Int, t::AbstractString)
-    x = tryparse(Int, t)
+    x = _is_decimal_int(t) ? tryparse(Int, t) : nothing
     isnothing(x) && throw(InputError(source, n, lazy"molden: expected an integer, got $(repr(t))"))
     return x
 end

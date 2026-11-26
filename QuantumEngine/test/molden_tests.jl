@@ -22,27 +22,27 @@
     text(d) = sprint(write_molden, d)
     load(s) = read_molden(IOBuffer(s); source = "t.molden")
 
-    # Whether the Molden data `a` and `b` are equal field by field, through the shells and orbitals.
-    same_orbitals(a, b) = a.energies == b.energies && a.occupations == b.occupations && a.coefficients == b.coefficients
-    function same(a::MoldenData, b::MoldenData)
-        a.title == b.title && a.atoms == b.atoms || return false
-        length(a.shells) == length(b.shells) || return false
-        for (s, t) in zip(a.shells, b.shells)
-            (s.atom, s.l, s.exponents, s.coefficients) == (t.atom, t.l, t.exponents, t.coefficients) || return false
-        end
-        same_orbitals(a.alpha, b.alpha) || return false
+    # Whether the Molden data `a` and `b` are equal field by field, through the atoms, shells and
+    # orbitals, by the Fixtures helper `fields_equal` passed in, which also requires equal types.
+    function same(fields_equal, a::MoldenData, b::MoldenData)
+        typeof(a) === typeof(b) && a.title == b.title || return false
+        length(a.atoms) == length(b.atoms) && all(fields_equal(s, t) for (s, t) in zip(a.atoms, b.atoms)) ||
+            return false
+        length(a.shells) == length(b.shells) && all(fields_equal(s, t) for (s, t) in zip(a.shells, b.shells)) ||
+            return false
+        fields_equal(a.alpha, b.alpha) || return false
         isnothing(a.beta) && return isnothing(b.beta)
-        return !isnothing(b.beta) && same_orbitals(a.beta, b.beta)
+        return !isnothing(b.beta) && fields_equal(a.beta, b.beta)
     end
 end
 
-@testitem "molden: round trip" setup = [MoldenFiles] begin
+@testitem "molden: round trip" setup = [Fixtures, MoldenFiles] begin
     # Shortest round-trip printing reads back every Float64 exactly, so the data compare with `==`.
     for beta in (true, false)
         d = MoldenFiles.water(; beta)
         back = MoldenFiles.load(MoldenFiles.text(d))
         @test back isa QuantumEngine.IO.MoldenData{Float64}
-        @test MoldenFiles.same(back, d)
+        @test MoldenFiles.same(Fixtures.fields_equal, back, d)
         @test isnothing(back.beta) == !beta
         @test size(back.alpha.coefficients) == (13, 13)
     end
@@ -56,7 +56,7 @@ end
     w = MoldenFiles.water(; beta = false)
     atoms = [w.atoms; Atom("H@", [0.0, 0.0, 3.0])]
     g = QuantumEngine.IO.MoldenData("", atoms, w.shells, w.alpha)
-    @test MoldenFiles.same(MoldenFiles.load(MoldenFiles.text(g)), g)
+    @test MoldenFiles.same(Fixtures.fields_equal, MoldenFiles.load(MoldenFiles.text(g)), g)
 end
 
 @testitem "molden: written text" setup = [MoldenFiles] begin
@@ -100,7 +100,7 @@ end
         """
 end
 
-@testitem "molden: shell labels" setup = [MoldenFiles] begin
+@testitem "molden: shell labels" setup = [Fixtures, MoldenFiles] begin
     using QuantumEngine.IO: MoldenShell, MoldenOrbitals, MoldenData
     labels = String[]
     for l in 0:4
@@ -110,7 +110,7 @@ end
         )
         s = MoldenFiles.text(d)
         push!(labels, split(s, '\n')[8])
-        @test MoldenFiles.same(MoldenFiles.load(s), d)
+        @test MoldenFiles.same(Fixtures.fields_equal, MoldenFiles.load(s), d)
     end
     @test labels == ["s 1 1.00", "p 1 1.00", "d 1 1.00", "f 1 1.00", "g 1 1.00"]
     @test_throws "molden: shell with l = 5 has no Molden label" MoldenShell(1, 5, [1.0], [1.0])
@@ -228,6 +228,10 @@ end
     @test_throws "input: t.molden:3: molden: expected <symbol> <index> <Z> <x> <y> <z>" err("[Molden Format]\n[Atoms] AU\nH 1 1 0 0\n")
     @test_throws "input: t.molden:3: molden: atom index 2, expected 1" err("[Molden Format]\n[Atoms] AU\nH 2 1 0 0 0\n")
     @test_throws "input: t.molden:3: molden: expected an integer, got \"x\"" err("[Molden Format]\n[Atoms] AU\nH 1 x 0 0 0\n")
+    # Integers are decimal: a base prefix, which `tryparse(Int, _)` accepts, is rejected.
+    for t in ("0x1", "0b1", "0o1")
+        @test_throws "input: t.molden:3: molden: expected an integer, got \"$(t)\"" err("[Molden Format]\n[Atoms] AU\nH $(t) 1 0 0 0\n")
+    end
     @test_throws "input: t.molden:3: molden: atomic number 2 does not match the symbol \"H\"" err("[Molden Format]\n[Atoms] AU\nH 1 2 0 0 0\n")
     @test_throws "input: t.molden:3: molden: unknown element symbol \"Xx\"" err("[Molden Format]\n[Atoms] AU\nXx 1 0 0 0 0\n")
     @test_throws "input: t.molden:3: molden: a Bq atom needs an element" err("[Molden Format]\n[Atoms] AU\nBq 1 0 0 0 0\n")
@@ -243,6 +247,10 @@ end
     @test_throws "input: t.molden:7: molden: unknown shell label \"sp\"" err(gto("1 0\nsp 1 1.00\n"))
     @test_throws "input: t.molden:7: molden: expected <label> <nprim> [1.00]" err(gto("1 0\ns 1 1.00 x\n"))
     @test_throws "input: t.molden:7: molden: a shell has at least one primitive" err(gto("1 0\ns 0 1.00\n"))
+    @test_throws "input: t.molden:7: molden: expected an integer, got \"0x1\"" err(gto("1 0\ns 0x1 1.00\n"))
+    # A prefixed atom index is not an atom line, so it is read as a shell line.
+    @test_throws "input: t.molden:6: molden: a shell line comes after its <atom> 0 line" err(gto("0x1 0\n"))
+    @test_throws "input: t.molden:9: molden: unknown shell label \"0x2\"" err(gto("1 0\ns 1\n1.0 1.0\n0x2 0\n"))
     @test_throws "input: t.molden:7: molden: shell scale factor \"1.5\" is not 1" err(gto("1 0\ns 1 1.5\n"))
     @test_throws "input: t.molden:8: molden: expected an exponent and a coefficient" err(gto("1 0\ns 1\n1.0\n"))
     @test_throws "input: t.molden:8: molden: expected a positive exponent, got \"-1.0\"" err(gto("1 0\ns 1\n-1.0 1.0\n"))
@@ -255,6 +263,7 @@ end
     @test_throws "input: t.molden:12: molden: expected <ao> <coefficient>" err(head * "Ene= 0\nOccup= 1\n1\n")
     @test_throws "input: t.molden:12: molden: atomic orbital 2 is outside 1:1" err(head * "Ene= 0\nOccup= 1\n2 1.0\n")
     @test_throws "input: t.molden:12: molden: atomic orbital 0 is outside 1:1" err(head * "Ene= 0\nOccup= 1\n0 1.0\n")
+    @test_throws "input: t.molden:12: molden: expected an integer, got \"0x1\"" err(head * "Ene= 0\nOccup= 1\n0x1 1.0\n")
     @test_throws "input: t.molden:10: molden: the orbital has no Occup= line" err(head * "Ene= 0\n1 1.0\n")
     @test_throws "input: t.molden:10: molden: the orbital has no Ene= line" err(head * "Occup= 0\n1 1.0\nEne= 0\n")
     @test_throws "input: t.molden:10: molden: the orbital has no Occup= line" err(head * "Ene= 0\nEne= 1\nOccup= 1\n")
@@ -289,6 +298,8 @@ end
     @test_throws "molden: a title has no leading or trailing whitespace" build(; title = " a")
     @test_throws "molden: a title has no leading or trailing whitespace" build(; title = "a ")
     @test_throws "molden: a title does not start with [" build(; title = "[a]")
+    @test_throws "molden: the data has no atoms" build(; atoms = Atom{Float64}[], shells = MoldenShell{Float64}[])
+    @test_throws "molden: the data has no alpha orbitals" build(; alpha = MoldenOrbitals(Float64[], Float64[], zeros(13, 0)))
     @test_throws "molden: atom 2 has a non-finite position" build(; atoms = [w.atoms[1], Atom("H", [0.0, NaN, 0.0]), w.atoms[3]])
     @test_throws "molden: shell 6 is on atom 3, but there are 2 atoms" build(; atoms = w.atoms[1:2])
     @test_throws "molden: shells are ordered by atom; shell 2 on atom 1 follows atom 2" build(; shells = [w.shells[5]; w.shells[1:4]; w.shells[6]])
@@ -297,7 +308,7 @@ end
     @test_throws "molden: the shells have 13 atomic orbitals but the beta coefficients have 12 rows" build(; beta)
 end
 
-@testitem "molden: generic indexing" setup = [MoldenFiles] begin
+@testitem "molden: generic indexing" setup = [Fixtures, MoldenFiles] begin
     using QuantumEngine.IO: MoldenShell, MoldenOrbitals, MoldenData
     using OffsetArrays
     msg = "offset arrays are not supported but got an array with index other than 1"
@@ -314,5 +325,5 @@ end
     s = MoldenShell(1, 0, view([1.0, 2.0], 2:2), view([3.0, 4.0], 1:1))
     @test s.exponents == [2.0] && s.coefficients == [3.0]
     d = MoldenData(w.title, view(w.atoms, 1:3), view(w.shells, 1:6), w.alpha)
-    @test MoldenFiles.same(d, w)
+    @test MoldenFiles.same(Fixtures.fields_equal, d, w)
 end
