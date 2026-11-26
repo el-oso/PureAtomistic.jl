@@ -83,3 +83,31 @@ end
         QuantumEngine.IO.log_print(QuantumEngine.IO.Logger{IOBuffer, Base.DevNull}, QuantumEngine.IO.Verbosity, String),
     )
 end
+
+# The Molden writer on Float64 and Float32 data and the reader through its default and its keyword
+# call, with the data-type constructors they use. The constructors are validated through functions
+# (`new_shell`, `new_orbitals`, `new_data`), for the reason given above.
+@testitem "TrimCheck: Molden files" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            using QuantumEngine.IO: MoldenShell, MoldenOrbitals, MoldenData
+            new_shell(atom, l, e, c) = MoldenShell(atom, l, e, c)
+            new_orbitals(e, o, c) = MoldenOrbitals(e, o, c)
+            new_data(title, atoms, shells, alpha, beta) = MoldenData(title, atoms, shells, alpha, beta)
+            read_molden_kw(io, source) = QuantumEngine.IO.read_molden(io; source)
+        end,
+        new_shell(Int, Int, Vector{Float64}, Vector{Float64}),
+        new_shell(Int, Int, Vector{Float32}, Vector{Float32}),
+        new_orbitals(Vector{Float64}, Vector{Float64}, Matrix{Float64}),
+        new_orbitals(Vector{Float32}, Vector{Float32}, Matrix{Float32}),
+        new_data(String, Vector{Atom{Float64}}, Vector{MoldenShell{Float64}}, MoldenOrbitals{Float64}, Nothing),
+        new_data(String, Vector{Atom{Float64}}, Vector{MoldenShell{Float64}}, MoldenOrbitals{Float64}, MoldenOrbitals{Float64}),
+        new_data(String, Vector{Atom{Float32}}, Vector{MoldenShell{Float32}}, MoldenOrbitals{Float32}, Nothing),
+        QuantumEngine.IO.write_molden(IOBuffer, MoldenData{Float64}),
+        QuantumEngine.IO.write_molden(IOBuffer, MoldenData{Float32}),
+        QuantumEngine.IO.read_molden(IOBuffer),
+        read_molden_kw(IOBuffer, String),
+    )
+end

@@ -8,7 +8,7 @@ using QuantumEngine
 # rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
 # element lookups and radius accessors of `Units`; then the atom and molecule constructors, the
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
-# writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`.
+# writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then the Molden writer and reader of `IO`.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -113,5 +113,26 @@ function run_workload()
     IOm.log_path("dir/h2.inp", nothing)
     IOm.log_path("h2.inp", "h2_test")
     IOm.output_base("dir/h2.log")
+    # The Molden data types in Float64 and Float32, written with and without beta orbitals and read
+    # back, through the default and the `source` keyword; then a reader error, rendered.
+    for T in (Float64, Float32)
+        atoms = [Atom("O", T[0, 0, 0.2]), Atom("H", T[0, 1.4, -0.9])]
+        shells = [IOm.MoldenShell(1, 0, T[130.7, 23.8], T[0.15, 0.53]), IOm.MoldenShell(1, 1, T[5.0], T[1.0]), IOm.MoldenShell(2, 0, T[3.4], T[0.15])]
+        alpha = IOm.MoldenOrbitals(T[-20.2, 0.3], T[2, 0], ones(T, 5, 2))
+        for beta in (nothing, alpha)
+            m = IOBuffer()
+            IOm.write_molden(m, IOm.MoldenData("w", atoms, shells, alpha, beta))
+            seekstart(m)
+            IOm.read_molden(m)
+            seekstart(m)
+            IOm.read_molden(m; source = "w.molden")
+        end
+    end
+    try
+        IOm.read_molden(IOBuffer("[Molden Format]\n[Atoms] nm\n"))
+    catch e
+        e isa InputError || rethrow()
+        showerror(io, e)
+    end
     return take!(io)
 end

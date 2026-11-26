@@ -6,7 +6,8 @@ each reader reads in strict mode by default, where every input the oracle accept
 that is not valid is an `InputError`, or in lenient mode, where it takes the oracle's value and
 records an `InputWarning`. Positions are in bohr; the files hold Å. The `Logger`, which writes
 each line to standard output and to the log file, the oracle's fixed output lines, and the
-Rust-compatible number formats they are built from.
+Rust-compatible number formats they are built from. The Molden data types, with their writer and
+reader.
 """
 module IO
 
@@ -23,12 +24,14 @@ include("pdb.jl")
 include("cif.jl")
 include("format.jl")
 include("logger.jl")
+include("molden.jl")
 
 export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
 export Verbosity, Silent, Low, Normal, High, verbosity_from_input, Logger, log_print, log_success,
     log_warning, log_error, log_heading, log_section, print_atom_table, print_total_energy,
     report_optimization_step
 public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
+public MoldenShell, MoldenOrbitals, MoldenData, write_molden, read_molden
 
 @strict_exempt :noalloc read_xyz reason = "entry point: xyz reader"
 @strict_exempt :noalloc write_xyz reason = "entry point: xyz writer"
@@ -63,6 +66,17 @@ public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_
 @strict_exempt :noalloc types = (AbstractString, Nothing) log_path reason = "entry point: log file path, builds a String"
 @strict_exempt :noalloc output_base reason = "entry point: output base path, builds a String"
 @strict_exempt :noalloc _without_extension reason = "entry point helper: extension stripping of log_path and output_base"
+@strict_exempt :noalloc MoldenShell reason = "entry point: MoldenShell constructor"
+@strict_exempt :noalloc MoldenOrbitals reason = "entry point: MoldenOrbitals constructor"
+@strict_exempt :noalloc MoldenData reason = "entry point: MoldenData constructor"
+@strict_exempt :noalloc write_molden reason = "entry point: Molden writer"
+@strict_exempt :noalloc _write_float reason = "entry point helper: number writer of write_molden, builds a String"
+@strict_exempt :noalloc _write_orbitals reason = "entry point helper: [MO] writer of write_molden"
+@strict_exempt :noalloc read_molden reason = "entry point: Molden reader"
+@strict_exempt :noalloc _OrbitalLists reason = "entry point helper: orbital lists of read_molden"
+@strict_exempt :noalloc _orbitals reason = "entry point helper: orbital matrix builder of read_molden"
+@strict_exempt :noalloc _record_orbital reason = "entry point helper: orbital collector of read_molden"
+@strict_exempt :noalloc _molden_float reason = "entry point helper: number token reader of read_molden"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)
