@@ -173,9 +173,18 @@ end
         end
         @test e isa InputError && sprint(showerror, e) == msg
     end
-    # YAML.jl's errors other than a parser error are its own.
-    @test_throws YAML.ScannerError strict("\"abc\n")
-    @test_throws YAML.ScannerError lenient("\"abc\n")
+    # A scanner error (an unterminated quoted string) without the hint, and the tab-separated `.inp`
+    # text, whose tab YAML.jl's scanner rejects, with it, in both modes.
+    scan = "input: t.yaml: not valid YAML (while scanning a quoted scalar at line 1, column 0: found unexpected end of stream at line 2, column 0)"
+    tab = "input: t.yaml: not valid YAML (while scanning for the next token, found character '\t' that cannot start any token at line 1, column 6); this file looks like .inp syntax"
+    for run in (strict, lenient), (text, msg) in (("\"abc\n", scan), ("charge\t0\nmethod\trhf\n", tab))
+        e = try
+            run(text)
+        catch e
+            e
+        end
+        @test e isa InputError && sprint(showerror, e) == msg
+    end
 end
 
 @testitem "yaml: documents that are not a mapping" setup = [YAMLText] begin
@@ -186,6 +195,8 @@ end
         @test_throws "input: t.yaml: the document is empty" lenient(text)
     end
     @test_throws "input: t.yaml: top-level YAML document is not a mapping; this file looks like .inp syntax" strict("charge 0\n")
+    # A byte order mark before the first line does not hide the hint.
+    @test_throws "input: t.yaml: top-level YAML document is not a mapping; this file looks like .inp syntax" strict("\ufeffcharge 0\n")
     for text in ("- 1\n- 2\n", "42\n")
         @test_throws "input: t.yaml: top-level YAML document is not a mapping" strict(text)
         @test_throws "input: t.yaml: no atoms: the input has no geometry block" lenient(text)
@@ -259,8 +270,8 @@ end
     p = lenient(h2("title: NULL\n"))
     @test p.input.title == "" && cases(p) == [:yaml_wrong_type]
     # `2001-12-14`: YAML.jl reads a `Date`, which no node holds, in both modes; yaml-rust2 a string.
-    @test_throws "input: t.yaml: title: unsupported value of type" strict(h2("title: 2001-12-14\n"))
-    @test_throws "input: t.yaml: title: unsupported value of type" lenient(h2("title: 2001-12-14\n"))
+    @test_throws "input: t.yaml: title: unsupported value of type Dates.Date" strict(h2("title: 2001-12-14\n"))
+    @test_throws "input: t.yaml: title: unsupported value of type Dates.Date" lenient(h2("title: 2001-12-14\n"))
     # An integer beyond Int64: YAML.jl reads an Int128, an error in both modes; yaml-rust2 a float,
     # which `as_i64` ignores (the oracle's charge stays 0).
     @test_throws "input: t.yaml: charge: the integer 9223372036854775808 is outside the Int64 range" strict(
@@ -273,4 +284,15 @@ end
     # oracle looks keys up by string and ignores it.
     @test_throws "input: t.yaml: the key 1 of type Int64 is not a string" strict(h2("1: x\n"))
     @test_throws "input: t.yaml: the key 1 of type Int64 is not a string" lenient(h2("1: x\n"))
+    # A merge key (`<<`): YAML.jl merges the mapping it names and lets an explicit key override a
+    # merged one; yaml-rust2 has no merge keys and reads `<<` as an ordinary key, which no lookup
+    # finds. A merge key is an error in both modes, with or without an override; a quoted `"<<"` is an
+    # ordinary key, unknown here.
+    for run in (strict, lenient), text in (
+                "b: &b {max_iter: 5}\nscf: {<<: *b, max_iter: 6}\n", "b: &b {max_iter: 5}\nscf: {<<: *b}\n",
+                "scf:\n  <<: [{max_iter: 5}]\n",
+            )
+        @test_throws "input: t.yaml: YAML merge keys (<<) are not supported" run(h2(text))
+    end
+    @test_throws "input: t.yaml: <<: unknown key" strict(h2("\"<<\": 1\n"))
 end

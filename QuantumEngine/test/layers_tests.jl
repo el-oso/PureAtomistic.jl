@@ -26,12 +26,13 @@ end
 end
 
 # The calls of the StrictMode workload compile the entry points; no compiled signature of a
-# submodule may then carry an unresolved call. The top module owns no functions and is not swept.
+# submodule or of the YAML extension may then carry an unresolved call. The top module owns no
+# functions and is not swept.
 @testitem "test_calls sweep finds no unresolved call" tags = [:checks] begin
     using StrictModeTest
     include(joinpath(pkgdir(QuantumEngine), "test", "strict", "workload.jl"))
     run_workload()
-    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input, Base.get_extension(QuantumEngine, :QuantumEngineYAMLExt))
         @test length(test_calls(M)) > 0
     end
 end
@@ -48,7 +49,7 @@ end
         Atom("O@", T[0, 0, 2])
     end
     run_workload()
-    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input, Base.get_extension(QuantumEngine, :QuantumEngineYAMLExt))
         @test isempty(test_exemptions(M))
     end
     @test all(e -> !isempty(e.reason), StrictMode.exemptions())

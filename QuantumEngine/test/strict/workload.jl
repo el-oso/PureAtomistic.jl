@@ -1,8 +1,10 @@
 # The calls whose compiled specializations the StrictMode gates judge. `check.jl` includes this file
-# in a child process that loads only the package, so no test fixture adds a specialization of its
+# in a child process that loads only the package and YAML.jl (which loads the extension
+# `QuantumEngineYAMLExt`), so no test fixture adds a specialization of its
 # own; the items "test_calls sweep finds no unresolved call" and "every exemption is used and
 # reasoned" include it as well.
 using QuantumEngine
+using YAML
 
 # Every error type and `InputWarning`, each built from a `String` and from a `LazyString` message,
 # rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
@@ -10,7 +12,7 @@ using QuantumEngine
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
 # writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then
 # the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
-# the `.inp` parser.
+# the `.inp` parser; then the structured readers and the YAML extension.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -410,5 +412,20 @@ function run_workload()
         end
     end
     showerror(io, In._yaml_unavailable("w.yaml"))
+    # YAML text through the extension, in both modes and from a `String` and a `SubString`: a
+    # mapping, a document that is not a mapping (with and without the `.inp` hint, and after a byte
+    # order mark), an empty document, a parser error, a scanner error and a merge key.
+    yh2 = "unit: bohr\ngeometry:\n  - symbol: H\n    position: [0.0, 0.0, -0.7]\n  - symbol: H\n    position: [0.0, 0.0, 0.7]\n"
+    parse_yaml(yh2)
+    for text in (yh2, "charge 0\n", "\ufeffcharge 0\n", "- 1\n", "", "a: [1\n", "a: \"x\n", "b: &b {x: 1}\nc: {<<: *b}\n"), lenient in (false, true)
+        for t in (text, SubString(text))
+            try
+                parse_yaml(t; source = "w.yaml", lenient)
+            catch e
+                e isa InputError || rethrow()
+                showerror(io, e)
+            end
+        end
+    end
     return take!(io)
 end

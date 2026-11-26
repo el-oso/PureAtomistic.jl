@@ -15,8 +15,8 @@
         ("scan", "noalloc"), ("scan", "noboxing"),
         ("other", "typestable"),
     )
-    const OTHER = ("showerror", "show", "setindex!")
-    const MODULES = ("Errors", "Units", "System", "IO")
+    const OTHER = ("showerror", "show", "setindex!", "iterate", "haskey")
+    const MODULES = ("Errors", "Units", "System", "IO", "QuantumEngineYAMLExt")
 end
 
 @testitem "StrictMode policy holds in QuantumEngine" tags = [:checks] setup = [StrictRun] begin

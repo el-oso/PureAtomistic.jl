@@ -7,10 +7,11 @@
 # `:typestable` and AllocCheck for `:noalloc` and `:noboxing`) and the value-free scan that
 # `@strict_policy` itself applies (`audit` with `sweep = true`, for `:noalloc` and `:noboxing`).
 #
-# The module sweeps judge the functions the package owns, one submodule at a time; the top module
-# owns no functions and is not swept. The methods the package adds to functions it does not own are
-# judged afterwards, each compiled specialization against the guarantees `OTHER_METHODS` lists for
-# it, with JET (`test_signatures`).
+# The module sweeps judge the functions the package owns, one submodule at a time, and the YAML
+# extension `QuantumEngineYAMLExt` (loaded with YAML.jl), which holds the method of `parse_yaml`;
+# the top module owns no functions and is not swept. The methods the package adds to functions it
+# does not own are judged afterwards, each compiled specialization against the guarantees
+# `OTHER_METHODS` lists for it, with JET (`test_signatures`).
 #
 # Prints one line per finding and a summary line per gate, summed over the swept modules. Each
 # finding's text carries the guarantee and code the finding itself reports, as
@@ -28,7 +29,8 @@ include(joinpath(@__DIR__, "workload.jl"))
 
 const CONTROL = "control" in ARGS
 const P = QuantumEngine
-const MODULES = (P.Errors, P.Units, P.System, P.IO, P.Input)
+const EXT = Base.get_extension(P, :QuantumEngineYAMLExt)
+const MODULES = (P.Errors, P.Units, P.System, P.IO, P.Input, EXT)
 const GUARANTEES = (:typestable, :noalloc, :noboxing)
 oneline(err) = replace(sprint(showerror, err), '\n' => " | ")
 
@@ -90,9 +92,10 @@ end
 # are held to here. A method of a function missing here fails the item, so a new one is listed when
 # it is written. The module sweeps already hold `showerror` and `show` to every guarantee, with
 # `:noalloc` and `:noboxing` exempt, and this listing judges their type stability a second time.
-# `setindex!` of `Input`'s JSON object builder reads JSON.jl's untyped values and is exempt from
-# every guarantee; it is listed so that any other `setindex!` method the package adds is judged.
-const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!)
+# `setindex!` of `Input`'s JSON object builder and `iterate`, `haskey` and `setindex!` of the YAML
+# extension's mapping read untyped values and are exempt from every guarantee; they are listed so
+# that any other method of these functions the package adds is judged.
+const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!, Base.iterate, Base.haskey)
 const OTHER_GUARANTEES = (:typestable,)
 const OTHER_METHODS = Dict{Any, Tuple{Vararg{Symbol}}}(f => OTHER_GUARANTEES for f in OTHER_FUNCTIONS)
 
@@ -109,13 +112,13 @@ function other_function(m::Method)
     isdefined(ft, :instance) || return :skip
     f = ft.instance
     f in ENUM_FUNCTIONS && return :skip
-    return Base.moduleroot(parentmodule(f)) === P ? :swept : f
+    return Base.moduleroot(parentmodule(f)) in (P, EXT) ? :swept : f
 end
 
 nother = Dict(g => 0 for g in OTHER_GUARANTEES)
 judged = Set{Any}()
 Base.visit(Core.methodtable) do m
-    m isa Method && Base.moduleroot(m.module) === P || return nothing
+    m isa Method && Base.moduleroot(m.module) in (P, EXT) || return nothing
     f = other_function(m)
     f in (:skip, :swept) && return nothing
     gs = get(OTHER_METHODS, f, nothing)

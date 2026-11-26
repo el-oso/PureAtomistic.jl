@@ -380,7 +380,7 @@ Maps keep the dictionary's iteration order. Keys are converted with `String`; a 
 string, a key repeated within one map (two keys that convert to the same `String`), an integer
 outside the `Int64` range and a value that is not a map, a vector, a Boolean, an integer, a
 floating-point number, a string, `nothing` or `missing` are errors in both modes, naming the key
-path: `input: a.yaml: title: unsupported value of type Date`. `nothing` and `missing` are null.
+path: `input: a.yaml: title: unsupported value of type Dates.Date`. `nothing` and `missing` are null.
 
 ```julia
 using QuantumEngine
@@ -397,11 +397,13 @@ logs an error and keeps the last value, and its log message appears before the e
 document is `the document is empty` in both modes. A document that is not a mapping is
 `top-level YAML document is not a mapping` in strict mode, and in lenient mode, as the oracle
 reads a document without keys, `no atoms: the input has no geometry block`. Of several documents,
-the first is read, as the oracle reads it. Text that YAML.jl's parser rejects is, in both modes,
-`not valid YAML (<YAML.jl's message>)`; YAML.jl's other errors (a scanner error, such as an
-unterminated quoted string) are its own. Either message ends in `; this file looks like .inp
-syntax` when the first line that is neither blank nor a `#` comment is a `keyword value` line (a
-word that starts with a letter, then whitespace and a value), as in an `.inp` file read as YAML.
+the first is read, as the oracle reads it. Text that YAML.jl's parser or scanner rejects (an
+unterminated quoted string, or a tab between a keyword and its value) is, in both modes,
+`not valid YAML (<YAML.jl's message>)`; YAML.jl's other errors are its own. That message and the
+not-a-mapping message end in `; this file looks like .inp syntax` when the first line that is
+neither blank nor a `#` comment (after a byte order mark, if any) is a `keyword value` line (a
+word that starts with a letter, then whitespace and a value), as in an `.inp` file read as YAML. A
+merge key (`<<`) is `YAML merge keys (<<) are not supported` in both modes (see the table below).
 
 YAML.jl decides the type of each scalar. Where it differs from yaml-rust2 0.9.0, which the oracle
 uses for `.yaml`, `.yml` and `.json` files, the schema's type checks decide: a value of the wrong
@@ -421,6 +423,7 @@ mode. JSON.jl rejects each of these forms as invalid JSON.
 | `2001-12-14` | a `Date` | a string | an error in both modes |
 | `9223372036854775808` (beyond `Int64`) | an `Int128` | a float, which an integer key ignores | an error in both modes |
 | a key that is not a string (`1: x`) | the integer key 1 | the integer key 1, which no lookup finds | an error in both modes |
+| a merge key (`<<: *base`) | merges the mapping it names; an explicit key overrides a merged one | the ordinary key `<<`, which no lookup finds | `YAML merge keys (<<) are not supported`, an error in both modes |
 
 Both readers agree on `-017`, `+017`, `0x1F`, `0o17`, `.5`, `5.`, `1e-6`, `.nan`, `.inf`,
 `-.inf`, `1e400` (Inf), `yes`, `no`, `on`, `off`, `~`, `null` and an empty value.

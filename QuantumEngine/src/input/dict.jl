@@ -72,8 +72,12 @@ function has a method only when YAML.jl is loaded (`using YAML`, which loads the
 YAML.jl decides the scalar types, and the Input page of the manual lists where they differ from the
 oracle's reader. A key repeated within one mapping is an `InputError` in both modes. A document that
 is empty is an error in both modes. A top-level value that is not a mapping is an error naming the
-mismatch in strict mode and the error of an input with no atoms in lenient mode. Text that is not
-YAML is YAML.jl's error.
+mismatch in strict mode and the error of an input with no atoms in lenient mode. Text that YAML.jl's
+parser or scanner rejects is an `InputError` `not valid YAML (<YAML.jl's message>)` in both modes;
+YAML.jl's other errors propagate unchanged. That message and the not-a-mapping message end in
+`; this file looks like .inp syntax` when the first line that is neither blank nor a `#` comment is
+a `keyword value` line. A merge key (`<<`) is an `InputError`
+`YAML merge keys (<<) are not supported` in both modes.
 """
 function parse_yaml end
 
