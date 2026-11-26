@@ -1,7 +1,8 @@
 # Builds `qe_inspect` with juliac --trim=safe (Julia 1.13) and requires its output to equal that of
 # the untrimmed `juliac/entry.jl` byte for byte, with nothing on stderr: without an argument (exit
 # 1, the usage line), on `examples/h2.inp` (exit 0, the five lines of the molecule), on an input
-# with no atoms (exit 1, the error) and on a missing file (exit 1). Slow, so it runs only with
+# with no atoms and on one with two atoms at one position (exit 1, the error) and on a missing file
+# (exit 1). Slow, so it runs only with
 # QUANTUMENGINE_JULIAC_BUILD=1 (see test/runtests.jl).
 @testitem "juliac --trim build of qe_inspect" tags = [:juliac] setup = [Fixtures] begin
     using QuantumEngine
@@ -25,6 +26,8 @@
     write(h2, Fixtures.oracle_input("examples/h2.inp"))
     bad = joinpath(dir, "bad.inp")
     write(bad, "charge 0\n")
+    coinc = joinpath(dir, "coinc.inp")
+    write(coinc, "geometry\nH 0 0 0\nH 0 0 0\nend\n")
     missing_file = joinpath(dir, "missing.inp")
     h2_out = join(["Hydrogen molecule", "2", "1", "1", QuantumEngine.IO.fmt_fixed(1 / 1.4, 20, 12)], "\n") * "\n"
     entry = joinpath(root, "juliac", "entry.jl")
@@ -34,6 +37,7 @@
     for (args, code, expected) in (
             ((), 1, "usage: qe_inspect <file.inp>\n"), ((h2,), 0, h2_out),
             ((bad,), 1, "input: $bad: no atoms: the input has no geometry block\n"),
+            ((coinc,), 1, "input: $coinc: system: atoms 1 and 2 coincide\n"),
             ((missing_file,), 1, "qe_inspect: cannot read $missing_file\n"),
         )
         p = run(pipeline(ignorestatus(addenv(`$(Base.julia_cmd()) --startup-file=no --project=$root $entry $args`, env...)); stdout = outf, stderr = errf))

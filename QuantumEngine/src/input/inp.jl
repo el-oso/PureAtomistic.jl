@@ -88,13 +88,19 @@ const LIST_KEYWORDS = (:field, :kpoints, :dos_k_grid, :freeze_bond, :freeze_angl
 # The block openers that take no value on their line.
 const BARE_BLOCKS = (:hubbard, :cell, :pbc, :oniom)
 
+# The Boolean keywords, whose missing value is `:bool_fallback`.
+const BOOL_KEYWORDS = (
+    :climbing_image, :density_fitting, :ri_k, :gpu, :load_checkpoint, :dispersion, :zora, :f12, :nbo,
+    :auto_stabilize, :robust_convergence, :dmft, :admm, :export_molden, :export_cube, :export_wfx,
+    :compute_soc, :tddft_triplets, :ecp,
+)
+
 """
     accepted_keywords() -> Vector{String}
 
-Every keyword of an `.inp` file, aliases and block openers included, sorted. The same vector is
-returned on every call; it must not be modified.
+Every keyword of an `.inp` file, aliases and block openers included, sorted.
 """
-accepted_keywords() = ACCEPTED_KEYWORDS
+accepted_keywords() = copy(ACCEPTED_KEYWORDS)
 
 # The index in `INP_KEYWORDS` of the lowercase word `w`, or 0.
 function _keyword_index(w::AbstractString)
@@ -115,14 +121,15 @@ end
 
 const DEFAULT_METHOD = MethodSpec(HF, AutoReference, (0, 0), 0.0)
 
-# The state of one parse: the input being filled, the open block and the line it opened at, the
-# first line of each keyword seen, and the values that are resolved after the pass (solvation and
-# ONIOM).
+# The state of one parse: the input being filled, whether a `title` keyword has set its title, the
+# open block and the line it opened at, the first line of each keyword seen, and the values that
+# are resolved after the pass (solvation and ONIOM).
 mutable struct _InpState
     source::String
     lenient::Bool
     warnings::Vector{InputWarning}
     d::_InputDraft
+    titled::Bool
     seen::Dict{Symbol, Int}
     block::Symbol
     block_line::Int
@@ -148,7 +155,7 @@ end
 function _InpState(source::String, lenient::Bool, warnings::Vector{InputWarning})
     s = SolvationSpec()
     return _InpState(
-        source, lenient, warnings, _draft(InputFile()), Dict{Symbol, Int}(), :none, 0, 0, false, 0, 0,
+        source, lenient, warnings, _draft(InputFile()), false, Dict{Symbol, Int}(), :none, 0, 0, false, 0, 0,
         SVector{3, Float64}[], Int[], NoSolvation, s.solvent, s.epsilon, s.radii_scaling, s.grid_order,
         false, DEFAULT_METHOD, DEFAULT_METHOD, Int[], nothing, nothing,
     )
@@ -199,7 +206,7 @@ function _line!(st::_InpState, n::Int, raw::SubString{String})
     line, tokens = input_line(raw, n)
     isempty(line) && return nothing
     if startswith(line, '#')
-        isempty(st.d.title) && (st.d.title = String(strip(line[nextind(line, 1):end])))
+        st.titled || !isempty(st.d.title) || (st.d.title = String(strip(line[nextind(line, 1):end])))
         return nothing
     end
     k = findfirst(_is_comment, tokens)
@@ -251,26 +258,19 @@ end
 
 _parse_int(t::AbstractString) = _is_decimal_int(t) ? tryparse(Int, t) : nothing
 
-# The `Float64` that `t` spells, or `nothing`; a hexadecimal float is rejected.
-function _parse_float(t::AbstractString)
-    i = ncodeunits(t) >= 1 && (codeunit(t, 1) == UInt8('+') || codeunit(t, 1) == UInt8('-')) ? 2 : 1
-    i + 1 <= ncodeunits(t) && codeunit(t, i) == UInt8('0') && _lower(codeunit(t, i + 1)) == UInt8('x') && return nothing
-    return tryparse(Float64, t)
-end
-
 function _finite(st::_InpState, n::Int, kw, t::AbstractString, x::Float64)
     isfinite(x) || _reject(st, n, :nonfinite, lazy"`$(kw)`: expected a finite number, got $(repr(t))")
     return x
 end
 
 function _float_required(st::_InpState, n::Int, kw, t::AbstractString)
-    x = _parse_float(t)
+    x = _parse_coordinate(t)
     isnothing(x) && throw(InputError(st.source, n, lazy"`$(kw)`: expected a number, got $(repr(t))"))
     return _finite(st, n, kw, t, x)
 end
 
 function _float_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
-    x = _parse_float(t)
+    x = _parse_coordinate(t)
     if isnothing(x)
         _reject(st, n, case, lazy"`$(kw)`: expected a number, got $(repr(t))")
         return nothing
@@ -337,7 +337,8 @@ function _count_ok(st::_InpState, n::Int, kw::String, c::Symbol, nv::Int, lo::In
         return true
     end
     c in REQUIRED_KEYWORDS && throw(InputError(st.source, n, msg))
-    _reject(st, n, c in LIST_KEYWORDS ? :too_few_values : :missing_value, msg)
+    case = c in LIST_KEYWORDS ? :too_few_values : c in BOOL_KEYWORDS ? :bool_fallback : :missing_value
+    _reject(st, n, case, msg)
     return false
 end
 
@@ -423,6 +424,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
             title = title[2:prevind(title, lastindex(title))]
         end
         d.title = title
+        st.titled = true
     elseif c === :run
         x = run_mode_word(t)
         isnothing(x) && throw(InputError(st.source, n, _unknown_msg(kw, t, accepted_run_modes())))

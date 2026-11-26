@@ -17,7 +17,7 @@ using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: InputError, InputWarning
 using ..Units: ANGSTROM_TO_BOHR
 using ..System: Atom, PointCharge, Molecule, nalpha, element_number
-using ..IO: input_line, reject_or_warn
+using ..IO: input_line, reject_or_warn, _parse_coordinate
 
 include("types.jl")
 include("vocabulary.jl")
@@ -62,7 +62,8 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc types = (AbstractVector{<:AbstractString},) method_word reason = "Parsers' exact float path allocates (an 800-digit buffer); remove this exemption when a Parsers release contains JuliaData/Parsers.jl#244"
 
 @strict_exempt :noalloc parse_inp reason = "entry point: .inp parser"
-@strict_exempt :noalloc _finalize_input reason = "entry point helper: shared input checks of parse_inp and parse_structured"
+@strict_exempt :noalloc accepted_keywords reason = "entry point: keyword list, returns a copy"
+@strict_exempt :noalloc _finalize_input reason = "entry point helper: input checks of parse_inp"
 @strict_exempt :noalloc _InputDraft reason = "entry point: input draft constructor"
 @strict_exempt :noalloc _draft reason = "entry point helper: input draft of parse_inp and _finalize_input"
 @strict_exempt :noalloc types = (_InputDraft, ONIOMSpec) _build_input reason = "entry point helper: InputFile builder of parse_inp and _finalize_input"
@@ -70,7 +71,6 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc _InpState reason = "entry point: parser state constructor of parse_inp"
 @strict_exempt :noalloc _reject reason = "entry point helper: strict-or-lenient choice of parse_inp"
 @strict_exempt :noalloc _line! reason = "entry point helper: line reader of parse_inp"
-@strict_exempt :noalloc _parse_float reason = "entry point helper: number token reader of parse_inp"
 @strict_exempt :noalloc _join reason = "entry point helper: word joiner of parse_inp, builds a String"
 @strict_exempt :noalloc _finite reason = "entry point helper: number check of parse_inp"
 @strict_exempt :noalloc _float_required reason = "entry point helper: number reader of parse_inp"

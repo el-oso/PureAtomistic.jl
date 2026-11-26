@@ -38,7 +38,8 @@ line that starts with `- `, is rejected as YAML: YAML input needs a `.yaml` or `
   `oniom`) and gets one is `` `hubbard` takes no value on its line ``.
 - **Booleans** are exactly `true` or `false`.
 - **Integers** are decimal, with an optional sign.
-- **Numbers** are decimal floats, finite: `nan` and `inf` are `expected a finite number`, and a
+- **Numbers** are decimal floats, finite: `nan`, `inf` and a value beyond the `Float64` range
+  (`1e500`) are `expected a finite number`, a value below it (`1e-400`) reads as 0.0, and a
   hexadecimal float is not a number.
 - **Words** are looked up without regard to ASCII case in the keyword's vocabulary; an unknown
   word is `` unknown value `tpu` for `compute_mode`; accepted: cpu, gpu, hybrid ``.

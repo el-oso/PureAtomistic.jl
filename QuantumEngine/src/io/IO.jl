@@ -30,7 +30,7 @@ export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
 export Verbosity, Silent, Low, Normal, High, verbosity_from_input, Logger, log_print, log_success,
     log_warning, log_error, log_heading, log_section, print_atom_table, print_total_energy,
     report_optimization_step
-public input_line, reject_or_warn, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
+public input_line, reject_or_warn, _parse_coordinate, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
 public MoldenShell, MoldenOrbitals, MoldenData, write_molden, read_molden
 
 @strict_exempt :noalloc read_xyz reason = "entry point: xyz reader"
@@ -38,12 +38,12 @@ public MoldenShell, MoldenOrbitals, MoldenData, write_molden, read_molden
 @strict_exempt :noalloc read_pdb reason = "entry point: PDB reader"
 @strict_exempt :noalloc read_cif reason = "entry point: CIF reader"
 @strict_exempt :noalloc input_line reason = "entry point helper: line reader of read_xyz, read_pdb, read_cif and parse_inp"
-@strict_exempt :noalloc reject_or_warn reason = "entry point helper: strict-or-lenient choice of read_xyz, read_pdb, read_cif, parse_inp and parse_structured"
+@strict_exempt :noalloc reject_or_warn reason = "entry point helper: strict-or-lenient choice of read_xyz, read_pdb, read_cif and parse_inp"
 @strict_exempt :noalloc _atom reason = "entry point helper: atom builder of read_xyz, read_pdb and read_cif"
 @strict_exempt :noalloc _xyz_coordinate reason = "entry point helper: coordinate parser of read_xyz"
 @strict_exempt :noalloc _pdb_coordinate reason = "entry point helper: coordinate parser of read_pdb"
 @strict_exempt :noalloc _cif_coordinate reason = "entry point helper: coordinate parser of read_cif"
-@strict_exempt :noalloc _parse_coordinate reason = "entry point helper: coordinate token reader of read_xyz, read_pdb and read_cif"
+@strict_exempt :noalloc _parse_coordinate reason = "entry point helper: number token reader of read_xyz, read_pdb, read_cif, read_molden and parse_inp"
 @strict_exempt :noalloc fmt_fixed reason = "entry point: Rust-compatible formatter, builds a String"
 @strict_exempt :noalloc fmt_exp reason = "entry point: Rust-compatible formatter, builds a String"
 @strict_exempt :noalloc fmt_int reason = "entry point: Rust-compatible formatter, builds a String"

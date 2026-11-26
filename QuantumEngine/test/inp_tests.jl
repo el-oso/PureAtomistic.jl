@@ -89,6 +89,18 @@ end
         end
     )
     @test endswith(msg, "accepted keywords: " * join(words, ", "))
+    # The list is a copy: changing it changes neither the next list nor the message.
+    push!(words, "zzz_bogus")
+    @test !("zzz_bogus" in QuantumEngine.Input.accepted_keywords())
+    @test QuantumEngine.Input.accepted_keywords() == words[1:(end - 1)]
+    msg2 = sprint(
+        showerror, try
+            InpText.parse("foo_bar 1\n" * InpText.water())
+        catch e
+            e
+        end
+    )
+    @test msg2 == msg && !occursin("zzz_bogus", msg2)
     # Keywords are read without regard to case.
     @test InpText.parse("CHARGE 0\nMultiplicity 1\n" * InpText.water()).charge == 0
 end
@@ -111,6 +123,12 @@ end
     @test_throws "`method` takes 3 values, got 2" InpText.parse("method libxc_gga 101\n" * w)
     @test_throws "`method` takes 1 value, got 2" InpText.parse("method pbe0 d3\n" * w)
     @test_throws "`method` needs a value" InpText.parse("method\n" * w)
+    # A missing Boolean value is `:bool_fallback` in lenient mode; other missing values are `:missing_value`.
+    for (kw, case) in (("zora", :bool_fallback), ("ecp", :bool_fallback), ("gpu", :bool_fallback), ("export_cube", :bool_fallback), ("checkpoint", :missing_value))
+        @test_throws "`$kw` takes 1 value, got 0" InpText.parse("$kw\n" * w)
+        p = parse_inp("$kw\n" * w; source = "t.inp", lenient = true)
+        @test [x.case for x in p.warnings] == [case]
+    end
 end
 
 @testitem "inp: value types" setup = [InpText] begin
@@ -135,6 +153,13 @@ end
     @test_throws "`geometry`: expected a number, got \"x\"" InpText.parse("geometry\nH 0 0 x\nH 0 0 1\nend\n")
     @test_throws "`method`: expected a finite number, got \"nan\"" InpText.parse("method libxc_hgga 402 nan\n" * w)
     @test InpText.parse("damping 0.25\nscf_convergence 1E-8\n" * w).damping == 0.25
+    # Out of range: an overflow is non-finite, an underflow is 0.0, as Rust reads them.
+    @test_throws "`scf_convergence`: expected a finite number, got \"1e500\"" InpText.parse("scf_convergence 1e500\n" * w)
+    @test_throws "`geometry`: expected a finite number, got \"1e500\"" InpText.parse("geometry\nO 0 0 1e500\nH 0 0 1\nH 0 1 0\nend\n")
+    @test InpText.parse("damping 1e-400\n" * w).damping === 0.0
+    p = parse_inp("scf_convergence 1e500\n" * w; source = "t.inp", lenient = true)
+    @test p.input.scf_convergence == Inf
+    @test [x.case for x in p.warnings] == [:nonfinite]
     # Words go through the vocabulary of their keyword.
     @test_throws "unknown value `tpu` for `compute_mode`; accepted: cpu, gpu, hybrid" InpText.parse("compute_mode tpu\n" * w)
     @test_throws "unknown value `fast` for `run`; accepted: sp, single_point" InpText.parse("run fast\n" * w)
@@ -420,6 +445,7 @@ end
     @test InpText.parse("title second\n# first\n" * w).title == "second"
     @test InpText.parse(w * "#  late #title\n").title == "late #title"
     @test InpText.parse("#\n# second\n" * w).title == "second"
+    @test InpText.parse("title \"\"\n# c\n" * w).title == ""
     @test_throws "keyword `title` given twice" InpText.parse("title a\ntitle b\n" * w)
 end
 
@@ -509,4 +535,10 @@ end
     p = run(pipeline(ignorestatus(addenv(`$(Base.julia_cmd()) --startup-file=no --project=$root $entry $bad`, env...)); stdout = joinpath(dir, "out.txt")))
     @test p.exitcode == 1
     @test read(joinpath(dir, "out.txt"), String) == "input: $bad: no atoms: the input has no geometry block\n"
+    # Two atoms at one position pass the parser; the nuclear repulsion rejects them.
+    coinc = joinpath(dir, "coinc.inp")
+    write(coinc, "geometry\nH 0 0 0\nH 0 0 0\nend\n")
+    p = run(pipeline(ignorestatus(addenv(`$(Base.julia_cmd()) --startup-file=no --project=$root $entry $coinc`, env...)); stdout = joinpath(dir, "out.txt")))
+    @test p.exitcode == 1
+    @test read(joinpath(dir, "out.txt"), String) == "input: $coinc: system: atoms 1 and 2 coincide\n"
 end
