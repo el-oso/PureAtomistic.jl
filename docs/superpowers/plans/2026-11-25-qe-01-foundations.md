@@ -636,7 +636,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
     - `solvent_word(w)::Union{Nothing,Symbol}`: compared with the table while skipping the bytes `-`, `_` and space on both sides, without building a normalized string; the list of `smd.rs:281-305`.
     - `vdw_kernel_word(w)`, `tddft_method_word(w)`, `grid_word(w)`, `irc_direction_word(w)`, `compute_mode_word(w)`, `diis_word(w)`, `population_word(w)` and `surface_word(w)`.
 
-**`InputFile` fields.** Columns: the `.inp` keyword and its aliases; the tokens after the keyword, with the `parser.rs` line that reads them; the field with its concrete type and default. The defaults are `types.rs:228-311`. Every field is written `field::Type = default`, so `Base.@kwdef` never makes a field `Any`. Token notation: `Int`, `Float`, `Bool` (`true`/`false`, D8), `word` (one token), `1+ words`, `[x]` optional. Block contents are in Task 8.
+**`InputFile` fields.** Columns: the `.inp` keyword and its aliases; the tokens after the keyword, with the `parser.rs` line that reads them; the field with its concrete type and default. The defaults are `types.rs:228-311`. Every field is written `field::Type = default`, so `Base.@kwdef` never makes a field `Any`. Token notation: `Int`, `UInt` (a non-negative `Int`: the oracle reads the field as `usize`, so a token with a leading `-`, `-0` included, is bad), `Float`, `Bool` (`true`/`false`, D8), `word` (one token), `1+ words`, `[x]` optional. Block contents are in Task 8.
 
 | keyword (aliases) | tokens (`parser.rs`) | field :: type = default |
 |---|---|---|
@@ -644,11 +644,11 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 | `title` | `1+ words`, joined by single spaces (84) | `title::String = ""` |
 | `run`, `run_mode`; `optimize` | `word` (61); none (57) | `run_mode::RunMode = SinglePoint` |
 | `charge` | `Int` (270) | `charge::Int = 0` |
-| `multiplicity` | `Int` (275) | `multiplicity::Int = 1` |
+| `multiplicity` | `UInt` (275) | `multiplicity::Int = 1` |
 | `basis` | `word` (377) | `basis::String = "sto-3g"` (lowercased; alias resolution in 02) |
 | `method` | `word`; `libxc_gga x c` and `libxc_mgga x c`: `word Int Int`; `libxc_hgga id exx` and `libxc_hmgga id exx`: `word Int Float`; `casscf(e,o)` is one token (383, 1079-1167) | `method::MethodSpec = MethodSpec(HF, AutoReference, (0,0), 0.0)` (D29; the oracle's default is `Method::RHF`, `types.rs:236`) |
 | `scf_convergence` | `Float` (539) | `scf_convergence::Float64 = 1e-6` |
-| `max_iterations` | `Int` (544) | `max_iterations::Int = 50` |
+| `max_iterations` | `UInt` (544) | `max_iterations::Int = 50` |
 | `diis_method` | `word` (549) | `diis_method::DIISMethod = CDIIS` |
 | `conv_tol_density` | `Float` (179) | `conv_tol_density::Union{Nothing,Float64} = nothing` |
 | `diis_reset`, `diis_reset_threshold` | `Float` (182) | `diis_reset_threshold::Float64 = 0.1` |
@@ -665,9 +665,9 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 | `gpu`; `compute_mode` | `Bool` (119); `word` (126) | `compute_mode::ComputeMode = CPU` |
 | `checkpoint` | `word` (137) | `checkpoint::Union{Nothing,String} = nothing` |
 | `load_checkpoint`, `restart` | `Bool` (140) | `load_checkpoint::Bool = false` |
-| `ts_target_mode` | `Int` (89) | `ts_target_mode::Int = 0` |
+| `ts_target_mode` | `UInt` (89) | `ts_target_mode::Int = 0` |
 | `ts_trust_radius` | `Float` (92) | `ts_trust_radius::Float64 = 0.1` |
-| `neb_k`; `neb_images`; `climbing_image` | `Float` (95); `Int` (98); `Bool` (101) | `neb_k::Float64 = 0.1`, `neb_images::Int = 7`, `climbing_image::Bool = true` |
+| `neb_k`; `neb_images`; `climbing_image` | `Float` (95); `UInt` (98); `Bool` (101) | `neb_k::Float64 = 0.1`, `neb_images::Int = 7`, `climbing_image::Bool = true` |
 | `temperature`, `temp` | `Float` (104) | `temperature::Float64 = 298.15` |
 | `pressure`, `press` | `Float` (107) | `pressure::Float64 = 1.0` |
 | `symmetry_number`, `sigma` | `Float` (110) | `symmetry_number::Float64 = 1.0` |
@@ -678,23 +678,25 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 | `admm`; `admm_basis` | `Bool` (554); `word` (557) | `admm::Bool = false`, `admm_basis::Union{Nothing,String} = nothing` |
 | `ecp`, `use_ecp`; `ecp_name` | `Bool` or `word` (489); `word` (501) | `use_ecp::Bool = false`, `ecp_name::Union{Nothing,String} = nothing` (D31: `ecp <name>` and `ecp_name <name>` set both) |
 | `vdw_kernel` | `word` (286) | `vdw_kernel::Union{Nothing,VdwKernel} = nothing` |
-| `solvation`; `solvent`; `epsilon`, `dielectric`; `pcm_radii`, `radii_scaling`; `pcm_grid`, `smd_grid` | `word` (202); `word` (212); `Float` (224); `Float` (238); `Int` (244) | `solvation::SolvationSpec = SolvationSpec()` (the defaults above) |
+| `solvation`; `solvent`; `epsilon`, `dielectric`; `pcm_radii`, `radii_scaling`; `pcm_grid`, `smd_grid` | `word` (202); `word` (212); `Float` (224); `Float` (238); `UInt` (244) | `solvation::SolvationSpec = SolvationSpec()` (the defaults above) |
 | `output` | `word` (252) | `output::Union{Nothing,String} = nothing` |
-| `verbosity` | `Int` (255) | `verbosity::Int = 1` |
+| `verbosity` | `UInt` (255) | `verbosity::Int = 1` |
 | `export_molden`, `export_cube`, `export_wfx` | `Bool` each (258-266) | `export_molden::Bool = false`, `export_cube::Bool = false`, `export_wfx::Bool = false` |
 | `population`, `pop_analysis` | `1+ words` (560) | `population::Vector{PopulationKind} = [Mulliken, Lowdin]` |
 | `pw_cutoff`, `cutoff` | `Float` (346) | `pw_cutoff::Union{Nothing,Float64} = nothing` |
-| `kpoints`, `k_points`, `kgrid` | `Int Int Int` (349) | `kpoints::NTuple{3,Int} = (1,1,1)` |
-| `dos_k_grid`, `dos_kgrid`; `dos_sigma` | `Int Int Int` (356); `Float` (363) | `dos_k_grid::NTuple{3,Int} = (10,10,10)`, `dos_sigma::Float64 = 0.1` (eV) |
+| `kpoints`, `k_points`, `kgrid` | `UInt UInt UInt` (349) | `kpoints::NTuple{3,Int} = (1,1,1)` |
+| `dos_k_grid`, `dos_kgrid`; `dos_sigma` | `UInt UInt UInt` (356); `Float` (363) | `dos_k_grid::NTuple{3,Int} = (10,10,10)`, `dos_sigma::Float64 = 0.1` (eV) |
 | `kpath`, `k_path` | `1+ words` (366) | `kpath::Vector{String} = String[]` |
 | `cell` block; `pbc` block | none; block lines (338, 622-657) | `lattice::Union{Nothing,SMatrix{3,3,Float64,9}} = nothing` (Å, rows are vectors, D22), `pbc::NTuple{3,Bool} = (true,true,true)` |
-| `oniom` block (`high`, `low`: method tokens; `model_atoms`/`model_indices`: `1+ Int`; `model_charge`, `model_multiplicity`: `Int`); `oniom_high`, `oniom_low`: method tokens; `oniom_model`: `1+ Int`; `oniom_model_charge`, `oniom_model_multiplicity`: `Int` | (386-418, 475-488) | `oniom::Union{Nothing,ONIOMSpec} = nothing` |
+| `oniom` block (`high`, `low`: method tokens; `model_atoms`/`model_indices`: `1+ Int`; `model_charge`: `Int`; `model_multiplicity`: `UInt`); `oniom_high`, `oniom_low`: method tokens; `oniom_model`: `1+ Int`; `oniom_model_charge`: `Int`; `oniom_model_multiplicity`: `UInt` | (386-418, 475-488) | `oniom::Union{Nothing,ONIOMSpec} = nothing` |
 | `freeze_atom`/`freeze`; `freeze_bond`; `freeze_angle`; `freeze_dihedral`/`freeze_torsion` (repeatable) | `1+ Int` (419); `Int Int [Float]` (426); `Int Int Int [Float]` (436); `Int Int Int Int [Float]` (446) | `constraints::Vector{Constraint} = Constraint[]` (angles in degrees → radians, bond targets bohr) |
-| `irc_step_size`/`irc_step`; `irc_max_points`/`irc_points`; `irc_direction` | `Float` (456); `Int` (461); `word` (466) | `irc_step_size::Float64 = 0.10`, `irc_max_points::Int = 30`, `irc_direction::IRCDirection = Both` (forward/fwd, backward/bwd/back, both) |
-| `tddft_states`, `num_tddft_states`, `nstates`; `tddft_method`; `compute_soc`/`soc`; `tddft_triplets`/`triplets` | `Int` (505); `word` (510); `Bool` (515); `Bool` (518) | `tddft_states::Int = 10`, `tddft_method::TDDFTMethod = TDA` (tda; rpa; spin_flip/spinflip/sf/sf-tddft), `compute_soc::Bool = false`, `tddft_triplets::Bool = false` |
-| `dmft`/`use_dmft`; `dmft_temp`; `dmft_n_freq`/`dmft_matsubara`; `dmft_n_bath`/`dmft_bath` (YAML adds `u_map`, `j_map`) | `Bool` (521); `Float` (524); `Int` (529); `Int` (534) | `use_dmft::Bool = false`, `dmft_temperature::Float64 = 300.0`, `dmft_n_freq::Int = 1024`, `dmft_n_bath::Int = 4`, `dmft_u::Vector{HubbardU} = HubbardU[]`, `dmft_j::Vector{HubbardU} = HubbardU[]` |
+| `irc_step_size`/`irc_step`; `irc_max_points`/`irc_points`; `irc_direction` | `Float` (456); `UInt` (461); `word` (466) | `irc_step_size::Float64 = 0.10`, `irc_max_points::Int = 30`, `irc_direction::IRCDirection = Both` (forward/fwd, backward/bwd/back, both) |
+| `tddft_states`, `num_tddft_states`, `nstates`; `tddft_method`; `compute_soc`/`soc`; `tddft_triplets`/`triplets` | `UInt` (505); `word` (510); `Bool` (515); `Bool` (518) | `tddft_states::Int = 10`, `tddft_method::TDDFTMethod = TDA` (tda; rpa; spin_flip/spinflip/sf/sf-tddft), `compute_soc::Bool = false`, `tddft_triplets::Bool = false` |
+| `dmft`/`use_dmft`; `dmft_temp`; `dmft_n_freq`/`dmft_matsubara`; `dmft_n_bath`/`dmft_bath` (YAML adds `u_map`, `j_map`) | `Bool` (521); `Float` (524); `UInt` (529); `UInt` (534) | `use_dmft::Bool = false`, `dmft_temperature::Float64 = 300.0`, `dmft_n_freq::Int = 1024`, `dmft_n_bath::Int = 4`, `dmft_u::Vector{HubbardU} = HubbardU[]`, `dmft_j::Vector{HubbardU} = HubbardU[]` |
 | `hubbard` block | none (280) | `hubbard::Vector{HubbardU} = HubbardU[]` |
 | `fragments` (inline or block) | `1+ words`, joined by single spaces, then split on `;` and `,` (289) | `fragments::Vector{Vector{Int}} = Vector{Int}[]` |
+
+The `UInt` fields are the oracle's `usize` fields: `multiplicity`, `max_iterations`, `ts_target_mode`, `neb_images`, `pcm_grid`/`smd_grid`, `verbosity`, each entry of `kpoints` and `dos_k_grid`, `model_multiplicity` and `oniom_model_multiplicity`, `irc_max_points`, `tddft_states`, `dmft_n_freq` and `dmft_n_bath`. A negative token reads as "expected a non-negative integer", any other bad token as "expected an integer". `multiplicity`, `max_iterations`, `ts_target_mode` and `neb_images` throw in both modes on a bad token, since the oracle reads them with `ok_or(...)?`. `charge` and `model_charge` stay signed (`i32` in the oracle).
 
 `use_fock_damping(inp) = inp.damping > 1e-10` is a function, as `parser.rs:161-164` derives it.
 
@@ -855,7 +857,7 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | `damping`, `smearing`/`smear`, `level_shift` | 161, 165, 191 | 0.0 | 0.0 | `:number_fallback` / `:missing_value` |
 | `diis_reset`/`diis_reset_threshold`, `dos_sigma` | 182, 363 | 0.1 | 0.1 | `:number_fallback` / `:missing_value` |
 | `verbosity` | 255 | 1 | 1 | `:number_fallback` / `:missing_value` |
-| `grid`/`grid_level`/`xc_grid` | 168-178 | 1 | 1 | `:unknown_value` / `:missing_value` |
+| `grid`/`grid_level`/`xc_grid` | 168-178 | an unsigned integer as written (the oracle's `parse().unwrap_or(1)` into `usize`), any other token 1 | 1 | `:unknown_value` / `:missing_value` |
 | `conv_tol_density`, `pw_cutoff`/`cutoff` | 179, 346 | `nothing` | `nothing` | `:number_fallback` / `:missing_value` |
 | `field`/`electric_field` | 194-201 | entry → 0.0 | unchanged (`nothing`); fewer than 3 values → unchanged | `:bad_list_entry` / `:too_few_values` |
 | `kpoints`/`k_points`/`kgrid` | 349-355 | entry → 1 | unchanged; fewer than 3 → unchanged | `:bad_list_entry` / `:too_few_values` |
