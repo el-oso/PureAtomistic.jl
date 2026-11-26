@@ -331,5 +331,53 @@ function run_workload()
         e isa InputError || rethrow()
         showerror(io, e)
     end
+    # Structured input: a JSON text with every section, read through the default and the keyword
+    # calls; a tree built with each `Node` constructor and read strictly and, with every lenient
+    # case, leniently; and a walker error, rendered.
+    json_text = """
+    {"title": "w", "charge": 0, "multiplicity": 1, "basis": "STO-3G", "method": "b3lyp", "mode": "opt",
+     "dispersion": true, "zora": false, "hubbard": {"O": 4.0}, "vdw_kernel": "d3bj", "unit": "angstrom",
+     "scf": {"max_iter": 75, "conv_energy": 1e-8, "use_ri_j": true, "use_ri_k": false, "aux_basis": "jk",
+             "gpu": true, "diis_method": "ediis", "verbosity": 2, "checkpoint": "a.chk",
+             "load_checkpoint": false, "damping": 0.1, "smearing": 0.0, "grid": 2, "auto_stabilize": true,
+             "robust_convergence": false, "level_shift": 0.2, "field": [0.0, 0.0, 0.01], "pw_cutoff": 300.0,
+             "lattice": [[5.0, 0, 0], [0, 5.0, 0], [0, 0, 5.0]], "pbc": [true, true, false], "admm": true,
+             "admm_basis": "cfit", "population": ["mulliken"], "kpoints": [2, 2, 2], "kpath": ["G", "X"],
+             "use_dmft": true, "dmft_options": {"temperature": 500.0, "n_matsubara": 64, "n_bath": 2,
+             "u_map": {"O": 4.0}, "j_map": {"O": 0.9}}},
+     "solvation": {"model": "smd", "solvent": "water", "grid_order": 110, "probe_radius": 0.4},
+     "oniom": {"high": "pbe0", "low": "hf", "model_atoms": [0], "model_charge": 0, "model_multiplicity": 1},
+     "tddft": {"num_states": 3, "method": "tda", "soc": false, "triplets": true},
+     "exports": {"molden": true, "cube": false, "wfx": true}, "f12": {"gamma": 1.1, "model": "F12a"},
+     "f12_model": "F12b", "irc_step_size": 0.1, "irc_max_points": 20, "irc_direction": "both",
+     "constraints": [{"freeze_atom": 0}, {"freeze_bond": [0, 1], "target": 1.8}, {"freeze_angle": [1, 0, 2], "target": 104.5}],
+     "geometry": [{"symbol": "O", "position": [0.0, 0.0, 0.1173]}, {"symbol": "H", "x": 0.0, "y": 0.7572, "z": -0.4692},
+                  {"symbol": "H", "position": [0.0, -0.7572, -0.4692]}]}
+    """
+    for p in (parse_json(json_text), parse_json(json_text; source = "w.json", lenient = false))
+        molecule(p.input)
+    end
+    In.json_node(SubString(json_text, 1))
+    N = In.Node
+    atom(s, z) = N(["symbol", "position"], [N(s), N(N[N(0.0), N(0), N(z)])])
+    tree = N(
+        ["geometry", "unit", "title", "f12", "solvation", "scf", "mode", "constraints", "tddft", "method", "lattice"],
+        [
+            N(N[atom("H", -0.7), N(["symbol", "x", "y"], [N("H"), N(0.0), N("y")])]), N("nm"), N(1), N(1.5),
+            N(["model", "surface", "epsilon", "radii_scaling"], [N("pcm"), N("blob"), N(4), N(nothing)]),
+            N(["max_iter", "foo", "field", "kpoints", "damping"], [N(true), N(1), N(N[N(1.0)]), N(N[N(1), N(-0.5), N(1)]), N(NaN)]),
+            N("zzz"), N(N[N(["freeze_bond"], [N(N[N("a")])]), N(["freeze_angle", "target"], [N(N[N(0), N(1), N(2), N(3)]), N(90.0)])]),
+            N(["method"], [N("cis")]), N("casscf"), N(N[N(N[N(1.0), N(0.0)]), N(N[N(0.0), N(1.0), N(0.0)]), N(N[N(0.0), N(0.0), N(1.0)])]),
+        ],
+    )
+    for lenient in (false, true)
+        try
+            In.parse_structured(tree; source = "w.json", lenient)
+        catch e
+            e isa InputError || rethrow()
+            showerror(io, e)
+        end
+    end
+    In.parse_structured(N(["geometry"], [N(N[atom("H", -0.7), atom("H", 0.7)])]); source = "w.json")
     return take!(io)
 end

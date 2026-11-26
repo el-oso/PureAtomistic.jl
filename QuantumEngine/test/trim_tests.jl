@@ -190,3 +190,29 @@ end
         QuantumEngine.Input.accepted_keywords(),
     )
 end
+
+# The structured-input walker on a `Node` tree through its keyword calls, and the `Node`
+# constructors. The constructors are validated through functions, for the reason given above.
+# json_node is not trim-safe: JSON.jl's reader has unresolved calls under TrimCheck; the trimmed entry reads .inp only.
+@testitem "TrimCheck: structured input" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            using QuantumEngine.Input: Node, parse_structured
+            parse_structured_src(root, source) = parse_structured(root; source)
+            parse_structured_kw(root, source, lenient) = parse_structured(root; source, lenient)
+            new_node(x) = Node(x)
+            new_map(keys, items) = Node(keys, items)
+        end,
+        parse_structured_src(Node, String),
+        parse_structured_kw(Node, String, Bool),
+        new_node(Nothing),
+        new_node(Bool),
+        new_node(Int),
+        new_node(Float64),
+        new_node(String),
+        new_node(Vector{Node}),
+        new_map(Vector{String}, Vector{Node}),
+    )
+end

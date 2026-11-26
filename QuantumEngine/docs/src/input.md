@@ -267,3 +267,114 @@ QuantumEngine.parse_inp
 QuantumEngine.molecule
 QuantumEngine.Input.accepted_keywords
 ```
+
+## Structured input (JSON)
+
+`parse_json(text; source, lenient)` reads a JSON input file: `json_node(text)` reads the text with
+JSON.jl into a tree of `Node`s, and `parse_structured(root; source, lenient)` reads the tree into
+a `ParsedInput`. Any reader that builds a `Node` tree reaches the same schema. A JSON integer is
+an integer and a number with a fraction or an exponent is a number; a number beyond the `Float64`
+range is ±Inf. A key given twice in one object is `input: duplicate key "a"` in both modes, as the
+oracle's reader rejects it; an integer outside the `Int64` range is an error too.
+
+```julia
+using QuantumEngine
+p = parse_json(read("fe2_dmft.json", String); source = "fe2_dmft.json")
+```
+
+Keys are case-sensitive. Messages name the key path, with 1-based list positions, and line 0:
+`input: a.json: geometry[2].position[3]: expected a number, got a string`. The checks shared with
+`.inp` (atoms given, a restricted reference only for a singlet, whole numbers of α and β
+electrons) run last, with the `.inp` messages.
+
+### Schema
+
+"Fallback" is a top-level key read when the `scf` key is absent; giving both is an error in strict
+mode. A value of another type than the one listed is an error. An integer where a number is
+listed is converted.
+
+| key path | value | field |
+|---|---|---|
+| `title`; `charge`; `multiplicity` | string; integer; integer ≥ 0 | `title`; `charge`; `multiplicity` |
+| `basis` | string, lowercased | `basis` |
+| `method` | a method word of `.inp` without the Libxc forms, in any case | `method` |
+| `mode`, else `task.mode` | a run-mode word of `.inp` | `run_mode` |
+| `dispersion`; `zora` | Boolean | `dispersion`; `zora` |
+| `hubbard` | a map of element symbol to number | `hubbard` |
+| `vdw_kernel` | a kernel word of `.inp` | `vdw_kernel` |
+| `geometry` or `atoms` (not both) | a list of `{symbol, position: [x, y, z]}` or `{symbol, x, y, z}` | `atoms` |
+| `unit` | `angstrom` or `ang` (the default), `bohr` or `au`, in any case | the geometry unit |
+| `irc_step_size`, `irc_step`; `irc_max_points`, `irc_points`; `irc_direction` | number; integer ≥ 0; a direction word | `irc_step_size`; `irc_max_points`; `irc_direction` |
+| `constraints` | a list of `{freeze_atom: i}`, `{freeze_bond: [i, j], target}`, `{freeze_angle: [i, j, k], target}`, 0-based; a bond target in bohr, an angle target in degrees | `constraints` (1-based, radians) |
+| `f12` | Boolean, or a map of `gamma` or `f12_gamma` (number) and `model` or `approximation` (string), which turns F12 on | `use_f12`, `f12_gamma`, `f12_model` |
+| `f12_gamma`, `gamma`; `f12_model` | number, which needs F12; string | `f12_gamma`; `f12_model` |
+| `scf.max_iter` (fallback `max_iterations`); `scf.conv_energy` (fallback `scf_convergence`) | integer ≥ 0; number | `max_iterations`; `scf_convergence` |
+| `scf.use_ri_j`, `scf.use_ri_k`; `scf.aux_basis` | Boolean; string | `use_ri_j`, `use_ri_k`; `aux_basis` |
+| `scf.gpu` (fallback `gpu`); `scf.compute_mode` (fallback `compute_mode`) | Boolean, `true` selects the GPU; a compute-mode word; not both | `compute_mode` |
+| `scf.diis_method`; `scf.verbosity`; `scf.grid` | `cdiis` or `ediis`; integer ≥ 0; integer ≥ 0 | `diis_method`; `verbosity`; `grid_level` |
+| `scf.checkpoint`; `scf.load_checkpoint` | string; Boolean | `checkpoint`; `load_checkpoint` |
+| `scf.damping`, `scf.smearing`, `scf.level_shift` | number | `damping`, `smearing`, `level_shift` |
+| `scf.auto_stabilize`, `scf.robust_convergence` | Boolean | `auto_stabilize`, `robust_convergence` |
+| `scf.field` | 3 numbers | `electric_field` |
+| `scf.pw_cutoff` (fallback `pw_cutoff`) | number | `pw_cutoff` |
+| `scf.lattice` (fallback `lattice`) | 3 rows of 3 numbers, in Å | `lattice` |
+| `scf.pbc` (fallback `pbc`) | 3 Booleans | `pbc` |
+| `scf.admm`; `scf.admm_basis`; `scf.population` | Boolean; string; a list of `mulliken`, `lowdin` | `admm`; `admm_basis`; `population` |
+| `scf.kpoints` (fallbacks `k_grid`, then `kpoints`) | 3 integers ≥ 0 | `kpoints` |
+| `scf.kpath` (fallback `k_path`) | a list of strings | `kpath` |
+| `scf.use_dmft` (fallback `use_dmft`) | Boolean | `use_dmft` |
+| `scf.dmft_options`, else `dmft`, else `scf.dmft` | a map of `temperature` (number), `n_matsubara`, `n_bath` (integers ≥ 0), `u_map`, `j_map` (maps of element symbol to number) | `dmft_temperature`, `dmft_n_freq`, `dmft_n_bath`, `dmft_u`, `dmft_j` |
+| `solvation.model`, else `solvation.pcm`, else `solvation.smd` (one of them) | `pcm` or `smd`; Boolean; Boolean | `solvation.model` |
+| `solvation` under SMD: `solvent`, `grid_order`, `probe_radius` | a solvent word; integer ≥ 0; number in Å | `solvation` |
+| `solvation` under PCM: `epsilon`, `radii_scaling`, `grid_order`, `surface` | number; number; integer ≥ 0; `vdw`, `sas` or `smd` | `solvation` |
+| `oniom`: `high`, `low`, `model_atoms`, `model_charge`, `model_multiplicity` | method words; 0-based indices; integer; integer ≥ 0 | `oniom` (any `oniom` value asks for ONIOM) |
+| `tddft`: `num_states`, `method`, `soc`, `triplets` | integer ≥ 0; a TDDFT method word; Boolean; Boolean | `tddft_states`, `tddft_method`, `compute_soc`, `tddft_triplets` |
+| `exports`: `molden`, `cube`, `wfx` | Boolean | `export_molden`, `export_cube`, `export_wfx` |
+
+These are errors in both modes, as in the oracle: an empty document; a top-level value that is not
+a map; a geometry entry without a string `symbol`, one with a `position` of fewer than 3 values and
+one with an unknown element; and an unknown ONIOM method or a malformed CASSCF active space in
+one. A negative integer where the oracle stores an unsigned count (`multiplicity`, the counts and
+the atom indices) is also an error in both modes: the oracle wraps it to a count near 2^64, which
+no field holds.
+
+### Lenient reading of structured input
+
+| case | input | strict | lenient (oracle) |
+|---|---|---|---|
+| `:yaml_unknown_key` | `"scf": {"foo": 1}` | `scf.foo: unknown key; accepted keys: …` | ignored |
+| `:yaml_wrong_type` | `"scf": {"max_iter": "many"}` | `scf.max_iter: expected an integer, got a string` | ignored, the default kept |
+| `:yaml_int_for_float` | `"scf": {"conv_energy": 1}` | accepted, converted to 1.0 | ignored, the default kept |
+| `:yaml_unknown_method` | `"method": "dft"`; `"method": "casscf"` | ``unknown value `dft` for `method` `` | ignored (HF); CASSCF(2, 2) for a `casscf` word, ignored when its counts are malformed |
+| `:yaml_unknown_mode` | `"mode": "zzz"` | ``unknown value `zzz` for `mode` `` | ignored |
+| `:yaml_unknown_solvent` | `"solvent": "lava"` under SMD | ``unknown value `lava` for `solvation.solvent` `` | water |
+| `:yaml_unknown_surface` | `"surface": "blob"` under PCM | ``unknown value `blob` for `solvation.surface` `` | vdw |
+| `:yaml_solvation_without_model` | `"solvation": {"epsilon": 4.0}` | `solvation: give model, pcm or smd` | ignored |
+| `:yaml_f12_gamma_enables` | `"f12_gamma": 0.9` without `f12` | `f12_gamma needs f12` | `use_f12 = true` |
+| `:yaml_constraint_index` | `{"freeze_bond": [0]}`; an index that is not an integer; an entry with none or several of the `freeze_*` keys | `constraints[1].freeze_bond: expected 2 indices, got 1` | fewer indices: ignored; a bad index: 0, 1, 2 by position (0-based); several keys: the first of `freeze_atom`, `freeze_bond`, `freeze_angle` |
+| `:yaml_bad_number` | `"position": [0, 0, "x"]`, and an entry of `field`, `lattice` or `kpoints` | `geometry[2].position[3]: expected a number, got a string` | 0.0 (`kpoints`: 1) |
+| `:yaml_missing_coordinate` | `{"symbol": "H", "x": 0, "y": 0}` | ``geometry[2]: missing key `z` `` | 0.0 |
+| `:yaml_unknown_unit` | `"unit": "nm"` | ``unit: unknown value `nm`; accepted: angstrom, ang, bohr, au`` | Å |
+| `:yaml_lattice_row` | a lattice row that is not 3 values | `lattice[2]: expected 3 numbers` | a row of zeros |
+| `:yaml_both_keys` | a key and its fallback (`scf.max_iter` and `max_iterations`), `geometry` and `atoms`, `gpu` and `compute_mode`, `position` and `x`, two of `model`, `pcm`, `smd` | `` `scf.max_iter` and `max_iterations` are both given; give one `` | as the oracle reads them: the key, or the fallback when the key is absent (for a scalar key, also when the key has another type); `compute_mode` after `gpu`; `position` before `x`, `y`, `z`; `model`, then `pcm`, then `smd` |
+| `:yaml_list_length` | `field` of other than 3 values; `lattice`, `pbc` or `kpoints` of other than 3; a `position` of more than 3 | `scf.field: expected 3 numbers, got 2` | `field`: the first 3, ignored when shorter; `position`: the first 3; the others ignored |
+| `:yaml_unknown_value` | an unknown word of `vdw_kernel`, `compute_mode`, `diis_method`, `population`, `irc_direction`, `tddft.method`, `solvation.model` | ``unknown value `d9` for `vdw_kernel` `` | `nothing`; unchanged; CDIIS; the default list; Both; TDA; no solvation |
+| `:nonfinite` | `"damping": 1e400` | `scf.damping: expected a finite number, got Inf` | the value |
+
+An entry of `pbc` that is not a Boolean is `:yaml_wrong_type` and reads as true, an entry of
+`kpath` or `population` that is not a string is dropped (a `population` list with a bad entry
+keeps the default analyses), and a `hubbard`, `u_map` or `j_map` value that is not a number is
+dropped. An option of the other solvation model (`epsilon` under SMD, `solvent` under PCM) and a
+`target` on `freeze_atom` are `:yaml_unknown_key`, ignored as the oracle ignores them.
+
+The units `au` and `ang` mean bohr and Å in both modes; the oracle reads only `bohr` as bohr and
+every other unit as Å. A method word in an ONIOM map is read without regard to case, which the
+oracle does only for the top-level `method`.
+
+```@docs
+QuantumEngine.parse_json
+QuantumEngine.Input.parse_structured
+QuantumEngine.Input.json_node
+QuantumEngine.Input.Node
+QuantumEngine.Input.NodeKind
+```

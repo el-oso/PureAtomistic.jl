@@ -456,18 +456,27 @@ _is_paren(c::Char) = c == '(' || c == ')'
 # The active space the oracle reads from a `casscf` word that `method_word` rejects
 # (`parser.rs:1154-1163`): the word lowercased, every leading `casscf` and every `(` and `)` at
 # either end removed, and the rest split at `,`. Two parts are the electron and orbital counts,
-# which must be unsigned integers; any other number of parts gives (2, 2).
-function _casscf_oracle(st::_InpState, n::Int, w::AbstractString)
+# which must be unsigned integers; any other number of parts gives (2, 2). `_casscf_counts`
+# returns `(status, e, o)`: status 0 for counts read, 1 for a malformed electron count and 2 for a
+# malformed orbital count.
+function _casscf_counts(w::AbstractString)
     s = SubString(lowercase(w))
     while startswith(s, "casscf")
         s = chopprefix(s, "casscf")
     end
     parts = split(strip(_is_paren, s), ',')
-    length(parts) == 2 || return (2, 2)
+    length(parts) == 2 || return (0, 2, 2)
     e = _parse_usize(strip(parts[1]))
-    isnothing(e) && throw(InputError(st.source, n, "Invalid CASSCF electron count"))
+    isnothing(e) && return (1, 0, 0)
     o = _parse_usize(strip(parts[2]))
-    isnothing(o) && throw(InputError(st.source, n, "Invalid CASSCF orbital count"))
+    isnothing(o) && return (2, 0, 0)
+    return (0, e, o)
+end
+
+function _casscf_oracle(st::_InpState, n::Int, w::AbstractString)
+    status, e, o = _casscf_counts(w)
+    status == 1 && throw(InputError(st.source, n, "Invalid CASSCF electron count"))
+    status == 2 && throw(InputError(st.source, n, "Invalid CASSCF orbital count"))
     return (e, o)
 end
 

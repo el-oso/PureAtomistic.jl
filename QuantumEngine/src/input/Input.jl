@@ -7,10 +7,13 @@ name the methods, run modes and options. The vocabulary functions (`method_word`
 `run_mode_word`, `solvent_word` and the others) map the words an input file may use to those
 values, without regard to ASCII case, and return `nothing` for an unknown word; each has an
 `accepted_*` companion that lists its words. `parse_inp` reads an `.inp` file into a `ParsedInput`,
-and `molecule` builds the `Molecule` of an `InputFile`.
+and `molecule` builds the `Molecule` of an `InputFile`. Structured input is a tree of `Node`s:
+`json_node` reads JSON text into one, `parse_structured` reads the tree into a `ParsedInput`, and
+`parse_json` does both.
 """
 module Input
 
+using JSON: JSON
 using Parsers: Parsers
 using StaticArrays: SVector, SMatrix
 using StrictMode: @strict_exempt, @strict_policy
@@ -22,6 +25,9 @@ using ..IO: input_line, reject_or_warn, _parse_coordinate
 include("types.jl")
 include("vocabulary.jl")
 include("inp.jl")
+include("node.jl")
+include("structured.jl")
+include("json.jl")
 
 export RunMode, SinglePoint, Optimization, TransitionState, NEB, Frequency, TDDFT, Spectroscopy,
     OptFreq, BSSE, NBO, Bands, DOS, NMR, QTAIM, IRC
@@ -47,6 +53,8 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
     accepted_vdw_kernels, accepted_tddft_methods, accepted_grids, accepted_irc_directions,
     accepted_compute_modes, accepted_diis_methods, accepted_populations, accepted_surfaces
 export parse_inp, molecule, accepted_keywords
+export NodeKind, NullNode, BoolNode, IntNode, FloatNode, StringNode, ArrayNode, MapNode, Node
+export parse_structured, json_node, parse_json
 
 # The keyword body of `InputFile` allocates only when it stores an `ONIOMSpec`, which it boxes into
 # the `Union{Nothing,ONIOMSpec}` field; every other call is held to `:noalloc`.
@@ -69,9 +77,9 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc types = (_InputDraft, ONIOMSpec) _build_input reason = "entry point helper: InputFile builder of parse_inp and _finalize_input"
 @strict_exempt :noalloc types = (_InputDraft, ONIOMSpec) _input reason = "entry point helper: InputFile builder of parse_inp and _finalize_input"
 @strict_exempt :noalloc _InpState reason = "entry point: parser state constructor of parse_inp"
-@strict_exempt :noalloc _reject reason = "entry point helper: strict-or-lenient choice of parse_inp"
+@strict_exempt :noalloc _reject reason = "entry point helper: strict-or-lenient choice of parse_inp and parse_structured"
 @strict_exempt :noalloc _line! reason = "entry point helper: line reader of parse_inp"
-@strict_exempt :noalloc _join reason = "entry point helper: word joiner of parse_inp, builds a String"
+@strict_exempt :noalloc _join reason = "entry point helper: word joiner of parse_inp and parse_structured, builds a String"
 @strict_exempt :noalloc _finite reason = "entry point helper: number check of parse_inp"
 @strict_exempt :noalloc _float_required reason = "entry point helper: number reader of parse_inp"
 @strict_exempt :noalloc _float_optional reason = "entry point helper: number reader of parse_inp"
@@ -81,10 +89,11 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc _uint_optional reason = "entry point helper: unsigned integer reader of parse_inp"
 @strict_exempt :noalloc _uint_or reason = "entry point helper: unsigned integer reader with the oracle's fallback, of parse_inp"
 @strict_exempt :noalloc _casscf_oracle reason = "entry point helper: CASSCF active-space reader of parse_inp"
+@strict_exempt :noalloc _casscf_counts reason = "entry point helper: CASSCF active-space reader of parse_inp and parse_structured"
 @strict_exempt :noalloc _missing! reason = "entry point helper: missing-value reader of parse_inp"
 @strict_exempt :noalloc _index reason = "entry point helper: atom index reader of parse_inp"
 @strict_exempt :noalloc _bool reason = "entry point helper: Boolean reader of parse_inp"
-@strict_exempt :noalloc _unknown_msg reason = "entry point helper: unknown-word message of parse_inp"
+@strict_exempt :noalloc _unknown_msg reason = "entry point helper: unknown-word message of parse_inp and parse_structured"
 @strict_exempt :noalloc _unknown reason = "entry point helper: unknown-word rejection of parse_inp"
 @strict_exempt :noalloc _count_ok reason = "entry point helper: value count check of parse_inp"
 @strict_exempt :noalloc _method_value reason = "entry point helper: method reader of parse_inp"
@@ -108,6 +117,61 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc _resolve_solvation! reason = "entry point helper: solvation resolution of parse_inp"
 @strict_exempt :noalloc _solvation_by_keyword! reason = "entry point helper: order-independent solvation of parse_inp"
 @strict_exempt :noalloc _check_f12 reason = "entry point helper: F12 option check of parse_inp"
+
+@strict_exempt :noalloc Node reason = "entry point: Node constructor"
+@strict_exempt :noalloc parse_structured reason = "entry point: structured-input reader"
+@strict_exempt :noalloc parse_json reason = "entry point: JSON reader"
+@strict_exempt :noalloc json_node reason = "entry point: JSON tree reader"
+@strict_exempt :noalloc _json_node reason = "entry point helper: JSON value converter of json_node"
+@strict_exempt :noalloc _JSONObject reason = "entry point: JSON object constructor of json_node"
+@strict_exempt :noalloc setindex! reason = "entry point helper: JSON object builder of json_node"
+@strict_exempt :noalloc _Walk reason = "entry point helper: walk state constructor of parse_structured"
+@strict_exempt :noalloc _At reason = "entry point helper: key-path constructor of parse_structured"
+@strict_exempt :noalloc _child reason = "entry point helper: key path builder of parse_structured"
+@strict_exempt :noalloc _list_path reason = "entry point helper: key path builder of parse_structured"
+@strict_exempt :noalloc _at reason = "entry point helper: map lookup of parse_structured"
+@strict_exempt :noalloc _item reason = "entry point helper: list lookup of parse_structured"
+@strict_exempt :noalloc _ok reason = "entry point helper: type check of parse_structured"
+@strict_exempt :noalloc _sbool reason = "entry point helper: Boolean reader of parse_structured"
+@strict_exempt :noalloc _sint reason = "entry point helper: integer reader of parse_structured"
+@strict_exempt :noalloc _suint reason = "entry point helper: unsigned integer reader of parse_structured"
+@strict_exempt :noalloc _sfloat reason = "entry point helper: number reader of parse_structured"
+@strict_exempt :noalloc _number reason = "entry point helper: list number reader of parse_structured"
+@strict_exempt :noalloc _sstring reason = "entry point helper: string check of parse_structured"
+@strict_exempt :noalloc _smap reason = "entry point helper: map check of parse_structured"
+@strict_exempt :noalloc _slist reason = "entry point helper: list check of parse_structured"
+@strict_exempt :noalloc _check_keys reason = "entry point helper: unknown-key check of parse_structured"
+@strict_exempt :noalloc _both reason = "entry point helper: fallback check of parse_structured"
+@strict_exempt :noalloc _first reason = "entry point helper: fallback reader of parse_structured"
+@strict_exempt :noalloc _alt reason = "entry point helper: fallback reader of parse_structured"
+@strict_exempt :noalloc _unknown_word reason = "entry point helper: unknown-word rejection of parse_structured"
+@strict_exempt :noalloc _hubbard_map reason = "entry point helper: element map reader of parse_structured"
+@strict_exempt :noalloc _structured_method reason = "entry point helper: method reader of parse_structured"
+@strict_exempt :noalloc _top! reason = "entry point helper: top-level reader of parse_structured"
+@strict_exempt :noalloc _scf! reason = "entry point helper: scf reader of parse_structured"
+@strict_exempt :noalloc _length_ok reason = "entry point helper: list length check of parse_structured"
+@strict_exempt :noalloc _field! reason = "entry point helper: field reader of parse_structured"
+@strict_exempt :noalloc _lattice! reason = "entry point helper: lattice reader of parse_structured"
+@strict_exempt :noalloc _lattice_row reason = "entry point helper: lattice row reader of parse_structured"
+@strict_exempt :noalloc _pbc! reason = "entry point helper: pbc reader of parse_structured"
+@strict_exempt :noalloc _population! reason = "entry point helper: population reader of parse_structured"
+@strict_exempt :noalloc _count reason = "entry point helper: list count reader of parse_structured"
+@strict_exempt :noalloc _kpoints! reason = "entry point helper: k-point reader of parse_structured"
+@strict_exempt :noalloc _kpath! reason = "entry point helper: k-path reader of parse_structured"
+@strict_exempt :noalloc _dmft! reason = "entry point helper: DMFT reader of parse_structured"
+@strict_exempt :noalloc _solvation! reason = "entry point helper: solvation reader of parse_structured"
+@strict_exempt :noalloc _oniom reason = "entry point helper: ONIOM reader of parse_structured"
+@strict_exempt :noalloc _tddft! reason = "entry point helper: TDDFT reader of parse_structured"
+@strict_exempt :noalloc _exports! reason = "entry point helper: exports reader of parse_structured"
+@strict_exempt :noalloc _f12! reason = "entry point helper: F12 reader of parse_structured"
+@strict_exempt :noalloc _bohr reason = "entry point helper: unit reader of parse_structured"
+@strict_exempt :noalloc _geometry! reason = "entry point helper: geometry reader of parse_structured"
+@strict_exempt :noalloc _structured_atom reason = "entry point helper: atom reader of parse_structured"
+@strict_exempt :noalloc _coordinate reason = "entry point helper: coordinate reader of parse_structured"
+@strict_exempt :noalloc _irc! reason = "entry point helper: IRC reader of parse_structured"
+@strict_exempt :noalloc _indices reason = "entry point helper: constraint index reader of parse_structured"
+@strict_exempt :noalloc _constraint_index reason = "entry point helper: constraint index reader of parse_structured"
+@strict_exempt :noalloc _constraints! reason = "entry point helper: constraint reader of parse_structured"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

@@ -12,8 +12,17 @@ package.
 | LinearAlgebra | `1.13` | none: a standard library, already in the closure through StaticArrays | Artifacts, Libdl; the standard-library `_jll` packages CompilerSupportLibraries_jll, OpenBLAS_jll and libblastrampoline_jll | none outside the standard libraries |
 | Printf | `1.11` | none: a standard library (version 1.11.0 in Julia 1.13), already in the closure through StrictMode and StaticArrays | Unicode | none |
 | Parsers | `3` | Parsers 3.0.6, PrecompileTools 1.4.0, Preferences 1.6.1 | Dates, Printf, TOML, Unicode | none |
+| JSON | `1.6` | at JSON 1.6.1: JSON 1.6.1, Parsers 2.8.11, StructUtils 2.12.1, PrecompileTools 1.4.0, Preferences 1.6.1; at JSON 1.13.4, the newest the bound admits: JSON 1.13.4, Parsers 3.0.6, StructUtils 2.12.1, PrecompileTools 1.4.0, Preferences 1.6.1 | Dates, Logging, Printf, Random, SHA, TOML, UUIDs, Unicode | none |
 
 Parsers 3.0.6 comes from the General registry. It reads the exact-exchange fraction of a Libxc
 hybrid method. Its exact decimal path, the one that places a value the 64-bit paths cannot,
 allocates a digit buffer, so `method_word` and `_fraction` are exempt from `:noalloc`. The
 exemption is removed when a Parsers release contains JuliaData/Parsers.jl#244.
+
+JSON (JSON.jl) reads JSON input. Its closure was resolved twice in fresh environments, pinned to
+1.6.1 and at 1.13.4; neither has a `_jll` package outside the standard libraries or an
+`Artifacts.toml`. JSON 1.6 and 1.7 require Parsers 1 or 2, so with QuantumEngine's Parsers 3 the
+bound resolves to JSON 1.8 or later (1.13.4 here). `json_node` reads through the public
+`JSON.parse(text; dicttype = T)`, with an object type `T` whose `setindex!` rejects a repeated key;
+JSON 1.6.1 and 1.13.4 both build objects through `T()` and `setindex!` alone. TrimCheck rejects
+`json_node` on both versions, so the trimmed program reads `.inp` input only.
