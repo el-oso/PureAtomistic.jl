@@ -1,0 +1,584 @@
+# The outcome of `parse_input` on each vendored oracle input, in strict mode and with
+# `lenient = true`, keyed by the file's path relative to this directory.
+#
+#   strict, lenient    "ok" or "error"
+#   strict_message     a substring of the strict error message (strict = "error")
+#   lenient_message    a substring of the lenient error message (lenient = "error")
+#   lenient_warnings   the sorted case names of the lenient warnings (lenient = "ok")
+#
+# Each row is read from the oracle (`quantum_engine` at 4a78a1d), with the lines of its source
+# cited in the row's reason. `parser.rs` is its `src/input/parser.rs`, `molecule.rs` its
+# `src/io/molecule.rs`, `vdw.rs` its `src/dft/vdw.rs`, and `yaml.rs`, `scanner.rs` and
+# `yaml_parser.rs` the files `src/yaml.rs`, `src/scanner.rs` and `src/parser.rs` of yaml-rust2
+# 0.9.0, its YAML and JSON reader. A file the oracle reads without error and without a silently
+# accepted line is "ok" in both modes with no warning. Lenient mode reproduces each silently
+# accepted line with one warning of its case, and strict mode rejects the first one. A file the
+# oracle reads into an input without atoms fails in both modes ("no atoms" in lenient mode).
+#
+# Shared citations: the first `#` line is the title (parser.rs:43-47); a keyword line matches
+# its arm by its lowercased first token (parser.rs:55-57); `end` closes every block
+# (parser.rs:369-376); an atom line inside a geometry block is read at parser.rs:576-600, in Å
+# unless the block says `bohr` (parser.rs:307-318, 582-585); a word no arm matches, outside every
+# block, falls through every branch of parser.rs:563-618 and is dropped.
+
+["benchmarks/fe2_dmft.json"]
+# parser.rs:22-23 reads `.json` with the YAML reader. Every key is read: atoms (:1006-1010),
+# basis (:716), charge (:714), multiplicity (:715), scf.conv_energy (:742), scf.max_iter (:741),
+# scf.use_dmft (:858) and scf.dmft_options with temperature, n_matsubara, n_bath, u_map and j_map
+# (:850-881).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/benzene.xyz"]
+# molecule.rs:35-71: count 12, a comment line, 12 atom lines of C and H, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/ch3_radical.inp"]
+# parser.rs:1127 reads `rhf` (line 5) as the one Hartree-Fock method, whose reference the
+# multiplicity 2 (line 3, parser.rs:275-279) decides: case :rhf_open_shell.
+strict = "error"
+strict_message = "ch3_radical.inp:5: method `rhf` requests a restricted reference, but multiplicity is 2"
+lenient = "ok"
+lenient_warnings = ["rhf_open_shell"]
+
+["examples/ch4.inp"]
+# charge, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); the geometry block is closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2.inp"]
+# charge, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); a bohr geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2_b3lyp.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis, method b3lyp
+# (:377-385, 1143), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2_ediis.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword. `diis_method ediis` is read at parser.rs:549-553.
+strict = "error"
+strict_message = "h2_ediis.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/h2_lda.inp"]
+# charge, multiplicity (parser.rs:270-279); a bohr geometry block closed by `end`; basis, method
+# lda (:377-385, 1135), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2_opt.inp"]
+# charge, multiplicity (parser.rs:270-279); a bohr geometry block closed by `end`; basis, method
+# rhf (:377-385, 1127); `optimize` (:58-60).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2_pbe0.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis, method pbe0
+# (:377-385, 1142), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2_sp.inp"]
+# charge, multiplicity (parser.rs:270-279); a bohr geometry block closed by `end`; basis, method
+# rhf (:377-385, 1127), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o.inp"]
+# `use_diis` (line 14, after `end`) matches no arm and no block is open: parser.rs:563-618 drops
+# it, case :unknown_keyword.
+strict = "error"
+strict_message = "h2o.inp:14: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/h2o_631g_sp.inp"]
+# parser.rs:377-382 stores `basis 631-g` lowercased as written; the basis reader resolves it as
+# the 6-31G alias (`basis/reader.rs:62`). method pbe0 (:1142), scf_convergence and
+# max_iterations (:539-548); the geometry block is closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_bohr.inp"]
+# charge, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); a bohr geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_ccsd_f12_test.inp"]
+# title (parser.rs:84-88), run_mode sp (:61-65), charge, multiplicity, basis, aux_basis
+# (:267-279, 377-382), method ccsd-f12 (:1133), f12_gamma (:152-154), f12_model (:155-157),
+# scf_convergence and max_iterations (:539-548); the geometry block is closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_cdiis.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword. `diis_method cdiis` is read at parser.rs:549-553.
+strict = "error"
+strict_message = "h2o_cdiis.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/h2o_ediis.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword. method b3lyp (:1143), `diis_method ediis` (:549-553).
+strict = "error"
+strict_message = "h2o_ediis.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/h2o_f12_test.inp"]
+# title (parser.rs:84-88), run_mode sp (:61-65), charge, multiplicity, basis, aux_basis
+# (:267-279, 377-382), method mp2-f12 (:1129), f12_gamma (:152-154), f12_model (:155-157),
+# scf_convergence and max_iterations (:539-548); the geometry block is closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_nodiss.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword.
+strict = "error"
+strict_message = "h2o_nodiss.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/h2o_opt.inp"]
+# `optimize` (parser.rs:58-60); a geometry block closed by `end`; parser.rs:377-382 stores
+# `basis 631-g` lowercased as written, the 6-31G alias of `basis/reader.rs:62`; method pbe0
+# (:1142), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_pbe0_631g.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis 6-31g, method
+# pbe0 (:377-385, 1142), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_rhf_631g.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis 6-31g, method
+# rhf (:377-385, 1127), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_rhf_opt.inp"]
+# charge, multiplicity (parser.rs:270-279), `optimize` (:58-60); a geometry block closed by
+# `end`; basis, method rhf (:377-385, 1127), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_sp.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis, method rhf
+# (:377-385, 1127), scf_convergence and max_iterations (:539-548).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_tddft.inp"]
+# charge, multiplicity, basis, method lda (parser.rs:270-279, 377-385, 1135), `run tddft`
+# (:61-70), `num_tddft_states 3` (:505-509); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/h2o_test.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword.
+strict = "error"
+strict_message = "h2o_test.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/heh.inp"]
+# charge 1, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); a bohr geometry block of He and H closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/adenina.xyz"]
+# molecule.rs:35-71: count 32, a comment line, 32 atom lines of C, H, N and O, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/ethanol.inp"]
+# run_mode frequency (parser.rs:61-69), method rhf (:383-385, 1127), basis, charge, multiplicity
+# (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2_io_test.yaml"]
+# `.inp` text in a `.yaml` file (parser.rs:22-23). yaml-rust2 reads lines 2-13 as one plain
+# scalar (scanner.rs:2175 ends it only at a `#` or a document indicator, and the only `#` is on
+# line 1); indexing a scalar gives a bad value (yaml.rs:688-701), so no key is read and the
+# input has no atoms (parser.rs:1006-1012).
+strict = "error"
+strict_message = "top-level YAML document is not a mapping; this file looks like .inp syntax"
+lenient = "error"
+lenient_message = "no atoms: the input has no geometry block"
+
+["examples/legacy_inputs/h2_opt.inp"]
+# method rhf, basis, charge, multiplicity (parser.rs:270-279, 377-385, 1127), `optimize`
+# (:58-60), scf_convergence and max_iterations (:539-548); a bohr geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2o.xyz"]
+# molecule.rs:35-71: count 3, a comment line, 3 atom lines of O and H, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2o_ccsd_t.inp"]
+# title (parser.rs:84-88), run_mode sp (:61-65), charge, multiplicity, basis 6-31g, method ccsd
+# (:270-279, 377-385, 1132), scf_convergence and max_iterations (:539-548); a geometry block
+# closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2o_fix.inp"]
+# title (parser.rs:84-88), run_mode optfreq (:61-72), method pbe0 (:1142), basis, `dispersion
+# true` (:143-145), `grid fine` (:168-178), charge, multiplicity (:270-279), `auto_stabilize true`
+# (:185-187), `robust_convergence true` (:188-190), max_iterations (:544-548); a geometry block
+# closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2o_opt.inp"]
+# A geometry block closed by `end`; `run opt` (parser.rs:61-66), method rhf, basis. `convergence`
+# (line 9) and `maxiter` (line 10) match no arm and no block is open: parser.rs:563-618 drops
+# both, case :unknown_keyword each.
+strict = "error"
+strict_message = "h2o_opt.inp:9: unknown keyword `convergence`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword", "unknown_keyword"]
+
+["examples/legacy_inputs/h2o_optfreq.inp"]
+# title (parser.rs:84-88), run_mode optfreq (:61-72), method pbe0 (:1142), basis, charge,
+# multiplicity (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/h2o_test.inp"]
+# A geometry block closed by `end`, then method rhf and basis (parser.rs:377-385, 1127); no `#`
+# line, so the title stays empty.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/input_hf.yaml"]
+# yaml-rust2 reads a mapping. `basis` is a mapping, not a string (parser.rs:716 reads nothing),
+# scf.max_iter is read (:741) and scf.conv_tol is not (:742 reads conv_energy), `dft` is read
+# nowhere, and `task` has no `mode` (:684-691). There is no geometry or atoms key, so the input
+# has no atoms (:1006-1012).
+strict = "error"
+strict_message = "dft: unknown key"
+lenient = "error"
+lenient_message = "no atoms: the input has no geometry block"
+
+["examples/legacy_inputs/methanol_01_sp_hf.inp"]
+# title (parser.rs:84-88), run_mode sp (:61-65), method hf (:1127), basis, charge, multiplicity
+# (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/methanol_02_mp2.inp"]
+# title (parser.rs:84-88), run_mode sp (:61-65), method mp2 (:1128), basis, charge,
+# multiplicity (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/methanol_03_optfreq.inp"]
+# title (parser.rs:84-88), run_mode optfreq (:61-72), method pbe0 (:1142), basis, charge,
+# multiplicity (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/methanol_04_tddft.inp"]
+# title (parser.rs:84-88), run_mode tddft (:61-70), method b3lyp (:1143), basis, charge,
+# multiplicity (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/methanol_05_spectroscopy.inp"]
+# title (parser.rs:84-88), run_mode spectroscopy (:61-71), method hf (:1127), basis, charge,
+# multiplicity (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/neb_test.inp"]
+# Keywords are matched lowercased (parser.rs:55). The geometry block of line 10 is not closed:
+# `END_GEOMETRY` (line 14) matches no arm and, with fewer than 4 tokens, no block-line branch
+# (parser.rs:563-618), so it is dropped. Lenient mode keeps both geometries of 3 atoms,
+# NEB_IMAGES 5 (:98-100), RUN_MODE neb (:61-68) and CHARGE 1 (:270-274).
+strict = "error"
+strict_message = "neb_test.inp:14: `END_GEOMETRY` inside the geometry block opened at line 10"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "dropped_block_line", "dropped_block_line", "unknown_keyword"]
+
+["examples/legacy_inputs/neb_test.neb.xyz"]
+# A trajectory of 5 frames of 3 atoms. molecule.rs:50-51 reads the atom lines of the first frame
+# and stops at the atom count, so the other frames are ignored: case :xyz_frames.
+strict = "error"
+strict_message = "xyz: the file has 5 frames; an input geometry needs exactly one"
+lenient = "ok"
+lenient_warnings = ["xyz_frames"]
+
+["examples/legacy_inputs/test_mp2.inp"]
+# run_mode single_point (parser.rs:61-65), method mp2 (:1128), basis, charge, multiplicity
+# (:270-279, 377-382); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/test_neb.yaml"]
+# `.inp` text in a `.yaml` file (parser.rs:22-23). yaml-rust2 ends the plain scalar of lines 2-10
+# at the `#` of line 12 (scanner.rs:2175); the scalar on line 13 then starts a second document
+# without `---`, which yaml-rust2 rejects with "did not find expected <document start>"
+# (yaml_parser.rs:529-559, 591-605), and parser.rs:678 returns that error.
+strict = "error"
+strict_message = "not valid YAML"
+lenient = "error"
+lenient_message = "not valid YAML"
+
+["examples/legacy_inputs/test_ump2.inp"]
+# run_mode single_point (parser.rs:61-65), method mp2 (:1128), basis, charge, multiplicity 2
+# (:270-279, 377-382); a geometry block closed by `end`. `mp2` names no reference, so an open
+# shell is no conflict.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/legacy_inputs/water_ediis.inp"]
+# `use_diis` (line 8) matches no arm and no block is open: parser.rs:563-618 drops it, case
+# :unknown_keyword. method b3lyp (:1143), `diis_method ediis` (:549-553).
+strict = "error"
+strict_message = "water_ediis.inp:8: unknown keyword `use_diis`"
+lenient = "ok"
+lenient_warnings = ["unknown_keyword"]
+
+["examples/lih.inp"]
+# charge, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); a bohr geometry block of Li and H closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/methane.xyz"]
+# molecule.rs:35-71: count 5, a comment line, 5 atom lines of C and H, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/methyl_radical.xyz"]
+# molecule.rs:35-71: count 4, a comment line, 4 atom lines of C and H, no further line. The file
+# carries no multiplicity; neither reader checks the electron count.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/nh3.inp"]
+# charge, multiplicity, basis, method rhf (parser.rs:270-279, 377-385, 1127), scf_convergence
+# and max_iterations (:539-548); a geometry block closed by `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/o2_triplet.inp"]
+# parser.rs:1127 reads `rhf` (line 5) as the one Hartree-Fock method, whose reference the
+# multiplicity 3 (line 3, parser.rs:275-279) decides: case :rhf_open_shell.
+strict = "error"
+strict_message = "o2_triplet.inp:5: method `rhf` requests a restricted reference, but multiplicity is 3"
+lenient = "ok"
+lenient_warnings = ["rhf_open_shell"]
+
+["examples/oxygen_triplet.xyz"]
+# molecule.rs:35-71: count 2, a comment line, 2 atom lines of O, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/water.inp"]
+# charge, multiplicity (parser.rs:270-279); a geometry block closed by `end`; basis, method rhf
+# (:377-385, 1127), scf_convergence and max_iterations (:539-548); lines 18-21 are comments.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["examples/water.xyz"]
+# molecule.rs:35-71: count 3, a comment line, 3 atom lines of O and H, no further line.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["molecules/h2_ccsd.inp"]
+# YAML text in an `.inp` file (parser.rs:24-25). No line's first token (`molecule:`, `atoms:`,
+# `-`, `position:`, `basis:`, ...) matches an arm and no block is open, so parser.rs:563-618
+# drops every line and the input has no atoms.
+strict = "error"
+strict_message = "h2_ccsd.inp:4: `molecule:` looks like YAML"
+lenient = "error"
+lenient_message = "no atoms: the input has no geometry block"
+
+["molecules/oh_uccsd.inp"]
+# YAML text in an `.inp` file (parser.rs:24-25). No line's first token (`molecule:`, `atoms:`,
+# `-`, `position:`, `basis:`, ...) matches an arm and no block is open, so parser.rs:563-618
+# drops every line and the input has no atoms.
+strict = "error"
+strict_message = "oh_uccsd.inp:4: `molecule:` looks like YAML"
+lenient = "error"
+lenient_message = "no atoms: the input has no geometry block"
+
+["src/input/agua.xyz"]
+# molecule.rs:35-71: count 3, a comment line, 3 atom lines of O and H; the trailing blank line is
+# skipped (molecule.rs:36).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["src/input/input.yaml"]
+# yaml-rust2 reads a mapping. `method: DFT` names no method (parser.rs:1165), so :719-723 keeps
+# the default; scf.max_iter and scf.conv_energy are read (:741-742), scf.conv_density and `dft`
+# are read nowhere, and `task` has no `mode` (:684-691). There is no geometry or atoms key, so
+# the input has no atoms (:1006-1012).
+strict = "error"
+strict_message = "dft: unknown key"
+lenient = "error"
+lenient_message = "no atoms: the input has no geometry block"
+
+["tests/argon_vdw.in"]
+# The geometry block of line 5 has no `end`. `vdw_kernel VV10` (line 9) is matched as its keyword
+# before the block-line branch (parser.rs:286-288, 563) and stores a kernel vdw.rs:22-24 names;
+# the block stays open to the end of the file.
+strict = "error"
+strict_message = "argon_vdw.in:9: `vdw_kernel` inside the geometry block opened at line 5"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "unclosed_block"]
+
+["tests/h2o.in"]
+# The geometry block of line 5 has no `end`. `charge 0` (line 10) and `multiplicity 1` (line 11)
+# are matched as their keywords before the block-line branch (parser.rs:270-279, 563); the block
+# stays open to the end of the file.
+strict = "error"
+strict_message = "h2o.in:10: `charge` inside the geometry block opened at line 5"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "block_keyword", "unclosed_block"]
+
+["tests/h2o_dimer_bsse.inp"]
+# title (parser.rs:84-88), method rhf, basis, run_mode bsse (:61-73); a geometry block closed by
+# `end`; `fragments 0,1,2 ; 3,4,5` gives two fragments on its line, which closes the fragments
+# block (:289-306); `nbo true` (:158-160).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["tests/h2o_nbo.inp"]
+# title (parser.rs:84-88), method rhf, basis, `run nbo` (:61-74); a geometry block closed by
+# `end`.
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["tests/h2o_vdw.in"]
+# The geometry block of line 5 has no `end`. `vdw_kernel VV10` (line 13) is matched as its
+# keyword before the block-line branch (parser.rs:286-288, 563) and stores a kernel vdw.rs:22-24
+# names; the block stays open to the end of the file.
+strict = "error"
+strict_message = "h2o_vdw.in:13: `vdw_kernel` inside the geometry block opened at line 5"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "unclosed_block"]
+
+["tests/h2o_vdw_d2.in"]
+# The geometry block of line 5 has no `end`. `vdw_kernel Grimme-D2` (line 13) is matched as its
+# keyword before the block-line branch (parser.rs:286-288, 563) and stores a kernel vdw.rs:22-23
+# names; the block stays open to the end of the file.
+strict = "error"
+strict_message = "h2o_vdw_d2.in:13: `vdw_kernel` inside the geometry block opened at line 5"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "unclosed_block"]
+
+["tests/o2_hubbard.in"]
+# The geometry block (line 6) has no `end`. `hubbard` on line 10 ends it (parser.rs:280-285
+# clears the geometry block) and opens the hubbard block, which `end` closes (parser.rs:369-376).
+# Warnings (case, line): (:block_keyword, 10), (:unclosed_block, 10).
+strict = "error"
+strict_message = "o2_hubbard.in:10: `hubbard` inside the geometry block opened at line 6"
+lenient = "ok"
+lenient_warnings = ["block_keyword", "unclosed_block"]
+
+["tests/si.yaml"]
+# yaml-rust2 reads a mapping, and every key is read: title (parser.rs:713), lattice (:787-799),
+# atoms (:1006-1010), pw_cutoff (:782-784), k_grid (:821-837), k_path (:840-847), mode bands
+# (:684-708), max_iterations (:741), scf_convergence (:742; `1e-6` resolves to a real,
+# yaml.rs:66-71, 675-680).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["tests/stress_dimer_bsse.in"]
+# title (parser.rs:84-88), method b3lyp (:1143), basis, run_mode counterpoise (:61-73); a
+# geometry block closed by `end`; a fragments block (:289-306) whose line `0,1,2 ; 3,4,5` is read
+# at :568-575, closed by `end`; `dispersion true` (:143-145), verbosity (:255-257).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []
+
+["tests/stress_h2o_complex.in"]
+# `hubbard O:5.0` (line 12) opens a hubbard block that no `end` closes (parser.rs:280-285).
+# Lines 13-17 are keywords, which the oracle matches before the block line (parser.rs:56-563):
+# `vdw_kernel pbe-vdw` stores a word no kernel matches (parser.rs:286-288), and the others set
+# their values. Warnings (case, line): (:hubbard_inline_argument, 12), (:block_keyword, 13),
+# (:unknown_value, 13), (:block_keyword, 14), (:block_keyword, 15), (:block_keyword, 16),
+# (:block_keyword, 17), (:unclosed_block, 12).
+strict = "error"
+strict_message = "stress_h2o_complex.in:12: `hubbard` takes no value on its line"
+lenient = "ok"
+lenient_warnings = [
+    "block_keyword", "block_keyword", "block_keyword", "block_keyword", "block_keyword",
+    "hubbard_inline_argument", "unclosed_block", "unknown_value",
+]
+
+["tests/stress_methane_nbo.in"]
+# title (parser.rs:84-88), method pbe0 (:1142), basis, run_mode single_point (:61-65); a geometry
+# block closed by `end`; `nbo true` (:158-160), `vdw_kernel b97x-d` (:286-288, a kernel
+# vdw.rs:22-23 names), verbosity (:255-257).
+strict = "ok"
+lenient = "ok"
+lenient_warnings = []

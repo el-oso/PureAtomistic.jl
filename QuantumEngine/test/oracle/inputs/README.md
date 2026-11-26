@@ -9,3 +9,6 @@ the same relative paths.
 
 The source repository declares the Apache-2.0 license in its `Cargo.toml`; the
 license text is in `LICENSE` next to this file.
+
+`EXPECTED.toml` is not one of them: it records the outcome of `parse_input` on
+each file in strict and lenient mode, with the oracle source lines behind it.
