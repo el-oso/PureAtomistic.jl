@@ -707,6 +707,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
   - `ccsd` → CCSD, Auto; `rccsd` → Restricted; `uccsd` → Unrestricted.
   - `ccsd(t)` → CCSD_T, Auto; `uccsd(t)` → CCSD_T, Unrestricted.
   - `ccsd-f12`, `ccsd_f12`, `rccsd-f12` → CCSD_F12; `ccsd(t)-f12`, `ccsd(t)_f12`, `ccsd_t_f12` → CCSD_T_F12.
+  - References follow this package's prefix rule, not the oracle, which drops the reference for every method word (`parser.rs:1126-1135`; `rmp2` and `ump2` both give MP2): a leading `r` gives Restricted and a leading `u` gives Unrestricted, so `rmp2-f12` and `rccsd-f12` give Restricted; every other F12 word gives AutoReference.
 - **DFT and others:**
   - `lda`, `pbe`, `blyp`, `scan`, `tpss`, `pbe0` and `b3lyp`; `m06l`/`m06-l` and `m062x`/`m06-2x`.
   - `rpa`/`rirpa`, `b88-vdw`/`b88_vdw`, `pbe-vdw`/`pbe_vdw`, `b97x-d`/`b97xd`, `wb97m-v`/`wb97mv`, `b2plyp`, `mpw2plyp` and `dsd-pbep86`/`dsdpbep86`.
