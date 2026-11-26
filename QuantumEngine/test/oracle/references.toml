@@ -1,0 +1,178 @@
+# Oracle reference values. Each [case] table holds an input, its source, the extractors and
+# exports, and the map from each compared quantity to its row in tolerances.toml; capture.jl
+# writes the extracted values and the SHA-256 of each captured file. Each [fixture] table holds
+# the settings the oracle echoes for a vendored input file. Rewritten by capture.jl.
+
+[meta]
+oracle_commit = ""
+
+[case.h2_opt]
+input = '''
+# H2 geometry optimization
+
+charge 0
+multiplicity 1
+
+geometry bohr
+H  0.0  0.0  -0.8
+H  0.0  0.0   0.8
+end
+
+basis sto-3g
+method rhf
+optimize
+'''
+source = "examples/h2_opt.inp"
+extract = ["opt_steps"]
+exports = []
+tolerance = {opt_energy = "hf.energy", opt_gnorm = "gradient.norm"}
+
+[case.h2_qtaim]
+input = '''
+# Hydrogen molecule
+charge 0
+multiplicity 1
+basis sto-3g
+method rhf
+scf_convergence 1e-6
+max_iterations 50
+run qtaim
+
+geometry bohr
+H   0.0   0.0  -0.7
+H   0.0   0.0   0.7
+end
+'''
+source = "derived from examples/h2.inp: `run qtaim` added as line 8"
+extract = ["ext_report"]
+exports = ["ext"]
+tolerance = {"ext_report.bcp1.delta_r" = "qtaim.bcp1.delta_r", "ext_report.bcp1.ellipticity" = "qtaim.bcp1.ellipticity", "ext_report.bcp1.laplacian" = "qtaim.bcp1.laplacian", "ext_report.bcp1.r_b" = "qtaim.bcp1.r_b", "ext_report.bcp1.r_e" = "qtaim.bcp1.r_e", "ext_report.bcp1.rho" = "qtaim.bcp1.rho", "ext_report.n_bcp" = "qtaim.n_bcp", "ext_report.n_ccp" = "qtaim.n_ccp", "ext_report.n_nacp" = "qtaim.n_nacp", "ext_report.n_rcp" = "qtaim.n_rcp"}
+
+[case.o2_uhf_631g]
+input = '''
+# Oxygen molecule - triplet ground state (UHF)
+charge 0
+multiplicity 3
+basis 6-31g
+method uhf
+scf_convergence 1e-6
+max_iterations 50
+
+geometry angstrom
+O   0.000000   0.000000   0.000000
+O   1.208000   0.000000   0.000000
+end
+'''
+source = "derived from examples/o2_triplet.inp: basis 6-31g (line 4), method uhf (line 5)"
+extract = ["total_energy", "scf_iterations"]
+exports = []
+tolerance = {total_energy = "uhf.energy"}
+
+[case.water_ccsd]
+input = '''
+title "H2O CCSD(T) Test"
+
+run_mode sp
+charge 0
+multiplicity 1
+
+basis 6-31g
+method ccsd
+scf_convergence 1e-7
+max_iterations 100
+
+geometry angstrom
+O      0.000000     0.000000     0.117300
+H      0.000000     0.757200    -0.469200
+H      0.000000    -0.757200    -0.469200
+end
+'''
+source = "examples/legacy_inputs/h2o_ccsd_t.inp"
+extract = ["ccsd_correlation", "total_energy"]
+exports = []
+tolerance = {ccsd_correlation = "ccsd.energy", total_energy = "hf.energy"}
+
+[case.water_mp2]
+input = '''
+# H2O RI-MP2 Test
+run_mode single_point
+method mp2
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+O 0.000 0.000 0.117
+H 0.000 0.757 -0.469
+H 0.000 -0.757 -0.469
+end
+'''
+source = "examples/legacy_inputs/test_mp2.inp"
+extract = ["mp2_correlation", "total_energy"]
+exports = []
+tolerance = {mp2_correlation = "mp2.energy", total_energy = "hf.energy"}
+
+[case.water_optfreq]
+input = '''
+title "H2O OptFreq Benchmark"
+run_mode optfreq
+method pbe0
+basis sto-3g
+charge 0
+multiplicity 1
+
+geometry angstrom
+O    0.00000000    0.00000000    0.00000000
+H    0.00000000    0.75700000    0.58600000
+H    0.00000000   -0.75700000    0.58600000
+end
+'''
+source = "examples/legacy_inputs/h2o_optfreq.inp"
+extract = ["opt_steps", "frequencies"]
+exports = []
+tolerance = {frequencies = "frequency.cm1", opt_energy = "dft_closed.energy"}
+
+[case.water_pbe_631g]
+input = '''
+# Water single-point PBE0/6-31G
+charge 0
+multiplicity 1
+
+geometry angstrom
+O  0.0000  0.0000  0.1173
+H  0.0000  0.7572 -0.4692
+H  0.0000 -0.7572 -0.4692
+end
+
+basis 631-g
+method pbe
+export_molden true
+scf_convergence 1e-10
+max_iterations 100
+'''
+source = "derived from examples/h2o_631g_sp.inp: method pbe (line 12), export_molden true added as line 13"
+extract = ["total_energy", "nuclear_repulsion_from"]
+exports = ["molden"]
+tolerance = {nuclear_repulsion = "nuclear_repulsion.energy", total_energy = "dft_closed.energy"}
+
+[case.water_rhf_631g]
+input = '''
+# Water single-point PBE0/6-31G
+charge 0
+multiplicity 1
+
+geometry angstrom
+O  0.0000  0.0000  0.1173
+H  0.0000  0.7572 -0.4692
+H  0.0000 -0.7572 -0.4692
+end
+
+basis 631-g
+method rhf
+scf_convergence 1e-10
+max_iterations 100
+'''
+source = "derived from examples/h2o_631g_sp.inp: method rhf (line 12)"
+extract = ["total_energy"]
+exports = []
+tolerance = {total_energy = "hf.energy"}

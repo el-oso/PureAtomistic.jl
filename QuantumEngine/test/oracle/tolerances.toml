@@ -1,0 +1,31 @@
+# Parity tolerances against the oracle, one row per (class, quantity). `value` is the largest
+# allowed absolute difference, in the quantity's unit; `basis` states the oracle and the kind of
+# justification (repository tolerance policy: (a) the oracle's stated tolerance or printed
+# precision, (b) a rounding bound, (c) a measured margin).
+#
+# A quantity whose row is absent here is not compared: `OracleHarness.tolerance` throws for it.
+# The DFT rows are added with their measured angular-table defect.
+
+[hf.energy]
+value = 1e-9
+basis = "kind (a): spec 01 parity tolerance for closed-shell HF energies, in hartree; measured closed-shell oracle noise ~1e-12"
+
+[mp2.energy]
+value = 1e-9
+basis = "kind (a): spec 01 parity tolerance for MP2 energies, in hartree"
+
+[uhf.energy]
+value = 1e-7
+basis = "kind (a): spec 01 parity tolerance for UHF energies, in hartree"
+
+[geometry.angstrom]
+value = 1e-4
+basis = "kind (a): spec 01 parity tolerance for optimized geometries, in Å"
+
+[frequency.cm1]
+value = 1.0
+basis = "kind (a): spec 01 parity tolerance for harmonic frequencies, in cm⁻¹"
+
+[nuclear_repulsion.energy]
+value = 5e-13
+basis = "kind (a): half a unit in the last printed digit; the `Total Energy:` line (engine/results.rs:18, {:20.12}) and the `SCF converged … E =` line (scf/scf_cycle.rs:591, {:.12}) both print 12 decimals, in hartree"

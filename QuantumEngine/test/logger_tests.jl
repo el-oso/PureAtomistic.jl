@@ -1,13 +1,9 @@
 # The expected lines are copied verbatim from the oracle's `examples/h2o_pbe0_631g.log`.
-@testitem "oracle output lines" setup = [Fixtures] begin
-    using QuantumEngine
-    using QuantumEngine.IO: Logger, print_total_energy, print_atom_table, log_heading, report_optimization_step
+@testitem "oracle output lines" begin
+    using QuantumEngine.IO: Logger, print_total_energy, log_heading, report_optimization_step
     out = IOBuffer(); lg = Logger(out, devnull)
     print_total_energy(lg, -76.301896228438)
     @test String(take!(out)) == "  Total Energy:      -76.301896228438 Hartree\n"
-    print_atom_table(lg, Fixtures.water().atoms)
-    @test split(String(take!(out)), '\n')[3] ==
-        "   1 O        0.00000000     0.00000000     0.22166487     0.00000000     0.00000000     0.11730000"
     log_heading(lg, "Final Results")
     @test String(take!(out)) == "\n╔═════════════════╗\n║  FINAL RESULTS  ║\n╚═════════════════╝\n\n"
     # io/writer.rs:41: "[OPT] Step {:3}: E = {:17.10} |grad| = {:.3e}"; -1.1167593075 is 13
@@ -16,7 +12,21 @@
     @test String(take!(out)) == "[OPT] Step   3: E =     -1.1167593075 |grad| = 2.500e-4\n"
 end
 
-# The header, rule and rows of the same log's atom table, and the section, success, warning and
+# The atom table of the water geometry against the `Initial Geometry (Bohr)` table of the captured
+# water PBE/6-31G log (engine/mod.rs:91-92), which has the same geometry: the header, the rule
+# and the three rows.
+@testitem "oracle output lines: atom table" setup = [Fixtures, OracleHarness] begin
+    using QuantumEngine.IO: Logger, print_atom_table
+    out = IOBuffer(); lg = Logger(out, devnull)
+    print_atom_table(lg, Fixtures.water().atoms)
+    ours = split(String(take!(out)), "\n")[1:5]
+    log = split(read(OracleHarness.captured("water_pbe_631g.log"), String), "\n")
+    i = findfirst(==(first(ours)), log)
+    @test i !== nothing
+    @test log[i:(i + 4)] == ours
+end
+
+# The header, rule and rows of the atom table of `examples/h2o_pbe0_631g.log`, and the section, success, warning and
 # error lines in the oracle's layout (`io/writer.rs`).
 @testitem "logger: tables and lines" setup = [Fixtures] begin
     using QuantumEngine.IO: Logger, print_atom_table, log_section, log_success, log_warning, log_error, log_heading

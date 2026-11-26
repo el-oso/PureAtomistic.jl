@@ -316,3 +316,35 @@ end
         @test_throws "input: $slash: io: the path is a directory" parse_input(slash; lenient)
     end
 end
+
+# The settings the oracle echoes for each fixture file (references.toml [fixture] tables, from
+# its captured standard output) against the parse of the same file. The oracle prints its own
+# method name (engine/config.rs:252-275) and the convergence as Rust's `{:.1e}`
+# (engine/mod.rs:88); the tests/h2o_dimer_bsse.inp run (run mode bsse) prints no `Atoms:` line
+# (engine/electronic.rs:260-264).
+@testitem "fixture: echoed settings match the oracle" setup = [Fixtures, OracleHarness] begin
+    using QuantumEngine
+    using QuantumEngine.Input
+    using QuantumEngine.IO: fmt_exp
+    oracle_name = Dict(HF => "RHF", PBE => "PBE", PBE0 => "PBE0", LDA => "LDA")
+    tables = get(OracleHarness.references(), "fixture", Dict{String, Any}())
+    @test sort(collect(keys(tables))) == sort(first.(OracleHarness.FIXTURE_FILES))
+    without_atoms = String[]
+    @testset "$rel" for (rel, lenient) in OracleHarness.FIXTURE_FILES
+        # An absent table errors here and fails the key-set test above.
+        t = get(tables, rel, Dict{String, Any}())
+        inp = parse_input(Fixtures.oracle_input_path(rel); lenient).input
+        @test t["title"] == inp.title
+        @test t["method"] == oracle_name[inp.method.kind]
+        @test t["basis"] == inp.basis
+        @test t["multiplicity"] == inp.multiplicity
+        @test t["charge"] == inp.charge
+        @test t["convergence"] == fmt_exp(inp.scf_convergence, 1)
+        if haskey(t, "atoms")
+            @test t["atoms"] == length(inp.atoms)
+        else
+            push!(without_atoms, rel)
+        end
+    end
+    @test without_atoms == ["tests/h2o_dimer_bsse.inp"]
+end

@@ -327,3 +327,16 @@ end
     d = MoldenData(w.title, view(w.atoms, 1:3), view(w.shells, 1:6), w.alpha)
     @test MoldenFiles.same(Fixtures.fields_equal, d, w)
 end
+
+# The water PBE/6-31G Molden file the oracle wrote (Å coordinates, alpha orbitals only). Kind (a):
+# the oracle prints Å with 6 decimals (io/molden.rs:23, {:12.6}), half a unit 5e-7 Å, ×1/0.529177
+# ≈ 9.5e-7 bohr, within 1e-6 of the O position in bohr.
+@testitem "molden: the oracle's file" setup = [OracleHarness] begin
+    using QuantumEngine.IO: read_molden
+    path = OracleHarness.captured("water_pbe_631g.molden")
+    d = open(io -> read_molden(io; source = basename(path)), path)
+    @test length(d.atoms) == 3
+    @test abs(d.atoms[1].position[3] - 0.22166487) ≤ 1.0e-6
+    @test size(d.alpha.coefficients, 1) == 13
+    @test isnothing(d.beta)
+end
