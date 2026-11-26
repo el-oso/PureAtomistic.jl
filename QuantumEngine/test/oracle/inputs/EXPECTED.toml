@@ -11,8 +11,12 @@
 # `src/io/molecule.rs`, `vdw.rs` its `src/dft/vdw.rs`, and `yaml.rs`, `scanner.rs` and
 # `yaml_parser.rs` the files `src/yaml.rs`, `src/scanner.rs` and `src/parser.rs` of yaml-rust2
 # 0.9.0, its YAML and JSON reader. A file the oracle reads without error and without a silently
-# accepted line is "ok" in both modes with no warning. Lenient mode reproduces each silently
-# accepted line with one warning of its case, and strict mode rejects the first one. A file the
+# accepted line is "ok" in both modes with no warning. Lenient mode reads each silently accepted
+# line as the oracle does and records a warning of its case; a block keyword that ends an open
+# block also records `:unclosed_block`, as does a block still open at the end of the file. Strict
+# mode throws at the first such item in the reader's order (for `.inp`, file order; for YAML and
+# JSON, unknown top-level keys first, then each section as the reader walks it), and
+# `strict_message` is a substring of that error. A file the
 # oracle reads into an input without atoms fails in both modes ("no atoms" in lenient mode).
 #
 # Shared citations: the first `#` line is the title (parser.rs:43-47); a keyword line matches

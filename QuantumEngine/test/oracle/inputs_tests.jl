@@ -2,32 +2,28 @@
 # `inputs/EXPECTED.toml`. The rows cite the oracle's source for each outcome.
 
 @testmodule OracleInputs begin
-    using QuantumEngine
     using TOML
 
-    const ROOT = joinpath(pkgdir(QuantumEngine), "test", "oracle", "inputs")
     const EXTENSIONS = (".inp", ".in", ".yaml", ".yml", ".json", ".xyz")
 
-    # The vendored input files, as `/`-separated paths relative to `ROOT`.
-    files() = sort(
+    # The input files under `root`, as `/`-separated paths relative to it.
+    files(root) = sort(
         [
-            join(splitpath(relpath(joinpath(dir, f), ROOT)), "/") for (dir, _, fs) in walkdir(ROOT) for
+            join(splitpath(relpath(joinpath(dir, f), root)), "/") for (dir, _, fs) in walkdir(root) for
                 f in fs if splitext(f)[2] in EXTENSIONS
         ]
     )
 
-    rows() = TOML.parsefile(joinpath(ROOT, "EXPECTED.toml"))
-
-    path(rel) = joinpath(ROOT, rel)
+    rows(file) = TOML.parsefile(file)
 
     cases(p) = sort([String(w.case) for w in p.warnings])
 end
 
-@testitem "every vendored input has an expected outcome" setup = [OracleInputs] begin
+@testitem "every vendored input has an expected outcome" setup = [Fixtures, OracleInputs] begin
     using QuantumEngine
     using YAML
-    files = OracleInputs.files()
-    rows = OracleInputs.rows()
+    files = OracleInputs.files(Fixtures.oracle_input_path(""))
+    rows = OracleInputs.rows(Fixtures.oracle_input_path("EXPECTED.toml"))
     @test length(files) == 72
     # A file without a row, and a row without a file.
     @test setdiff(files, keys(rows)) == String[]
@@ -35,7 +31,7 @@ end
     @testset "$rel" for rel in files
         haskey(rows, rel) || continue
         row = rows[rel]
-        path = OracleInputs.path(rel)
+        path = Fixtures.oracle_input_path(rel)
         @test row["strict"] in ("ok", "error")
         @test row["lenient"] in ("ok", "error")
         if row["strict"] == "ok"
@@ -55,11 +51,11 @@ end
     end
 end
 
-@testitem "vendored inputs: outcomes known now" setup = [OracleInputs] begin
+@testitem "vendored inputs: outcomes known now" setup = [Fixtures, OracleInputs] begin
     using QuantumEngine
     using QuantumEngine.Input
-    rows = OracleInputs.rows()
-    path = OracleInputs.path
+    rows = OracleInputs.rows(Fixtures.oracle_input_path("EXPECTED.toml"))
+    path = Fixtures.oracle_input_path
     diis = [
         "examples/h2_ediis.inp", "examples/h2o.inp", "examples/h2o_test.inp", "examples/h2o_cdiis.inp",
         "examples/h2o_ediis.inp", "examples/h2o_nodiss.inp", "examples/legacy_inputs/water_ediis.inp",
