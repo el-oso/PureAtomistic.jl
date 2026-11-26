@@ -149,22 +149,26 @@ report_optimization_step(lg::Logger, step::Integer, e::Real, gnorm::Real) = log_
     lg, Normal, "[OPT] Step " * fmt_int(step, 3) * ": E = " * fmt_fixed(e, 17, 10) * " |grad| = " * fmt_exp(gnorm, 3)
 )
 
-# The path `path` without its extension, as Rust's `Path::with_extension("")` strips it: the
-# extension starts at the last `.` of the file name, except at the file name's first character
-# (`.hidden` has none). The scan reads bytes: `splitext` boxes (a runtime tuple index).
+_is_separator(c::UInt8) = c == UInt8('/') || (Sys.iswindows() && c == UInt8('\\'))
+
+# The path `path` without its extension, as Rust's `Path::with_extension("")` strips it from a
+# path that has a file name: the extension starts at the last `.` of the file name, except at the
+# file name's first character (`.hidden` has none). A path with no file name (empty, ending in a
+# separator, or with last component `.` or `..`) throws. The scan reads bytes: `splitext`
+# boxes (a runtime tuple index).
 function _without_extension(path::AbstractString)
     s = String(path)
-    k = ncodeunits(s)
-    while k > 0
-        c = codeunit(s, k)
-        (c == UInt8('/') || (Sys.iswindows() && c == UInt8('\\'))) && break
-        if c == UInt8('.')
-            first_of_name = k == 1 || codeunit(s, k - 1) == UInt8('/') ||
-                (Sys.iswindows() && codeunit(s, k - 1) == UInt8('\\'))
-            first_of_name && break
-            return String(SubString(s, 1, k - 1))
-        end
-        k -= 1
+    n = ncodeunits(s)
+    start = n + 1
+    while start > 1 && !_is_separator(codeunit(s, start - 1))
+        start -= 1
+    end
+    len = n - start + 1
+    if len == 0 || (codeunit(s, n) == UInt8('.') && (len == 1 || (len == 2 && codeunit(s, start) == UInt8('.'))))
+        throw(ArgumentError(lazy"io: path has no file name: $(repr(path))"))
+    end
+    for k in n:-1:(start + 1)
+        codeunit(s, k) == UInt8('.') && return String(SubString(s, 1, k - 1))
     end
     return s
 end
@@ -173,7 +177,8 @@ end
     log_path(input_path::AbstractString, output::Union{Nothing, String}) -> String
 
 The log file of a run: `output` when the input names one, else `input_path` with its extension
-replaced by `.log` (or `.log` appended when it has none), next to the input.
+replaced by `.log` (or `.log` appended when it has none), next to the input. Throws an
+`ArgumentError` when `output` is `nothing` and `input_path` has no file name.
 """
 log_path(input_path::AbstractString, output::Union{Nothing, String}) =
     isnothing(output) ? _without_extension(input_path) * ".log" : output
@@ -181,6 +186,7 @@ log_path(input_path::AbstractString, output::Union{Nothing, String}) =
 """
     output_base(log_path::AbstractString) -> String
 
-`log_path` without its extension: the base name of the other files a run writes.
+`log_path` without its extension: the base name of the other files a run writes. Throws an
+`ArgumentError` when `log_path` has no file name.
 """
 output_base(log_path::AbstractString) = _without_extension(log_path)

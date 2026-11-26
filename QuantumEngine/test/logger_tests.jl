@@ -117,4 +117,10 @@ end
         @test output_base(p) == base
     end
     @test log_path(SubString("xdir/h2.inp", 2), nothing) == "dir/h2.log"
+    # A path with no file name has no extension to replace.
+    for p in ("", "dir/", "a/b.c/", ".", "..", "dir/..", "/")
+        @test_throws "io: path has no file name" log_path(p, nothing)
+        @test_throws "io: path has no file name" output_base(p)
+    end
+    @test log_path("dir/", "out.log") == "out.log"
 end
