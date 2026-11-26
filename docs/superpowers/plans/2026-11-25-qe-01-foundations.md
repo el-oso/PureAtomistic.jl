@@ -1164,7 +1164,7 @@ The arguments are case names. `--fixtures` also runs the six fixture files of Ta
 | `h2_opt` | examples/h2_opt.inp | `[OPT] Step` lines | `opt_energy = "hf.energy"`, `opt_gnorm = "gradient.norm"` (no row; step 06) |
 | `water_optfreq` | examples/legacy_inputs/h2o_optfreq.inp (PBE0) | `opt_steps`, `frequencies` | `opt_energy = "dft_closed.energy"` (no row; step 05), `frequencies = "frequency.cm1"` |
 | `o2_uhf_631g` | derived from examples/o2_triplet.inp: `basis 6-31g` and `method uhf` (the oracle maps `uhf` to `Method::RHF` and selects UHF by multiplicity, `parser.rs:1127`, so its result is the same as with `method rhf`) | total energy −149.545553662520; iteration lines without E_nuc | `total_energy = "uhf.energy"` |
-| `h2_qtaim` | examples/h2.inp with `run qtaim` | `ext_report` | each key `"qtaim.<key>"` (no row; step 13) |
+| `h2_qtaim` | examples/h2.inp with `run qtaim`; captured with the `aimext` subcommand, `quantum_engine aimext h2_qtaim.inp` (`run qtaim` writes no `.ext`; `aimext` computes the SCF density itself when no `h2_qtaim.chk` exists, writes `h2_qtaim.ext` to the working directory, and writes no log, so only stdout and the `.ext` are captured; `main.rs:229-258`, `analysis/aim.rs:722-821`) | `ext_report` | each key `"qtaim.<key>"` (no row; step 13) |
 
 The six fixture files of Task 12a are captured too, unchanged, for their echoed settings (D30), with `capture.jl --fixtures`.
 

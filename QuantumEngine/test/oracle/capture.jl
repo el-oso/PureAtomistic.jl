@@ -4,9 +4,10 @@
 #     QUANTUM_ENGINE_ORACLE_COMMIT=<full hash> \
 #     julia --project=QuantumEngine/test QuantumEngine/test/oracle/capture.jl [--fixtures] <case>...
 #
-# Each <case> names a [case] table of references.toml. The script runs the oracle on its input,
-# writes captured/<case>.log and captured/<case>.stdout (with the lines that name local paths
-# rewritten and the timing lines removed) and the files the case exports, and stores in
+# Each <case> names a [case] table of references.toml. The script runs the oracle command the case
+# names (`run`, or `aimext` for the critical-point report) on its input and writes
+# captured/<case>.stdout, captured/<case>.log when the command writes a log, and the files the case
+# exports, with the lines that name local paths rewritten and the timing lines removed. It stores in
 # references.toml the extracted quantities, the SHA-256 of each captured file and the oracle
 # commit. `--fixtures` also runs the vendored fixture files unchanged and stores the settings the
 # oracle echoes for each in a [fixture] table, with its standard output in captured/fixtures/.
@@ -61,7 +62,8 @@ function capture_case!(refs, case)
     log = OracleHarness.scrub(r.log, case * ".inp", dir)
     out = OracleHarness.scrub(r.stdout, case * ".inp", dir)
     hashes = Dict{String, Any}()
-    for (ext, text) in (("log", log), ("stdout", out))
+    outputs = OracleHarness.writes_log(OracleHarness.case_command(case)) ? (("log", log), ("stdout", out)) : (("stdout", out),)
+    for (ext, text) in outputs
         path = OracleHarness.captured(case * "." * ext)
         write(path, text)
         hashes[ext] = OracleHarness.file_sha256(path)

@@ -52,6 +52,9 @@ end
     @test method("o2_uhf_631g") == MethodSpec(HF, Unrestricted, (0, 0), 0.0)
     @test parse_inp(OracleHarness.case_input("o2_uhf_631g")).input.basis == "6-31g"
     @test parse_inp(OracleHarness.case_input("h2_qtaim")).input.run_mode == QTAIM
+    # The critical-point report comes from the `aimext` command; every other case is a `run`.
+    @test [OracleHarness.case_command(c) for c in names] == [c == "h2_qtaim" ? "aimext" : "run" for c in names]
+    @test !OracleHarness.writes_log("aimext") && OracleHarness.writes_log("run")
 end
 
 @testitem "harness: references.toml is in the writer's form" setup = [OracleHarness] begin
@@ -93,7 +96,8 @@ end
     using .OracleHarness: captured, file_sha256
     @testset "$case" for case in OracleHarness.case_names()
         hashes = OracleHarness.case_table(case)["sha256"]
-        @test sort(collect(keys(hashes))) == sort(["log"; "stdout"; OracleHarness.case_table(case)["exports"]])
+        logs = OracleHarness.writes_log(OracleHarness.case_command(case)) ? ["log"] : String[]
+        @test sort(collect(keys(hashes))) == sort([logs; "stdout"; OracleHarness.case_table(case)["exports"]])
         for (ext, h) in hashes
             @test file_sha256(captured(case * "." * ext)) == h
         end
@@ -129,6 +133,8 @@ end
         @test OracleHarness.oracle_binary() === nothing
         @test_throws "oracle: QUANTUM_ENGINE_ORACLE_BASIS (the oracle's basis_sets directory) is not set" OracleHarness.oracle_basis_dir()
         @test_throws "oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set" OracleHarness.run_oracle("h2_opt")
+        @test_throws "oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set" OracleHarness.run_oracle("h2_qtaim")
+        @test_throws "oracle: unknown command `qtaim`; expected one of run, aimext" OracleHarness.run_oracle_file("h2.inp", ""; command = "qtaim")
     end
     withenv("QUANTUM_ENGINE_ORACLE_BASIS" => joinpath(mktempdir(), "absent")) do
         @test_throws "oracle: QUANTUM_ENGINE_ORACLE_BASIS is not a directory" OracleHarness.oracle_basis_dir()

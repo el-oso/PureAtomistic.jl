@@ -75,28 +75,70 @@
     # ---------------------------------------------------------------- running the oracle
 
     """
-        run_oracle_file(filename, text; dir = mktempdir())
+        run_oracle_file(filename, text; dir = mktempdir(), command = "run")
             -> NamedTuple{(:log, :stdout, :exitcode), Tuple{String,String,Int}}
 
     Write `text` to `dir/filename`, link `dir/basis_sets` to [`oracle_basis_dir`](@ref), and run
-    `quantum_engine run <filename>` with `dir` as the working directory: the oracle resolves basis
-    files relative to its working directory. Returns the log the oracle writes next to the input
-    (`engine/mod.rs:35-39`: the input path with the extension `log`), the captured standard output
-    and the exit code. The post-SCF modules print with `println!`, so their lines appear only in
-    the standard output. Files the run exports stay in `dir`.
+    `quantum_engine <command> <filename>` with `dir` as the working directory: the oracle resolves
+    basis files relative to its working directory. Returns the log, the captured standard output
+    and the exit code. Files the run writes besides these stay in `dir`.
+
+    `command` is one of [`ORACLE_COMMANDS`](@ref):
+    - `run` writes its log next to the input (`engine/mod.rs:35-39`: the input path with the
+      extension `log`). The post-SCF modules print with `println!`, so their lines appear only in
+      the standard output.
+    - `aimext` reads the `.inp` file, computes the SCF density when no `<stem>.chk` lies next to it
+      (and then saves that checkpoint), and writes the critical-point report `<stem>.ext` into the
+      working directory (`main.rs:229-258`, `analysis/aim.rs:722-821`, `analysis/aim.rs:334-336`).
+      Its writer has no log file (`main.rs:230`), so everything it prints is in the standard
+      output, and `log` is the empty string.
     """
-    function run_oracle_file(filename::AbstractString, text::AbstractString; dir::AbstractString = mktempdir())
+    function run_oracle_file(
+            filename::AbstractString, text::AbstractString;
+            dir::AbstractString = mktempdir(), command::AbstractString = "run",
+        )
+        command in ORACLE_COMMANDS || error("oracle: unknown command `$command`; expected one of $(join(ORACLE_COMMANDS, ", "))")
         bin = oracle_binary()
         bin === nothing && error("oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set")
         basis = oracle_basis_dir()
         write(joinpath(dir, filename), text)
         symlink(basis, joinpath(dir, "basis_sets"))
         out = IOBuffer()
-        cmd = Cmd(`$bin run $filename`; dir = String(dir))
+        cmd = Cmd(`$bin $command $filename`; dir = String(dir))
         p = run(pipeline(ignorestatus(cmd); stdin = devnull, stdout = out, stderr = stderr))
-        logfile = joinpath(dir, splitext(filename)[1] * ".log")
-        isfile(logfile) || error("oracle: the run of $filename wrote no log (exit code $(p.exitcode))")
-        return (log = read(logfile, String), stdout = String(take!(out)), exitcode = Int(p.exitcode))
+        log = ""
+        if writes_log(command)
+            logfile = joinpath(dir, splitext(filename)[1] * ".log")
+            isfile(logfile) || error("oracle: the run of $filename wrote no log (exit code $(p.exitcode))")
+            log = read(logfile, String)
+        end
+        return (log = log, stdout = String(take!(out)), exitcode = Int(p.exitcode))
+    end
+
+    """
+        ORACLE_COMMANDS
+
+    The oracle subcommands the harness runs: `run`, which carries out the input's calculation, and
+    `aimext`, the critical-point analysis of the input's SCF density.
+    """
+    const ORACLE_COMMANDS = ("run", "aimext")
+
+    """
+        writes_log(command) -> Bool
+
+    Whether the oracle subcommand `command` writes a log file: `run` does, `aimext` does not.
+    """
+    writes_log(command::AbstractString) = command == "run"
+
+    """
+        case_command(case) -> String
+
+    The oracle subcommand that runs `case`, its `command` in `references.toml`.
+    """
+    function case_command(case::AbstractString)
+        c = case_table(case)["command"]
+        c in ORACLE_COMMANDS || error("oracle: case $case names the unknown command `$c`")
+        return c
     end
 
     """
@@ -104,10 +146,10 @@
             -> NamedTuple{(:log, :stdout, :exitcode), Tuple{String,String,Int}}
 
     Run the oracle on the input of `case` in `references.toml`, written as `<case>.inp` into
-    `dir`. See [`run_oracle_file`](@ref).
+    `dir`, with the case's [`case_command`](@ref). See [`run_oracle_file`](@ref).
     """
     run_oracle(case::String; dir::AbstractString = mktempdir()) =
-        run_oracle_file(case * ".inp", case_input(case); dir)
+        run_oracle_file(case * ".inp", case_input(case); dir, command = case_command(case))
 
     # The lines that change from run to run: elapsed times (`analysis/qtaim.rs:595`,
     # `analysis/aim.rs:340, 502, 699`, `analysis/iqa.rs:290`, `pw/scf.rs:97, 335`,
@@ -429,13 +471,14 @@
     # ---------------------------------------------------------------- writing references.toml
 
     const HEADER = """
-    # Oracle reference values. Each [case] table holds an input, its source, the extractors and
-    # exports, and the map from each compared quantity to its row in tolerances.toml; capture.jl
-    # writes the extracted values and the SHA-256 of each captured file. Each [fixture] table holds
-    # the settings the oracle echoes for a vendored input file. Rewritten by capture.jl.
+    # Oracle reference values. Each [case] table holds an input, its source, the oracle command
+    # that runs it (`run` or `aimext`), the extractors and exports, and the map from each compared
+    # quantity to its row in tolerances.toml; capture.jl writes the extracted values and the
+    # SHA-256 of each captured file. Each [fixture] table holds the settings the oracle echoes for a
+    # vendored input file. Rewritten by capture.jl.
     """
 
-    const _CASE_HEAD = ("input", "source", "extract", "exports", "tolerance")
+    const _CASE_HEAD = ("input", "source", "command", "extract", "exports", "tolerance")
 
     _key(k::AbstractString) = occursin(r"^[A-Za-z0-9_-]+$", k) ? String(k) : _value(k)
 

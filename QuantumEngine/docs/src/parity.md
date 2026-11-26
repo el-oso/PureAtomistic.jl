@@ -25,13 +25,13 @@ continuous integration needs no oracle binary. The harness lives in `test/oracle
 - `harness.jl`, the test module `OracleHarness`: it locates and runs the oracle, reads its
   outputs, and reads the stored references and tolerances;
 - `references.toml`: one `[case.<name>]` table per case, with the input text, the oracle file it
-  is copied or derived from, the extractors and exports, the map from each compared quantity to
-  its tolerance row, the extracted values and the SHA-256 of each captured file; and one
-  `[fixture."<path>"]` table per vendored fixture file, with the settings the oracle echoes for
-  it;
+  is copied or derived from, the oracle command that runs it (`run` or `aimext`), the extractors
+  and exports, the map from each compared quantity to its tolerance row, the extracted values and
+  the SHA-256 of each captured file; and one `[fixture."<path>"]` table per vendored fixture file,
+  with the settings the oracle echoes for it;
 - `tolerances.toml`: one row per class and quantity, with its value and its justification;
-- `captured/`: the oracle's log and standard output of each case and the files it exports, and in
-  `captured/fixtures/` the standard output of each fixture file.
+- `captured/`: the oracle's standard output of each case, its log for a `run` case and the files
+  it exports, and in `captured/fixtures/` the standard output of each fixture file.
 
 ### Capturing the oracle's outputs
 
@@ -45,15 +45,17 @@ julia --project=QuantumEngine/test QuantumEngine/test/oracle/capture.jl [--fixtu
 
 with the names of the cases to capture. For each case, `capture.jl` writes the case input as
 `<case>.inp` into a fresh temporary directory, links the basis directory there as `basis_sets`
-(the oracle resolves basis files relative to its working directory) and runs
-`quantum_engine run <case>.inp` in that directory. It then writes `captured/<case>.log`,
-`captured/<case>.stdout` and the exported files, rewriting the `Reading input:` and `Logging to:`
-lines to name the case's files and dropping the lines that report elapsed time; it stops if an
-output still names the temporary directory, the home directory or the host name. Last it stores the
-extracted values, the files' SHA-256 and the commit in `references.toml`. `--fixtures` also runs
-the six fixture files of the input tests unchanged and stores their echoed settings. A capture at
-a commit other than the stored one must name every case and `--fixtures`, so the file never mixes
-two oracle commits. The captured files are committed.
+(the oracle resolves basis files relative to its working directory) and runs the oracle command
+that the case's `command` names in that directory: `quantum_engine run <case>.inp` for every case
+but `h2_qtaim`, which runs `quantum_engine aimext h2_qtaim.inp` (see below). It then writes
+`captured/<case>.stdout`, `captured/<case>.log` for a `run`, and the exported files, rewriting the
+`Reading input:` and `Logging to:` lines to name the case's files and dropping the lines that
+report elapsed time; it stops if an output still names the temporary directory, the home
+directory or the host name. Last it stores the extracted values, the files' SHA-256 and the commit
+in `references.toml`. `--fixtures` also runs the six fixture files of the input tests unchanged
+and stores their echoed settings. A capture at a commit other than the stored one must name every
+case and `--fixtures`, so the file never mixes two oracle commits. The captured files are
+committed.
 
 The live items (tag `:oracle`) run only when `QUANTUM_ENGINE_ORACLE` names the binary. They re-run
 every case and check that each compared quantity is still within its tolerance of
@@ -91,7 +93,13 @@ names a row that does not exist: a quantity without a row is never compared.
 - The command line overrides the input's `verbosity` and `num_tddft_states` on every run, with its
   defaults 1 and 10 when the options are not given (`engine/config.rs:157-158`).
 - `run qtaim` prints the QTAIM analysis to the log and writes no `.ext` report; the `.ext` report
-  is written by the oracle's `aimext` command (`analysis/aim.rs:334-336`).
+  is written by the oracle's `aimext` command (`analysis/aim.rs:334-336`), so `h2_qtaim` is
+  captured with `quantum_engine aimext h2_qtaim.inp`, run in the case's directory with
+  `basis_sets` linked. Given an `.inp` file, `aimext` parses it, builds the basis, and loads
+  `h2_qtaim.chk` from the input's directory if it exists; otherwise it runs the SCF itself and saves
+  that checkpoint (`analysis/aim.rs:722-821`). It writes `h2_qtaim.ext` into the working directory
+  and no log file (`main.rs:229-258`), so the case's captured files are `h2_qtaim.stdout` and
+  `h2_qtaim.ext`. The input's `run qtaim` line has no effect on `aimext`.
 
 ### Tolerances
 
