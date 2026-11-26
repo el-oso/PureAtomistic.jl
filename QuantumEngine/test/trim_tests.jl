@@ -111,3 +111,64 @@ end
         read_molden_kw(IOBuffer, String),
     )
 end
+
+# The word lookups of `Input` on `String` and `SubString{String}` words, `method_word` on vectors
+# and views of both, the word lists, the input types' default constructors and `use_fock_damping`.
+# The constructors are validated through functions, for the reason given above.
+@testitem "TrimCheck: input types and words" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            using QuantumEngine.Input
+            new_input() = InputFile()
+            new_solvation() = SolvationSpec()
+            new_parsed(inp, warnings) = ParsedInput(inp, warnings)
+            const SS = SubString{String}
+            const VS = SubArray{String, 1, Vector{String}, Tuple{UnitRange{Int}}, true}
+            const VSS = SubArray{SS, 1, Vector{SS}, Tuple{UnitRange{Int}}, true}
+        end,
+        new_input(),
+        new_solvation(),
+        new_parsed(InputFile, Vector{InputWarning}),
+        QuantumEngine.Input.use_fock_damping(InputFile),
+        QuantumEngine.Input.run_mode_word(String),
+        QuantumEngine.Input.run_mode_word(SS),
+        QuantumEngine.Input.solvation_word(String),
+        QuantumEngine.Input.solvation_word(SS),
+        QuantumEngine.Input.solvent_word(String),
+        QuantumEngine.Input.solvent_word(SS),
+        QuantumEngine.Input.vdw_kernel_word(String),
+        QuantumEngine.Input.vdw_kernel_word(SS),
+        QuantumEngine.Input.tddft_method_word(String),
+        QuantumEngine.Input.tddft_method_word(SS),
+        QuantumEngine.Input.grid_word(String),
+        QuantumEngine.Input.grid_word(SS),
+        QuantumEngine.Input.irc_direction_word(String),
+        QuantumEngine.Input.irc_direction_word(SS),
+        QuantumEngine.Input.compute_mode_word(String),
+        QuantumEngine.Input.compute_mode_word(SS),
+        QuantumEngine.Input.diis_word(String),
+        QuantumEngine.Input.diis_word(SS),
+        QuantumEngine.Input.population_word(String),
+        QuantumEngine.Input.population_word(SS),
+        QuantumEngine.Input.surface_word(String),
+        QuantumEngine.Input.surface_word(SS),
+        QuantumEngine.Input.method_word(Vector{String}),
+        QuantumEngine.Input.method_word(Vector{SS}),
+        QuantumEngine.Input.method_word(VS),
+        QuantumEngine.Input.method_word(VSS),
+        QuantumEngine.Input.accepted_run_modes(),
+        QuantumEngine.Input.accepted_methods(),
+        QuantumEngine.Input.accepted_solvation_models(),
+        QuantumEngine.Input.accepted_solvents(),
+        QuantumEngine.Input.accepted_vdw_kernels(),
+        QuantumEngine.Input.accepted_tddft_methods(),
+        QuantumEngine.Input.accepted_grids(),
+        QuantumEngine.Input.accepted_irc_directions(),
+        QuantumEngine.Input.accepted_compute_modes(),
+        QuantumEngine.Input.accepted_diis_methods(),
+        QuantumEngine.Input.accepted_populations(),
+        QuantumEngine.Input.accepted_surfaces(),
+    )
+end

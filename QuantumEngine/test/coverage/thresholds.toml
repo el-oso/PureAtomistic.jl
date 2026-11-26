@@ -2,6 +2,9 @@
 # A file with no coverable lines scores 1.00 and has floor 1.00, so code added later must be covered. Floors only rise.
 "src/QuantumEngine.jl" = 1.00
 "src/errors/Errors.jl" = 1.00
+"src/input/Input.jl" = 1.00
+"src/input/types.jl" = 1.00
+"src/input/vocabulary.jl" = 1.00
 "src/io/IO.jl" = 1.00
 "src/io/cif.jl" = 1.00
 "src/io/format.jl" = 1.00

@@ -9,7 +9,7 @@ using QuantumEngine
 # element lookups and radius accessors of `Units`; then the atom and molecule constructors, the
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
 # writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then
-# the Molden writer and reader of `IO`.
+# the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -135,5 +135,45 @@ function run_workload()
         e isa InputError || rethrow()
         showerror(io, e)
     end
+    # The input types, built with their defaults and with keywords; each word lookup on a `String`
+    # and on a `SubString` token, as the parsers pass it, and `method_word` on vectors and views of
+    # each; and the word lists.
+    In = QuantumEngine.Input
+    m = In.MethodSpec(In.CASSCF, In.AutoReference, (4, 4), 0.0)
+    sv = In.SolvationSpec(; model = In.SMD, solvent = :dcm, epsilon = 9.0, custom_epsilon = true)
+    oniom = In.ONIOMSpec(m, In.method_word(["hf"]), [1, 2], nothing, 1)
+    for inp in (
+            In.InputFile(),
+            In.InputFile(;
+                title = "t", method = m, solvation = sv, oniom, damping = 0.2,
+                constraints = [In.Constraint(In.FreezeBond, (1, 2, 0, 0), 2.0)], hubbard = [In.HubbardU("Fe", 4.0)],
+            ),
+        )
+        In.use_fock_damping(inp)
+        In.ParsedInput(inp, InputWarning[])
+    end
+    In.SolvationSpec()
+    words = (
+        In.run_mode_word, In.solvation_word, In.solvent_word, In.vdw_kernel_word, In.tddft_method_word,
+        In.grid_word, In.irc_direction_word, In.compute_mode_word, In.diis_word, In.population_word,
+        In.surface_word,
+    )
+    for w in ("Opt", sym("Di-chloro_methane"), "unknown")
+        foreach(f -> f(w), words)
+    end
+    for toks in (["casscf(4,4)"], ["libxc_gga", "101", "130"], ["libxc_hgga", "402", "0.2"], ["UHF"], ["dft"])
+        In.method_word(toks)
+        In.method_word(view(toks, firstindex(toks):lastindex(toks)))
+        st = sym.(toks)
+        In.method_word(st)
+        In.method_word(view(st, firstindex(st):lastindex(st)))
+    end
+    foreach(
+        f -> f(), (
+            In.accepted_run_modes, In.accepted_methods, In.accepted_solvation_models, In.accepted_solvents,
+            In.accepted_vdw_kernels, In.accepted_tddft_methods, In.accepted_grids, In.accepted_irc_directions,
+            In.accepted_compute_modes, In.accepted_diis_methods, In.accepted_populations, In.accepted_surfaces,
+        )
+    )
     return take!(io)
 end

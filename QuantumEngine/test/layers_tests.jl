@@ -3,11 +3,12 @@
     using StrictModeTest
     QE = QuantumEngine
     test_layers(
-        QE => (QE.Errors, QE.Units, QE.System, QE.IO),
+        QE => (QE.Errors, QE.Units, QE.System, QE.IO, QE.Input),
         QE.Errors => (),
         QE.Units => (),
         QE.System => (QE.Units,),
         QE.IO => (QE.System, QE.Units, QE.Errors),
+        QE.Input => (QE.IO, QE.System, QE.Units, QE.Errors),
     )
 end
 
@@ -15,7 +16,7 @@ end
 @testitem "submodules read only each other's public names" tags = [:checks] begin
     using ExplicitImports
     QE = QuantumEngine
-    for M in (QE, QE.Errors, QE.Units, QE.System, QE.IO)
+    for M in (QE, QE.Errors, QE.Units, QE.System, QE.IO, QE.Input)
         @test isnothing(
             check_all_qualified_accesses_are_public(
                 M, pathof(QE); from = (QE,), allow_internal_accesses = false
@@ -30,7 +31,7 @@ end
     using StrictModeTest
     include(joinpath(pkgdir(QuantumEngine), "test", "strict", "workload.jl"))
     run_workload()
-    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input)
         @test length(test_calls(M)) > 0
     end
 end
@@ -47,7 +48,7 @@ end
         Atom("O@", T[0, 0, 2])
     end
     run_workload()
-    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO)
+    for M in (QuantumEngine.Errors, QuantumEngine.Units, QuantumEngine.System, QuantumEngine.IO, QuantumEngine.Input)
         @test isempty(test_exemptions(M))
     end
     @test all(e -> !isempty(e.reason), StrictMode.exemptions())
