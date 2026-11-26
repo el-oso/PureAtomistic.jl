@@ -76,6 +76,10 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc _float_required reason = "entry point helper: number reader of parse_inp"
 @strict_exempt :noalloc _float_optional reason = "entry point helper: number reader of parse_inp"
 @strict_exempt :noalloc _int_optional reason = "entry point helper: integer reader of parse_inp"
+@strict_exempt :noalloc _float_or reason = "entry point helper: number reader with the oracle's fallback, of parse_inp"
+@strict_exempt :noalloc _int_or reason = "entry point helper: integer reader with the oracle's fallback, of parse_inp"
+@strict_exempt :noalloc _casscf_oracle reason = "entry point helper: CASSCF active-space reader of parse_inp"
+@strict_exempt :noalloc _missing! reason = "entry point helper: missing-value reader of parse_inp"
 @strict_exempt :noalloc _index reason = "entry point helper: atom index reader of parse_inp"
 @strict_exempt :noalloc _bool reason = "entry point helper: Boolean reader of parse_inp"
 @strict_exempt :noalloc _unknown_msg reason = "entry point helper: unknown-word message of parse_inp"
@@ -100,6 +104,7 @@ export parse_inp, molecule, accepted_keywords
 @strict_exempt :noalloc _oniom_line! reason = "entry point helper: oniom line reader of parse_inp"
 @strict_exempt :noalloc _close_block! reason = "entry point helper: block closer of parse_inp"
 @strict_exempt :noalloc _resolve_solvation! reason = "entry point helper: solvation resolution of parse_inp"
+@strict_exempt :noalloc _solvation_by_keyword! reason = "entry point helper: order-independent solvation of parse_inp"
 @strict_exempt :noalloc _check_f12 reason = "entry point helper: F12 option check of parse_inp"
 
 # Last statement: the policy checks the methods defined above it.

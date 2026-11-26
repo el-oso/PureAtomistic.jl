@@ -95,6 +95,15 @@ const BOOL_KEYWORDS = (
     :compute_soc, :tddft_triplets, :ecp,
 )
 
+# The Boolean keywords whose missing or malformed value the oracle reads as false
+# (`unwrap_or(false)`, `parser.rs:258-266`).
+const FALSE_KEYWORDS = (:export_molden, :export_cube, :export_wfx)
+
+# The block openers. In lenient mode an opener inside an open block closes that block and opens
+# its own, as the oracle's `geometry`, `product_geometry`, `charges`, `hubbard`, `fragments` and
+# `cell` lines end a geometry block (`parser.rs:280-345`).
+const BLOCK_KEYWORDS = (:geometry, :product_geometry, :charges, :hubbard, :fragments, :cell, :pbc, :oniom)
+
 """
     accepted_keywords() -> Vector{String}
 
@@ -123,7 +132,8 @@ const DEFAULT_METHOD = MethodSpec(HF, AutoReference, (0, 0), 0.0)
 
 # The state of one parse: the input being filled, whether a `title` keyword has set its title, the
 # open block and the line it opened at, the first line of each keyword seen, and the values that
-# are resolved after the pass (solvation and ONIOM).
+# are resolved after the pass (solvation and ONIOM). `seq` is the solvation the oracle reads, one
+# line after the other, which lenient mode returns.
 mutable struct _InpState
     source::String
     lenient::Bool
@@ -144,6 +154,7 @@ mutable struct _InpState
     epsilon::Float64
     radii::Float64
     grid::Int
+    seq::SolvationSpec
     oniom::Bool
     high::MethodSpec
     low::MethodSpec
@@ -157,7 +168,7 @@ function _InpState(source::String, lenient::Bool, warnings::Vector{InputWarning}
     return _InpState(
         source, lenient, warnings, _draft(InputFile()), false, Dict{Symbol, Int}(), :none, 0, 0, false, 0, 0,
         SVector{3, Float64}[], Int[], NoSolvation, s.solvent, s.epsilon, s.radii_scaling, s.grid_order,
-        false, DEFAULT_METHOD, DEFAULT_METHOD, Int[], nothing, nothing,
+        s, false, DEFAULT_METHOD, DEFAULT_METHOD, Int[], nothing, nothing,
     )
 end
 
@@ -278,6 +289,21 @@ function _float_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Sym
     return _finite(st, n, kw, t, x)
 end
 
+# A float, or `fallback` for a token that does not parse: the oracle's `unwrap_or(fallback)`.
+function _float_or(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol, fallback::Float64)
+    x = _float_optional(st, n, kw, t, case)
+    return isnothing(x) ? fallback : x
+end
+
+# An integer, or `fallback` for a token that does not parse: the oracle's `unwrap_or(fallback)`.
+function _int_or(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol, fallback::Int)
+    x = _int_optional(st, n, kw, t, case)
+    return isnothing(x) ? fallback : x
+end
+
+# `t` as Rust's `parse::<usize>` reads it (a decimal with an optional `+`), or `nothing`.
+_parse_usize(t::AbstractString) = startswith(t, '-') ? nothing : _parse_int(t)
+
 function _int_required(st::_InpState, n::Int, kw, t::AbstractString)
     x = _parse_int(t)
     isnothing(x) && throw(InputError(st.source, n, lazy"`$(kw)`: expected an integer, got $(repr(t))"))
@@ -304,6 +330,61 @@ function _bool(st::_InpState, n::Int, kw, t::AbstractString)
     t == "true" && return true
     t == "false" && return false
     _reject(st, n, :bool_fallback, lazy"`$(kw)`: expected true or false, got $(repr(t))")
+    return nothing
+end
+
+# The oracle's value for Boolean keyword `c` whose token `t` is not `true` or `false`: Rust's
+# `parse::<bool>` fails, and `unwrap_or` gives true, or false for `FALSE_KEYWORDS`;
+# `compute_soc` and `tddft_triplets` compare the token with `"true"` and `"1"`
+# (`parser.rs:515-520`).
+function _bool_fallback(c::Symbol, t::AbstractString)
+    c in FALSE_KEYWORDS && return false
+    (c === :compute_soc || c === :tddft_triplets) && return t == "1"
+    return true
+end
+
+# Sets the field of Boolean keyword `c` to `x`; `gpu` sets the compute mode.
+function _set_bool!(st::_InpState, c::Symbol, x::Bool)
+    d = st.d
+    if c === :climbing_image
+        d.climbing_image = x
+    elseif c === :density_fitting
+        d.use_ri_j = x
+    elseif c === :ri_k
+        d.use_ri_k = x
+    elseif c === :gpu
+        d.compute_mode = x ? GPU : CPU
+    elseif c === :load_checkpoint
+        d.load_checkpoint = x
+    elseif c === :dispersion
+        d.dispersion = x
+    elseif c === :zora
+        d.zora = x
+    elseif c === :f12
+        d.use_f12 = x
+    elseif c === :nbo
+        d.nbo = x
+    elseif c === :auto_stabilize
+        d.auto_stabilize = x
+    elseif c === :robust_convergence
+        d.robust_convergence = x
+    elseif c === :dmft
+        d.use_dmft = x
+    elseif c === :admm
+        d.admm = x
+    elseif c === :export_molden
+        d.export_molden = x
+    elseif c === :export_cube
+        d.export_cube = x
+    elseif c === :export_wfx
+        d.export_wfx = x
+    elseif c === :compute_soc
+        d.compute_soc = x
+    elseif c === :tddft_triplets
+        d.tddft_triplets = x
+    else
+        d.use_ecp = x
+    end
     return nothing
 end
 
@@ -351,6 +432,26 @@ function _is_casscf(w::AbstractString)
     return true
 end
 
+_is_paren(c::Char) = c == '(' || c == ')'
+
+# The active space the oracle reads from a `casscf` word that `method_word` rejects
+# (`parser.rs:1154-1163`): the word lowercased, every leading `casscf` and every `(` and `)` at
+# either end removed, and the rest split at `,`. Two parts are the electron and orbital counts,
+# which must be unsigned integers; any other number of parts gives (2, 2).
+function _casscf_oracle(st::_InpState, n::Int, w::AbstractString)
+    s = SubString(lowercase(w))
+    while startswith(s, "casscf")
+        s = chopprefix(s, "casscf")
+    end
+    parts = split(strip(_is_paren, s), ',')
+    length(parts) == 2 || return (2, 2)
+    e = _parse_usize(strip(parts[1]))
+    isnothing(e) && throw(InputError(st.source, n, "Invalid CASSCF electron count"))
+    o = _parse_usize(strip(parts[2]))
+    isnothing(o) && throw(InputError(st.source, n, "Invalid CASSCF orbital count"))
+    return (e, o)
+end
+
 # The method of a `method`, `high`, `low`, `oniom_high` or `oniom_low` line.
 function _method_value(st::_InpState, n::Int, kw::String, tokens::Vector{SubString{String}})
     nv = length(tokens) - 1
@@ -367,7 +468,7 @@ function _method_value(st::_InpState, n::Int, kw::String, tokens::Vector{SubStri
     if isnothing(m)
         if _is_casscf(w)
             _reject(st, n, :casscf_shape, lazy"casscf needs (electrons,orbitals), got `$(w)`")
-            return nothing
+            return MethodSpec(CASSCF, AutoReference, _casscf_oracle(st, n, w), 0.0)
         end
         isnothing(lx) && throw(InputError(st.source, n, _unknown_msg(kw, w, accepted_methods())))
         msg = lx[2] ? lazy"`$(kw)`: `$(lowercase(w))` takes an integer Libxc ID and the exact-exchange fraction" :
@@ -408,8 +509,122 @@ function _keyword_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
         end
         return nothing
     end
-    _count_ok(st, n, kw, c, length(tokens) - 1, lo, hi) || return nothing
+    _count_ok(st, n, kw, c, length(tokens) - 1, lo, hi) || return _missing!(st, c)
     _keyword_value!(st, n, kw, c, tokens)
+    return nothing
+end
+
+# The value the oracle takes for keyword `c` given without its value, or for a list keyword with
+# too few values; reached in lenient mode only. Every keyword not named keeps its value.
+function _missing!(st::_InpState, c::Symbol)
+    d = st.d
+    if c in BOOL_KEYWORDS
+        _set_bool!(st, c, !(c in FALSE_KEYWORDS))
+    elseif c === :checkpoint
+        d.checkpoint = nothing
+    elseif c === :aux_basis
+        d.aux_basis = nothing
+    elseif c === :admm_basis
+        d.admm_basis = nothing
+    elseif c === :f12_gamma
+        d.f12_gamma = 1.0
+    elseif c === :f12_model
+        d.f12_model = "F12b"
+    elseif c === :damping
+        d.damping = 0.0
+    elseif c === :smearing
+        d.smearing = 0.0
+    elseif c === :level_shift
+        d.level_shift = 0.0
+    elseif c === :diis_reset
+        d.diis_reset_threshold = 0.1
+    elseif c === :dos_sigma
+        d.dos_sigma = 0.1
+    elseif c === :verbosity
+        d.verbosity = 1
+    elseif c === :grid
+        d.grid_level = 1
+    elseif c === :conv_tol_density
+        d.conv_tol_density = nothing
+    elseif c === :pw_cutoff
+        d.pw_cutoff = nothing
+    elseif c === :solvent
+        _set_solvent!(st, :water)
+    elseif c === :epsilon
+        _set_epsilon!(st, 78.39)
+    elseif c === :pcm_radii
+        _set_radii!(st, 1.2)
+    elseif c === :pcm_grid
+        _set_pcm_grid!(st, 110)
+    elseif c === :output
+        d.output = ""
+    elseif c === :vdw_kernel
+        d.vdw_kernel = nothing
+    elseif c === :kpath
+        d.kpath = String[]
+    elseif c === :population
+        d.population = PopulationKind[]
+    elseif c === :oniom_model
+        st.oniom = true
+    elseif c === :oniom_model_charge
+        st.oniom = true
+        st.model_charge = nothing
+    elseif c === :oniom_model_multiplicity
+        st.oniom = true
+        st.model_multiplicity = nothing
+    elseif c === :ecp_name
+        d.use_ecp = true
+        d.ecp_name = nothing
+    end
+    return nothing
+end
+
+# The solvation settings, kept twice: by keyword for the order-independent reading, and in `seq`
+# as the oracle reads the lines in order (`parser.rs:202-251`).
+
+# `solvation <model>`: the oracle replaces the settings by the model's defaults.
+function _set_solvation!(st::_InpState, x::SolvationModel)
+    st.solvation = x
+    st.seq = x == NoSolvation ? SolvationSpec() : SolvationSpec(; model = x)
+    return nothing
+end
+
+# `solvent <name>`: the oracle sets the solvent of an SMD model, or replaces any other model by
+# SMD with its defaults and that solvent.
+function _set_solvent!(st::_InpState, x::Symbol)
+    st.solvent = x
+    s = st.seq
+    st.seq = s.model == SMD ?
+        SolvationSpec(SMD, x, 78.39, false, s.radii_scaling, s.grid_order, s.surface, s.probe_radius) :
+        SolvationSpec(; model = SMD, solvent = x)
+    return nothing
+end
+
+# `epsilon <x>`: the oracle sets the dielectric of PCM, replaces that of the SMD solvent, or
+# without a model makes PCM with its defaults and that dielectric.
+function _set_epsilon!(st::_InpState, x::Float64)
+    st.epsilon = x
+    s = st.seq
+    st.seq = s.model == NoSolvation ? SolvationSpec(; model = PCM, epsilon = x) :
+        SolvationSpec(s.model, s.solvent, x, s.model == SMD, s.radii_scaling, s.grid_order, s.surface, s.probe_radius)
+    return nothing
+end
+
+# `pcm_radii <x>`: the oracle applies it under PCM only.
+function _set_radii!(st::_InpState, x::Float64)
+    st.radii = x
+    s = st.seq
+    s.model == PCM &&
+        (st.seq = SolvationSpec(PCM, s.solvent, s.epsilon, s.custom_epsilon, x, s.grid_order, s.surface, s.probe_radius))
+    return nothing
+end
+
+# `pcm_grid <g>`: the oracle applies it under PCM or SMD.
+function _set_pcm_grid!(st::_InpState, g::Int)
+    st.grid = g
+    s = st.seq
+    s.model == NoSolvation ||
+        (st.seq = SolvationSpec(s.model, s.solvent, s.epsilon, s.custom_epsilon, s.radii_scaling, g, s.surface, s.probe_radius))
     return nothing
 end
 
@@ -418,7 +633,10 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     d = st.d
     nv = length(tokens) - 1
     t = nv >= 1 ? tokens[2] : tokens[1]
-    if c === :title
+    if c in BOOL_KEYWORDS && c !== :ecp
+        x = _bool(st, n, kw, t)
+        _set_bool!(st, c, isnothing(x) ? _bool_fallback(c, t) : x)
+    elseif c === :title
         title = _join(tokens, ' ', 2)
         if ncodeunits(title) >= 2 && startswith(title, '"') && endswith(title, '"')
             title = title[2:prevind(title, lastindex(title))]
@@ -443,55 +661,46 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         d.max_iterations = _int_required(st, n, kw, t)
     elseif c === :diis_method
         x = diis_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_diis_methods()) : (d.diis_method = x)
+        if isnothing(x)
+            # The oracle stores the word, and no code reads it: the extrapolation stays CDIIS.
+            _unknown(st, n, kw, t, accepted_diis_methods())
+            d.diis_method = CDIIS
+        else
+            d.diis_method = x
+        end
     elseif c === :conv_tol_density
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.conv_tol_density = x)
+        d.conv_tol_density = _float_optional(st, n, kw, t, :number_fallback)
     elseif c === :diis_reset
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.diis_reset_threshold = x)
+        d.diis_reset_threshold = _float_or(st, n, kw, t, :number_fallback, 0.1)
     elseif c === :damping
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.damping = x)
+        d.damping = _float_or(st, n, kw, t, :number_fallback, 0.0)
     elseif c === :smearing
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.smearing = x)
+        d.smearing = _float_or(st, n, kw, t, :number_fallback, 0.0)
     elseif c === :grid
         x = grid_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_grids()) : (d.grid_level = x)
+        if isnothing(x)
+            # The oracle reads any other unsigned integer as the level, and 1 for the rest
+            # (`parser.rs:168-178`).
+            _unknown(st, n, kw, t, accepted_grids())
+            g = _parse_usize(t)
+            d.grid_level = isnothing(g) ? 1 : g
+        else
+            d.grid_level = x
+        end
     elseif c === :level_shift
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.level_shift = x)
-    elseif c === :auto_stabilize
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.auto_stabilize = x)
-    elseif c === :robust_convergence
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.robust_convergence = x)
+        d.level_shift = _float_or(st, n, kw, t, :number_fallback, 0.0)
     elseif c === :field
-        ex = _float_optional(st, n, kw, tokens[2], :bad_list_entry)
-        ey = _float_optional(st, n, kw, tokens[3], :bad_list_entry)
-        ez = _float_optional(st, n, kw, tokens[4], :bad_list_entry)
-        isnothing(ex) || isnothing(ey) || isnothing(ez) || (d.electric_field = SVector(ex::Float64, ey::Float64, ez::Float64))
-    elseif c === :density_fitting
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.use_ri_j = x)
-    elseif c === :ri_k
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.use_ri_k = x)
+        ex = _float_or(st, n, kw, tokens[2], :bad_list_entry, 0.0)
+        ey = _float_or(st, n, kw, tokens[3], :bad_list_entry, 0.0)
+        ez = _float_or(st, n, kw, tokens[4], :bad_list_entry, 0.0)
+        d.electric_field = SVector(ex, ey, ez)
     elseif c === :aux_basis
         d.aux_basis = String(t)
-    elseif c === :gpu
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.compute_mode = x ? GPU : CPU)
     elseif c === :compute_mode
         x = compute_mode_word(t)
         isnothing(x) ? _unknown(st, n, kw, t, accepted_compute_modes()) : (d.compute_mode = x)
     elseif c === :checkpoint
         d.checkpoint = String(t)
-    elseif c === :load_checkpoint
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.load_checkpoint = x)
     elseif c === :ts_target_mode
         d.ts_target_mode = _int_required(st, n, kw, t)
     elseif c === :ts_trust_radius
@@ -500,35 +709,16 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         d.neb_k = _float_required(st, n, kw, t)
     elseif c === :neb_images
         d.neb_images = _int_required(st, n, kw, t)
-    elseif c === :climbing_image
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.climbing_image = x)
     elseif c === :temperature
         d.temperature = _float_required(st, n, kw, t)
     elseif c === :pressure
         d.pressure = _float_required(st, n, kw, t)
     elseif c === :symmetry_number
         d.symmetry_number = _float_required(st, n, kw, t)
-    elseif c === :dispersion
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.dispersion = x)
-    elseif c === :zora
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.zora = x)
-    elseif c === :f12
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.use_f12 = x)
     elseif c === :f12_gamma
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.f12_gamma = x)
+        d.f12_gamma = _float_or(st, n, kw, t, :number_fallback, 1.0)
     elseif c === :f12_model
         d.f12_model = String(t)
-    elseif c === :nbo
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.nbo = x)
-    elseif c === :admm
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.admm = x)
     elseif c === :admm_basis
         d.admm_basis = String(t)
     elseif c === :ecp
@@ -543,57 +733,50 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         d.ecp_name = String(t)
     elseif c === :vdw_kernel
         x = vdw_kernel_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_vdw_kernels()) : (d.vdw_kernel = x)
+        # The oracle stores an unknown word and computes no dispersion for it.
+        isnothing(x) && _unknown(st, n, kw, t, accepted_vdw_kernels())
+        d.vdw_kernel = x
     elseif c === :solvation
         x = solvation_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_solvation_models()) : (st.solvation = x)
+        isnothing(x) ? _unknown(st, n, kw, t, accepted_solvation_models()) : _set_solvation!(st, x)
     elseif c === :solvent
         x = solvent_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_solvents()) : (st.solvent = x)
+        isnothing(x) ? _unknown(st, n, kw, t, accepted_solvents()) : _set_solvent!(st, x)
     elseif c === :epsilon
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (st.epsilon = x)
+        _set_epsilon!(st, _float_or(st, n, kw, t, :number_fallback, 78.39))
     elseif c === :pcm_radii
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (st.radii = x)
+        _set_radii!(st, _float_or(st, n, kw, t, :number_fallback, 1.2))
     elseif c === :pcm_grid
-        x = _int_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (st.grid = x)
+        _set_pcm_grid!(st, _int_or(st, n, kw, t, :number_fallback, 110))
     elseif c === :output
         d.output = String(t)
     elseif c === :verbosity
-        x = _int_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.verbosity = x)
-    elseif c === :export_molden
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.export_molden = x)
-    elseif c === :export_cube
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.export_cube = x)
-    elseif c === :export_wfx
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.export_wfx = x)
+        d.verbosity = _int_or(st, n, kw, t, :number_fallback, 1)
     elseif c === :population
         pop = PopulationKind[]
+        bad = false
         for j in 2:lastindex(tokens)
             x = population_word(tokens[j])
-            isnothing(x) ? _unknown(st, n, kw, tokens[j], accepted_populations()) : push!(pop, x)
+            if isnothing(x)
+                _unknown(st, n, kw, tokens[j], accepted_populations())
+                bad = true
+            else
+                push!(pop, x)
+            end
         end
-        d.population = pop
+        # The oracle stores the words, and no code reads them: the analyses stay the default.
+        d.population = bad ? PopulationKind[Mulliken, Lowdin] : pop
     elseif c === :pw_cutoff
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.pw_cutoff = x)
+        d.pw_cutoff = _float_optional(st, n, kw, t, :number_fallback)
     elseif c === :kpoints || c === :dos_k_grid
-        kx = _int_optional(st, n, kw, tokens[2], :bad_list_entry)
-        ky = _int_optional(st, n, kw, tokens[3], :bad_list_entry)
-        kz = _int_optional(st, n, kw, tokens[4], :bad_list_entry)
-        if !(isnothing(kx) || isnothing(ky) || isnothing(kz))
-            k3 = (kx::Int, ky::Int, kz::Int)
-            c === :kpoints ? (d.kpoints = k3) : (d.dos_k_grid = k3)
-        end
+        f = c === :kpoints ? 1 : 10
+        k3 = (
+            _int_or(st, n, kw, tokens[2], :bad_list_entry, f), _int_or(st, n, kw, tokens[3], :bad_list_entry, f),
+            _int_or(st, n, kw, tokens[4], :bad_list_entry, f),
+        )
+        c === :kpoints ? (d.kpoints = k3) : (d.dos_k_grid = k3)
     elseif c === :dos_sigma
-        x = _float_optional(st, n, kw, t, :number_fallback)
-        isnothing(x) || (d.dos_sigma = x)
+        d.dos_sigma = _float_or(st, n, kw, t, :number_fallback, 0.1)
     elseif c === :kpath
         path = String[]
         for j in 2:lastindex(tokens)
@@ -624,22 +807,17 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         isnothing(x) || (d.irc_max_points = x)
     elseif c === :irc_direction
         x = irc_direction_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_irc_directions()) : (d.irc_direction = x)
+        # The oracle reads every word but the forward and backward ones as Both (`parser.rs:466-474`).
+        isnothing(x) && _unknown(st, n, kw, t, accepted_irc_directions())
+        d.irc_direction = isnothing(x) ? Both : x
     elseif c === :tddft_states
         x = _int_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.tddft_states = x)
     elseif c === :tddft_method
         x = tddft_method_word(t)
-        isnothing(x) ? _unknown(st, n, kw, t, accepted_tddft_methods()) : (d.tddft_method = x)
-    elseif c === :compute_soc
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.compute_soc = x)
-    elseif c === :tddft_triplets
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.tddft_triplets = x)
-    elseif c === :dmft
-        x = _bool(st, n, kw, t)
-        isnothing(x) || (d.use_dmft = x)
+        # The oracle stores the word, and its TDDFT driver runs TDA for an unknown one.
+        isnothing(x) && _unknown(st, n, kw, t, accepted_tddft_methods())
+        d.tddft_method = isnothing(x) ? TDA : x
     elseif c === :dmft_temp
         x = _float_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.dmft_temperature = x)
@@ -764,8 +942,18 @@ function _block_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
         _close_block!(st)
         return nothing
     end
-    if _keyword_index(kw) != 0
+    i = _keyword_index(kw)
+    if i != 0
+        # Lenient mode reads the line as its keyword, as the oracle matches the keyword before
+        # it reads a block line (`parser.rs:56-563`); the block stays open unless the keyword
+        # opens a block.
         _reject(st, n, :block_keyword, _inside(st, tokens[1]))
+        if INP_KEYWORDS[i][2] in BLOCK_KEYWORDS
+            l = st.block_line
+            _reject(st, n, :unclosed_block, lazy"the $(st.block) block opened at line $(l) is not closed by `end`")
+            _close_block!(st)
+        end
+        _keyword_line!(st, n, tokens, kw)
         return nothing
     end
     b = st.block
@@ -814,17 +1002,22 @@ function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}
     nt > 4 && _reject(st, n, :extra_values, lazy"a geometry line takes 4 tokens (a symbol and 3 coordinates), got $(nt)")
     p = _position(st, n, tokens, 2)
     sym = tokens[1]
+    atoms = st.block === :geometry ? st.d.atoms : st.d.product_atoms
+    # The oracle reads any symbol of ghost form as a ghost of Z = 0 (`periodic_table.rs:5-12`),
+    # which lenient mode builds: the symbol as written, mass 0.
     if kw == "bq" || kw == "bq-"
         _reject(st, n, :ghost_unchecked, "a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`")
+        push!(atoms, Atom{Float64}(0, String(sym), p, true, 0.0))
         return nothing
     end
     if element_number(sym) == 0
         msg = lazy"unknown element symbol $(repr(sym))"
         _ghost_form(sym) || throw(InputError(st.source, n, msg))
         _reject(st, n, :ghost_unchecked, msg)
+        push!(atoms, Atom{Float64}(0, String(sym), p, true, 0.0))
         return nothing
     end
-    push!(st.block === :geometry ? st.d.atoms : st.d.product_atoms, Atom(sym, p))
+    push!(atoms, Atom(sym, p))
     return nothing
 end
 
@@ -844,11 +1037,22 @@ function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
     nt < 2 && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
     nt > 2 && _reject(st, n, :extra_values, lazy"a hubbard line takes 2 tokens (a symbol and U), got $(nt)")
     sym = tokens[1]
+    # A U that does not parse fails in the oracle too (`parser.rs:566`); lenient mode gives its message.
+    st.lenient && isnothing(_parse_coordinate(tokens[2])) &&
+        throw(InputError(st.source, n, lazy"Invalid U value: $(tokens[2])"))
     u = _float_required(st, n, :hubbard, tokens[2])
     h = st.d.hubbard
     for i in eachindex(h, st.hubbard_lines)
         if lowercase(h[i].symbol) == lowercase(sym)
             _reject(st, n, :duplicate_keyword, lazy"`hubbard` gives `$(sym)` twice (lines $(st.hubbard_lines[i]) and $(n))")
+            break
+        end
+    end
+    # The oracle's map keeps the last U of a symbol and tells symbols apart by case (`parser.rs:567`).
+    for i in eachindex(h, st.hubbard_lines)
+        if h[i].symbol == sym
+            h[i] = HubbardU(String(sym), u)
+            st.hubbard_lines[i] = n
             return nothing
         end
     end
@@ -871,16 +1075,24 @@ function _cell_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     return nothing
 end
 
+_pbc_flag(t::AbstractString) = t == "true" || t == "1" || t == "T"
+
 # The three periodicity flags of a pbc block.
 function _pbc_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     st.block_lines >= 1 && return _reject(st, n, :extra_values, "the pbc block takes 1 line")
     nt = length(tokens)
-    nt == 3 || return _reject(st, n, nt < 3 ? :too_few_values : :extra_values, lazy"a pbc line takes 3 values, got $(nt)")
-    a = _bool(st, n, :pbc, tokens[1])
-    b = _bool(st, n, :pbc, tokens[2])
-    c = _bool(st, n, :pbc, tokens[3])
-    (isnothing(a) || isnothing(b) || isnothing(c)) && return nothing
-    st.d.pbc = (a::Bool, b::Bool, c::Bool)
+    nt < 3 && return _reject(st, n, :too_few_values, lazy"a pbc line takes 3 values, got $(nt)")
+    # Lenient mode reads the first three tokens, true for `true`, `1` or `T` and false for any
+    # other token, as the oracle does (`parser.rs:645-653`); one warning covers the line.
+    nt > 3 && _reject(st, n, :extra_values, lazy"a pbc line takes 3 values, got $(nt)")
+    for j in 1:3
+        t = tokens[j]
+        if !(t == "true" || t == "false")
+            _reject(st, n, :bool_fallback, lazy"`pbc`: expected true or false, got $(repr(t))")
+            break
+        end
+    end
+    st.d.pbc = (_pbc_flag(tokens[1]), _pbc_flag(tokens[2]), _pbc_flag(tokens[3]))
     st.block_lines += 1
     return nothing
 end
@@ -902,8 +1114,7 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
     elseif key === :oniom_model
         _count_ok(st, n, kw, key, length(tokens) - 1, 1, -1) && _model_atoms!(st, n, kw, tokens)
     else
-        _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1) || return nothing
-        x = _int_optional(st, n, kw, tokens[2], :number_fallback)
+        x = _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1) ? _int_optional(st, n, kw, tokens[2], :number_fallback) : nothing
         key === :oniom_model_charge ? (st.model_charge = x) : (st.model_multiplicity = x)
     end
     return nothing
@@ -928,9 +1139,41 @@ function _close_block!(st::_InpState)
     return nothing
 end
 
+# Whether a warning of `ws` is on line `l`.
+function _warned_at(ws::Vector{InputWarning}, l::Int)
+    for w in ws
+        w.line == l && return true
+    end
+    return false
+end
+
+# The solvation of the input. Strict mode reads it independently of the order of the lines; lenient
+# mode takes the oracle's reading in file order, `seq`, and records an `:order_dependent` warning
+# when the two differ and no solvation line has a warning already, which then names the cause.
+function _resolve_solvation!(st::_InpState)
+    _solvation_by_keyword!(st)
+    st.lenient || return nothing
+    s = st.seq
+    if s !== st.d.solvation
+        l = 0
+        warned = false
+        for key in (:solvation, :solvent, :epsilon, :pcm_radii, :pcm_grid)
+            lk = get(st.seen, key, 0)
+            l = max(l, lk)
+            lk == 0 || (warned |= _warned_at(st.warnings, lk))
+        end
+        warned || push!(
+            st.warnings,
+            InputWarning(st.source, l, :order_dependent, "the solvation lines give another result when read in file order, as the oracle reads them"),
+        )
+    end
+    st.d.solvation = s
+    return nothing
+end
+
 # The solvation model and its options, independent of the order of their lines. The model is the
 # `solvation` word if given; otherwise `solvent` gives SMD and `epsilon` alone gives PCM.
-function _resolve_solvation!(st::_InpState)
+function _solvation_by_keyword!(st::_InpState)
     seen = st.seen
     l_model = get(seen, :solvation, 0)
     l_solvent = get(seen, :solvent, 0)

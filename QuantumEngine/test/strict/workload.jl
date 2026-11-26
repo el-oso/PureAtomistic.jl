@@ -291,6 +291,39 @@ function run_workload()
         molecule(p.input)
     end
     parse_inp("title t\nsolvation pcm\nepsilon 4\npcm_radii 1.1\nfragments 0;1,2\ngeometry\nO 0 0 0\nH 0 0 1\nH 0 1 0\nend\n")
+    # Lenient reading: fallbacks, missing values, the solvation read in order, and a keyword and a
+    # block opener inside a block.
+    lenient_text = """
+    dispersion False
+    damping abc
+    grid 7
+    field 0.1 x 0.3
+    kpoints 2 x 2
+    population foo
+    tddft_method foo
+    pcm_radii 1.1
+    solvation pcm
+    solvent
+    epsilon
+    pcm_grid
+    method casscf(4)
+    nbo
+    output
+    oniom_model_charge
+    geometry
+    Foo@ 0 0 0
+    O 0 0 0
+    charge 0
+    H 0 0 1
+    H 0 1 0
+    pbc
+    1 T F
+    end
+    hubbard
+    O 4.0
+    O 5.0
+    """
+    molecule(parse_inp(lenient_text; source = "w.inp", lenient = true).input)
     In.accepted_keywords()
     try
         parse_inp("charge 0\n")
