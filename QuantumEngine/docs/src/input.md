@@ -1,5 +1,16 @@
 # Input files
 
+`parse_input(path; lenient)` reads an input file with the reader its extension names: `.xyz`, `.pdb`
+and `.cif` are molecule files, read into an `InputFile` holding only their atoms; `.json` goes to
+`parse_json`, `.yaml` and `.yml` to `parse_yaml` (with YAML.jl loaded); any other extension is the
+`.inp` format. An xyz file given as an input must hold one frame (lenient reading takes the first of
+several, with an `:xyz_frames` warning).
+
+```@docs
+QuantumEngine.parse_input
+QuantumEngine.Input.input_format
+```
+
 `parse_inp(text; source, lenient)` reads an input file in the `.inp` format into a
 `ParsedInput`: the `InputFile` and the warnings of lenient reading. `molecule(inp)` builds the
 `Molecule` of the result.

@@ -23,14 +23,14 @@ using .Units: Element, element
 using .System: Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta,
     nuclear_repulsion
 using .IO: XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
-using .Input: InputFile, ParsedInput, parse_inp, parse_json, parse_dict, parse_yaml, molecule
+using .Input: InputFile, ParsedInput, parse_input, parse_inp, parse_json, parse_dict, parse_yaml, molecule
 
 export QuantumEngineError, InputError, BasisError, SCFNotConverged, OptimizationFailed,
     NotImplemented, FunctionalUnavailable, NumericalError, InputWarning
 export Element, element
 export Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta, nuclear_repulsion
 export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
-export InputFile, ParsedInput, parse_inp, parse_json, parse_dict, parse_yaml, molecule
+export InputFile, ParsedInput, parse_input, parse_inp, parse_json, parse_dict, parse_yaml, molecule
 
 public Units, System, IO, Input
 

@@ -10,7 +10,9 @@ values, without regard to ASCII case, and return `nothing` for an unknown word; 
 and `molecule` builds the `Molecule` of an `InputFile`. Structured input is a tree of `Node`s:
 `json_node` reads JSON text into one and `node` any `AbstractDict`, `parse_structured` reads the tree
 into a `ParsedInput`, and `parse_json` and `parse_dict` do both. `parse_yaml` reads YAML text; its
-method is in the extension `QuantumEngineYAMLExt`, which loads with YAML.jl.
+method is in the extension `QuantumEngineYAMLExt`, which loads with YAML.jl. `parse_input` reads a
+file with the reader its extension names (`input_format`), a molecule file into an `InputFile` that
+holds only its atoms.
 """
 module Input
 
@@ -21,7 +23,7 @@ using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: InputError, InputWarning
 using ..Units: ANGSTROM_TO_BOHR
 using ..System: Atom, PointCharge, Molecule, nalpha, element_number
-using ..IO: input_line, reject_or_warn, _parse_coordinate
+using ..IO: input_line, reject_or_warn, _parse_coordinate, read_xyz, read_pdb, read_cif
 
 include("types.jl")
 include("vocabulary.jl")
@@ -30,6 +32,7 @@ include("node.jl")
 include("structured.jl")
 include("json.jl")
 include("dict.jl")
+include("dispatch.jl")
 
 export RunMode, SinglePoint, Optimization, TransitionState, NEB, Frequency, TDDFT, Spectroscopy,
     OptFreq, BSSE, NBO, Bands, DOS, NMR, QTAIM, IRC
@@ -57,6 +60,7 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
 export parse_inp, molecule, accepted_keywords
 export NodeKind, NullNode, BoolNode, IntNode, FloatNode, StringNode, ArrayNode, MapNode, Node
 export parse_structured, json_node, parse_json, node, parse_dict, parse_yaml
+export input_format, parse_input
 
 # The keyword body of `InputFile` allocates only when it stores an `ONIOMSpec`, which it boxes into
 # the `Union{Nothing,ONIOMSpec}` field; every other call is held to `:noalloc`.
@@ -184,6 +188,9 @@ export parse_structured, json_node, parse_json, node, parse_dict, parse_yaml
 @strict_exempt :typestable :noalloc :noboxing types = (AbstractDict,) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
 @strict_exempt :typestable :noalloc :noboxing types = (AbstractString, Bool, typeof(parse_dict), AbstractDict) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
 @strict_exempt :noalloc _yaml_unavailable reason = "entry point: error constructor"
+@strict_exempt :noalloc parse_input reason = "entry point: input file reader"
+@strict_exempt :noalloc _inp_file reason = "entry point helper: .inp file reader of parse_input"
+@strict_exempt :noalloc _molecule_input reason = "entry point helper: molecule file reader of parse_input"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

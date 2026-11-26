@@ -174,7 +174,9 @@ end
 end
 
 # The `.inp` parser through its default and its keyword call on `String` and `SubString{String}`
-# text, the molecule of its result and the keyword list: the calls the juliac entry makes.
+# text, the molecule of its result and the keyword list: the calls the juliac entry makes. Of
+# `parse_input`, the format lookup and the paths of an `.inp` file and of a molecule file are
+# validated; `parse_input` itself is not trim-safe, because its JSON branch calls JSON.jl's reader.
 @testitem "TrimCheck: .inp parser" tags = [:checks] begin
     using TrimCheck
     @validate(
@@ -182,6 +184,10 @@ end
             using QuantumEngine
             parse_inp_kw(text, source, lenient) = parse_inp(text; source, lenient)
         end,
+        QuantumEngine.Input.input_format(String),
+        QuantumEngine.Input.input_format(SubString{String}),
+        QuantumEngine.Input._inp_file(String, Bool),
+        QuantumEngine.Input._molecule_input(QuantumEngine.Input.InputFormat, String, String, Bool),
         QuantumEngine.parse_inp(String),
         QuantumEngine.parse_inp(SubString{String}),
         parse_inp_kw(String, String, Bool),

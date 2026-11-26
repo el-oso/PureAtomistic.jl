@@ -4,6 +4,7 @@
 "src/errors/Errors.jl" = 1.00
 "src/input/Input.jl" = 1.00
 "src/input/dict.jl" = 1.00
+"src/input/dispatch.jl" = 1.00
 "src/input/inp.jl" = 1.00
 "src/input/json.jl" = 1.00
 "src/input/node.jl" = 1.00

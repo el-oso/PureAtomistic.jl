@@ -12,7 +12,8 @@ using YAML
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
 # writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then
 # the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
-# the `.inp` parser; then the structured readers and the YAML extension.
+# the `.inp` parser; then the structured readers and the YAML extension; then `parse_input` on a
+# file of each format.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -427,5 +428,32 @@ function run_workload()
             end
         end
     end
+    # Input files by extension: `.inp`, JSON, YAML and the molecule files, a multi-frame xyz in both
+    # modes, and the format lookup on a `SubString`.
+    dir = mktempdir()
+    files = (
+        "w.inp" => "geometry bohr\nH 0 0 -0.7\nH 0 0 0.7\nend\n",
+        "w.json" => json_text,
+        "w.yaml" => yh2,
+        "w.xyz" => "2\nh2\nH 0 0 0\nH 0 0 0.74\n",
+        "f.xyz" => "1\na\nH 0 0 0\n1\nb\nH 0 0 1\n",
+        "w.pdb" => "ATOM      1  H   HOH A   1       0.000   0.000   0.000  1.00  0.00           H\n",
+        "w.cif" => "data_w\nloop_\n_atom_site_type_symbol\n_atom_site_Cartn_x\n_atom_site_Cartn_y\n_atom_site_Cartn_z\nH 0 0 0\n",
+    )
+    for (name, text) in files
+        path = joinpath(dir, name)
+        write(path, text)
+        for lenient in (false, true)
+            try
+                parse_input(path; lenient)
+            catch e
+                e isa InputError || rethrow()
+                showerror(io, e)
+            end
+        end
+        name == "f.xyz" || parse_input(path)
+    end
+    In.input_format(SubString("xw.JSON", 2))
+    rm(dir; recursive = true)
     return take!(io)
 end
