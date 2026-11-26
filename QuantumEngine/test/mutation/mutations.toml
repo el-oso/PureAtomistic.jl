@@ -47,3 +47,12 @@ file = "src/system/System.jl"
 find = 'isodd(d)'
 replace = 'iseven(d)'
 expect = "electron counts"
+
+# The Rust exponent format.
+
+[[mutation]]
+name = "exponent-leading-zero"
+file = "src/io/format.jl"
+find = "lstrip(exp_digits, '0')"
+replace = "exp_digits"
+expect = "Rust exponent format"

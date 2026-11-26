@@ -62,3 +62,24 @@
         QuantumEngine.IO.reject_or_warn(String, Int, Bool, Vector{InputWarning}, Symbol, String),
     )
 end
+
+# The formatters, in Float64 and Float32, and the logger's line writer and two of its fixed output
+# lines, on a logger that writes to an `IOBuffer` with no log file. `fmt_exp` with a width is
+# validated through `fmt_exp_kw`.
+@testitem "TrimCheck: formatters and logger" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            fmt_exp_kw(x, prec, width) = QuantumEngine.IO.fmt_exp(x, prec; width)
+        end,
+        QuantumEngine.IO.fmt_fixed(Float64, Int, Int),
+        QuantumEngine.IO.fmt_fixed(Float32, Int, Int),
+        QuantumEngine.IO.fmt_exp(Float64, Int),
+        QuantumEngine.IO.fmt_exp(Float32, Int),
+        fmt_exp_kw(Float64, Int, Int),
+        QuantumEngine.IO.print_total_energy(QuantumEngine.IO.Logger{IOBuffer, Base.DevNull}, Float64),
+        QuantumEngine.IO.report_optimization_step(QuantumEngine.IO.Logger{IOBuffer, Base.DevNull}, Int, Float64, Float64),
+        QuantumEngine.IO.log_print(QuantumEngine.IO.Logger{IOBuffer, Base.DevNull}, QuantumEngine.IO.Verbosity, String),
+    )
+end

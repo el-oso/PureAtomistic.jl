@@ -4,7 +4,9 @@
 "src/errors/Errors.jl" = 1.00
 "src/io/IO.jl" = 1.00
 "src/io/cif.jl" = 1.00
+"src/io/format.jl" = 1.00
 "src/io/lines.jl" = 1.00
+"src/io/logger.jl" = 1.00
 "src/io/pdb.jl" = 1.00
 "src/io/xyz.jl" = 1.00
 "src/system/System.jl" = 1.00

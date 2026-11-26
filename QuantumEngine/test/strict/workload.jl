@@ -8,7 +8,7 @@ using QuantumEngine
 # rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
 # element lookups and radius accessors of `Units`; then the atom and molecule constructors, the
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
-# writer and the xyz, PDB and CIF readers of `IO`.
+# writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -85,5 +85,33 @@ function run_workload()
         e isa InputError || rethrow()
         showerror(io, e)
     end
+    # The Rust-compatible formatters; a logger built with the default and with a given verbosity,
+    # writing to an `IOBuffer` with no log file (`devnull`), through each of its functions; the
+    # verbosity of the input keyword; and the log and output paths.
+    IOm = QuantumEngine.IO
+    for x in (-76.301896228438, 2.5f-4)
+        IOm.fmt_fixed(x, 20, 12)
+        IOm.fmt_exp(x, 3)
+        IOm.fmt_exp(x, 3; width = 8)
+    end
+    IOm.fmt_int(3, 3)
+    IOm.fmt_str("O", 4)
+    IOm.fmt_str(sym("O"), 4)
+    for lg in (IOm.Logger(io, devnull), IOm.Logger(io, devnull; verbosity = IOm.High))
+        IOm.log_print(lg, IOm.Normal, "line")
+        IOm.log_success(lg, "ok")
+        IOm.log_warning(lg, "w")
+        IOm.log_error(lg, "e")
+        IOm.log_heading(lg, "Final Results")
+        IOm.log_section(lg, "Section")
+        IOm.print_atom_table(lg, [Atom("O", [0, 0, 0.2]), Atom("H", [0, 1.4, -0.9])])
+        IOm.print_atom_table(lg, [Atom("O", Float32[0, 0, 0.2])])
+        IOm.print_total_energy(lg, -76.301896228438)
+        IOm.report_optimization_step(lg, 3, -1.1167593075, 2.5e-4)
+    end
+    foreach(IOm.verbosity_from_input, (0, 1, 2))
+    IOm.log_path("dir/h2.inp", nothing)
+    IOm.log_path("h2.inp", "h2_test")
+    IOm.output_base("dir/h2.log")
     return take!(io)
 end
