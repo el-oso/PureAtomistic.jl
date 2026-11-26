@@ -97,6 +97,21 @@ end
     @test err isa InputError
     @test err.line == 3
     @test !occursin("system: ", sprint(showerror, err))
+    # A symbol that needs escaping gives the System message with its prefix replaced.
+    sym = "X\"\\\e"
+    sys = try
+        Atom(sym, [0.0, 0.0, 0.0])
+    catch e
+        e.msg
+    end
+    @test startswith(sys, "system: unknown element symbol ")
+    io_err = try
+        XYZFiles.frames("1\nc\n$(sym) 0 0 0\n")
+    catch e
+        e
+    end
+    @test sprint(showerror, io_err) == "input: t.xyz:3: " * replace(sys, "system: " => "xyz: ")
+    @test !occursin('\e', sprint(showerror, io_err))
     # A System error other than an unknown element is an error in both modes.
     @test_throws "input: t.xyz:3: xyz: a Bq atom needs an element" XYZFiles.frames("1\nc\nBq 0 0 0\n"; lenient = true)
     @test_throws "input: t.xyz:3: xyz: coordinate \"y\" is not a number" XYZFiles.frames("1\nc\nH 0 y 0\n"; lenient = true)
@@ -165,6 +180,25 @@ end
         w = InputWarning[]
         @test only(XYZFiles.frames("1\nc\nH 0 0 -inf\n"; lenient = true, warnings = w)[1].atoms).position[3] == -Inf
         @test length(w) == 1
+        # Rust's `f64` parser reads a decimal beyond the range as ±inf, so it is non-finite.
+        @test_throws "input: t.xyz:3: xyz: expected a finite number, got \"-1e400\"" XYZFiles.frames("1\nc\nH 0 -1e400 0\n")
+        w = InputWarning[]
+        @test only(XYZFiles.frames("1\nc\nH 0 -1e400 0\n"; lenient = true, warnings = w)[1].atoms).position[2] == -Inf
+        @test only(w).case === :nonfinite
+    end
+    @testset "coordinates below the range and hexadecimal floats" begin
+        # A decimal below half the smallest subnormal reads as ±0.0, as Rust's `f64` parser reads it.
+        w = InputWarning[]
+        a = only(XYZFiles.frames("1\nc\nH 1e-400 -1e-400 0\n"; warnings = w)[1].atoms)
+        @test a.position[1] === 0.0
+        @test a.position[2] === -0.0
+        @test isempty(w)
+        # Rust rejects hexadecimal floats, which `tryparse(Float64, _)` reads.
+        for lenient in (false, true)
+            @test_throws "input: t.xyz:3: xyz: coordinate \"0x1p0\" is not a number" XYZFiles.frames(
+                "1\nc\nH 0x1p0 0 0\n"; lenient
+            )
+        end
     end
 end
 

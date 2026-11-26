@@ -56,13 +56,14 @@ function read_pdb(
 end
 
 # The coordinate in columns `c:c+7` of the ASCII record `line` (line `n`), converted from Å to bohr;
-# in lenient mode a non-finite value (`nan`, `inf`) is kept.
+# in lenient mode a non-finite value (`nan`, `inf`, or a decimal beyond the `Float64` range) is
+# kept.
 function _pdb_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, line::SubString{String},
         c::Int,
     )
     t = strip(SubString(line, c, c + 7))
-    x = tryparse(Float64, t)
+    x = _parse_coordinate(t)
     isnothing(x) && throw(InputError(source, n, lazy"pdb: coordinate \"$(t)\" is not a number"))
     isfinite(x) || reject_or_warn(
         source, n, lenient, warnings, :nonfinite, lazy"pdb: expected a finite number, got \"$(t)\""

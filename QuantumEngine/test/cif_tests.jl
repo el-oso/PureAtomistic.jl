@@ -110,5 +110,17 @@ end
         @test length(w) == 1
         @test w[1].case === :nonfinite
         @test w[1].line == 7
+        w = InputWarning[]
+        @test only(CIFFiles.atoms(CIFFiles.loop(["O 1e400 0.0 1e-400"]); lenient = true, warnings = w)).position[[1, 3]] ==
+            [Inf, 0.0]
+        @test only(w).case === :nonfinite
+    end
+    @testset ":cif_coordinate, the hexadecimal float 0x1p0" begin
+        # Rust's `f64` parser rejects it, so lenient mode reads 0.0.
+        text = CIFFiles.loop(["O 0x1p0 0.0 0.0"])
+        @test_throws "input: t.cif:7: cif: coordinate \"0x1p0\" is not a number" CIFFiles.atoms(text)
+        w = InputWarning[]
+        @test only(CIFFiles.atoms(text; lenient = true, warnings = w)).position[1] == 0.0
+        @test only(w).case === :cif_coordinate
     end
 end

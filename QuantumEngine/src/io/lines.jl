@@ -53,9 +53,68 @@ function _atom(
     end
     if z == 0
         reject_or_warn(
-            source, line, lenient, warnings, :unknown_element, lazy"$(fmt)unknown element symbol \"$(symbol)\""
+            source, line, lenient, warnings, :unknown_element, lazy"$(fmt)unknown element symbol $(repr(symbol))"
         )
         return Atom{Float64}(1, String(symbol), position, false, element(1).mass_most_abundant)
     end
     return Atom(symbol, position)
+end
+
+# The value of the coordinate token `t` as Rust's `str::parse::<f64>`, which the oracle uses,
+# reads it, or `nothing` for a token it rejects. A decimal beyond the `Float64` range reads as ±Inf
+# and one below half the smallest subnormal as ±0.0, where `tryparse(Float64, t)` returns
+# `nothing` for both; a hexadecimal float, which `tryparse` reads and Rust rejects, is rejected.
+function _parse_coordinate(t::AbstractString)
+    n = ncodeunits(t)
+    i = 1
+    neg = false
+    if i <= n && (codeunit(t, i) == UInt8('+') || codeunit(t, i) == UInt8('-'))
+        neg = codeunit(t, i) == UInt8('-')
+        i += 1
+    end
+    i + 1 <= n && codeunit(t, i) == UInt8('0') && (codeunit(t, i + 1) | 0x20) == UInt8('x') && return nothing
+    x = tryparse(Float64, t)
+    x === nothing || return x
+    # `tryparse` rejected `t`, which is then out of range if it is a decimal
+    # `digits[.digits][(e|E)[+|-]digits]` with at least one mantissa digit.
+    ndig = 0      # mantissa digits
+    nint = 0      # of which before the point
+    first_nz = -1 # index among the mantissa digits of the first nonzero one
+    point = false
+    while i <= n
+        c = codeunit(t, i)
+        if c == UInt8('.') && !point
+            point = true
+        elseif UInt8('0') <= c <= UInt8('9')
+            first_nz < 0 && c != UInt8('0') && (first_nz = ndig)
+            ndig += 1
+            point || (nint += 1)
+        else
+            break
+        end
+        i += 1
+    end
+    (ndig == 0 || first_nz < 0) && return nothing
+    e = 0
+    if i <= n && (codeunit(t, i) | 0x20) == UInt8('e')
+        i += 1
+        eneg = false
+        if i <= n && (codeunit(t, i) == UInt8('+') || codeunit(t, i) == UInt8('-'))
+            eneg = codeunit(t, i) == UInt8('-')
+            i += 1
+        end
+        i <= n || return nothing
+        while i <= n
+            c = codeunit(t, i)
+            UInt8('0') <= c <= UInt8('9') || return nothing
+            # Saturates: any exponent this large is out of range either way.
+            e = min(10 * e + Int(c - UInt8('0')), 10^15)
+            i += 1
+        end
+        eneg && (e = -e)
+    end
+    i > n || return nothing
+    # The decimal exponent of the first nonzero digit: ≥ 0 means |value| ≥ 1, so an overflow.
+    lead = nint - 1 - first_nz + e
+    return lead >= 0 ? (neg ? -Inf : Inf) : (neg ? -0.0 : 0.0)
 end

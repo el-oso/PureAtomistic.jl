@@ -102,11 +102,12 @@ function _cif_columns(source::AbstractString, n::Int, tags::Vector{String})
 end
 
 # The coordinate token `t` of line `n`, converted from Å to bohr; in lenient mode a token that is
-# not a number reads as 0.0 and a non-finite value (`nan`, `inf`) is kept.
+# not a number (a hexadecimal float among them) reads as 0.0 and a non-finite value (`nan`, `inf`,
+# or a decimal beyond the `Float64` range) is kept.
 function _cif_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
     )
-    x = tryparse(Float64, t)
+    x = _parse_coordinate(t)
     if isnothing(x)
         reject_or_warn(source, n, lenient, warnings, :cif_coordinate, lazy"cif: coordinate \"$(t)\" is not a number")
         return 0.0

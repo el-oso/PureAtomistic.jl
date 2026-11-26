@@ -83,11 +83,11 @@ function read_xyz(
 end
 
 # The coordinate token `t` of line `n`, converted from Å to bohr; in lenient mode a non-finite
-# value (`nan`, `inf`) is kept.
+# value (`nan`, `inf`, or a decimal beyond the `Float64` range) is kept.
 function _xyz_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
     )
-    x = tryparse(Float64, t)
+    x = _parse_coordinate(t)
     isnothing(x) && throw(InputError(source, n, lazy"xyz: coordinate \"$(t)\" is not a number"))
     isfinite(x) || reject_or_warn(
         source, n, lenient, warnings, :nonfinite, lazy"xyz: expected a finite number, got \"$(t)\""

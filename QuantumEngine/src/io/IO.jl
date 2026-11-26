@@ -32,6 +32,7 @@ public input_line, reject_or_warn
 @strict_exempt :noalloc _xyz_coordinate reason = "entry point helper: coordinate parser of read_xyz"
 @strict_exempt :noalloc _pdb_coordinate reason = "entry point helper: coordinate parser of read_pdb"
 @strict_exempt :noalloc _cif_coordinate reason = "entry point helper: coordinate parser of read_cif"
+@strict_exempt :noalloc _parse_coordinate reason = "entry point helper: coordinate token reader of read_xyz, read_pdb and read_cif"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)
