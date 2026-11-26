@@ -6,19 +6,22 @@ pairs it with the warnings of lenient reading, and the enumerations and structs 
 name the methods, run modes and options. The vocabulary functions (`method_word`,
 `run_mode_word`, `solvent_word` and the others) map the words an input file may use to those
 values, without regard to ASCII case, and return `nothing` for an unknown word; each has an
-`accepted_*` companion that lists its words.
+`accepted_*` companion that lists its words. `parse_inp` reads an `.inp` file into a `ParsedInput`,
+and `molecule` builds the `Molecule` of an `InputFile`.
 """
 module Input
 
 using Parsers: Parsers
 using StaticArrays: SVector, SMatrix
 using StrictMode: @strict_exempt, @strict_policy
-using ..Errors: InputWarning
+using ..Errors: InputError, InputWarning
 using ..Units: ANGSTROM_TO_BOHR
-using ..System: Atom, PointCharge
+using ..System: Atom, PointCharge, Molecule, nalpha, element_number
+using ..IO: input_line, reject_or_warn
 
 include("types.jl")
 include("vocabulary.jl")
+include("inp.jl")
 
 export RunMode, SinglePoint, Optimization, TransitionState, NEB, Frequency, TDDFT, Spectroscopy,
     OptFreq, BSSE, NBO, Bands, DOS, NMR, QTAIM, IRC
@@ -43,6 +46,7 @@ export run_mode_word, method_word, solvation_word, solvent_word, vdw_kernel_word
 export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted_solvents,
     accepted_vdw_kernels, accepted_tddft_methods, accepted_grids, accepted_irc_directions,
     accepted_compute_modes, accepted_diis_methods, accepted_populations, accepted_surfaces
+export parse_inp, molecule, accepted_keywords
 
 # The keyword body of `InputFile` allocates only when it stores an `ONIOMSpec`, which it boxes into
 # the `Union{Nothing,ONIOMSpec}` field; every other call is held to `:noalloc`.
@@ -56,6 +60,47 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
 @strict_exempt :typestable types = (AbstractString,) solvent_word reason = "returns a Symbol or nothing for an unknown word; the union is split at every call site and allocates nothing"
 @strict_exempt :noalloc types = (AbstractString,) _fraction reason = "Parsers' exact float path allocates (an 800-digit buffer); remove this exemption when a Parsers release contains JuliaData/Parsers.jl#244"
 @strict_exempt :noalloc types = (AbstractVector{<:AbstractString},) method_word reason = "Parsers' exact float path allocates (an 800-digit buffer); remove this exemption when a Parsers release contains JuliaData/Parsers.jl#244"
+
+@strict_exempt :noalloc parse_inp reason = "entry point: .inp parser"
+@strict_exempt :noalloc _finalize_input reason = "entry point helper: shared input checks of parse_inp and parse_structured"
+@strict_exempt :noalloc _InputDraft reason = "entry point: input draft constructor"
+@strict_exempt :noalloc _draft reason = "entry point helper: input draft of parse_inp and _finalize_input"
+@strict_exempt :noalloc types = (_InputDraft, ONIOMSpec) _build_input reason = "entry point helper: InputFile builder of parse_inp and _finalize_input"
+@strict_exempt :noalloc types = (_InputDraft, ONIOMSpec) _input reason = "entry point helper: InputFile builder of parse_inp and _finalize_input"
+@strict_exempt :noalloc _InpState reason = "entry point: parser state constructor of parse_inp"
+@strict_exempt :noalloc _reject reason = "entry point helper: strict-or-lenient choice of parse_inp"
+@strict_exempt :noalloc _line! reason = "entry point helper: line reader of parse_inp"
+@strict_exempt :noalloc _parse_float reason = "entry point helper: number token reader of parse_inp"
+@strict_exempt :noalloc _join reason = "entry point helper: word joiner of parse_inp, builds a String"
+@strict_exempt :noalloc _finite reason = "entry point helper: number check of parse_inp"
+@strict_exempt :noalloc _float_required reason = "entry point helper: number reader of parse_inp"
+@strict_exempt :noalloc _float_optional reason = "entry point helper: number reader of parse_inp"
+@strict_exempt :noalloc _int_optional reason = "entry point helper: integer reader of parse_inp"
+@strict_exempt :noalloc _index reason = "entry point helper: atom index reader of parse_inp"
+@strict_exempt :noalloc _bool reason = "entry point helper: Boolean reader of parse_inp"
+@strict_exempt :noalloc _unknown_msg reason = "entry point helper: unknown-word message of parse_inp"
+@strict_exempt :noalloc _unknown reason = "entry point helper: unknown-word rejection of parse_inp"
+@strict_exempt :noalloc _count_ok reason = "entry point helper: value count check of parse_inp"
+@strict_exempt :noalloc _method_value reason = "entry point helper: method reader of parse_inp"
+@strict_exempt :noalloc _keyword_line! reason = "entry point helper: keyword line reader of parse_inp"
+@strict_exempt :noalloc _keyword_value! reason = "entry point helper: keyword value reader of parse_inp"
+@strict_exempt :noalloc _model_atoms! reason = "entry point helper: ONIOM model atom reader of parse_inp"
+@strict_exempt :noalloc _freeze! reason = "entry point helper: constraint reader of parse_inp"
+@strict_exempt :noalloc _parse_fragments reason = "entry point helper: fragment reader of parse_inp"
+@strict_exempt :noalloc _fragments_keyword! reason = "entry point helper: fragments keyword reader of parse_inp"
+@strict_exempt :noalloc _open_block! reason = "entry point helper: block opener of parse_inp"
+@strict_exempt :noalloc _inside reason = "entry point helper: block line message of parse_inp"
+@strict_exempt :noalloc _block_line! reason = "entry point helper: block line reader of parse_inp"
+@strict_exempt :noalloc _position reason = "entry point helper: position reader of parse_inp"
+@strict_exempt :noalloc _geometry_line! reason = "entry point helper: geometry line reader of parse_inp"
+@strict_exempt :noalloc _charges_line! reason = "entry point helper: charges line reader of parse_inp"
+@strict_exempt :noalloc _hubbard_line! reason = "entry point helper: hubbard line reader of parse_inp"
+@strict_exempt :noalloc _cell_line! reason = "entry point helper: cell line reader of parse_inp"
+@strict_exempt :noalloc _pbc_line! reason = "entry point helper: pbc line reader of parse_inp"
+@strict_exempt :noalloc _oniom_line! reason = "entry point helper: oniom line reader of parse_inp"
+@strict_exempt :noalloc _close_block! reason = "entry point helper: block closer of parse_inp"
+@strict_exempt :noalloc _resolve_solvation! reason = "entry point helper: solvation resolution of parse_inp"
+@strict_exempt :noalloc _check_f12 reason = "entry point helper: F12 option check of parse_inp"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

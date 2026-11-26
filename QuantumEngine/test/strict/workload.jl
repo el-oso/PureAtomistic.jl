@@ -9,7 +9,8 @@ using QuantumEngine
 # element lookups and radius accessors of `Units`; then the atom and molecule constructors, the
 # electron counts and the nuclear repulsion of `System` in Float64 and Float32; then the xyz
 # writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then
-# the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`.
+# the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
+# the `.inp` parser.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -175,5 +176,127 @@ function run_workload()
             In.accepted_compute_modes, In.accepted_diis_methods, In.accepted_populations, In.accepted_surfaces,
         )
     )
+    # The `.inp` parser on an input with every keyword and block, through its default and its
+    # keyword call and on a `SubString`; the molecule of the result; the keyword list; and a parser
+    # error, rendered.
+    inp_text = """
+    # water
+    title "Water" # inline comment
+    charge 0
+    multiplicity 1
+    run freq
+    basis 6-31G*
+    method libxc_hgga 402 0.2
+    scf_convergence 1e-8
+    max_iterations 75
+    diis_method ediis
+    conv_tol_density 1e-7
+    diis_reset 0.2
+    damping 0.1
+    smear 0.01
+    grid fine
+    level_shift 0.3
+    autostabilize false
+    robust true
+    field 0 0 0.01
+    ri_j true
+    ri_k true
+    aux_basis def2-SVP-JKFIT
+    gpu false
+    checkpoint run.chk
+    restart true
+    ts_target_mode 2
+    ts_trust_radius 0.2
+    neb_k 0.3
+    neb_images 9
+    climbing_image false
+    temp 310
+    press 2
+    sigma 2
+    dispersion true
+    zora true
+    f12 true
+    f12_gamma 0.9
+    f12_model F12a
+    nbo true
+    admm true
+    admm_basis cfit
+    ecp def2
+    vdw_kernel d3bj
+    solvation smd
+    solvent dcm
+    epsilon 9.0
+    smd_grid 194
+    output out.log
+    verbosity 2
+    export_molden true
+    export_cube true
+    export_wfx true
+    population mulliken lowdin
+    cutoff 400
+    kpoints 2 2 2
+    dos_k_grid 4 4 4
+    dos_sigma 0.2
+    kpath G X
+    oniom_model_charge 0
+    oniom_model_multiplicity 1
+    freeze_atom 0
+    freeze_bond 0 1 1.8
+    freeze_angle 1 0 2 104.5
+    freeze_dihedral 0 1 2 1
+    irc_step 0.05
+    irc_points 12
+    irc_direction fwd
+    nstates 5
+    tddft_method rpa
+    soc true
+    triplets true
+    dmft true
+    dmft_temp 100
+    dmft_n_freq 512
+    dmft_n_bath 6
+    geometry angstrom
+    O  0.0000  0.0000  0.1173
+    H  0.0000  0.7572 -0.4692
+    H  0.0000 -0.7572 -0.4692
+    Bq 0 0 2 0.5
+    end
+    product_geometry bohr
+    O 0 0 0
+    end
+    charges
+    0.5 0 0 3
+    end
+    hubbard
+    O 4.0
+    end
+    fragments
+    0 ; 1,2
+    end
+    cell
+    5 0 0
+    0 5 0
+    0 0 5
+    end
+    pbc
+    true true false
+    end
+    oniom
+    high pbe0
+    low hf
+    model_atoms 0
+    end
+    """
+    for p in (parse_inp(inp_text), parse_inp(inp_text; source = "w.inp", lenient = false), parse_inp(SubString(inp_text, 1)))
+        molecule(p.input)
+    end
+    parse_inp("title t\nsolvation pcm\nepsilon 4\npcm_radii 1.1\nfragments 0;1,2\ngeometry\nO 0 0 0\nH 0 0 1\nH 0 1 0\nend\n")
+    In.accepted_keywords()
+    try
+        parse_inp("charge 0\n")
+    catch e
+        e isa InputError || rethrow()
+        showerror(io, e)
+    end
     return take!(io)
 end

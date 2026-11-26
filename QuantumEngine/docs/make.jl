@@ -20,6 +20,7 @@ makedocs(;
     build = "build",
     pages = [
         "Home" => "index.md",
+        "Input files" => "input.md",
         "API" => "api.md",
         "Dependencies" => "dependencies.md",
         "Parity with the oracle" => "parity.md",

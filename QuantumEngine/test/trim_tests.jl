@@ -172,3 +172,21 @@ end
         QuantumEngine.Input.accepted_surfaces(),
     )
 end
+
+# The `.inp` parser through its default and its keyword call on `String` and `SubString{String}`
+# text, the molecule of its result and the keyword list: the calls the juliac entry makes.
+@testitem "TrimCheck: .inp parser" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            parse_inp_kw(text, source, lenient) = parse_inp(text; source, lenient)
+        end,
+        QuantumEngine.parse_inp(String),
+        QuantumEngine.parse_inp(SubString{String}),
+        parse_inp_kw(String, String, Bool),
+        parse_inp_kw(SubString{String}, String, Bool),
+        QuantumEngine.molecule(InputFile),
+        QuantumEngine.Input.accepted_keywords(),
+    )
+end

@@ -276,3 +276,83 @@ struct ParsedInput
     input::InputFile
     warnings::Vector{InputWarning}
 end
+
+"""
+    molecule(inp::InputFile) -> Molecule{Float64, Vector{Atom{Float64}}}
+
+The molecule of `inp`: its atoms, charge, multiplicity and point charges. The atom and
+point-charge vectors are those of `inp`, not copies.
+"""
+molecule(inp::InputFile) =
+    Molecule(inp.atoms; charge = inp.charge, multiplicity = inp.multiplicity, point_charges = inp.point_charges)
+
+# A mutable copy of every field of `InputFile`, which a parser fills one keyword at a time and
+# turns into an `InputFile` once, with `_input`. `_draft(inp)` copies the fields of `inp`, sharing
+# its vectors. The definitions are generated from the field list, so a field added to `InputFile`
+# is carried without an edit here.
+let fields = fieldnames(InputFile), decls = Expr[], copies = Expr[], kwargs = Expr[]
+    for f in fields
+        push!(decls, :($f::$(fieldtype(InputFile, f))))
+        push!(copies, :(inp.$f))
+        push!(kwargs, Expr(:kw, f, f === :oniom ? :oniom : :(d.$f)))
+    end
+    @eval mutable struct _InputDraft
+        $(decls...)
+    end
+    @eval _draft(inp::InputFile) = _InputDraft($(copies...))
+    # `oniom` is passed apart from the draft with its concrete type, so the keyword body of
+    # `InputFile` is compiled for `Nothing` and for `ONIOMSpec` there, never for the union.
+    @eval _build_input(d::_InputDraft, oniom::Union{Nothing, ONIOMSpec}) = InputFile(; $(kwargs...))
+end
+
+_input(d::_InputDraft, oniom::Union{Nothing, ONIOMSpec}) =
+    isnothing(oniom) ? _build_input(d, nothing) : _build_input(d, oniom)
+
+# The method word that asks for the restricted reference of `kind`.
+function _restricted_word(kind::MethodKind)
+    kind == HF && return "rhf"
+    kind == MP2 && return "rmp2"
+    kind == MP2_F12 && return "rmp2-f12"
+    kind == CCSD && return "rccsd"
+    kind == CCSD_F12 && return "rccsd-f12"
+    return "restricted"
+end
+
+"""
+    _finalize_input(inp::InputFile; source = "<input>", lenient = false, warnings = InputWarning[], method_line = 0, multiplicity_line = 0) -> InputFile
+
+The checks every input format shares, run once after the parse of `inp` from `source`: the input
+has atoms; a method with a restricted reference has multiplicity 1 (in lenient mode the reference
+becomes `AutoReference`, as the oracle chooses it, with a `:rhf_open_shell` warning); and the
+charge and multiplicity give a whole number of α and β electrons. The errors name the line of
+`method` and of `multiplicity` (0 for a structured input or a keyword not given); an
+`ArgumentError` of the electron counts is rethrown as an `InputError` with its message. Every
+parser passes `source`, `lenient` and `warnings`; the defaults give the method a call without
+keywords, which the type-stability check of the module judges.
+"""
+function _finalize_input(
+        inp::InputFile; source::AbstractString = "<input>", lenient::Bool = false,
+        warnings::Vector{InputWarning} = InputWarning[], method_line::Int = 0, multiplicity_line::Int = 0,
+    )
+    isempty(inp.atoms) && throw(InputError(source, 0, "no atoms: the input has no geometry block"))
+    m = inp.method
+    if m.reference == Restricted && inp.multiplicity != 1
+        reject_or_warn(
+            source, method_line, lenient, warnings, :rhf_open_shell,
+            lazy"method `$(_restricted_word(m.kind))` requests a restricted reference, but multiplicity is $(inp.multiplicity)",
+        )
+        d = _draft(inp)
+        d.method = MethodSpec(m.kind, AutoReference, m.ints, m.exx)
+        inp = _input(d, inp.oniom)
+    end
+    try
+        nalpha(molecule(inp))
+    catch e
+        e isa ArgumentError || rethrow()
+        msg = e.msg
+        msg isa LazyString && throw(InputError(source, multiplicity_line, msg))
+        msg isa String && throw(InputError(source, multiplicity_line, msg))
+        rethrow()
+    end
+    return inp
+end
