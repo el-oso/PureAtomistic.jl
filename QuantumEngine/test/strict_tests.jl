@@ -15,7 +15,7 @@
         ("scan", "noalloc"), ("scan", "noboxing"),
         ("other", "typestable"),
     )
-    const OTHER = ("showerror", "show")
+    const OTHER = ("showerror", "show", "setindex!")
     const MODULES = ("Errors", "Units", "System", "IO")
 end
 

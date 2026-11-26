@@ -89,8 +89,9 @@ end
 # Every function of another package the package adds methods to, with the guarantees its methods
 # are held to here. A method of a function missing here fails the item, so a new one is listed when
 # it is written. The module sweeps already hold `showerror` and `show` to every guarantee, with
-# `:noalloc` and `:noboxing` exempt, and `setindex!` (the JSON object builder of `Input`) with
-# `:noalloc` exempt; this listing judges their type stability a second time.
+# `:noalloc` and `:noboxing` exempt, and this listing judges their type stability a second time.
+# `setindex!` of `Input`'s JSON object builder reads JSON.jl's untyped values and is exempt from
+# every guarantee; it is listed so that any other `setindex!` method the package adds is judged.
 const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!)
 const OTHER_GUARANTEES = (:typestable,)
 const OTHER_METHODS = Dict{Any, Tuple{Vararg{Symbol}}}(f => OTHER_GUARANTEES for f in OTHER_FUNCTIONS)

@@ -547,3 +547,40 @@ end
     @test_throws "geometry: expected a list, got a map" parse_structured(nd("geometry" => nd()); source = "t.json")
     @test_throws "no atoms" parse_structured(nd("geometry" => nd()); source = "t.json", lenient = true)
 end
+
+# A number beyond the Float64 range reaches the walker as ±Inf and meets the finite-number rule of
+# every other number: strict mode rejects it, lenient mode keeps it with a `:nonfinite` warning.
+@testitem "json: number beyond the Float64 range" begin
+    using QuantumEngine
+    h2 = """"unit": "bohr", "geometry": [{"symbol": "H", "position": [0.0, 0.0, -0.7]}, {"symbol": "H", "position": [0.0, 0.0, 0.7]}]"""
+    for (x, s) in (("1e400", "Inf"), ("-1e400", "-Inf"))
+        text = "{$h2, \"scf\": {\"damping\": $x}}"
+        @test_throws "input: t.json: scf.damping: expected a finite number, got $s" parse_json(text; source = "t.json")
+        p = parse_json(text; source = "t.json", lenient = true)
+        @test p.input.damping == parse(Float64, s)
+        @test [w.case for w in p.warnings] == [:nonfinite]
+    end
+end
+
+# The JSON front end (`json_node`, `parse_json`) is exempt from the StrictMode guarantees because
+# JSON.jl returns its values as `Any`; the walker it calls is not. `parse_structured` on a tree
+# built from `Node` constructors is type-stable and boxes nothing in both modes; `parse_json`
+# failing the same check shows that the check judges the call.
+@testitem "json: parse_structured passes the StrictMode checks" begin
+    using QuantumEngine, StrictMode, StrictModeTest
+    using QuantumEngine.Input: Node, parse_structured
+    StrictMode.assert_enabled()
+    atom(z) = Node(["symbol", "position"], [Node("H"), Node(Node[Node(0.0), Node(0.0), Node(z)])])
+    root = Node(["unit", "geometry"], [Node("bohr"), Node(Node[atom(-0.7), atom(0.7)])])
+    @test length(parse_structured(root; source = "t.json").input.atoms) == 2
+    @test isempty(parse_structured(root; source = "t.json", lenient = true).warnings)
+    for kw in (NamedTuple{(:source,), Tuple{String}}, NamedTuple{(:source, :lenient), Tuple{String, Bool}})
+        sig = (Core.kwcall, (kw, typeof(parse_structured), Node))
+        for g in (:typestable, :noboxing)
+            @test (test_signatures([sig]; guarantees = (g,)); true)
+        end
+    end
+    @test_throws StrictMode.StrictViolation test_signatures(
+        [(Core.kwcall, (NamedTuple{(:source,), Tuple{String}}, typeof(parse_json), String))]; guarantees = (:typestable,),
+    )
+end
