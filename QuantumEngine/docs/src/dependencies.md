@@ -29,3 +29,17 @@ alone. TrimCheck rejects `json_node` on both versions, so the trimmed program re
 only. `JSON.parse` returns its values as `Any`, so `json_node`, `parse_json` and the helpers that
 read JSON.jl's values are exempt from the StrictMode guarantees; `parse_structured`, which reads
 only `Node`s, is held to all of them.
+
+## Weak dependencies
+
+| weak dependency | extension | compat | resolved closure (outside the standard libraries) | `_jll` / artifacts |
+|---|---|---|---|---|
+| YAML | `QuantumEngineYAMLExt` | `0.4.18` | YAML 0.4.18, StringEncodings 0.3.7, LazyJLLWrappers 1.2.7, Preferences 1.6.1, Libiconv_jll 1.18.1 | Libiconv_jll 1.18.1, with an `Artifacts.toml` |
+
+YAML (YAML.jl) reads YAML input files. It is a `[weakdeps]` entry, not a dependency: the
+extension `QuantumEngineYAMLExt` loads only when a program loads YAML.jl itself, and the package
+reads structured input from any `AbstractDict` without it. Its closure, resolved in a fresh
+environment, brings the binary library Libiconv_jll (through StringEncodings), so it stays outside
+the core closure. The item "core closure is binary-free" resolves a fresh environment holding only
+QuantumEngine, which installs no weak dependency, so it checks the core without the extension. A
+trimmed program does not load the extension.

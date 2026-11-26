@@ -1,0 +1,4 @@
+# Minimum line coverage per extension file (covered / coverable lines), checked by check.jl with
+# `--root ext --thresholds thresholds_ext.toml` after the main suite, which loads every extension.
+# Floors only rise.
+"ext/QuantumEngineYAMLExt.jl" = 1.00

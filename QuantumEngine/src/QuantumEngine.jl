@@ -5,7 +5,7 @@ A quantum-chemistry program in pure Julia. Its submodules are `Errors` (the erro
 `Units` (physical constants and the element table), `System` (atoms, molecules, electron
 counts and the nuclear repulsion), `IO` (the xyz, PDB, CIF and Molden files, the logger and the
 number formats) and `Input` (the typed input file, the words of its keywords, the `.inp` parser and
-the JSON reader).
+the JSON and dictionary readers; YAML files are read through the extension `QuantumEngineYAMLExt`).
 """
 module QuantumEngine
 
@@ -23,14 +23,14 @@ using .Units: Element, element
 using .System: Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta,
     nuclear_repulsion
 using .IO: XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
-using .Input: InputFile, ParsedInput, parse_inp, parse_json, molecule
+using .Input: InputFile, ParsedInput, parse_inp, parse_json, parse_dict, parse_yaml, molecule
 
 export QuantumEngineError, InputError, BasisError, SCFNotConverged, OptimizationFailed,
     NotImplemented, FunctionalUnavailable, NumericalError, InputWarning
 export Element, element
 export Atom, PointCharge, Molecule, basis_element, nelectrons, nalpha, nbeta, nuclear_repulsion
 export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
-export InputFile, ParsedInput, parse_inp, parse_json, molecule
+export InputFile, ParsedInput, parse_inp, parse_json, parse_dict, parse_yaml, molecule
 
 public Units, System, IO, Input
 

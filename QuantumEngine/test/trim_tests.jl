@@ -194,6 +194,7 @@ end
 # The structured-input walker on a `Node` tree through its keyword calls, and the `Node`
 # constructors. The constructors are validated through functions, for the reason given above.
 # json_node is not trim-safe: JSON.jl's reader has unresolved calls under TrimCheck; the trimmed entry reads .inp only.
+# Neither are node and parse_dict on a `Dict{String, Any}`, whose values are `Any`: TrimCheck rejects both.
 @testitem "TrimCheck: structured input" tags = [:checks] begin
     using TrimCheck
     @validate(

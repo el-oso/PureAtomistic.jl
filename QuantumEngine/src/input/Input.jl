@@ -8,8 +8,9 @@ name the methods, run modes and options. The vocabulary functions (`method_word`
 values, without regard to ASCII case, and return `nothing` for an unknown word; each has an
 `accepted_*` companion that lists its words. `parse_inp` reads an `.inp` file into a `ParsedInput`,
 and `molecule` builds the `Molecule` of an `InputFile`. Structured input is a tree of `Node`s:
-`json_node` reads JSON text into one, `parse_structured` reads the tree into a `ParsedInput`, and
-`parse_json` does both.
+`json_node` reads JSON text into one and `node` any `AbstractDict`, `parse_structured` reads the tree
+into a `ParsedInput`, and `parse_json` and `parse_dict` do both. `parse_yaml` reads YAML text; its
+method is in the extension `QuantumEngineYAMLExt`, which loads with YAML.jl.
 """
 module Input
 
@@ -28,6 +29,7 @@ include("inp.jl")
 include("node.jl")
 include("structured.jl")
 include("json.jl")
+include("dict.jl")
 
 export RunMode, SinglePoint, Optimization, TransitionState, NEB, Frequency, TDDFT, Spectroscopy,
     OptFreq, BSSE, NBO, Bands, DOS, NMR, QTAIM, IRC
@@ -54,7 +56,7 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
     accepted_compute_modes, accepted_diis_methods, accepted_populations, accepted_surfaces
 export parse_inp, molecule, accepted_keywords
 export NodeKind, NullNode, BoolNode, IntNode, FloatNode, StringNode, ArrayNode, MapNode, Node
-export parse_structured, json_node, parse_json
+export parse_structured, json_node, parse_json, node, parse_dict, parse_yaml
 
 # The keyword body of `InputFile` allocates only when it stores an `ONIOMSpec`, which it boxes into
 # the `Union{Nothing,ONIOMSpec}` field; every other call is held to `:noalloc`.
@@ -173,6 +175,15 @@ export parse_structured, json_node, parse_json
 @strict_exempt :noalloc _indices reason = "entry point helper: constraint index reader of parse_structured"
 @strict_exempt :noalloc _constraint_index reason = "entry point helper: constraint index reader of parse_structured"
 @strict_exempt :noalloc _constraints! reason = "entry point helper: constraint reader of parse_structured"
+
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractDict,) node reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractString, typeof(node), AbstractDict) node reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :typestable :noalloc :noboxing types = (Any, String, String) _dict_node reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractDict, String, String) _dict_map reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :noalloc _path_prefix reason = "entry point helper: key path message of node"
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractDict,) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :typestable :noalloc :noboxing types = (AbstractString, Bool, typeof(parse_dict), AbstractDict) parse_dict reason = "reads a dictionary's untyped values (an AbstractDict holds Any); not on the trimmed path"
+@strict_exempt :noalloc _yaml_unavailable reason = "entry point: error constructor"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

@@ -379,5 +379,36 @@ function run_workload()
         end
     end
     In.parse_structured(N(["geometry"], [N(N[atom("H", -0.7), atom("H", 0.7)])]); source = "w.json")
+    # Structured input from a `Dict`: every value kind, through `parse_dict` in both modes and
+    # `node` with and without a source; each `node` error rendered; and the error of a YAML input
+    # read without YAML.jl.
+    h2 = Any[Dict{String, Any}("symbol" => "H", "position" => Any[0.0, 0, Int32(-1)]), Dict("symbol" => "H", "x" => 0.0f0, "y" => 0.0, "z" => 0.7)]
+    d = Dict{String, Any}(
+        "title" => SubString("xw", 2), "charge" => Int8(0), "zora" => false, "unit" => "bohr", "f12_model" => nothing,
+        "aux" => missing, "hubbard" => Dict("O" => 4.0), "geometry" => h2,
+    )
+    for lenient in (false, true)
+        try
+            parse_dict(d; source = "w.yaml", lenient)
+        catch e
+            e isa InputError || rethrow()
+            showerror(io, e)
+        end
+    end
+    parse_dict(Dict{String, Any}("unit" => "bohr", "geometry" => h2); source = "w.yaml")
+    In.node(d)
+    In.node(d; source = "w.yaml")
+    for bad in (
+            Dict{Any, Any}(1 => 2), Dict("a" => Dict(:k => 1)), Dict("a" => 'c'), Dict("a" => Int128(2)^70),
+            IdDict{Any, Any}("a" => 1, SubString("ab", 1, 1) => 2),
+        )
+        try
+            In.node(bad)
+        catch e
+            e isa InputError || rethrow()
+            showerror(io, e)
+        end
+    end
+    showerror(io, In._yaml_unavailable("w.yaml"))
     return take!(io)
 end

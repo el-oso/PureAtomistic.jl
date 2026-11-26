@@ -268,7 +268,7 @@ QuantumEngine.molecule
 QuantumEngine.Input.accepted_keywords
 ```
 
-## Structured input (JSON)
+## Structured input (JSON, dictionaries, YAML)
 
 `parse_json(text; source, lenient)` reads a JSON input file: `json_node(text)` reads the text with
 JSON.jl into a tree of `Node`s, and `parse_structured(root; source, lenient)` reads the tree into
@@ -371,10 +371,64 @@ The units `au` and `ang` mean bohr and Å in both modes; the oracle reads only `
 every other unit as Å. A method word in an ONIOM map is read without regard to case, which the
 oracle does only for the top-level `method`.
 
+### Dictionaries and YAML files
+
+`parse_dict(d; source, lenient)` reads structured input from any `AbstractDict`, as YAML.jl,
+JSON.jl and other readers build one: `node(d)` converts it to a `Node` tree and
+`parse_structured` reads the tree, so a dictionary meets the schema and the lenient cases above.
+Maps keep the dictionary's iteration order. Keys are converted with `String`; a key that is not a
+string, a key repeated within one map (two keys that convert to the same `String`), an integer
+outside the `Int64` range and a value that is not a map, a vector, a Boolean, an integer, a
+floating-point number, a string, `nothing` or `missing` are errors in both modes, naming the key
+path: `input: a.yaml: title: unsupported value of type Date`. `nothing` and `missing` are null.
+
+```julia
+using QuantumEngine
+p = parse_dict(Dict("unit" => "bohr", "geometry" => [Dict("symbol" => "H", "position" => [0, 0, 0])],
+    "multiplicity" => 2); source = "h")
+```
+
+`parse_yaml(text; source, lenient)` reads a YAML file. It has a method only once YAML.jl is
+loaded (`using YAML` loads the extension `QuantumEngineYAMLExt`); YAML.jl is not a dependency of
+the package. The extension reads the text with YAML.jl, keeping each mapping as written, in the
+order of the file and with any repeated key, and calls `parse_dict`. A key given twice in one
+mapping is an error in both modes, as the oracle's reader (yaml-rust2) rejects it; YAML.jl itself
+logs an error and keeps the last value, and its log message appears before the error. An empty
+document is `the document is empty` in both modes. A document that is not a mapping is
+`top-level YAML document is not a mapping` in strict mode, with `; this file looks like .inp
+syntax` when it is a single string (an `.inp` file read as YAML), and in lenient mode, as the
+oracle reads a document without keys, `no atoms: the input has no geometry block`. Of several
+documents, the first is read, as the oracle reads it. Text that is not YAML is YAML.jl's error.
+
+YAML.jl decides the type of each scalar. Where it differs from yaml-rust2 0.9.0, which the oracle
+uses for `.yaml`, `.yml` and `.json` files, the schema's type checks decide: a value of the wrong
+type for its key is an error in strict mode and the lenient case of the table above in lenient
+mode. JSON.jl rejects each of these forms as invalid JSON.
+
+| YAML scalar | YAML.jl reads | yaml-rust2 (the oracle) reads | QuantumEngine, e.g. |
+|---|---|---|---|
+| `017` (leading zero) | 15, an octal integer | 17 | `max_iterations: 017` is 15 |
+| `08`, `09` | a string | 8, 9 | `max_iterations: 08` is `:yaml_wrong_type` |
+| `True`, `TRUE`, `False` | a Boolean | a string, which a Boolean key ignores | `zora: True` is true |
+| `nan`, `NaN`, `inf`, `infinity` | a string | NaN, Inf | `scf_convergence: nan` is `:yaml_wrong_type` |
+| `.NaN` | NaN | a string | `scf_convergence: .NaN` is `:nonfinite` |
+| `0b101` | 5 | a string | `max_iterations: 0b101` is 5 |
+| `1_000`, `1_000.5` | 1000, 1000.5 | a string | `max_iterations: 1_000` is 1000 |
+| `Null`, `NULL` | null | a string | `title: Null` is `:yaml_wrong_type` |
+| `2001-12-14` | a `Date` | a string | an error in both modes |
+| `9223372036854775808` (beyond `Int64`) | an `Int128` | a float, which an integer key ignores | an error in both modes |
+| a key that is not a string (`1: x`) | the integer key 1 | the integer key 1, which no lookup finds | an error in both modes |
+
+Both readers agree on `-017`, `+017`, `0x1F`, `0o17`, `.5`, `5.`, `1e-6`, `.nan`, `.inf`,
+`-.inf`, `1e400` (Inf), `yes`, `no`, `on`, `off`, `~`, `null` and an empty value.
+
 ```@docs
 QuantumEngine.parse_json
 QuantumEngine.Input.parse_structured
 QuantumEngine.Input.json_node
+QuantumEngine.parse_dict
+QuantumEngine.Input.node
+QuantumEngine.parse_yaml
 QuantumEngine.Input.Node
 QuantumEngine.Input.NodeKind
 ```
