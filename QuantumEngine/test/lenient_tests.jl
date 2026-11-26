@@ -212,7 +212,7 @@ end
 
 @testitem "lenient: unknown_keyword" setup = [Lenient] begin
     using QuantumEngine
-    # parser.rs:563-618: an unknown keyword outside a block matches no branch (verified).
+    # parser.rs:563-618: an unknown keyword outside a block matches no branch.
     text = "use_diis true\n" * Lenient.W
     @test_throws "unknown keyword `use_diis`" Lenient.strict(text)
     p = Lenient.lenient(text)
@@ -256,7 +256,7 @@ end
 @testitem "lenient: hubbard_inline_argument" setup = [Lenient] begin
     using QuantumEngine
     # parser.rs:280-285 ignores the value and opens the block; the next line of two tokens is
-    # read as a U line (parser.rs:564-567), so this fails in both modes (verified).
+    # read as a U line (parser.rs:564-567), so this fails in both modes.
     text = "hubbard O:5.0\nuse_diis true\n" * Lenient.W
     @test_throws "`hubbard` takes no value on its line" Lenient.strict(text)
     @test_throws "Invalid U value: true" Lenient.lenient(text)
@@ -360,6 +360,12 @@ end
     @test_throws "`solvent` needs `solvation smd`" Lenient.strict(text)
     p = Lenient.lenient(text)
     @test p.input.solvation == SolvationSpec(; model = PCM) && Lenient.cases(p) == [:order_dependent]
+    # A warning of another case on a solvation line does not name the order, so both are given.
+    p = Lenient.lenient("epsilon 4.0 x\nsolvation pcm\n" * W)
+    @test p.input.solvation == SolvationSpec(; model = PCM) && Lenient.cases(p) == [:extra_values, :order_dependent]
+    # parser.rs:212-223: `solvent` replaces the PCM model that `epsilon` set.
+    p = Lenient.lenient("epsilon zzz\nsolvent dcm\n" * W)
+    @test p.input.solvation == SolvationSpec(; model = SMD, solvent = :dcm) && Lenient.cases(p) == [:number_fallback, :order_dependent]
 end
 
 @testitem "lenient: option_without_model" setup = [Lenient] begin
@@ -404,6 +410,13 @@ end
         @test (a.Z, a.symbol, a.ghost, a.mass) == (0, sym, true, 0.0) && Lenient.cases(p) == [:ghost_unchecked]
         @test_throws "system: ghost atom $(repr(sym)) stands for no element" basis_element(a)
     end
+    # periodic_table.rs:11 tests the prefix `Bq` or `bq` case-sensitively: `BQx` and `BQ` are no
+    # ghosts, and name no element, so both modes throw.
+    for (sym, msg) in (("BQx", "unknown element symbol \"BQx\""), ("BQ", "a Bq atom needs an element"), ("bQ", "a Bq atom needs an element"))
+        text = "geometry\n$sym 0 0 0\nH 0 0 0.7\nH 0 0 1.4\nend\n"
+        @test_throws msg Lenient.strict(text)
+        @test_throws msg Lenient.lenient(text)
+    end
     # The product geometry block reads ghosts the same way.
     p = Lenient.lenient(Lenient.W * "product_geometry\nFoo@ 0 0 0\nend\n")
     @test p.input.product_atoms[1].Z == 0
@@ -430,7 +443,7 @@ end
 
 @testitem "lenient: yaml_in_inp" setup = [Lenient, Fixtures] begin
     using QuantumEngine
-    # parser.rs:563-618 reads no YAML line as a keyword, so the file has no atoms (verified).
+    # parser.rs:563-618 reads no YAML line as a keyword, so the file has no atoms.
     text = Fixtures.oracle_input("molecules/h2_ccsd.inp")
     @test_throws "looks like YAML" Lenient.strict(text)
     @test_throws "no atoms" Lenient.lenient(text)
@@ -477,4 +490,47 @@ end
     inp = p.input
     @test isempty(inp.hubbard) && isnothing(inp.vdw_kernel) && inp.nbo
     @test (inp.max_iterations, inp.damping, inp.verbosity) == (200, 0.1, 1)
+end
+
+@testitem "lenient: unsigned fields" setup = [Lenient] begin
+    using QuantumEngine
+    using QuantumEngine.Input
+    # types.rs stores these fields as `usize`, so a negative token fails Rust's `parse` and takes
+    # the keyword's fallback (parser.rs:89-110, 244-255, 349-362, 456-465, 475-488, 505-509,
+    # 524-538, 539-547). One row per field: the keyword, its context, the field read, the negative
+    # input, the lenient value and its case; `:error` is an oracle error, an error in both modes.
+    E = :error
+    plain = ("", "")
+    oniom = ("oniom\n", "end\n")
+    pcm = ("solvation pcm\n", "")
+    rows = [
+        ("multiplicity", plain, identity, "-1", E, nothing),
+        ("max_iterations", plain, identity, "-1", E, nothing),
+        ("ts_target_mode", plain, identity, "-1", E, nothing),
+        ("neb_images", plain, identity, "-1", E, nothing),
+        ("verbosity", plain, i -> i.verbosity, "-3", 1, :number_fallback),
+        ("pcm_grid", pcm, i -> i.solvation.grid_order, "-1", 110, :number_fallback),
+        ("kpoints", plain, i -> i.kpoints, "-2 2 2", (1, 2, 2), :bad_list_entry),
+        ("dos_k_grid", plain, i -> i.dos_k_grid, "2 -0 2", (2, 10, 2), :bad_list_entry),
+        ("irc_max_points", plain, i -> i.irc_max_points, "-1", 30, :number_fallback),
+        ("tddft_states", plain, i -> i.tddft_states, "-1", 10, :number_fallback),
+        ("dmft_n_freq", plain, i -> i.dmft_n_freq, "-1", 1024, :number_fallback),
+        ("dmft_n_bath", plain, i -> i.dmft_n_bath, "-1", 4, :number_fallback),
+        ("model_multiplicity", oniom, i -> i.oniom.model_multiplicity, "-1", nothing, :number_fallback),
+        ("oniom_model_multiplicity", plain, i -> i.oniom.model_multiplicity, "-1", nothing, :number_fallback),
+    ]
+    for (kw, (pre, post), get, args, val, case) in rows
+        text = pre * "$kw $args\n" * post * Lenient.W
+        @test_throws "`$kw`: expected a non-negative integer, got" Lenient.strict(text)
+        if val === E
+            @test_throws "`$kw`: expected a non-negative integer, got" Lenient.lenient(text)
+        else
+            p = Lenient.lenient(text)
+            @test isequal(get(p.input), val)
+            @test Lenient.cases(p) == [case]
+        end
+    end
+    # A `+` sign is Rust's unsigned syntax too, and `charge` is signed (`i32`).
+    @test Lenient.strict("verbosity +2\n" * Lenient.W).verbosity == 2
+    @test Lenient.strict("charge -1\nmultiplicity 2\n" * Lenient.W).charge == -1
 end

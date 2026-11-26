@@ -295,14 +295,33 @@ function _float_or(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol, f
     return isnothing(x) ? fallback : x
 end
 
-# An integer, or `fallback` for a token that does not parse: the oracle's `unwrap_or(fallback)`.
-function _int_or(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol, fallback::Int)
-    x = _int_optional(st, n, kw, t, case)
-    return isnothing(x) ? fallback : x
-end
-
 # `t` as Rust's `parse::<usize>` reads it (a decimal with an optional `+`), or `nothing`.
 _parse_usize(t::AbstractString) = startswith(t, '-') ? nothing : _parse_int(t)
+
+# The message for a token that `_parse_usize` rejects.
+function _uint_msg(kw, t::AbstractString)
+    isnothing(_parse_int(t)) && return lazy"`$(kw)`: expected an integer, got $(repr(t))"
+    return lazy"`$(kw)`: expected a non-negative integer, got $(repr(t))"
+end
+
+# The readers of the fields the oracle stores as `usize`, where a negative token fails to parse.
+function _uint_required(st::_InpState, n::Int, kw, t::AbstractString)
+    x = _parse_usize(t)
+    isnothing(x) && throw(InputError(st.source, n, _uint_msg(kw, t)))
+    return x
+end
+
+function _uint_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
+    x = _parse_usize(t)
+    isnothing(x) && _reject(st, n, case, _uint_msg(kw, t))
+    return x
+end
+
+# An unsigned integer, or `fallback` for a token that does not parse: the oracle's `unwrap_or(fallback)`.
+function _uint_or(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol, fallback::Int)
+    x = _uint_optional(st, n, kw, t, case)
+    return isnothing(x) ? fallback : x
+end
 
 function _int_required(st::_InpState, n::Int, kw, t::AbstractString)
     x = _parse_int(t)
@@ -652,13 +671,13 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :charge
         d.charge = _int_required(st, n, kw, t)
     elseif c === :multiplicity
-        d.multiplicity = _int_required(st, n, kw, t)
+        d.multiplicity = _uint_required(st, n, kw, t)
     elseif c === :basis
         d.basis = lowercase(t)
     elseif c === :scf_convergence
         d.scf_convergence = _float_required(st, n, kw, t)
     elseif c === :max_iterations
-        d.max_iterations = _int_required(st, n, kw, t)
+        d.max_iterations = _uint_required(st, n, kw, t)
     elseif c === :diis_method
         x = diis_word(t)
         if isnothing(x)
@@ -702,13 +721,13 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :checkpoint
         d.checkpoint = String(t)
     elseif c === :ts_target_mode
-        d.ts_target_mode = _int_required(st, n, kw, t)
+        d.ts_target_mode = _uint_required(st, n, kw, t)
     elseif c === :ts_trust_radius
         d.ts_trust_radius = _float_required(st, n, kw, t)
     elseif c === :neb_k
         d.neb_k = _float_required(st, n, kw, t)
     elseif c === :neb_images
-        d.neb_images = _int_required(st, n, kw, t)
+        d.neb_images = _uint_required(st, n, kw, t)
     elseif c === :temperature
         d.temperature = _float_required(st, n, kw, t)
     elseif c === :pressure
@@ -747,11 +766,11 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :pcm_radii
         _set_radii!(st, _float_or(st, n, kw, t, :number_fallback, 1.2))
     elseif c === :pcm_grid
-        _set_pcm_grid!(st, _int_or(st, n, kw, t, :number_fallback, 110))
+        _set_pcm_grid!(st, _uint_or(st, n, kw, t, :number_fallback, 110))
     elseif c === :output
         d.output = String(t)
     elseif c === :verbosity
-        d.verbosity = _int_or(st, n, kw, t, :number_fallback, 1)
+        d.verbosity = _uint_or(st, n, kw, t, :number_fallback, 1)
     elseif c === :population
         pop = PopulationKind[]
         bad = false
@@ -771,8 +790,8 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :kpoints || c === :dos_k_grid
         f = c === :kpoints ? 1 : 10
         k3 = (
-            _int_or(st, n, kw, tokens[2], :bad_list_entry, f), _int_or(st, n, kw, tokens[3], :bad_list_entry, f),
-            _int_or(st, n, kw, tokens[4], :bad_list_entry, f),
+            _uint_or(st, n, kw, tokens[2], :bad_list_entry, f), _uint_or(st, n, kw, tokens[3], :bad_list_entry, f),
+            _uint_or(st, n, kw, tokens[4], :bad_list_entry, f),
         )
         c === :kpoints ? (d.kpoints = k3) : (d.dos_k_grid = k3)
     elseif c === :dos_sigma
@@ -791,7 +810,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         st.model_charge = _int_optional(st, n, kw, t, :number_fallback)
     elseif c === :oniom_model_multiplicity
         st.oniom = true
-        st.model_multiplicity = _int_optional(st, n, kw, t, :number_fallback)
+        st.model_multiplicity = _uint_optional(st, n, kw, t, :number_fallback)
     elseif c === :freeze_atom
         for j in 2:lastindex(tokens)
             a = _index(st, n, kw, tokens[j], :bad_list_entry)
@@ -803,7 +822,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         x = _float_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.irc_step_size = x)
     elseif c === :irc_max_points
-        x = _int_optional(st, n, kw, t, :number_fallback)
+        x = _uint_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.irc_max_points = x)
     elseif c === :irc_direction
         x = irc_direction_word(t)
@@ -811,7 +830,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         isnothing(x) && _unknown(st, n, kw, t, accepted_irc_directions())
         d.irc_direction = isnothing(x) ? Both : x
     elseif c === :tddft_states
-        x = _int_optional(st, n, kw, t, :number_fallback)
+        x = _uint_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.tddft_states = x)
     elseif c === :tddft_method
         x = tddft_method_word(t)
@@ -822,10 +841,10 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         x = _float_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.dmft_temperature = x)
     elseif c === :dmft_n_freq
-        x = _int_optional(st, n, kw, t, :number_fallback)
+        x = _uint_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.dmft_n_freq = x)
     elseif c === :dmft_n_bath
-        x = _int_optional(st, n, kw, t, :number_fallback)
+        x = _uint_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.dmft_n_bath = x)
     elseif c === :fragments
         _fragments_keyword!(st, n, tokens)
@@ -985,8 +1004,9 @@ function _position(st::_InpState, n::Int, tokens::Vector{SubString{String}}, i::
     return SVector(x * ANGSTROM_TO_BOHR, y * ANGSTROM_TO_BOHR, z * ANGSTROM_TO_BOHR)
 end
 
-# Whether `s` has the form of a ghost atom: `El@`, `BqEl` or `Bq-El`.
-_ghost_form(s::AbstractString) = endswith(s, '@') || (ncodeunits(s) >= 2 && _lower(codeunit(s, 1)) == UInt8('b') && _lower(codeunit(s, 2)) == UInt8('q'))
+# Whether the oracle reads `s` as a ghost atom: a prefix `Bq` or `bq`, or a suffix `@`
+# (`periodic_table.rs:11`). The test is case-sensitive, so `BQx` is no ghost.
+_ghost_form(s::AbstractString) = startswith(s, "Bq") || startswith(s, "bq") || endswith(s, '@')
 
 # `Sym x y z`, an atom, or `Bq x y z q`, a point charge, in a geometry or product_geometry block.
 function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
@@ -1006,7 +1026,9 @@ function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}
     # The oracle reads any symbol of ghost form as a ghost of Z = 0 (`periodic_table.rs:5-12`),
     # which lenient mode builds: the symbol as written, mass 0.
     if kw == "bq" || kw == "bq-"
-        _reject(st, n, :ghost_unchecked, "a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`")
+        msg = "a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`"
+        _ghost_form(sym) || throw(InputError(st.source, n, msg))
+        _reject(st, n, :ghost_unchecked, msg)
         push!(atoms, Atom{Float64}(0, String(sym), p, true, 0.0))
         return nothing
     end
@@ -1114,8 +1136,12 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
     elseif key === :oniom_model
         _count_ok(st, n, kw, key, length(tokens) - 1, 1, -1) && _model_atoms!(st, n, kw, tokens)
     else
-        x = _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1) ? _int_optional(st, n, kw, tokens[2], :number_fallback) : nothing
-        key === :oniom_model_charge ? (st.model_charge = x) : (st.model_multiplicity = x)
+        ok = _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1)
+        if key === :oniom_model_charge
+            st.model_charge = ok ? _int_optional(st, n, kw, tokens[2], :number_fallback) : nothing
+        else
+            st.model_multiplicity = ok ? _uint_optional(st, n, kw, tokens[2], :number_fallback) : nothing
+        end
     end
     return nothing
 end
@@ -1139,17 +1165,21 @@ function _close_block!(st::_InpState)
     return nothing
 end
 
-# Whether a warning of `ws` is on line `l`.
-function _warned_at(ws::Vector{InputWarning}, l::Int)
+# Whether a warning of `ws` on solvation line `l` already accounts for a lenient result that differs
+# from the order-independent one: a solvation-order case, or `:unknown_value`, the word of a
+# `solvation` or `solvent` line that the oracle ignores and the order-independent reading counts.
+function _order_warned_at(ws::Vector{InputWarning}, l::Int)
     for w in ws
-        w.line == l && return true
+        w.line == l || continue
+        c = w.case
+        (c === :order_dependent || c === :option_without_model || c === :unknown_value) && return true
     end
     return false
 end
 
 # The solvation of the input. Strict mode reads it independently of the order of the lines; lenient
 # mode takes the oracle's reading in file order, `seq`, and records an `:order_dependent` warning
-# when the two differ and no solvation line has a warning already, which then names the cause.
+# when the two differ and no warning on a solvation line accounts for it (`_order_warned_at`).
 function _resolve_solvation!(st::_InpState)
     _solvation_by_keyword!(st)
     st.lenient || return nothing
@@ -1160,7 +1190,7 @@ function _resolve_solvation!(st::_InpState)
         for key in (:solvation, :solvent, :epsilon, :pcm_radii, :pcm_grid)
             lk = get(st.seen, key, 0)
             l = max(l, lk)
-            lk == 0 || (warned |= _warned_at(st.warnings, lk))
+            lk == 0 || (warned |= _order_warned_at(st.warnings, lk))
         end
         warned || push!(
             st.warnings,

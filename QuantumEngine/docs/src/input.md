@@ -37,7 +37,11 @@ line that starts with `- `, is rejected as YAML: YAML input needs a `.yaml` or `
   `` `kpath` needs a value ``. A block opener that takes no value (`hubbard`, `cell`, `pbc`,
   `oniom`) and gets one is `` `hubbard` takes no value on its line ``.
 - **Booleans** are exactly `true` or `false`.
-- **Integers** are decimal, with an optional sign.
+- **Integers** are decimal, with an optional sign. The counts that the oracle stores unsigned
+  (`multiplicity`, `max_iterations`, `ts_target_mode`, `neb_images`, `verbosity`, `pcm_grid`,
+  `kpoints`, `dos_k_grid`, `irc_max_points`, `tddft_states`, `dmft_n_freq`, `dmft_n_bath` and the
+  ONIOM model multiplicity) take no `-` sign: `-1` is `expected a non-negative integer`, and in
+  lenient reading takes the keyword's fallback below.
 - **Numbers** are decimal floats, finite: `nan`, `inf` and a value beyond the `Float64` range
   (`1e500`) are `expected a finite number`, a value below it (`1e-400`) reads as 0.0, and a
   hexadecimal float is not a number.
@@ -173,10 +177,10 @@ parses as a non-finite number (`nan`, `inf`, `1e500`) is `:nonfinite` and keeps 
 | `:extra_values` | `charge 0 1`, `optimize now` | the tokens after the count are ignored |
 | `:duplicate_keyword` | `charge 0` … `charge 1`; an element twice in `hubbard` | the last value; `hubbard` tells symbols apart by case |
 | `:duplicate_block` | a second `geometry` or `product_geometry` block | its atoms are appended |
-| `:order_dependent` | solvation lines whose result depends on their order: `pcm_radii 1.1` or `epsilon 4.0` before `solvation pcm`, `solvent dcm` before `solvation smd`, `solvent dcm` with `solvation pcm` | the lines read in file order: `solvation` resets the options, `solvent` makes the model SMD, `epsilon` without a model makes it PCM, `pcm_radii` applies under PCM only |
+| `:order_dependent` | solvation lines whose result depends on their order: `pcm_radii 1.1` or `epsilon 4.0` before `solvation pcm`, `solvent dcm` before `solvation smd`, `solvent dcm` with `solvation pcm` | the lines read in file order: `solvation` resets the options, `solvent` makes the model SMD, `epsilon` without a model makes it PCM, `pcm_radii` applies under PCM only; it is given beside another warning on those lines (`epsilon 4.0 x` before `solvation pcm` gives `:extra_values` and `:order_dependent`) |
 | `:option_without_model` | `pcm_radii 1.1` without a model | ignored |
 | `:casscf_shape` | `method casscf(4)` | CASSCF(2, 2); a word of two parts reads them as the counts (`casscf4,6`), which must be unsigned integers |
-| `:ghost_unchecked` | `Foo@ 0 0 0`, `Bq 0 0 0` | a ghost of Z = 0, the symbol as written, mass 0; `basis_element` of it throws |
+| `:ghost_unchecked` | `Foo@ 0 0 0`, `Bq 0 0 0` | a ghost of Z = 0, the symbol as written, mass 0; `basis_element` of it throws. Only the oracle's ghost forms (a prefix `Bq` or `bq`, or a suffix `@`, case-sensitive) are read so: `BQx` is an unknown element in both modes |
 | `:rhf_open_shell` | `method rhf`, `multiplicity 3` | `AutoReference` |
 | `:f12_option_alone` | `f12_gamma 0.9` without `f12 true` | the value is kept; F12 stays off |
 | `:yaml_in_inp` | YAML text in a `.inp` file | no line is read, so the input has no atoms: an error in both modes |
