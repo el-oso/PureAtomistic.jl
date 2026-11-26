@@ -10,9 +10,6 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StrictMode = "0e98b4f4-d0e6-42ac-af0a-707c24852f32"
 
-[sources]
-Parsers = {rev = "8e96cbd8757bd5544d1e79845eadc514afd11f6c", url = "https://github.com/el-oso/Parsers.jl"}
-
 [compat]
 LinearAlgebra = "1.13"
 Parsers = "3"

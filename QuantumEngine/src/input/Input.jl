@@ -54,6 +54,8 @@ export accepted_run_modes, accepted_methods, accepted_solvation_models, accepted
 @strict_exempt :noalloc ParsedInput reason = "entry point: ParsedInput constructor"
 @strict_exempt :noalloc HubbardU reason = "entry point: HubbardU constructor"
 @strict_exempt :typestable types = (AbstractString,) solvent_word reason = "returns a Symbol or nothing for an unknown word; the union is split at every call site and allocates nothing"
+@strict_exempt :noalloc types = (AbstractString,) _fraction reason = "Parsers' exact float path allocates (an 800-digit buffer); remove this exemption when a Parsers release contains JuliaData/Parsers.jl#244"
+@strict_exempt :noalloc types = (AbstractVector{<:AbstractString},) method_word reason = "Parsers' exact float path allocates (an 800-digit buffer); remove this exemption when a Parsers release contains JuliaData/Parsers.jl#244"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

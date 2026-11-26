@@ -241,14 +241,35 @@ end
     # `solvent_word` returns `Union{Nothing,Symbol}`; neither branch allocates.
     @test (@test_noalloc solvent_word("cosmo")) === nothing
     @test (@test_noalloc solvent_word(SubString("xDMSO", 2))) == :dmso
-    # The exact-exchange fraction is read without allocating: a value that the 64-bit tiers of the
-    # decimal parser place, and an exact halfway case between two `Float64` values, which they cannot.
-    toks = ["libxc_hgga", "402", "0.25"]
-    @test (@test_noalloc method_word(toks)) == MethodSpec(LIBXC_HGGA, AutoReference, (402, 0), 0.25)
-    half = "179769313486227589113109901965680102334508059032905692033652908065361963198279876522865280049455637180399301145290709226052867162861452457754680701484184342338312332337867743664927952674464676456321587004295704548857877871774856253198950593195697515008537272356050496462528960047616223376052419489884318728192"
-    toks = split("libxc_hmgga 450 " * half)
-    @test (@test_noalloc method_word(toks)).exx == tryparse(Float64, half)
     @test (@test_noalloc accepted_methods()) === accepted_methods()
+end
+
+@testitem "input types: method_word allocates nothing at run time" begin
+    using QuantumEngine.Input
+    # `method_word` is exempt from the allocation proof, because Parsers' exact float path
+    # allocates. Every fraction below is placed without it, and the call allocates nothing.
+    # A compiled barrier keeps the test item's own dispatch out of the count.
+    word(t) = method_word(t)
+    bytes(t) = @allocated word(t)
+    for s in (
+            "0.25", "1e-1", "0.2", "-0.5", ".5", "5.", "1E2", " 0.2", "nan", "-Inf", "infinity",
+            "2.2250738585072011e-308", "1.00000000000000011102230246251565404236316680908203125",
+            "1e400", "1e-400", "1f2", "1d2", "1_0", "", "0x1p-2", "nan(1)",
+        )
+        for T in (String, SubString{String})
+            t = T[T("libxc_hgga"), T("402"), T(s)]
+            bytes(t)
+            @test bytes(t) == 0
+        end
+    end
+    @test word(["libxc_hgga", "402", "0.25"]) == MethodSpec(LIBXC_HGGA, AutoReference, (402, 0), 0.25)
+    # An exact halfway case between two `Float64` values, which only the exact path places; it
+    # allocates until a Parsers release contains JuliaData/Parsers.jl#244.
+    half = "179769313486227589113109901965680102334508059032905692033652908065361963198279876522865280049455637180399301145290709226052867162861452457754680701484184342338312332337867743664927952674464676456321587004295704548857877871774856253198950593195697515008537272356050496462528960047616223376052419489884318728192"
+    t = split("libxc_hmgga 450 " * half)
+    @test word(t).exx == tryparse(Float64, half)
+    bytes(t)
+    @test_broken bytes(t) == 0
 end
 
 @testitem "input types: concrete fields" begin

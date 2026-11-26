@@ -13,7 +13,7 @@ package.
 | Printf | `1.11` | none: a standard library (version 1.11.0 in Julia 1.13), already in the closure through StrictMode and StaticArrays | Unicode | none |
 | Parsers | `3` | Parsers 3.0.6, PrecompileTools 1.4.0, Preferences 1.6.1 | Dates, Printf, TOML, Unicode | none |
 
-Parsers reads the exact-exchange fraction of a Libxc hybrid method. Its `[sources]` entry in
-`Project.toml` pins a commit of a fork of Parsers 3.0.6 whose exact decimal tier, the one that
-places a value the 64-bit tiers cannot, allocates nothing. The entry is removed once a Parsers
-release contains that change.
+Parsers 3.0.6 comes from the General registry. It reads the exact-exchange fraction of a Libxc
+hybrid method. Its exact decimal path, the one that places a value the 64-bit paths cannot,
+allocates a digit buffer, so `method_word` and `_fraction` are exempt from `:noalloc`. The
+exemption is removed when a Parsers release contains JuliaData/Parsers.jl#244.
