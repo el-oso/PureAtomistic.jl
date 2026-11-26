@@ -74,9 +74,11 @@ end
 # `parse_input` can be trim-checked apart from the JSON reader, which is not trim-safe.
 _inp_file(source::String, lenient::Bool) = parse_inp(_read_file(source); source, lenient)
 
-# The contents of the file `source`. It reads by `readbytes!`, since `read(path, String)` boxes the
-# `Union` field of the `StatStruct` it builds.
+# The contents of the file `source`, which must not be a directory: opening a directory succeeds
+# and can read as empty text. It reads by `readbytes!`, since `read(path, String)`
+# boxes the `Union` field of the `StatStruct` it builds.
 function _read_file(source::String)
+    isdir(source) && throw(InputError(source, 0, "io: the path is a directory"))
     data = UInt8[]
     chunk = Vector{UInt8}(undef, 65536)
     io = open(source)

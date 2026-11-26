@@ -301,3 +301,18 @@ end
     @test FixtureFiles.differing(p.input, expected) == Symbol[]
     @test Fixtures.fields_equal(p.input, expected)
 end
+
+@testitem "dispatch: a directory" begin
+    using QuantumEngine
+    # Opening a directory succeeds and can read as empty text, so the path is rejected before it is
+    # read, whatever its extension names.
+    dir = mktempdir()
+    for name in ("sub", "sub.xyz", "sub.json"), lenient in (false, true)
+        path = joinpath(dir, name)
+        mkpath(path)
+        @test_throws "input: $path: io: the path is a directory" parse_input(path; lenient)
+        # With a trailing separator the path has no extension and is read as `.inp`.
+        slash = path * "/"
+        @test_throws "input: $slash: io: the path is a directory" parse_input(slash; lenient)
+    end
+end

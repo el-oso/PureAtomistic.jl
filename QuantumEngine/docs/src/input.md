@@ -5,8 +5,10 @@ and `.cif` are molecule files, read into an `InputFile` holding only their atoms
 `parse_json`, `.yaml` and `.yml` to `parse_yaml` (with YAML.jl loaded); any other extension is the
 `.inp` format. An xyz file given as an input must hold one frame (lenient reading takes the first of
 several, with an `:xyz_frames` warning) and at least one atom (lenient reading keeps a frame of
-none, with an `:xyz_no_atoms` warning). A path that ends in a separator (`d.xyz/`) has no extension, so
-it is read as `.inp`; the oracle reads it as xyz.
+none, with an `:xyz_no_atoms` warning). A path that names a directory is an `InputError` (`io: the path is
+a directory`) whatever its extension. A path that ends in a separator (`d.xyz/`) has no extension, so
+it is dispatched as `.inp`, which rejects it as a directory when it is one; the oracle dispatches it as
+xyz.
 
 ```@docs
 QuantumEngine.parse_input

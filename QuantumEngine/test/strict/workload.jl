@@ -429,7 +429,8 @@ function run_workload()
         end
     end
     # Input files by extension: `.inp`, JSON, YAML and the molecule files, a multi-frame xyz in both
-    # modes, an xyz frame of no atoms in both modes, and the format lookup on a `SubString`.
+    # modes, an xyz frame of no atoms in both modes, a directory, and the format lookup on a
+    # `SubString`.
     dir = mktempdir()
     files = (
         "w.inp" => "geometry bohr\nH 0 0 -0.7\nH 0 0 0.7\nend\n",
@@ -453,6 +454,16 @@ function run_workload()
             end
         end
         name in ("f.xyz", "e.xyz") || parse_input(path)
+    end
+    # A directory, which is rejected before it is read.
+    sub = mkpath(joinpath(dir, "d.xyz"))
+    for path in (sub, joinpath(dir, "d.xyz", "")), lenient in (false, true)
+        try
+            parse_input(path; lenient)
+        catch e
+            e isa InputError || rethrow()
+            showerror(io, e)
+        end
     end
     In.input_format(SubString("xw.JSON", 2))
     rm(dir; recursive = true)
