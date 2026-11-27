@@ -1,7 +1,7 @@
 """
     QuantumEngine.Units
 
-Physical constants (CODATA 2018) and the element table for H to Kr. Every conversion in
+Physical constants (CODATA 2018) and the element table for H to Cm. Every conversion in
 QuantumEngine uses these constants. Lengths in the table are in Ångström, masses in unified atomic
 mass units.
 """
@@ -68,9 +68,9 @@ include("elements.jl")
 """
     nelements() -> Int
 
-The number of elements in the table (H to Kr).
+The number of elements in the table (H to Cm).
 """
-nelements() = 36
+nelements() = 96
 
 """
     element(Z::Integer) -> Element
@@ -78,10 +78,10 @@ nelements() = 36
 
 The table row of atomic number `Z`, or of the element symbol `symbol`, which is matched without
 regard to case (`"fe"`, `"Fe"` and `"FE"` are iron). Throws an `ArgumentError` for a `Z` outside
-1 to 36, a `Bool` `Z`, or an unknown symbol.
+1 to 96, a `Bool` `Z`, or an unknown symbol.
 """
 function element(Z::Integer)
-    1 <= Z <= nelements() || throw(ArgumentError(lazy"units: no element with Z = $(Z) in the table (H–Kr)"))
+    1 <= Z <= nelements() || throw(ArgumentError(lazy"units: no element with Z = $(Z) in the table (H–Cm)"))
     return ELEMENTS[Int(Z)]
 end
 
@@ -135,8 +135,8 @@ covalent_radius(e::Element) = e.covalent_radius
 """
     bragg_slater_radius(e::Element) -> Float64
 
-The atomic radius of Slater (1964), in Å. Throws an `ArgumentError` for the noble gases, which
-Slater does not list.
+The atomic radius of Slater (1964), in Å. Throws an `ArgumentError` for the noble gases, At, Fr and
+Cm, which Slater does not list.
 """
 function bragg_slater_radius(e::Element)
     r = e.bragg_slater_radius
