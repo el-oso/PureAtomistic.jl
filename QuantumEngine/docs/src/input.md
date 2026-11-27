@@ -33,7 +33,9 @@ itself rejects is an error in both modes.
 
 ## Lines
 
-Each line is read in this order:
+The text must be valid UTF-8: otherwise it is, in both modes and for every format `parse_input`
+reads, `the file is not valid UTF-8`, naming the line of the first invalid character. Each line is
+read in this order:
 
 1. A UTF-8 byte-order mark on the first line, a trailing carriage return and the surrounding
    whitespace are removed, so CRLF files and tab-separated tokens read as LF, space-separated ones.
