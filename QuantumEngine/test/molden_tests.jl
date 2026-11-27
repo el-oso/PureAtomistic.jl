@@ -328,15 +328,18 @@ end
     @test MoldenFiles.same(Fixtures.fields_equal, d, w)
 end
 
-# The water PBE/6-31G Molden file the oracle wrote (Å coordinates, alpha orbitals only). Kind (a):
-# the oracle prints Å with 6 decimals (io/molden.rs:23, {:12.6}), half a unit 5e-7 Å, ×1/0.529177
-# ≈ 9.5e-7 bohr, within 1e-6 of the O position in bohr.
+# The water PBE/6-31G Molden file the oracle wrote (Å coordinates, alpha orbitals only). Rounding
+# bound on the O position in bohr, the sum of three terms: the oracle prints Å with 6 decimals
+# (io/molden.rs:23, {:12.6}), half a unit 5e-7 Å, ×1/0.529177 ≈ 9.45e-7 bohr; it converts bohr to
+# Å with 0.529177 (io/molden.rs:24) and `read_molden` converts back with 0.529177210903, a relative
+# 4.0e-7, ≈ 8.8e-8 bohr at z = 0.2217; the reference 0.22166487 is the oracle's 8-decimal bohr
+# print, ±5e-9. Total ≈ 1.04e-6, within 1.1e-6.
 @testitem "molden: the oracle's file" setup = [OracleHarness] begin
     using QuantumEngine.IO: read_molden
     path = OracleHarness.captured("water_pbe_631g.molden")
     d = open(io -> read_molden(io; source = basename(path)), path)
     @test length(d.atoms) == 3
-    @test abs(d.atoms[1].position[3] - 0.22166487) ≤ 1.0e-6
+    @test abs(d.atoms[1].position[3] - 0.22166487) ≤ 1.1e-6
     @test size(d.alpha.coefficients, 1) == 13
     @test isnothing(d.beta)
 end

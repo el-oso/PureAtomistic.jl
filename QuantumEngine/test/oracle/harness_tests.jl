@@ -72,6 +72,10 @@ end
     # (`io/writer.rs:41`, `{:17.10}`).
     @test [s.step for s in steps] == first(steps).step .+ (0:(length(steps) - 1))
     @test last(steps).energy == reference("h2_opt", "opt_energy")
+    # captured/h2_opt.log ends with `✓ Optimization converged in 5 steps` (line 61); its last
+    # step line (line 59) is `[OPT] Step   5: E =     -1.1175058828 |grad| = 7.405e-5`.
+    @test length(steps) == 5 && last(steps).step == 5
+    @test last(steps).energy == -1.1175058828
     @test occursin("E = " * fmt_fixed(last(steps).energy, 17, 10) * " |grad|", log("h2_opt"))
     mp2 = OracleHarness.mp2_correlation(read(captured("water_mp2.stdout"), String))
     @test mp2 < 0 && mp2 == reference("water_mp2", "mp2_correlation")
@@ -130,6 +134,13 @@ end
     @test tolerance("o2_uhf_631g", "total_energy") == 1.0e-7
     @test tolerance("water_optfreq", "frequencies") == 1.0
     @test tolerance("water_pbe_631g", "nuclear_repulsion") == 5.0e-13
+    # A map entry that names a class table rather than a row, or that is not a string, is a
+    # missing row too.
+    refs = Dict("case" => Dict("c" => Dict("tolerance" => Dict("class" => "hf", "number" => 1))))
+    tols = Dict("hf" => Dict("energy" => Dict("value" => 1.0e-9, "basis" => "")))
+    @test_throws "oracle: no tolerance row hf for c.class" tolerance("c", "class", refs, tols)
+    @test_throws "oracle: no tolerance row 1 for c.number" tolerance("c", "number", refs, tols)
+    @test_throws "oracle: case c has no command" OracleHarness.case_command("c", refs)
 end
 
 @testitem "harness: locating the oracle" setup = [OracleHarness] begin

@@ -334,6 +334,7 @@ end
         # An absent table errors here and fails the key-set test above.
         t = get(tables, rel, Dict{String, Any}())
         inp = parse_input(Fixtures.oracle_input_path(rel); lenient).input
+        @test t["exitcode"] == 0
         @test t["title"] == inp.title
         @test t["method"] == oracle_name[inp.method.kind]
         @test t["basis"] == inp.basis

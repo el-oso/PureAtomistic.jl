@@ -26,8 +26,9 @@ end
     @test log[i:(i + 4)] == ours
 end
 
-# The header, rule and rows of the atom table of `examples/h2o_pbe0_631g.log`, and the section, success, warning and
-# error lines in the oracle's layout (`io/writer.rs`).
+# The header, rule and rows of the `Initial Geometry (Bohr)` table of `captured/water_pbe_631g.log`
+# (checked against that file by "oracle output lines: atom table"), and the section, success,
+# warning and error lines of `examples/h2o_pbe0_631g.log` in the oracle's layout (`io/writer.rs`).
 @testitem "logger: tables and lines" setup = [Fixtures] begin
     using QuantumEngine.IO: Logger, print_atom_table, log_section, log_success, log_warning, log_error, log_heading
     out = IOBuffer(); lg = Logger(out, devnull)

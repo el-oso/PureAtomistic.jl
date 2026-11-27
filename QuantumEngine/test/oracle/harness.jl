@@ -131,12 +131,14 @@
     writes_log(command::AbstractString) = command == "run"
 
     """
-        case_command(case) -> String
+        case_command(case, refs = references()) -> String
 
     The oracle subcommand that runs `case`, its `command` in `references.toml`.
     """
-    function case_command(case::AbstractString)
-        c = case_table(case)["command"]
+    function case_command(case::AbstractString, refs = references())
+        t = case_table(case, refs)
+        haskey(t, "command") || error("oracle: case $case has no command")
+        c = t["command"]
         c in ORACLE_COMMANDS || error("oracle: case $case names the unknown command `$c`")
         return c
     end
@@ -413,24 +415,27 @@
     end
 
     """
-        tolerance(case, key) -> Float64
+        tolerance(case, key, refs = references(), tolerances = TOML.parsefile(TOLERANCES)) -> Float64
 
     The parity tolerance of the quantity `key` of `case`: the row its `tolerance` map names, read
     from `tolerances.toml`. A quantity with no entry in the map, or an entry naming a row that does
     not exist, throws: no row, no comparison. So does a quantity listed in the case's `defects`.
     """
-    function tolerance(case::AbstractString, key::AbstractString)
-        t = case_table(case)
+    function tolerance(
+            case::AbstractString, key::AbstractString, refs = references(), tolerances = TOML.parsefile(TOLERANCES)
+        )
+        t = case_table(case, refs)
         defect = get(get(t, "defects", Dict{String, Any}()), key, nothing)
         defect === nothing || error("oracle: $case.$key is a known oracle defect, not a parity reference: $defect")
         row = get(get(t, "tolerance", Dict{String, Any}()), key, nothing)
         row === nothing && error("oracle: no tolerance row (no map entry) for $case.$key")
-        t = TOML.parsefile(TOLERANCES)
+        row isa AbstractString || error("oracle: no tolerance row $row for $case.$key")
+        t = tolerances
         for part in split(row, '.')
             t isa Dict && haskey(t, part) || error("oracle: no tolerance row $row for $case.$key")
             t = t[part]
         end
-        t isa Dict && t["value"] isa Float64 || error("oracle: no tolerance row $row for $case.$key")
+        t isa Dict && get(t, "value", nothing) isa Float64 || error("oracle: no tolerance row $row for $case.$key")
         return t["value"]::Float64
     end
 

@@ -73,8 +73,8 @@ every case and check that each compared quantity is still within its tolerance o
 
 ### Adding a case
 
-1. Add a `[case.<name>]` table to `references.toml`, with its `input`, `source`, `extract`,
-   `exports` and `tolerance` map.
+1. Add a `[case.<name>]` table to `references.toml`, with its `input`, `source`, `command`
+   (`run`, or `aimext` for a critical-point report), `extract`, `exports` and `tolerance` map.
 2. Capture it with `capture.jl`.
 3. If the quantity is new, add an extractor to `OracleHarness`, written against the format string
    in the oracle source and citing it, with a test item that parses the captured file.
