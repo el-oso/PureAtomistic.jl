@@ -91,6 +91,11 @@ end
 
 ElementBasis(symbol, shells::AbstractVector{ShellSpec{T}}, ecp) where {T} = ElementBasis{T}(symbol, shells, ecp)
 
+# A `Vector{T}` is stored as given; any other vector, an offset-indexed one included, is copied
+# into a new `Vector{T}` in its iteration order.
+_vector(::Type{T}, x::Vector{T}) where {T} = x
+_vector(::Type{T}, x) where {T} = copyto!(Vector{T}(undef, length(x)), x)
+
 """
     Shell{T<:Real}(center, atom, l, exponents, coefficients, ao_offset)
     Shell(center::AbstractVector, atom, l, exponents::AbstractVector, coefficients::AbstractVector, ao_offset)
@@ -104,9 +109,11 @@ The `coefficients` are the raw coefficients of the basis file times
 [`contraction_renorm`](@ref) of the shell; they do not include the per-component factor
 [`primitive_norm`](@ref)`(α, lx, ly, lz)`, which the consumer applies. The constructor stores its
 arguments as given and throws an `ArgumentError` for a negative `l`, exponents and coefficients of
-different or zero length, an exponent that is not finite and positive, and a negative
-`ao_offset`. The outer constructor takes `T` from the promoted element types of `center`,
-`exponents` and `coefficients`.
+different or zero length, an exponent that is not finite and positive, a negative `ao_offset`,
+and a `center` without 3 coordinates. A `Vector{T}` of exponents or coefficients is stored as
+given; any other vector, an offset-indexed one included, is copied in its iteration order. The
+outer constructor takes `T` from the promoted element types of `center`, `exponents` and
+`coefficients`.
 """
 struct Shell{T <: Real}
     center::SVector{3, T}
@@ -116,8 +123,10 @@ struct Shell{T <: Real}
     coefficients::Vector{T}
     ao_offset::Int
     function Shell{T}(center, atom, l, exponents, coefficients, ao_offset) where {T}
-        e = convert(Vector{T}, exponents)::Vector{T}
-        c = convert(Vector{T}, coefficients)::Vector{T}
+        length(center) == 3 ||
+            throw(ArgumentError(lazy"basis: a shell center needs 3 coordinates, got $(length(center))"))
+        e = _vector(T, exponents)
+        c = _vector(T, coefficients)
         _check_l(l)
         length(e) == length(c) ||
             throw(ArgumentError(lazy"basis: a shell has $(length(e)) exponents and $(length(c)) coefficients"))
@@ -144,14 +153,15 @@ Shell(center::AbstractVector, atom, l, exponents::AbstractVector, coefficients::
 The molecular basis: its `shells` in the AO order, the number `nao` of AOs and the basis `name`.
 The shells are numbered in atom order, then in file order within an atom, and the AO offsets
 follow the shell order. Throws an `ArgumentError` unless the offsets are contiguous from 0 in shell
-order and `nao` is their total.
+order and `nao` is their total. A `Vector{Shell{T}}` is stored as given; any other vector is
+copied in its iteration order, and the shells are numbered from 1 in that order.
 """
 struct BasisSet{T <: Real}
     shells::Vector{Shell{T}}
     nao::Int
     name::String
     function BasisSet{T}(shells, nao, name) where {T}
-        v = convert(Vector{Shell{T}}, shells)::Vector{Shell{T}}
+        v = _vector(Shell{T}, shells)
         n = 0
         for k in eachindex(v)
             off = v[k].ao_offset

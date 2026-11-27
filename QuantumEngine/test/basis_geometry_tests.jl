@@ -62,6 +62,18 @@ end
     @test primitive_norm(0.8f0, 1, 1, 0) isa Float32
     @test primitive_norm(0.8, 1, 1, 0) isa Float64
     @test_throws "basis: Cartesian exponents must be ≥ 0, got -1, 0, 0" primitive_norm(0.8, -1, 0, 0)
+    for α in (-1.0, 0.0, Inf, NaN)
+        @test_throws lazy"basis: the exponent is $(α); exponents must be finite and positive" primitive_norm(α, 0, 0, 0)
+        @test_throws ArgumentError primitive_norm(α, 0, 0, 0)
+    end
+    # 33!! = 6332659870762850625 fits in Int; 35!! does not, nor does 33!!·3!!, whose factors do.
+    N17 = primitive_norm(0.8, 17, 0, 0)
+    @test N17 isa Float64
+    # The self-overlap oracle and (14 + l)u bound of the loop above, at l = 17.
+    a = big(0.8)
+    @test abs(big(N17)^2 * (big(π) / (2a))^(3 // 2) * dfact(33) / (4a)^17 - 1) <= 31 * eps(Float64) / 2
+    @test_throws "basis: (2lx−1)!!(2ly−1)!!(2lz−1)!! overflows Int for the Cartesian exponents 18, 0, 0" primitive_norm(0.8, 18, 0, 0)
+    @test_throws "basis: (2lx−1)!!(2ly−1)!!(2lz−1)!! overflows Int for the Cartesian exponents 17, 2, 0" primitive_norm(0.8, 17, 2, 0)
 end
 
 @testitem "basis: contraction renormalization" begin
@@ -101,17 +113,51 @@ end
     @test_throws "basis: the contraction has zero or negative norm" contraction_renorm([0.8], [0.0], 0)
     @test_throws "basis: the contraction has zero or negative norm" contraction_renorm([0.8], [NaN], 0)
     @test_throws "basis: l must be ≥ 0, got -1" contraction_renorm([0.8], [0.5], -1)
+    for α in (-1.0, 0.0, Inf, NaN)
+        @test_throws lazy"basis: exponent 2 of a contraction is $(α); exponents must be finite and positive" contraction_renorm(
+            [1.0, α], [1.0, 1.0], 0
+        )
+        @test_throws ArgumentError contraction_renorm([1.0, α], [1.0, 1.0], 0)
+    end
 end
 
 @testitem "basis: generic indexing" begin
-    using QuantumEngine.Basis: contraction_renorm
+    using QuantumEngine.Basis: contraction_renorm, Shell, BasisSet
     using OffsetArrays
+    using StaticArrays: SVector
     e = [3.425250914, 0.6239137298, 0.168855404]
     c = [0.1543289673, 0.5353281423, 0.4446345422]
     f = contraction_renorm(e, c, 1)
     @test contraction_renorm(view(e, 1:3), view(c, 1:3), 1) == f
     @test contraction_renorm(OffsetArray(e, 0:2), OffsetArray(c, 0:2), 1) == f
     @test_throws DimensionMismatch contraction_renorm(OffsetArray(e, 0:2), c, 1)
+    # Shell and BasisSet store a Vector as given and copy any other vector in iteration order.
+    r = SVector(0.0, 0.0, 1.0)
+    s = Shell(r, 1, 1, e, c, 0)
+    for (ev, cv, rv) in (
+            (view(e, 1:3), view(c, 1:3), view([0.0, 0.0, 1.0], 1:3)),
+            (OffsetArray(e, 0:2), OffsetArray(c, 0:2), OffsetArray([0.0, 0.0, 1.0], 0:2)),
+        )
+        so = Shell(rv, 1, 1, ev, cv, 0)
+        @test so isa Shell{Float64}
+        @test (so.center, so.exponents, so.coefficients) == (s.center, s.exponents, s.coefficients)
+        @test so.exponents isa Vector{Float64}
+    end
+    @test_throws "basis: exponent 2 of a shell is -0.5; exponents must be finite and positive" Shell(
+        r, 1, 0, OffsetArray([1.0, -0.5], 0:1), OffsetArray([0.6, 0.4], 0:1), 0
+    )
+    @test_throws "basis: a shell center needs 3 coordinates, got 2" Shell([0.0, 1.0], 1, 0, e, c, 0)
+    @test_throws ArgumentError Shell([0.0, 1.0], 1, 0, e, c, 0)
+    shells = [s, Shell(r, 1, 0, e, c, 3)]
+    bs = BasisSet(shells, 4, "t")
+    for sv in (view(shells, 1:2), OffsetArray(shells, 0:1))
+        bo = BasisSet(sv, 4, "t")
+        @test bo.shells == bs.shells
+        @test bo.shells isa Vector{Shell{Float64}}
+    end
+    @test_throws "basis: shell 2 starts at AO offset 3, expected 6" BasisSet(
+        OffsetArray([Shell(r, 1, 2, e, c, 0), Shell(r, 1, 0, e, c, 3)], 0:1), 7, "t"
+    )
 end
 
 @testitem "basis: shells and pairs" begin
@@ -216,13 +262,22 @@ end
 
 # The StrictMode sweep judges no type constructor, so this item proves the constructors of the
 # seven basis types type-stable and allocation-free in Float64 and Float32, inner and outer, except
-# `ElementBasis` given an `ECPPotential`: storing it in the `Union` field allocates, which the
+# `ElementBasis` given an `ECPPotential`, which the item shows allocates: that is the allocation the
 # exemption of `ElementBasis` names.
 @testitem "basis: constructor signatures" begin
     using QuantumEngine.Basis: Primitive, ShellSpec, ECPChannel, ECPPotential, ElementBasis, Shell, BasisSet
     using StaticArrays: SVector
     using StrictMode, StrictModeTest
     StrictMode.assert_enabled()
+    # A proof of an exempt function itself passes, so the ElementBasis construction is proved
+    # through this caller, which is not exempt.
+    build(::Type{T}, symbol, shells, ecp) where {T} = ElementBasis{T}(symbol, shells, ecp)
+    # The bytes of one construction kept in a `Ref`, measured inside a compiled function after a
+    # warm-up call. The result must be kept: a construction whose value is dropped is removed.
+    function bytes_kept(r::Ref{ElementBasis{T}}, symbol, shells, ecp) where {T}
+        r[] = ElementBasis{T}(symbol, shells, ecp)
+        return @allocated r[] = ElementBasis{T}(symbol, shells, ecp)
+    end
     for T in (Float64, Float32)
         V = Vector{T}
         sigs = [
@@ -232,19 +287,18 @@ end
             (ECPPotential{T}, (String, Int, Int, Vector{ECPChannel{T}})),
             (ECPPotential, (String, Int, Int, Vector{ECPChannel{T}})),
             (ElementBasis{T}, (String, Vector{ShellSpec{T}}, Nothing)), (ElementBasis, (String, Vector{ShellSpec{T}}, Nothing)),
+            (build, (Type{T}, String, Vector{ShellSpec{T}}, Nothing)),
             (Shell{T}, (SVector{3, T}, Int, Int, V, V, Int)), (Shell, (SVector{3, T}, Int, Int, V, V, Int)),
             (BasisSet{T}, (Vector{Shell{T}}, Int, String)), (BasisSet, (Vector{Shell{T}}, Int, String)),
         ]
         @test (test_signatures(sigs; guarantees = (:typestable, :noalloc)); true)
-        withecp = (ElementBasis{T}, (String, Vector{ShellSpec{T}}, ECPPotential{T}))
-        @test (test_signatures([withecp]; guarantees = (:typestable,)); true)
-        # The allocation the exemption names, measured behind a compiled function barrier: the same
-        # construction allocates more bytes with an ECP than without.
-        build(s, shells, ecp) = ElementBasis{T}(s, shells, ecp)
+        withecp = (String, Vector{ShellSpec{T}}, ECPPotential{T})
+        @test (test_signatures([(ElementBasis{T}, withecp), (ElementBasis, withecp)]; guarantees = (:typestable,)); true)
+        @test_throws StrictMode.StrictViolation test_signatures([(build, (Type{T}, withecp...))]; guarantees = (:noalloc,))
         ecp = ECPPotential("Na", 10, 0, ECPChannel{T}[])
         shells = ShellSpec{T}[]
-        build("Na", shells, ecp)
-        build("Na", shells, nothing)
-        (@allocated build("Na", shells, ecp)) > (@allocated build("Na", shells, nothing))
+        r = Ref{ElementBasis{T}}()
+        @test bytes_kept(r, "Na", shells, ecp) > 0
+        @test bytes_kept(r, "Na", shells, nothing) == 0
     end
 end

@@ -18,9 +18,10 @@ export ncart, cartesian_component, primitive_norm, contraction_renorm
 export Primitive, ShellSpec, ECPChannel, ECPPotential, ElementBasis, Shell, BasisSet
 export ao_range, shell_pairs, ShellPairs
 
-# Storing an `ECPPotential` in the field `ecp::Union{Nothing,ECPPotential{T}}` allocates (96 bytes
-# in Float64, measured); the other type constructors allocate nothing, which the sweep does not
-# judge and the item "basis: constructor signatures" proves.
+# Storing an `ECPPotential` in the field `ecp::Union{Nothing,ECPPotential{T}}` allocates (48 bytes
+# per construction in Float64 and Float32, measured); given `nothing`, and for the other type
+# constructors, nothing is allocated. The sweep judges no constructor; the item "basis: constructor
+# signatures" proves both.
 @strict_exempt :noalloc ElementBasis reason = "entry point: element basis constructor, allocates its ECP field"
 
 # Last statement: the policy checks the methods defined above it.

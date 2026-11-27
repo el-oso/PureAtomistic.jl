@@ -54,9 +54,15 @@ end
 The normalization constant of the Cartesian Gaussian `x^lx y^ly z^lz exp(-α r²)`,
 `(2α/π)^{3/4} sqrt((4α)^l / ((2lx−1)!! (2ly−1)!! (2lz−1)!!))` with `l = lx + ly + lz` and
 `n!! = 1` for `n ≤ 0`, in `float(typeof(α))`. Each component has its own constant: `xy` and `xx`
-differ. Throws an `ArgumentError` for a negative exponent.
+differ.
+
+Throws an `ArgumentError` for an `α` that is not finite and positive, a negative Cartesian
+exponent, and a product of the double factorials above `typemax(Int)`. Every component with
+`l ≤ 17` is within that limit; `(18, 0, 0)` is the first that is not.
 """
 function primitive_norm(α::Real, lx::Integer, ly::Integer, lz::Integer)
+    (isfinite(α) && α > 0) ||
+        throw(ArgumentError(lazy"basis: the exponent is $(Float64(α)); exponents must be finite and positive"))
     (lx >= 0 && ly >= 0 && lz >= 0) || throw(
         ArgumentError(lazy"basis: Cartesian exponents must be ≥ 0, got $(Int(lx)), $(Int(ly)), $(Int(lz))")
     )
@@ -70,16 +76,22 @@ function primitive_norm(α::Real, lx::Integer, ly::Integer, lz::Integer)
     for _ in 1:l
         q *= fourα
     end
-    dfact = _double_factorial(2 * Int(lx) - 1) * _double_factorial(2 * Int(ly) - 1) *
-        _double_factorial(2 * Int(lz) - 1)
+    dfact = _double_factorial_product(Int(lx), Int(ly), Int(lz))
     return s * sqrt(s) * sqrt(q / T(dfact))
 end
 
-function _double_factorial(n::Int)
+# (2lx−1)!! (2ly−1)!! (2lz−1)!! in exact `Int` arithmetic; an overflow throws rather than wraps.
+function _double_factorial_product(lx::Int, ly::Int, lz::Int)
     r = 1
-    while n > 1
-        r *= n
-        n -= 2
+    for m in (lx, ly, lz)
+        n = 2m - 1
+        while n > 1
+            r, overflow = Base.Checked.mul_with_overflow(r, n)
+            overflow && throw(
+                ArgumentError(lazy"basis: (2lx−1)!!(2ly−1)!!(2lz−1)!! overflows Int for the Cartesian exponents $(lx), $(ly), $(lz)")
+            )
+            n -= 2
+        end
     end
     return r
 end
@@ -95,7 +107,8 @@ coefficients `c` at total angular momentum `l`. The result has type
 type.
 
 Throws a `DimensionMismatch` when the axes differ, and an `ArgumentError` for empty vectors, a
-negative `l` and a sum that is not positive and finite.
+negative `l`, an exponent that is not finite and positive, and a sum that is not positive and
+finite.
 """
 function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVector, l::Integer)
     axes(exponents) == axes(coefficients) || throw(
@@ -105,6 +118,12 @@ function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVec
     )
     isempty(exponents) && throw(ArgumentError("basis: a contraction needs at least one primitive"))
     _check_l(l)
+    for k in eachindex(exponents)
+        x = exponents[k]
+        (isfinite(x) && x > 0) || throw(
+            ArgumentError(lazy"basis: exponent $(k) of a contraction is $(Float64(x)); exponents must be finite and positive")
+        )
+    end
     T = float(promote_type(eltype(exponents), eltype(coefficients)))
     L = Int(l)
     acc = zero(T)
