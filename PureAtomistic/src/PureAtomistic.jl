@@ -37,25 +37,25 @@ export FIRE, FIRE2, RelaxResult, relax!, TrustRegionBFGS, TrustRegionLBFGS, NEBR
 public device_potential, to_device, run_md, Potentials, Systems, Integrators, Thermostats, Barostats, IO, Analysis
 
 StrictMode.@strict_exempt :noalloc Simulation reason = "entry point: simulation constructor"
-StrictMode.@strict_exempt :noalloc run_md reason = "entry point: runs a simulation from a config file"
+StrictMode.@strict_exempt :noalloc :noboxing run_md reason = "entry point: runs a simulation from a config file"
 StrictMode.@strict_exempt :noalloc _simulate reason = "entry point: builds the simulation of `run_md` and writes its trajectory"
 StrictMode.@strict_exempt :noalloc _simulate_b reason = "entry point: picks the barostat of the `run_md` simulation"
-StrictMode.@strict_exempt :noalloc _read_config_file reason = "entry point: reads the config file of `run_md`"
-StrictMode.@strict_exempt :noalloc _read_config reason = "entry point: checks the config table of `run_md`"
-StrictMode.@strict_exempt :noalloc _read_thermostat reason = "entry point: reads the thermostat table of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _read_barostat reason = "entry point: reads the barostat table of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _read_config_file reason = "entry point: reads the config file of `run_md`"
+StrictMode.@strict_exempt :noalloc :noboxing _read_config reason = "entry point: checks the config table of `run_md`"
+StrictMode.@strict_exempt :noalloc :noboxing _read_thermostat reason = "entry point: reads the thermostat table of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _read_barostat reason = "entry point: reads the barostat table of the `run_md` config"
 StrictMode.@strict_exempt :noalloc _config_require reason = "entry point: checks that a key of the `run_md` config is present"
 StrictMode.@strict_exempt :noalloc _config_key reason = "entry point: names a key of the `run_md` config in an error"
-StrictMode.@strict_exempt :noalloc _config_show reason = "entry point: shows a value of the `run_md` config in an error"
-StrictMode.@strict_exempt :noalloc _config_show_value reason = "entry point: shows a value of the `run_md` config in an error"
-StrictMode.@strict_exempt :noalloc _config_table reason = "entry point: reads a table of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _config_string reason = "entry point: reads a string of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _config_bool reason = "entry point: reads a Boolean of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _config_int reason = "entry point: reads an integer of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _config_float reason = "entry point: reads a number of the `run_md` config"
-StrictMode.@strict_exempt :noalloc _config_size reason = "entry point: reads the lattice size of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_show reason = "entry point: shows a value of the `run_md` config in an error"
+StrictMode.@strict_exempt :noalloc :noboxing _config_show_value reason = "entry point: shows a value of the `run_md` config in an error"
+StrictMode.@strict_exempt :noalloc :noboxing _config_table reason = "entry point: reads a table of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_string reason = "entry point: reads a string of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_bool reason = "entry point: reads a Boolean of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_int reason = "entry point: reads an integer of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_float reason = "entry point: reads a number of the `run_md` config"
+StrictMode.@strict_exempt :noalloc :noboxing _config_size reason = "entry point: reads the lattice size of the `run_md` config"
 
 # Last, so that it checks every method defined above.
-StrictMode.@strict_policy (:typestable, :noalloc)
+StrictMode.@strict_policy (:typestable, :noalloc, :noboxing)
 
 end

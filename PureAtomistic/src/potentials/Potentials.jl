@@ -26,10 +26,10 @@ end
 @strict_exempt :noalloc LennardJones reason = "entry point: potential constructor"
 @strict_exempt :noalloc :_ reason = "entry point: keyword body of a parametric constructor such as `LennardJones{T}(…; kw…)`"
 @strict_exempt :noalloc _sized_list reason = "workspace: builds a neighbor list"
-@strict_exempt :noalloc _regrow! reason = "workspace: rebuilds the neighbor list and buffers when the edges outgrow them"
-@strict_exempt :noalloc _log_regrow reason = "workspace: reports a rebuild of the neighbor list"
+@strict_exempt :noalloc :noboxing _regrow! reason = "workspace: rebuilds the neighbor list and buffers when the edges outgrow them"
+@strict_exempt :noalloc :noboxing _log_regrow reason = "workspace: reports a rebuild of the neighbor list"
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end

@@ -61,6 +61,6 @@ end
 @verify BerendsenBarostat trim_compat = true
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end

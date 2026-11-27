@@ -1,5 +1,5 @@
-# The StrictMode policy `(:typestable, :noalloc)`: `@strict_policy` in the module source declares
-# it and checks the concrete signatures at precompile time; this item proves it for every
+# The StrictMode policy `(:typestable, :noalloc, :noboxing)`: `@strict_policy` in the module source
+# declares it and checks the concrete signatures at precompile time; this item proves it for every
 # specialization a fixed workload compiles. The workload runs in a fresh process, so the
 # specializations judged are the package's own and none of a test fixture's.
 @testitem "StrictMode policy holds in every module" tags = [:checks] begin
@@ -11,14 +11,14 @@
     @test isempty(failures)
     P = PureAtomistic
     declared = Dict(m[1] => m[2] for m in eachmatch(r"^POLICY (\w+) (\S+)$"m, out))
-    checked = Dict(m[1] => (parse(Int, m[2]), parse(Int, m[3])) for m in eachmatch(r"^CHECKED (\w+) (\d+) (\d+)$"m, out))
+    checked = Dict(m[1] => (parse(Int, m[2]), parse(Int, m[3]), parse(Int, m[4])) for m in eachmatch(r"^CHECKED (\w+) (\d+) (\d+) (\d+)$"m, out))
     for M in (P, P.Systems, P.Potentials, P.Integrators, P.Thermostats, P.Barostats, P.IO, P.Analysis)
         name = string(nameof(M))
-        # Each module's sweep judged something, in both guarantees.
+        # Each module's sweep judged something, in all three guarantees.
         @test all(>(0), checked[name])
     end
     for name in ("PureAtomistic", "Systems", "Potentials", "Integrators", "Thermostats", "Barostats", "IO", "Analysis")
-        @test declared[name] == "typestable,noalloc"
+        @test declared[name] == "typestable,noalloc,noboxing"
     end
     # `relax!` is judged, not exempt: its keyword bodies with each relaxer state and the one that
     # builds the default state (whose signature ends in the potential) pass the scan.
@@ -35,7 +35,7 @@ end
 
 # `@contract` defines a method of `TypeContracts._contract_specs` in the module that declares the
 # contract. Potentials, Integrators, Thermostats, Barostats and the top module declare contracts and
-# carry `@strict_policy (:typestable, :noalloc)`, so the generated specs must allocate nothing. This
+# carry `@strict_policy (:typestable, :noalloc, :noboxing)`, so the generated specs must allocate nothing. This
 # item checks that they do.
 @testitem "TypeContracts specs pass the allocation scan" tags = [:checks] begin
     using StrictMode, TypeContracts

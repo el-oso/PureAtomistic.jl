@@ -35,6 +35,6 @@ include("../optimize/neb.jl")
 @strict_exempt :noalloc _default_relaxer reason = "workspace: builds the relaxer state of `relax!(sys, potential)`"
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end
