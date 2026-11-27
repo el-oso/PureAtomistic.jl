@@ -2,8 +2,10 @@
 
 QuantumEngine is a quantum-chemistry program in pure Julia, under the MIT license: a rewrite of the
 Rust program `quantum_engine`, whose outputs serve as its test oracle. It requires Julia 1.13 or
-later. Its only dependency is StrictMode, and its closure holds no `_jll` package and no artifact
-(see [Dependencies](dependencies.md)).
+later. Its dependencies are JSON, LinearAlgebra, Parsers, Printf, StaticArrays and StrictMode, and
+their closure holds no `_jll` package and no artifact outside the standard libraries. YAML.jl is an
+optional dependency, read through a package extension once it is loaded; its closure brings
+Libiconv_jll and so stays outside the core (see [Dependencies](dependencies.md)).
 
 ## Errors
 
