@@ -129,11 +129,11 @@ critical point's ρ, Laplacian, `R_e`, `R_b`, `Delta_R` and ellipticity) are ref
 
 | row | value | justification |
 |---|---|---|
-| `hf.energy` | 1e-9 Ha | spec 01 parity tolerance for closed-shell HF; measured closed-shell oracle noise ~1e-12 |
-| `mp2.energy` | 1e-9 Ha | spec 01 parity tolerance for MP2 |
-| `uhf.energy` | 1e-7 Ha | spec 01 parity tolerance for UHF |
-| `geometry.angstrom` | 1e-4 Å | spec 01 parity tolerance for geometries |
-| `frequency.cm1` | 1 cm⁻¹ | spec 01 parity tolerance for frequencies |
+| `hf.energy` | 1e-9 Ha | AGENTS.md parity tolerance for HF energies; measured closed-shell oracle noise ~1e-12 |
+| `mp2.energy` | 1e-9 Ha | AGENTS.md parity tolerance for MP2 energies |
+| `uhf.energy` | 1e-7 Ha | AGENTS.md parity tolerance for UHF energies |
+| `geometry.angstrom` | 1e-4 Å | AGENTS.md parity tolerance for geometries |
+| `frequency.cm1` | 1 cm⁻¹ | AGENTS.md parity tolerance for frequencies |
 | `nuclear_repulsion.energy` | 5e-13 Ha | half a unit in the last of the 12 decimals the `Total Energy:` and `SCF converged … E =` lines print |
 
 The DFT rows (closed shell: the measured defect of the oracle's angular tables + 1e-8; open

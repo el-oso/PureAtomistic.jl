@@ -41,7 +41,8 @@ jobs:
           PUREMLIP_CHECKPOINT_DIR: ${{ runner.temp }}/checkpoints
           MUTATION_SHARD: ${{ matrix.shard }}
         run: julia ${{ matrix.package }}/test/mutation/run.jl
-      # PureTaylor, PureXC and QuantumEngine have no extension files.
+      # PureTaylor and PureXC have no extension files; QuantumEngine's YAML extension is tested in its
+      # main suite and has no :gpu mutation entries.
       - name: Apply each extension mutation and run the :gpu items on the CPU backend
         if: matrix.package != 'PureTaylor' && matrix.package != 'PureXC' && matrix.package != 'QuantumEngine'
         env:

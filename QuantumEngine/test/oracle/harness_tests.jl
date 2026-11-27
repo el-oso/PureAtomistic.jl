@@ -8,15 +8,15 @@
     @test occursin(r"^[0-9a-f]{40}$", OracleHarness.references()["meta"]["oracle_commit"])
 end
 
-# The literals are the "Reference energies measured from the oracle" paragraph of the rewrite
-# specs' 00-overview.md (lines 189-195), which quotes the oracle's printed 12-decimal values; both
-# sides parse the same decimal, so `==`.
-@testitem "harness: captured energies equal the 00-overview values" setup = [OracleHarness] begin
+# The literals are the oracle's printed 12-decimal total energies of these cases, as its logs in
+# `captured/` show them, written out by hand so that a change to a stored log or to the parser
+# fails; both sides parse the same decimal, so `==`.
+@testitem "harness: captured energies equal the oracle's printed values" setup = [OracleHarness] begin
     using .OracleHarness: captured, total_energy
     energy(case) = total_energy(read(captured(case * ".log"), String))
-    @test energy("water_pbe_631g") == -76.29926974315  # 00-overview: water PBE/6-31G
-    @test energy("water_rhf_631g") == -75.983974472322  # 00-overview: water RHF/6-31G
-    @test energy("o2_uhf_631g") == -149.54555366252    # 00-overview: O2 triplet UHF/6-31G
+    @test energy("water_pbe_631g") == -76.29926974315  # water PBE/6-31G
+    @test energy("water_rhf_631g") == -75.983974472322  # water RHF/6-31G
+    @test energy("o2_uhf_631g") == -149.54555366252    # O2 triplet UHF/6-31G
 end
 
 @testitem "harness: the other reference energies" setup = [OracleHarness] begin

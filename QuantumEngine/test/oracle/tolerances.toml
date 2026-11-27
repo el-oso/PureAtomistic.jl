@@ -8,23 +8,23 @@
 
 [hf.energy]
 value = 1e-9
-basis = "kind (a): spec 01 parity tolerance for closed-shell HF energies, in hartree; measured closed-shell oracle noise ~1e-12"
+basis = "kind (a): the AGENTS.md parity tolerance for HF energies, in hartree; measured closed-shell oracle noise ~1e-12"
 
 [mp2.energy]
 value = 1e-9
-basis = "kind (a): spec 01 parity tolerance for MP2 energies, in hartree"
+basis = "kind (a): the AGENTS.md parity tolerance for MP2 energies, in hartree"
 
 [uhf.energy]
 value = 1e-7
-basis = "kind (a): spec 01 parity tolerance for UHF energies, in hartree"
+basis = "kind (a): the AGENTS.md parity tolerance for UHF energies, in hartree"
 
 [geometry.angstrom]
 value = 1e-4
-basis = "kind (a): spec 01 parity tolerance for optimized geometries, in Å"
+basis = "kind (a): the AGENTS.md parity tolerance for geometries, in Å"
 
 [frequency.cm1]
 value = 1.0
-basis = "kind (a): spec 01 parity tolerance for harmonic frequencies, in cm⁻¹"
+basis = "kind (a): the AGENTS.md parity tolerance for frequencies, in cm⁻¹"
 
 [nuclear_repulsion.energy]
 value = 5e-13

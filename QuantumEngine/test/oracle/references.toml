@@ -92,7 +92,7 @@ O   0.000000   0.000000   0.000000
 O   1.208000   0.000000   0.000000
 end
 '''
-source = "derived from examples/o2_triplet.inp: basis 6-31g (line 4), method uhf (line 5), scf_convergence 1e-8 (line 6), the convergence of the 00-overview reference"
+source = "derived from examples/o2_triplet.inp: basis 6-31g (line 4), method uhf (line 5), scf_convergence 1e-8 (line 6), the convergence at which the oracle printed the 12-decimal energy of this case"
 command = "run"
 extract = ["total_energy", "scf_iterations"]
 exports = []
