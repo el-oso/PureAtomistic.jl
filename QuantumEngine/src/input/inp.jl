@@ -188,11 +188,14 @@ keyword are documented on the Input page of the manual.
 
 In strict mode every input the oracle accepts silently but that is not valid is an `InputError`
 naming the line. In lenient mode (`lenient = true`) such an input is read as the oracle reads it
-and recorded as an `InputWarning` in the result. Atom positions are converted to bohr.
+and recorded as an `InputWarning` in the result. Text that is not valid UTF-8 is an `InputError`
+naming the line of the first invalid character, in both modes. Atom positions are converted to bohr.
 """
 function parse_inp(text::AbstractString; source::AbstractString = "<string>", lenient::Bool = false)
     st = _InpState(String(source), lenient, InputWarning[])
-    for (n, raw) in enumerate(eachsplit(String(text), '\n'))
+    s = String(text)
+    _check_utf8(st.source, s)
+    for (n, raw) in enumerate(eachsplit(s, '\n'))
         _line!(st, n, raw)
     end
     if st.block !== :none
@@ -212,6 +215,18 @@ function parse_inp(text::AbstractString; source::AbstractString = "<string>", le
 end
 
 _is_comment(t::AbstractString) = startswith(t, '#')
+
+# Throws, in both modes, for text that is not valid UTF-8, naming the line of the first invalid
+# character: a string read from it would carry the invalid bytes into the input's fields.
+function _check_utf8(source::String, text::String)
+    isvalid(String, text) && return nothing
+    line = 1
+    for c in text
+        isvalid(c) || break
+        c == '\n' && (line += 1)
+    end
+    throw(InputError(source, line, "the file is not valid UTF-8"))
+end
 
 # Line `n`: the title of a comment line, a type-confusion check, then a block content line or a
 # keyword line.

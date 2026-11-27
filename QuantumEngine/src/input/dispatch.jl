@@ -55,7 +55,9 @@ holding its atoms and every other field at its default, as the oracle reads it; 
 other formats (that the input has atoms, and that its charge and multiplicity fit its electron
 count) are not applied to it, except that strict reading rejects a file of no atoms (lenient
 reading keeps it, with an `:xyz_no_atoms` warning). An xyz file must hold one frame: of several,
-strict reading throws and lenient reading takes the first, with an `:xyz_frames` warning.
+strict reading throws and lenient reading takes the first, with an `:xyz_frames` warning. A file
+that is not valid UTF-8 is an `InputError` naming the line of the first invalid character, in
+both modes.
 """
 function parse_input(path::AbstractString; lenient::Bool = false)
     source = String(path)
@@ -74,9 +76,9 @@ end
 # `parse_input` can be trim-checked apart from the JSON reader, which is not trim-safe.
 _inp_file(source::String, lenient::Bool) = parse_inp(_read_file(source); source, lenient)
 
-# The contents of the file `source`, which must not be a directory: opening a directory succeeds
-# and can read as empty text. It reads by `readbytes!`, since `read(path, String)`
-# boxes the `Union` field of the `StatStruct` it builds.
+# The contents of the file `source`, which must not be a directory (opening a directory succeeds
+# and can read as empty text) and must be valid UTF-8. It reads by `readbytes!`, since
+# `read(path, String)` boxes the `Union` field of the `StatStruct` it builds.
 function _read_file(source::String)
     isdir(source) && throw(InputError(source, 0, "io: the path is a directory"))
     data = UInt8[]
@@ -90,7 +92,9 @@ function _read_file(source::String)
     finally
         close(io)
     end
-    return String(data)
+    text = String(data)
+    _check_utf8(source, text)
+    return text
 end
 
 # The input of the molecule file `text` of format `fmt`: its atoms, every other setting at its

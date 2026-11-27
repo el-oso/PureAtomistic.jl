@@ -302,6 +302,28 @@ end
     @test Fixtures.fields_equal(p.input, expected)
 end
 
+@testitem "input that is not valid UTF-8" begin
+    using QuantumEngine
+    h2 = "geometry bohr\nH 0 0 -0.7\nH 0 0 0.7\nend\n"
+    latin1 = "# caf\xe9\n" * h2
+    title = "title a\xffb\n" * h2
+    for lenient in (false, true)
+        @test_throws "input: t.inp:1: the file is not valid UTF-8" parse_inp(latin1; source = "t.inp", lenient)
+        @test_throws "input: t.inp:1: the file is not valid UTF-8" parse_inp(title; source = "t.inp", lenient)
+        @test_throws "input: t.inp:3: the file is not valid UTF-8" parse_inp("geometry bohr\nH 0 0 -0.7\nH\xff 0 0 0.7\nend\n"; source = "t.inp", lenient)
+    end
+    mktempdir() do dir
+        for (name, text) in (("a.inp", latin1), ("b.inp", title), ("c.json", "{\"title\": \"a\xffb\"}"), ("d.xyz", "1\n\xe9\nH 0 0 0\n"))
+            path = joinpath(dir, name)
+            write(path, text)
+            line = name == "d.xyz" ? 2 : 1
+            for lenient in (false, true)
+                @test_throws "input: $(path):$(line): the file is not valid UTF-8" parse_input(path; lenient)
+            end
+        end
+    end
+end
+
 @testitem "dispatch: a directory" begin
     using QuantumEngine
     # Opening a directory succeeds and can read as empty text, so the path is rejected before it is
