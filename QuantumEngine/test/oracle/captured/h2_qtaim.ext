@@ -1,0 +1,86 @@
+================================================================================
+               QUANTUM ENGINE - AIMEXT (CRITICAL POINT ANALYSIS)
+        Ab Initio Quantum Theory of Atoms in Molecules (Keith AIMAll Equiv)
+================================================================================
+System: h2_qtaim
+Number of Nuclei: 2
+Total Nuclear Charge (Z_tot): 2.0
+
+--------------------------------------------------------------------------------
+1. MOLECULAR GEOMETRY
+--------------------------------------------------------------------------------
+ Atom   Z        X (bohr)       Y (bohr)       Z (bohr)        X (Å)          Y (Å)          Z (Å)
+--------------------------------------------------------------------------------
+ H1    1       0.00000000     0.00000000    -0.70000000       0.00000000     0.00000000    -0.37042405
+ H2    1       0.00000000     0.00000000     0.70000000       0.00000000     0.00000000     0.37042405
+
+--------------------------------------------------------------------------------
+2. CRITICAL POINTS SUMMARY & POINCARÉ-HOPF VALIDATION
+--------------------------------------------------------------------------------
+ Number of Nuclear Attractors (3,-3) [NACP]:      4
+ Number of Bond Critical Points (3,-1) [BCP]:      1
+ Number of Ring Critical Points (3,+1) [RCP]:      0
+ Number of Cage Critical Points (3,+3) [CCP]:      0
+ Poincaré-Hopf Characteristic: N_NACP - N_BCP + N_RCP - N_CCP = 3 [INCOMPLETE / NON-CONVERGED]
+
+--------------------------------------------------------------------------------
+3. DETECTED BOND CRITICAL POINTS (3,-1) & LOCAL PROPERTIES
+--------------------------------------------------------------------------------
+ BCP   Bond           R_e (bohr)   R_b (bohr)   Delta_R      rho (a.u.)   nabla^2_rho  Ellipticity
+--------------------------------------------------------------------------------
+ 1     H1 - H2           1.40000      0.76000      0.00000      0.255927    -0.840816    -0.00000
+
+ Local Energy Densities & Interaction Character at BCPs:
+ BCP   Bond           G(r) (a.u.)  V(r) (a.u.)  H(r) (a.u.)   |V|/G     H/rho      E_HB(kcal)  Character
+--------------------------------------------------------------------------------
+ 1     H1 - H2           0.156070    -0.522345    -0.366274    3.3469     -1.4312    163.888   Shared (Covalent / Polar-Covalent)
+
+--------------------------------------------------------------------------------
+4. COMPLETE CRITICAL POINTS LISTING & HESSIAN EIGENVALUES
+--------------------------------------------------------------------------------
+CP #1   Type: NACP (3,-3) Nuclear Attractor
+  Position (bohr): [   0.0000000,    0.0000000,   -0.6171676]
+  Position (Å):    [   0.0000000,    0.0000000,   -0.3265910]
+  Electron Density rho(r):        0.36132805 a.u.
+  Laplacian of Density:          -6.20927878 a.u.
+  Hessian Eigenvalues (lambda): [   -2.196264,    -2.196264,    -1.816750]
+  Ellipticity:                   -0.17279989
+  Kinetic Energy Density G(r):   -0.50857413 a.u.
+  Potential Energy Density V:    -0.53517143 a.u.
+  Total Energy Density H(r):     -1.04374556 a.u.
+  Virial Ratio |V|/G:            -1.05229777
+  E_HB (Espinosa):                167.9126 kcal/mol
+  E_NCI (Matta):                  144.0690 kcal/mol
+
+CP #2   Type: NACP (3,-3) Nuclear Attractor
+  Position (bohr): [   0.0000000,    0.0000000,    0.6171678]
+  Position (Å):    [   0.0000000,    0.0000000,    0.3265911]
+  Electron Density rho(r):        0.36132805 a.u.
+  Laplacian of Density:          -6.20927945 a.u.
+  Hessian Eigenvalues (lambda): [   -2.196264,    -2.196264,    -1.816751]
+  Ellipticity:                   -0.17279973
+  Kinetic Energy Density G(r):   -0.50857425 a.u.
+  Potential Energy Density V:    -0.53517137 a.u.
+  Total Energy Density H(r):     -1.04374562 a.u.
+  Virial Ratio |V|/G:            -1.05229743
+  E_HB (Espinosa):                167.9126 kcal/mol
+  E_NCI (Matta):                  144.0690 kcal/mol
+
+CP #3   Type: BCP (3,-1) Bond Critical Point
+  Position (bohr): [   0.0000000,    0.0000000,    0.0000000]
+  Position (Å):    [   0.0000000,    0.0000000,    0.0000000]
+  Electron Density rho(r):        0.25592667 a.u.
+  Laplacian of Density:          -0.84081573 a.u.
+  Hessian Eigenvalues (lambda): [    1.126872,    -0.983844,    -0.983844]
+  Ellipticity:                   -0.00000000
+  Kinetic Energy Density G(r):    0.15607049 a.u.
+  Potential Energy Density V:    -0.52234491 a.u.
+  Total Energy Density H(r):     -0.36627442 a.u.
+  Virial Ratio |V|/G:             3.34685253
+  E_HB (Espinosa):                163.8882 kcal/mol
+  E_NCI (Matta):                  140.6161 kcal/mol
+  Connected Attractors:       Atom 1 (H) <---> Atom 2 (H)
+  Bond Path Length (R_b):         0.760000 bohr (0.40217 Å)
+  Geometric Distance (R_e):       1.400000 bohr (0.74085 Å)
+
+================================================================================

@@ -8,9 +8,10 @@
 # names (`run`, or `aimext` for the critical-point report) on its input and writes
 # captured/<case>.stdout, captured/<case>.log when the command writes a log, and the files the case
 # exports, with the lines that name local paths rewritten and the timing lines removed. It stores in
-# references.toml the extracted quantities, the SHA-256 of each captured file and the oracle
-# commit. `--fixtures` also runs the vendored fixture files unchanged and stores the settings the
-# oracle echoes for each in a [fixture] table, with its standard output in captured/fixtures/.
+# references.toml the extracted quantities (the compared ones and the known oracle defects), the
+# SHA-256 of each captured file and the oracle commit. `--fixtures` also runs the vendored fixture
+# files unchanged and stores the settings the oracle echoes for each in a [fixture] table, with its
+# standard output in captured/fixtures/.
 # A capture with a commit other than the stored one must name every case and `--fixtures`, so
 # that references.toml never mixes two oracle commits.
 
@@ -75,9 +76,9 @@ function capture_case!(refs, case)
         write(dst, OracleHarness.scrub(read(src, String), case * ".inp", dir))
         hashes[ext] = OracleHarness.file_sha256(dst)
     end
-    for key in keys(t["tolerance"])
+    for key in OracleHarness.captured_quantities(case)
         OracleHarness.quantity_extractor(key) in t["extract"] ||
-            error("capture: case $case compares $key but does not list its extractor")
+            error("capture: case $case stores $key but does not list its extractor")
         t[key] = OracleHarness.quantity(case, key, log, out, OracleHarness.CAPTURED)
     end
     t["sha256"] = hashes

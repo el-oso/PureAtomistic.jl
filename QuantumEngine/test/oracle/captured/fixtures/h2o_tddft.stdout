@@ -1,0 +1,116 @@
+
+╔════════════════════════════════════════╗
+║  Quantum Engine - Ab Initio Calculator ║
+╚════════════════════════════════════════╝
+
+Reading input: h2o_tddft.inp
+Title: Water TD-DFT excited states and NTO analysis
+Logging to: h2o_tddft.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        Water TD-DFT excited states and NTO analysis
+Method:       LDA
+Basis Set:    sto-3g
+Electrons:    10
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     TDDFT
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   2 H        1.43052268     1.10737951     0.00000000     0.75700000     0.58600000     0.00000000
+   3 H       -1.43052268     1.10737951     0.00000000    -0.75700000     0.58600000     0.00000000
+
+Excited State Calculation (TD-DFT)
+  Atoms:        3
+  Basis:        STO-3G
+  AO basis:     7
+
+Step 1: Ground State SCF...
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.473669335419  ΔE =  0.000e0
+SCF iter   2  E = -74.006149725111  ΔE = 4.675e-1
+SCF iter   3  E = -74.347800754209  ΔE = 3.417e-1
+SCF iter   4  E = -74.575291554681  ΔE = 2.275e-1
+SCF iter   5  E = -74.731413671002  ΔE = 1.561e-1
+SCF iter   6  E = -74.731850448944  ΔE = 4.368e-4
+SCF iter   7  E = -74.731851118247  ΔE = 6.693e-7
+SCF converged in 7 iterations  E = -83.925764278575
+  Ground State Energy:     -74.7318511182 Hartree
+
+Step 2: Solving Casida Equations (TD-DFT/TDA)...
+TD-DFT: n_occ = 5, n_virt = 2, n_pairs = 10
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║    NATURAL TRANSITION ORBITAL (NTO) ANALYSIS (TD-DFT)                     ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║ Molecular Orbitals: 5 Occ, 2 Virt (10 Canonical Pairs) | 10 Excited States
+║
+║ NATURAL TRANSITION ORBITAL (NTO) SUMMARY
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ State   Energy(eV)   λ(nm)     f_osc    Dominant NTO Pair Weights (%)   PR_NTO   d_CT(Å)   Assignment
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ S_1       11.560    107.3    0.0026   #1 (100.0%), #2 (0.0%)          1.00    0.51   ⚡ Charge-Transfer (CT) Transition
+║ S_2       13.996     88.6    0.0726   #1 (95.9%), #2 (4.1%)           1.09    0.66   ⚡ Charge-Transfer (CT) Transition
+║ S_3       14.038     88.3    0.0000   #1 (100.0%), #2 (0.0%)          1.00    0.36   ⚡ Charge-Transfer (CT) Transition
+║ S_4       17.814     69.6    0.0575   #1 (82.2%), #2 (17.8%)          1.41    0.42   ⚡ Charge-Transfer (CT) Transition
+║ S_5       22.025     56.3    1.1152   #1 (81.7%), #2 (18.3%)          1.43    0.25   ⚡ Charge-Transfer (CT) Transition
+║ S_6       27.130     45.7    0.4567   #1 (80.7%), #2 (19.3%)          1.45    0.10   ⚡ Charge-Transfer (CT) Transition
+║ S_7       36.413     34.0    0.1061   #1 (99.5%), #2 (0.5%)           1.01    0.12   ⚡ Charge-Transfer (CT) Transition
+║ S_8       37.733     32.9    0.3840   #1 (84.8%), #2 (15.2%)          1.35    0.15   ⚡ Charge-Transfer (CT) Transition
+║ S_9      506.999      2.4    0.0574   #1 (100.0%), #2 (0.0%)          1.00    0.51   ⚡ Charge-Transfer (CT) Transition
+║ S_10     509.538      2.4    0.0911   #1 (100.0%), #2 (0.0%)          1.00    0.36   ⚡ Charge-Transfer (CT) Transition
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+╔════════════════════════════════════════════════════════════════════════════════════════╗
+║              ELECTRONIC EXCITATION & CIRCULAR DICHROISM (UV-VIS / ECD)                 ║
+╠═══════╤══════════════════╤═════════════╤════════╤═════════════════╤════════════════════╣
+║ State │ Energy (Hartree) │ Energy (eV) │ λ (nm) │ Osc. Strength f │ Rot. Strength R    ║
+╟───────┼──────────────────┼─────────────┼────────┼─────────────────┼────────────────────╢
+║     1 │         0.424830 │     11.5602 │  107.3 │          0.0026 │            -0.0000 ║
+║     2 │         0.514351 │     13.9962 │   88.6 │          0.0726 │             0.0000 ║
+║     3 │         0.515897 │     14.0383 │   88.3 │          0.0000 │            -0.0000 ║
+║     4 │         0.654653 │     17.8140 │   69.6 │          0.0575 │            -0.0000 ║
+║     5 │         0.809406 │     22.0251 │   56.3 │          1.1152 │            -0.0000 ║
+║     6 │         0.997021 │     27.1303 │   45.7 │          0.4567 │             0.0000 ║
+║     7 │         1.338169 │     36.4134 │   34.0 │          0.1061 │            -0.0000 ║
+║     8 │         1.386658 │     37.7329 │   32.9 │          0.3840 │             0.0000 ║
+║     9 │        18.631876 │    506.9992 │    2.4 │          0.0574 │             0.0000 ║
+║    10 │        18.725171 │    509.5379 │    2.4 │          0.0911 │            -0.0000 ║
+╚═══════╧══════════════════╧═════════════╧════════╧═════════════════╧════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║    NATURAL TRANSITION ORBITAL (NTO) ANALYSIS (TD-DFT)                     ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║ Molecular Orbitals: 5 Occ, 2 Virt (10 Canonical Pairs) | 10 Excited States
+║
+║ NATURAL TRANSITION ORBITAL (NTO) SUMMARY
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ State   Energy(eV)   λ(nm)     f_osc    Dominant NTO Pair Weights (%)   PR_NTO   d_CT(Å)   Assignment
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ S_1       11.560    107.3    0.0026   #1 (100.0%), #2 (0.0%)          1.00    0.51   ⚡ Charge-Transfer (CT) Transition
+║ S_2       13.996     88.6    0.0726   #1 (95.9%), #2 (4.1%)           1.09    0.66   ⚡ Charge-Transfer (CT) Transition
+║ S_3       14.038     88.3    0.0000   #1 (100.0%), #2 (0.0%)          1.00    0.36   ⚡ Charge-Transfer (CT) Transition
+║ S_4       17.814     69.6    0.0575   #1 (82.2%), #2 (17.8%)          1.41    0.42   ⚡ Charge-Transfer (CT) Transition
+║ S_5       22.025     56.3    1.1152   #1 (81.7%), #2 (18.3%)          1.43    0.25   ⚡ Charge-Transfer (CT) Transition
+║ S_6       27.130     45.7    0.4567   #1 (80.7%), #2 (19.3%)          1.45    0.10   ⚡ Charge-Transfer (CT) Transition
+║ S_7       36.413     34.0    0.1061   #1 (99.5%), #2 (0.5%)           1.01    0.12   ⚡ Charge-Transfer (CT) Transition
+║ S_8       37.733     32.9    0.3840   #1 (84.8%), #2 (15.2%)          1.35    0.15   ⚡ Charge-Transfer (CT) Transition
+║ S_9      506.999      2.4    0.0574   #1 (100.0%), #2 (0.0%)          1.00    0.51   ⚡ Charge-Transfer (CT) Transition
+║ S_10     509.538      2.4    0.0911   #1 (100.0%), #2 (0.0%)          1.00    0.36   ⚡ Charge-Transfer (CT) Transition
+╚═══════════════════════════════════════════════════════════════════════════╝
+✓ UV-Vis and ECD spectra exported with base: h2o_tddft
+Calculation completed successfully.
+

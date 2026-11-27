@@ -1,0 +1,122 @@
+Reading input: h2_opt.inp
+Title: H2 geometry optimization
+Logging to: h2_opt.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        H2 geometry optimization
+Method:       RHF
+Basis Set:    sto-3g
+Electrons:    2
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     Optimization
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 H        0.00000000     0.00000000    -0.80000000     0.00000000     0.00000000    -0.42334177
+   2 H        0.00000000     0.00000000     0.80000000     0.00000000     0.00000000     0.42334177
+
+Starting geometry optimization...
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.103140970811  ΔE =  0.000e0
+SCF iter   2  E =  -1.103140970811  ΔE =  0.000e0
+SCF converged in 2 iterations  E = -1.728140970811
+[OPT] Step   1: E =     -1.1031409708 |grad| = 1.411e-1
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.116714325176  ΔE = 1.357e-2
+SCF iter   2  E =  -1.116714325176  ΔE = 2.220e-16
+SCF converged in 2 iterations  E = -1.831000039461
+[OPT] Step   2: E =     -1.1167143252 |grad| = 4.024e-2
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.117311527443  ΔE = 5.972e-4
+SCF iter   2  E =  -1.117311527443  ΔE = 2.220e-16
+SCF converged in 2 iterations  E = -1.874755984718
+[OPT] Step   3: E =     -1.1173115274 |grad| = 2.170e-2
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.117504435348  ΔE = 1.929e-4
+SCF iter   2  E =  -1.117504435348  ΔE = 2.220e-16
+SCF converged in 2 iterations  E = -1.859249701951
+[OPT] Step   4: E =     -1.1175044353 |grad| = 1.818e-3
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.117505882764  ΔE = 1.447e-6
+SCF iter   2  E =  -1.117505882764  ΔE = 4.441e-16
+SCF converged in 2 iterations  E = -1.860441989190
+[OPT] Step   5: E =     -1.1175058828 |grad| = 7.405e-5
+✓ Geometry optimization CONVERGED at Step 5. Final E = -1.1175058828
+✓ Optimization converged in 5 steps
+
+Performing final SCF at optimized geometry for final analysis...
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.117505882764  ΔE =  0.000e0
+SCF iter   2  E =  -1.117505882764  ΔE = 2.220e-16
+SCF converged in 2 iterations  E = -1.860441989190
+
+╔═════════════════╗
+║  FINAL RESULTS  ║
+╚═════════════════╝
+
+  Total Energy:       -1.117505882764 Hartree
+
+
+Final Coordinates (Bohr/Angstrom)
+---------------------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 H        0.00000000     0.00000000    -0.67300538     0.00000000     0.00000000    -0.35613911
+   2 H        0.00000000     0.00000000     0.67300538     0.00000000     0.00000000     0.35613911
+
+
+ORBITAL ENERGIES
+----------------
+
+  Orbital      Energy [Eh]      Energy [eV]      Occupancy
+  ───────────────────────────────────────────────────────
+     1          -0.590198         -16.0601        2.0  (HOMO)
+     2           0.700593          19.0641        0.0  (LUMO)
+
+
+POPULATION ANALYSIS (Atomic Charges)
+------------------------------------
+
+  Atom         Mulliken Charge       Löwdin Charge
+  ──────────────────────────────────────────────────
+   1 H              0.000000              0.000000
+   2 H             -0.000000             -0.000000
+
+
+BLOECHL LOCALIZED CHARGES
+-------------------------
+
+  Atom         Bloechl Charge
+  ───────────────────────────────────
+   1 H              0.000000
+   2 H             -0.000000
+
+
+DIPOLE MOMENT
+-------------
+
+  X:     0.000000 au
+  Y:     0.000000 au
+  Z:    -0.000000 au
+  Total:     0.000000 au    (0.0000 Debye)
+
+Calculation completed successfully.
+

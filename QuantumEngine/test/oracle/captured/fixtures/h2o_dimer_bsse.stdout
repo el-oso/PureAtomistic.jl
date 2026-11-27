@@ -1,0 +1,122 @@
+
+╔════════════════════════════════════════╗
+║  Quantum Engine - Ab Initio Calculator ║
+╚════════════════════════════════════════╝
+
+Reading input: h2o_dimer_bsse.inp
+Title: Water Dimer BSSE Test
+Logging to: h2o_dimer_bsse.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        Water Dimer BSSE Test
+Method:       RHF
+Basis Set:    sto-3g
+Electrons:    20
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     BSSE
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   2 H        1.43052268     1.10737951     0.00000000     0.75700000     0.58600000     0.00000000
+   3 H       -1.43052268     1.10737951     0.00000000    -0.75700000     0.58600000     0.00000000
+   4 O        0.00000000     0.00000000     5.48020576     0.00000000     0.00000000     2.90000000
+   5 H        1.43052268     1.10737951     5.48020576     0.75700000     0.58600000     2.90000000
+   6 H       -1.43052268     1.10737951     5.48020576    -0.75700000     0.58600000     2.90000000
+
+
+╔════════════════════════════════════════╗
+║    BSSE COUNTERPOISE CORRECTION        ║
+╚════════════════════════════════════════╝
+
+Step 1: Calculating Dimer Energy (E_AB^{AB})
+
+Starting SCF Cycle...
+SCF iter   1  E = -149.345416585720  ΔE =  0.000e0
+SCF iter   2  E = -148.467568647280  ΔE = 8.778e-1
+SCF iter   3  E = -148.957480234114  ΔE = 4.899e-1
+SCF iter   4  E = -149.413369854282  ΔE = 4.559e-1
+SCF iter   5  E = -149.901227277261  ΔE = 4.879e-1
+SCF iter   6  E = -149.921983801653  ΔE = 2.076e-2
+SCF iter   7  E = -149.922404985926  ΔE = 4.212e-4
+SCF iter   8  E = -149.922431178606  ΔE = 2.619e-5
+SCF iter   9  E = -149.922432086976  ΔE = 9.084e-7
+SCF converged in 9 iterations  E = -186.222008418106
+
+Fragment 1: Indices [0, 1, 2]
+  -> Calculating Fragment 1 in full basis (E_1^{AB})
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.664714400537  ΔE =  0.000e0
+SCF iter   2  E = -74.242231940047  ΔE = 4.225e-1
+SCF iter   3  E = -74.488239273206  ΔE = 2.460e-1
+SCF iter   4  E = -74.712494176032  ΔE = 2.243e-1
+SCF iter   5  E = -74.952713116983  ΔE = 2.402e-1
+SCF iter   6  E = -74.963000656485  ΔE = 1.029e-2
+SCF iter   7  E = -74.963198832288  ΔE = 1.982e-4
+SCF iter   8  E = -74.963209253048  ΔE = 1.042e-5
+SCF iter   9  E = -74.963209714336  ΔE = 4.613e-7
+SCF converged in 9 iterations  E = -84.157122874664
+  -> Calculating Fragment 1 in isolated basis (E_1^{1})
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.664956522248  ΔE =  0.000e0
+SCF iter   2  E = -74.242428454442  ΔE = 4.225e-1
+SCF iter   3  E = -74.488220761355  ΔE = 2.458e-1
+SCF iter   4  E = -74.712307952242  ΔE = 2.241e-1
+SCF iter   5  E = -74.952422058555  ΔE = 2.401e-1
+SCF iter   6  E = -74.962738588921  ΔE = 1.032e-2
+SCF iter   7  E = -74.962936049815  ΔE = 1.975e-4
+SCF iter   8  E = -74.962946228386  ΔE = 1.018e-5
+SCF iter   9  E = -74.962946673715  ΔE = 4.453e-7
+SCF converged in 9 iterations  E = -84.156859834043
+
+Fragment 2: Indices [3, 4, 5]
+  -> Calculating Fragment 2 in full basis (E_2^{AB})
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.664714400537  ΔE =  0.000e0
+SCF iter   2  E = -74.242231940048  ΔE = 4.225e-1
+SCF iter   3  E = -74.488239273206  ΔE = 2.460e-1
+SCF iter   4  E = -74.712494176032  ΔE = 2.243e-1
+SCF iter   5  E = -74.952713116983  ΔE = 2.402e-1
+SCF iter   6  E = -74.963000656485  ΔE = 1.029e-2
+SCF iter   7  E = -74.963198832288  ΔE = 1.982e-4
+SCF iter   8  E = -74.963209253048  ΔE = 1.042e-5
+SCF iter   9  E = -74.963209714336  ΔE = 4.613e-7
+SCF converged in 9 iterations  E = -84.157122874664
+  -> Calculating Fragment 2 in isolated basis (E_2^{2})
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.664956522250  ΔE =  0.000e0
+SCF iter   2  E = -74.242428454443  ΔE = 4.225e-1
+SCF iter   3  E = -74.488220761356  ΔE = 2.458e-1
+SCF iter   4  E = -74.712307952242  ΔE = 2.241e-1
+SCF iter   5  E = -74.952422058555  ΔE = 2.401e-1
+SCF iter   6  E = -74.962738588921  ΔE = 1.032e-2
+SCF iter   7  E = -74.962936049815  ΔE = 1.975e-4
+SCF iter   8  E = -74.962946228386  ΔE = 1.018e-5
+SCF iter   9  E = -74.962946673715  ΔE = 4.453e-7
+SCF converged in 9 iterations  E = -84.156859834043
+
+BSSE Summary:
+  Dimer Energy (E_AB):         -149.92243209 Hartree
+  Sum Isolated Fragments:      -149.92589335 Hartree
+  Raw Binding Energy:             0.00346126 Hartree
+  Total BSSE Correction:          0.00052608 Hartree (0.33 kcal/mol)
+  Corrected Binding Energy:       0.00398734 Hartree
+╚════════════════════════════════════════╝
+
+Calculation completed successfully.
+

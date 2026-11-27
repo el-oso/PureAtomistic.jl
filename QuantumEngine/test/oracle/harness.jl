@@ -291,8 +291,8 @@
         ext_report(path) -> Dict{String,Float64}
 
     The critical-point report the oracle's `aimext` command writes (`analysis/aim.rs:198-336`):
-    the counts of section 2 (`aim.rs:226-229`) as `n_nacp`, `n_bcp`, `n_rcp` and `n_ccp`, and for
-    each row `k` of the bond-critical-point table of section 3 (`aim.rs:252-255`, `" {:<4}  {:<14}
+    the counts of section 2 (`aim.rs:229-232`) as `n_nacp`, `n_bcp`, `n_rcp` and `n_ccp`, and for
+    each row `k` of the bond-critical-point table of section 3 (`aim.rs:256-259`, `" {:<4}  {:<14}
     {:10.5}   {:10.5}   {:10.5}   {:11.6}  {:11.6}  {:10.5}"`) the keys `bcp<k>.r_e`,
     `bcp<k>.r_b`, `bcp<k>.delta_r` (bohr), `bcp<k>.rho`, `bcp<k>.laplacian` (a.u.) and
     `bcp<k>.ellipticity`.
@@ -417,10 +417,13 @@
 
     The parity tolerance of the quantity `key` of `case`: the row its `tolerance` map names, read
     from `tolerances.toml`. A quantity with no entry in the map, or an entry naming a row that does
-    not exist, throws: no row, no comparison.
+    not exist, throws: no row, no comparison. So does a quantity listed in the case's `defects`.
     """
     function tolerance(case::AbstractString, key::AbstractString)
-        row = get(get(case_table(case), "tolerance", Dict{String, Any}()), key, nothing)
+        t = case_table(case)
+        defect = get(get(t, "defects", Dict{String, Any}()), key, nothing)
+        defect === nothing || error("oracle: $case.$key is a known oracle defect, not a parity reference: $defect")
+        row = get(get(t, "tolerance", Dict{String, Any}()), key, nothing)
         row === nothing && error("oracle: no tolerance row (no map entry) for $case.$key")
         t = TOML.parsefile(TOLERANCES)
         for part in split(row, '.')
@@ -429,6 +432,23 @@
         end
         t isa Dict && t["value"] isa Float64 || error("oracle: no tolerance row $row for $case.$key")
         return t["value"]::Float64
+    end
+
+    """
+        captured_quantities(case) -> Vector{String}
+
+    The quantities `capture.jl` stores for `case`, sorted: the keys of its `tolerance` map, the
+    compared quantities, and of its `defects` table, the quantities in which the oracle's output is
+    known to be wrong. A defect's stored value is the oracle's, and no parity comparison uses it.
+    Throws if a key is in both.
+    """
+    function captured_quantities(case::AbstractString)
+        t = case_table(case)
+        compared = collect(keys(get(t, "tolerance", Dict{String, Any}())))
+        defects = collect(keys(get(t, "defects", Dict{String, Any}())))
+        both = intersect(compared, defects)
+        isempty(both) || error("oracle: case $case both compares and lists as a defect $(join(both, ", "))")
+        return sort!(vcat(compared, defects))
     end
 
     """
@@ -473,9 +493,20 @@
     const HEADER = """
     # Oracle reference values. Each [case] table holds an input, its source, the oracle command
     # that runs it (`run` or `aimext`), the extractors and exports, and the map from each compared
-    # quantity to its row in tolerances.toml; capture.jl writes the extracted values and the
+    # quantity to its row in tolerances.toml, and optionally a `defects` table of the quantities
+    # whose captured value is a known oracle defect; capture.jl writes the extracted values and the
     # SHA-256 of each captured file. Each [fixture] table holds the settings the oracle echoes for a
     # vendored input file. Rewritten by capture.jl.
+    """
+
+    """
+        DEFECTS_COMMENT
+
+    The comment `write_references` puts above each `[case.<name>.defects]` table.
+    """
+    const DEFECTS_COMMENT = """
+    # Known oracle defects: each key is a quantity whose captured value is wrong, with what is wrong.
+    # The value stays as captured; tolerance() throws for it, so no parity comparison uses it.
     """
 
     const _CASE_HEAD = ("input", "source", "command", "extract", "exports", "tolerance")
@@ -503,7 +534,8 @@
 
     Write the references `refs` (the parsed `references.toml`) in the file's fixed form: the
     header, `[meta]`, each `[case]` table with its input as a multiline literal, then its other
-    keys and its `sha256` subtable, then each `[fixture]` table.
+    keys and its subtables (`defects`, with [`DEFECTS_COMMENT`](@ref) above it, and `sha256`), then
+    each `[fixture]` table.
     """
     function write_references(io::Base.IO, refs::AbstractDict)
         print(io, HEADER)
@@ -530,6 +562,7 @@
             end
             for k in subtables
                 println(io)
+                k == "defects" && print(io, DEFECTS_COMMENT)
                 println(io, "[case.", _key(name), ".", _key(k), "]")
                 for (kk, vv) in sort!(collect(t[k]); by = first)
                     println(io, _key(kk), " = ", _value(vv))

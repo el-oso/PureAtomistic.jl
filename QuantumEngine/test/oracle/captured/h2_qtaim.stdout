@@ -1,0 +1,54 @@
+
+╔════════════════════════════════════════╗
+║  Quantum Engine - Ab Initio Calculator ║
+╚════════════════════════════════════════╝
+
+No checkpoint found. Computing ground state SCF wavefunction...
+
+Starting SCF Cycle...
+SCF iter   1  E =  -1.116714325176  ΔE =  0.000e0
+SCF iter   2  E =  -1.116714325176  ΔE = 2.220e-16
+SCF converged in 2 iterations  E = -1.831000039461
+
+================================================================================
+              QUANTUM ENGINE - AIMEXT (CRITICAL POINT ANALYSIS)
+       Ab Initio Quantum Theory of Atoms in Molecules (QTAIM / Bader)
+================================================================================
+Target: h2_qtaim | Atoms: 2 | Resolution: 0.150 bohr
+
+╔══════════════════════════════════════════════════════════╗
+║         QTAIM TOPOLOGICAL ANALYSIS (BADER)               ║
+╠══════════════════════════════════════════════════════════╣
+║ Building 3D Grid: 60 x 60 x 70 (Total: 252000 points)
+║ Resolution: 0.150 bohr
+║ Evaluating electron density on grid (Rayon parallel)...
+║ Density evaluation complete. Running Grid-Bader integration...
+║ Searching for Critical Points (Newton-Raphson)...
+║
+║ 1. QTAIM ATOMIC BASIN MULTIPOLES & ENERGIES
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║  Atom   N_elec    Bader Charge  |Dipole| (D)   E_atom (Ha)   LI(A)   V_0.001 (bohr³)  V_tot (bohr³)
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║  1 H      0.8603       0.1397         0.367        -0.49136    0.370         37.57         178.94
+║  2 H      1.1394      -0.1394         0.129        -0.55221    0.649         73.66         449.38
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║  Total N_elec integrated :    1.99973  |  Net Molecular Charge:   0.0003
+║  Total Atomic Energy (Ha):   -1.04357
+║
+║ 2. DELOCALIZATION INDEX MATRIX δ(A, B) [Bond Sharing]
+║ ──────────────────────────────────────────────────────────
+║        1H     2H   
+║  1H   0.740  0.980 
+║  2H   0.980  1.297 
+║
+║ 3. TOPOLOGICAL CRITICAL POINTS & INTERACTION ENERGIES
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ Type   Position (Å)            ρ(r)    ∇²ρ(r)     |V|/G    H/ρ      E_HB(kcal)   BO_est  Character
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ NACP ( 0.00, 0.00,-0.33)   0.3613  -6.2093   -1.052  -2.8886     167.91     1.22   Shared (Covalent / Polar-Covalent)
+║ NACP ( 0.00, 0.00, 0.33)   0.3613  -6.2093   -1.052  -2.8886     167.91     1.22   Shared (Covalent / Polar-Covalent)
+║ BCP  ( 0.00, 0.00, 0.00)   0.2559  -0.8408    3.347  -1.4312     163.89     1.01   Shared (Covalent / Polar-Covalent)
+║ ─────────────────────────────────────────────────────────────────────────────────────────────
+║ Poincaré-Hopf Euler Rule: N_NACP(4) - N_BCP(1) + N_RCP(0) - N_CCP(0) = 3 [⚠ Incomplete Set]
+╚══════════════════════════════════════════════════════════╝
+✓ Wrote AIMExt report: h2_qtaim.ext

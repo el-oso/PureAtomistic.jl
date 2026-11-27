@@ -1,0 +1,153 @@
+
+╔════════════════════════════════════════╗
+║  Quantum Engine - Ab Initio Calculator ║
+╚════════════════════════════════════════╝
+
+Reading input: water_optfreq.inp
+Title: "H2O OptFreq Benchmark"
+Logging to: water_optfreq.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        "H2O OptFreq Benchmark"
+Method:       PBE0
+Basis Set:    sto-3g
+Electrons:    10
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     OptFreq
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   2 H        0.00000000     1.43052268     1.10737951     0.00000000     0.75700000     0.58600000
+   3 H        0.00000000    -1.43052268     1.10737951     0.00000000    -0.75700000     0.58600000
+
+
+╔════════════════════════════════════════╗
+║      STEP 1: GEOMETRY OPTIMIZATION    ║
+╚════════════════════════════════════════╝
+
+Starting geometry optimization...
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.968679919590  ΔE =  0.000e0
+SCF iter   2  E = -74.516870066909  ΔE = 4.518e-1
+SCF iter   3  E = -74.788484424204  ΔE = 2.716e-1
+SCF iter   4  E = -75.042246255592  ΔE = 2.538e-1
+SCF iter   5  E = -75.242201921777  ΔE = 2.000e-1
+SCF iter   6  E = -75.245771911955  ΔE = 3.570e-3
+SCF iter   7  E = -75.245877536851  ΔE = 1.056e-4
+SCF iter   8  E = -75.245883300830  ΔE = 5.764e-6
+SCF iter   9  E = -75.245883680114  ΔE = 3.793e-7
+SCF converged in 9 iterations  E = -84.439796840442
+[OPT] Step   1: E =    -75.2458836801 |grad| = 1.296e-1
+
+Starting SCF Cycle...
+SCF iter   1  E = -75.252855533642  ΔE = 6.972e-3
+SCF iter   2  E = -74.690470779597  ΔE = 5.624e-1
+SCF iter   3  E = -74.853654338685  ΔE = 1.632e-1
+SCF iter   4  E = -75.079334898770  ΔE = 2.257e-1
+SCF iter   5  E = -75.250409979800  ΔE = 1.711e-1
+SCF iter   6  E = -75.253432142437  ΔE = 3.022e-3
+SCF iter   7  E = -75.253544403548  ΔE = 1.123e-4
+SCF iter   8  E = -75.253547937458  ΔE = 3.534e-6
+SCF iter   9  E = -75.253548090715  ΔE = 1.533e-7
+SCF converged in 9 iterations  E = -83.901155917655
+[OPT] Step   2: E =    -75.2535480907 |grad| = 1.168e-2
+
+Starting SCF Cycle...
+SCF iter   1  E = -75.253617288776  ΔE = 6.920e-5
+SCF iter   2  E = -74.686957644567  ΔE = 5.667e-1
+SCF iter   3  E = -74.855093032360  ΔE = 1.681e-1
+SCF iter   4  E = -75.080196323207  ΔE = 2.251e-1
+SCF iter   5  E = -75.251070115558  ΔE = 1.709e-1
+SCF iter   6  E = -75.253510052546  ΔE = 2.440e-3
+SCF iter   7  E = -75.253617772128  ΔE = 1.077e-4
+SCF iter   8  E = -75.253621302925  ΔE = 3.531e-6
+SCF iter   9  E = -75.253621498544  ΔE = 1.956e-7
+SCF converged in 9 iterations  E = -83.940057356513
+[OPT] Step   3: E =    -75.2536214985 |grad| = 1.661e-3
+
+Starting SCF Cycle...
+SCF iter   1  E = -75.253623225461  ΔE = 1.727e-6
+SCF iter   2  E = -74.687345678847  ΔE = 5.663e-1
+SCF iter   3  E = -74.855414462424  ΔE = 1.681e-1
+SCF iter   4  E = -75.080200977548  ΔE = 2.248e-1
+SCF iter   5  E = -75.251103321368  ΔE = 1.709e-1
+SCF iter   6  E = -75.253515860395  ΔE = 2.413e-3
+SCF iter   7  E = -75.253618050195  ΔE = 1.022e-4
+SCF iter   8  E = -75.253623052381  ΔE = 5.002e-6
+SCF iter   9  E = -75.253623303835  ΔE = 2.515e-7
+SCF converged in 9 iterations  E = -83.950463396023
+[OPT] Step   4: E =    -75.2536233038 |grad| = 3.931e-4
+✓ Geometry optimization CONVERGED at Step 4. Final E = -75.2536233038
+
+╔════════════════════════════════════════╗
+║      STEP 2: HESSIAN & FREQUENCIES     ║
+╚════════════════════════════════════════╝
+
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.900685933479  ΔE =  0.000e0
+SCF iter   2  E = -74.459556081351  ΔE = 4.411e-1
+SCF iter   3  E = -74.764578466505  ΔE = 3.050e-1
+SCF iter   4  E = -75.046418989606  ΔE = 2.818e-1
+SCF iter   5  E = -75.249355200310  ΔE = 2.029e-1
+SCF iter   6  E = -75.253518703765  ΔE = 4.164e-3
+SCF iter   7  E = -75.253618096948  ΔE = 9.939e-5
+SCF iter   8  E = -75.253622939966  ΔE = 4.843e-6
+SCF iter   9  E = -75.253623293332  ΔE = 3.534e-7
+SCF converged in 9 iterations  E = -83.950463385520
+Computing Numerical Hessian in parallel (9 displacement cycles)...
+
+╔════════════════════════════════════════════════════╗
+║            VIBRATIONAL FREQUENCIES                 ║
+╠══════╤══════════════════╤══════════╤═══════════════╣
+║ Mode │ Frequency (cm^-1) │  Type    │  Eigenvalue   ║
+╟──────┼──────────────────┼──────────┼───────────────╢
+║    1 │          -0.0000 │ T/R      │     -0.000000 ║
+║    2 │          -0.0000 │ T/R      │     -0.000000 ║
+║    3 │          -0.0000 │ T/R      │     -0.000000 ║
+║    4 │           0.0000 │ T/R      │      0.000000 ║
+║    5 │           0.0000 │ T/R      │      0.000000 ║
+║    6 │           0.0000 │ T/R      │      0.000000 ║
+║    7 │        2061.9160 │ Vib      │      0.160892 ║
+║    8 │        3711.8410 │ Vib      │      0.521399 ║
+║    9 │        3946.0942 │ Vib      │      0.589286 ║
+╚══════╧══════════════════╧══════════╧═══════════════╝
+✓ Local Minimum verified (zero imaginary frequencies).
+
+╔══════════════════════════════════════════════════════╗
+║          THERMOCHEMICAL ANALYSIS (RRHO)              ║
+╠══════════════════════════════════════════════════════╣
+║ Temperature:      298.15 K                            ║
+║ Pressure:           1.00 atm                          ║
+╠══════════════════════════════════════════════════════╣
+║ Energy Components           Hartree      kcal/mol    ║
+╟──────────────────────────────────────────────────────╢
+║ Zero-Point Energy (ZPE)     0.022143        13.895 ║
+║ Internal Energy (U)       -75.229119    -47206.949 ║
+║ Enthalpy (H)              -75.228175    -47206.357 ║
+║ Gibbs Free Energy (G)     -75.248573    -47219.157 ║
+╠══════════════════════════════════════════════════════╣
+║ Entropy Components (S)      J/(mol·K)   cal/(mol·K)  ║
+╟──────────────────────────────────────────────────────╢
+║ Translational               144.8041       34.6090 ║
+║ Rotational                   34.8213        8.3225 ║
+║ Vibrational                   0.0043        0.0010 ║
+║ Electronic                    0.0000        0.0000 ║
+╟──────────────────────────────────────────────────────╢
+║ TOTAL ENTROPY               179.6297       42.9325 ║
+╚══════════════════════════════════════════════════════╝
+Calculation completed successfully.
+

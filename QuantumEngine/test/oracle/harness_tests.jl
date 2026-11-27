@@ -42,7 +42,7 @@ end
         @test p isa ParsedInput && isempty(p.warnings)
         @test t["source"] isa String && !isempty(t["source"])
         # Every compared quantity's extractor is listed.
-        @test all(OracleHarness.quantity_extractor(k) in t["extract"] for k in keys(t["tolerance"]))
+        @test all(OracleHarness.quantity_extractor(k) in t["extract"] for k in OracleHarness.captured_quantities(case))
     end
     # The derived inputs carry what their source line says.
     method(case) = parse_inp(OracleHarness.case_input(case)).input.method
@@ -80,7 +80,11 @@ end
     @test length(ν) == 3 && all(≥(0), ν)
     @test ν == reference_vector("water_optfreq", "frequencies")
     ext = OracleHarness.ext_report(captured("h2_qtaim.ext"))
-    @test ext["n_nacp"] == 2
+    # The oracle's count of nuclear attractors for the two nuclei is 4, and its report says the
+    # Poincaré–Hopf sum is not 1; the case lists the count as a defect.
+    @test ext["n_nacp"] == reference("h2_qtaim", "ext_report.n_nacp") == 4
+    @test occursin("N_NACP - N_BCP + N_RCP - N_CCP = 3 [INCOMPLETE / NON-CONVERGED]", read(captured("h2_qtaim.ext"), String))
+    @test OracleHarness.captured_quantities("h2_qtaim") == sort!(["ext_report.n_nacp"; collect(keys(OracleHarness.case_table("h2_qtaim")["tolerance"]))])
     @test ext["n_bcp"] == reference("h2_qtaim", "ext_report.n_bcp")
 end
 
@@ -117,6 +121,10 @@ end
         "water_pbe_631g", "mp2_correlation"
     )
     @test_throws "oracle: no case nosuch in references.toml" tolerance("nosuch", "total_energy")
+    # A known oracle defect is never compared.
+    @test_throws "oracle: h2_qtaim.ext_report.n_nacp is a known oracle defect, not a parity reference: aimext reports 4 nuclear attractors" tolerance(
+        "h2_qtaim", "ext_report.n_nacp"
+    )
     @test tolerance("water_rhf_631g", "total_energy") == 1.0e-9
     @test tolerance("water_mp2", "mp2_correlation") == 1.0e-9
     @test tolerance("o2_uhf_631g", "total_energy") == 1.0e-7
@@ -177,7 +185,7 @@ end
         ], '\n'
     )
     @test H.frequencies(table) == [-120.0, 1650.25]
-    # analysis/aim.rs:226-229 and 252-255.
+    # analysis/aim.rs:229-232 and 256-259.
     ext = joinpath(mktempdir(), "h2.ext")
     write(
         ext, """

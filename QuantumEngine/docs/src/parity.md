@@ -57,6 +57,16 @@ and stores their echoed settings. A capture at a commit other than the stored on
 case and `--fixtures`, so the file never mixes two oracle commits. The captured files are
 committed.
 
+The stored outputs are those of the oracle at commit 4a78a1d235688c5af10ccd94be75d7292073ff8d
+(`meta.oracle_commit`), built from a clean checkout of that commit with
+`cargo build --release --no-default-features`: a headless build, without the GUI and GPU
+features (the GUI's dependency `objc2` 0.3.0-beta.3 does not compile with rustc 1.100.0), linked
+against Libxc 7.1.2 (shared library version 15) from Homebrew.
+
+The case `o2_uhf_631g` sets `scf_convergence 1e-8`, the convergence of the oracle's reference
+value −149.545553662520; with the `1e-6` of its source file `examples/o2_triplet.inp` the oracle
+stops at −149.545553539349, 1.2e-7 Ha away and beyond the `uhf.energy` tolerance.
+
 The live items (tag `:oracle`) run only when `QUANTUM_ENGINE_ORACLE` names the binary. They re-run
 every case and check that each compared quantity is still within its tolerance of
 `references.toml`.
@@ -74,7 +84,8 @@ every case and check that each compared quantity is still within its tolerance o
 5. Add the `tolerances.toml` rows the step's specification fixes, with their justification.
 
 `tolerance(case, key)` throws for a quantity that has no entry in the case's map, or whose entry
-names a row that does not exist: a quantity without a row is never compared.
+names a row that does not exist: a quantity without a row is never compared. It throws as well
+for a quantity in the case's `defects` table (see below).
 
 ### Traps in the oracle's output
 
@@ -100,6 +111,19 @@ names a row that does not exist: a quantity without a row is never compared.
   that checkpoint (`analysis/aim.rs:722-821`). It writes `h2_qtaim.ext` into the working directory
   and no log file (`main.rs:229-258`), so the case's captured files are `h2_qtaim.stdout` and
   `h2_qtaim.ext`. The input's `run qtaim` line has no effect on `aimext`.
+
+### Known oracle defects
+
+A captured quantity whose value is wrong is stored as captured and listed in its case's `defects`
+table with what is wrong; `tolerance` throws for it, so no comparison requires QuantumEngine to
+reproduce it.
+
+| case | quantity | oracle | why it is wrong |
+|---|---|---|---|
+| `h2_qtaim` | `ext_report.n_nacp` | 4 | H2 has two nuclei, and the report's own Poincaré–Hopf line reads `N_NACP - N_BCP + N_RCP - N_CCP = 3 [INCOMPLETE / NON-CONVERGED]` (`analysis/aim.rs:229-237`) instead of 1. The correct count is decided with the QTAIM analysis. |
+
+The other `h2_qtaim` quantities (the counts of bond, ring and cage critical points and the bond
+critical point's ρ, Laplacian, `R_e`, `R_b`, `Delta_R` and ellipticity) are references.
 
 ### Tolerances
 

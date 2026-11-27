@@ -1,0 +1,115 @@
+Reading input: water_mp2.inp
+Title: H2O RI-MP2 Test
+Logging to: water_mp2.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        H2O RI-MP2 Test
+Method:       RI-MP2 (on RHF)
+Basis Set:    sto-3g
+Electrons:    10
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     SinglePoint
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.22109796     0.00000000     0.00000000     0.11700000
+   2 H        0.00000000     1.43052268    -0.88628155     0.00000000     0.75700000    -0.46900000
+   3 H        0.00000000    -1.43052268    -0.88628155     0.00000000    -0.75700000    -0.46900000
+
+System:
+  Atoms:        3
+  Basis:        STO-3G
+  AO basis:     7
+
+Running SCF Single Point...
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.664956522248  ΔE =  0.000e0
+SCF iter   2  E = -74.242428454442  ΔE = 4.225e-1
+SCF iter   3  E = -74.488220761355  ΔE = 2.458e-1
+SCF iter   4  E = -74.712307952242  ΔE = 2.241e-1
+SCF iter   5  E = -74.952422058555  ΔE = 2.401e-1
+SCF iter   6  E = -74.962738588921  ΔE = 1.032e-2
+SCF iter   7  E = -74.962936049815  ΔE = 1.975e-4
+SCF iter   8  E = -74.962946228386  ΔE = 1.018e-5
+SCF iter   9  E = -74.962946673715  ΔE = 4.453e-7
+SCF converged in 9 iterations  E = -84.156859834043
+
+Starting Post-SCF Correlation...
+  MP2 Correlation:            -0.0352582390 Hartree
+  Total MP2 Energy:          -74.9982049127 Hartree
+╚════════════════════════════════════════╝
+
+
+╔═════════════════╗
+║  FINAL RESULTS  ║
+╚═════════════════╝
+
+  Total Energy:      -74.962946673715 Hartree
+
+
+Final Coordinates (Bohr/Angstrom)
+---------------------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.22109796     0.00000000     0.00000000     0.11700000
+   2 H        0.00000000     1.43052268    -0.88628155     0.00000000     0.75700000    -0.46900000
+   3 H        0.00000000    -1.43052268    -0.88628155     0.00000000    -0.75700000    -0.46900000
+
+
+ORBITAL ENERGIES
+----------------
+
+  Orbital      Energy [Eh]      Energy [eV]      Occupancy
+  ───────────────────────────────────────────────────────
+     1         -20.241743        -550.8059        2.0 
+     2          -1.268357         -34.5138        2.0 
+     3          -0.617849         -16.8125        2.0 
+     4          -0.452997         -12.3267        2.0 
+     5          -0.391235         -10.6461        2.0  (HOMO)
+     6           0.605577          16.4786        0.0  (LUMO)
+     7           0.742256          20.1978        0.0 
+
+
+POPULATION ANALYSIS (Atomic Charges)
+------------------------------------
+
+  Atom         Mulliken Charge       Löwdin Charge
+  ──────────────────────────────────────────────────
+   1 O             -0.366241             -0.253313
+   2 H              0.183120              0.126656
+   3 H              0.183120              0.126656
+
+
+BLOECHL LOCALIZED CHARGES
+-------------------------
+
+  Atom         Bloechl Charge
+  ───────────────────────────────────
+   1 O             -0.309777
+   2 H              0.154888
+   3 H              0.154888
+
+
+DIPOLE MOMENT
+-------------
+
+  X:     0.000000 au
+  Y:     0.000000 au
+  Z:    -0.678932 au
+  Total:     0.678932 au    (1.7257 Debye)
+
+Calculation completed successfully.
+

@@ -1,0 +1,121 @@
+
+╔════════════════════════════════════════╗
+║  Quantum Engine - Ab Initio Calculator ║
+╚════════════════════════════════════════╝
+
+Reading input: o2_triplet.inp
+Title: Oxygen molecule - triplet ground state (UHF)
+Logging to: o2_triplet.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        Oxygen molecule - triplet ground state (UHF)
+Method:       RHF
+Basis Set:    sto-3g
+Electrons:    16
+Multiplicity: 3
+Charge:       0
+Dispersion:   None
+Run Mode:     SinglePoint
+Convergence:  1.0e-6
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   2 O        2.28278916     0.00000000     0.00000000     1.20800000     0.00000000     0.00000000
+
+System:
+  Atoms:        2
+  Basis:        STO-3G
+  AO basis:     10
+
+Running SCF Single Point...
+UHF starting: N_alpha = 9, N_beta = 7
+UHF iter   1  E =  -172.927524677420  ΔE = 1.729e2
+UHF iter   2  E =  -175.376474535464  ΔE = 2.449e0
+UHF iter   3  E =  -175.412848900881  ΔE = 3.637e-2
+UHF iter   4  E =  -175.414632358164  ΔE = 1.783e-3
+UHF iter   5  E =  -175.414776764247  ΔE = 1.444e-4
+UHF iter   6  E =  -175.414779107846  ΔE = 2.344e-6
+UHF iter   7  E =  -175.414779844901  ΔE = 7.371e-7
+UHF converged in 7 iterations
+╚════════════════════════════════════════╝
+
+
+╔═════════════════╗
+║  FINAL RESULTS  ║
+╚═════════════════╝
+
+  Total Energy:     -147.378901121563 Hartree
+
+
+Final Coordinates (Bohr/Angstrom)
+---------------------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.00000000     0.00000000     0.00000000     0.00000000
+   2 O        2.28278916     0.00000000     0.00000000     1.20800000     0.00000000     0.00000000
+
+
+ORBITAL ENERGIES
+----------------
+
+  Orbital      Energy [Eh]      Energy [eV]      Occupancy
+  ───────────────────────────────────────────────────────
+     1         -20.400961        -555.1384        2.0 
+     2         -20.399974        -555.1116        2.0 
+     3          -1.574809         -42.8527        2.0 
+     4          -1.103919         -30.0392        2.0 
+     5          -0.695702         -18.9310        2.0 
+     6          -0.680135         -18.5074        2.0 
+     7          -0.645491         -17.5647        2.0 
+     8          -0.395529         -10.7629        2.0  (HOMO)
+     9          -0.341486          -9.2923        0.0  (LUMO)
+    10           0.702705          19.1216        0.0 
+
+
+POPULATION ANALYSIS (Atomic Charges)
+------------------------------------
+
+  Atom         Mulliken Charge       Löwdin Charge
+  ──────────────────────────────────────────────────
+   1 O             -0.000000             -0.000000
+   2 O              0.000000              0.000000
+
+
+ATOMIC SPIN POPULATION (UHF Mulliken)
+-------------------------------------
+
+  Atom         Spin Density
+  ───────────────────────────────────
+   1 O              1.000000
+   2 O              1.000000
+
+
+BLOECHL LOCALIZED CHARGES
+-------------------------
+
+  Atom         Bloechl Charge
+  ───────────────────────────────────
+   1 O             -0.000000
+   2 O              0.000000
+
+
+DIPOLE MOMENT
+-------------
+
+  X:    -7.989762 au
+  Y:     0.000000 au
+  Z:     0.000000 au
+  Total:     7.989762 au    (20.3079 Debye)
+
+Calculation completed successfully.
+

@@ -1,0 +1,123 @@
+Reading input: water_ccsd.inp
+Title: "H2O CCSD(T) Test"
+Logging to: water_ccsd.log
+
+
+╔═══════════════════════╗
+║  CALCULATION SUMMARY  ║
+╚═══════════════════════╝
+
+Title:        "H2O CCSD(T) Test"
+Method:       RI-CCSD (on RHF)
+Basis Set:    6-31g
+Electrons:    10
+Multiplicity: 1
+Charge:       0
+Dispersion:   None
+Run Mode:     SinglePoint
+Convergence:  1.0e-7
+Acceleration: CPU
+
+Initial Geometry (Bohr)
+-----------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.22166487     0.00000000     0.00000000     0.11730000
+   2 H        0.00000000     1.43090062    -0.88665950     0.00000000     0.75720000    -0.46920000
+   3 H        0.00000000    -1.43090062    -0.88665950     0.00000000    -0.75720000    -0.46920000
+
+System:
+  Atoms:        3
+  Basis:        6-31G
+  AO basis:     13
+
+Running SCF Single Point...
+
+Starting SCF Cycle...
+SCF iter   1  E = -74.781297884570  ΔE =  0.000e0
+SCF iter   2  E = -73.625562851096  ΔE =  1.156e0
+SCF iter   3  E = -74.907264176240  ΔE =  1.282e0
+SCF iter   4  E = -75.508908333108  ΔE = 6.016e-1
+SCF iter   5  E = -75.983783404387  ΔE = 4.749e-1
+SCF iter   6  E = -75.983957378474  ΔE = 1.740e-4
+SCF iter   7  E = -75.983974178440  ΔE = 1.680e-5
+SCF iter   8  E = -75.983974420299  ΔE = 2.419e-7
+SCF iter   9  E = -75.983974470512  ΔE = 5.021e-8
+SCF converged in 9 iterations  E = -85.173508233151
+
+Starting Post-SCF Correlation...
+  CCSD Correlation:           -0.1227819979 Hartree
+  Total CCSD Energy:         -76.1067564684 Hartree
+  (T) Correction:              0.0000189646 Hartree
+  Total CCSD(T) Energy:      -76.1067375039 Hartree
+╚════════════════════════════════════════╝
+
+
+╔═════════════════╗
+║  FINAL RESULTS  ║
+╚═════════════════╝
+
+  Total Energy:      -75.983974470512 Hartree
+
+
+Final Coordinates (Bohr/Angstrom)
+---------------------------------
+
+  Atom         X [Bohr]       Y [Bohr]       Z [Bohr]      X [Ang]        Y [Ang]        Z [Ang]
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+   1 O        0.00000000     0.00000000     0.22166487     0.00000000     0.00000000     0.11730000
+   2 H        0.00000000     1.43090062    -0.88665950     0.00000000     0.75720000    -0.46920000
+   3 H        0.00000000    -1.43090062    -0.88665950     0.00000000    -0.75720000    -0.46920000
+
+
+ORBITAL ENERGIES
+----------------
+
+  Orbital      Energy [Eh]      Energy [eV]      Occupancy
+  ───────────────────────────────────────────────────────
+     1         -20.560553        -559.4811        2.0 
+     2          -1.356142         -36.9025        2.0 
+     3          -0.709852         -19.3161        2.0 
+     4          -0.560617         -15.2552        2.0 
+     5          -0.501382         -13.6433        2.0  (HOMO)
+     6           0.203641           5.5414        0.0  (LUMO)
+     7           0.299722           8.1559        0.0 
+     8           1.057240          28.7690        0.0 
+     9           1.164434          31.6859        0.0 
+    10           1.186858          32.2961        0.0 
+    11           1.215652          33.0796        0.0 
+    12           1.379339          37.5337        0.0 
+    13           1.696174          46.1552        0.0 
+
+
+POPULATION ANALYSIS (Atomic Charges)
+------------------------------------
+
+  Atom         Mulliken Charge       Löwdin Charge
+  ──────────────────────────────────────────────────
+   1 O             -0.791813             -0.581571
+   2 H              0.395906              0.290786
+   3 H              0.395906              0.290786
+
+
+BLOECHL LOCALIZED CHARGES
+-------------------------
+
+  Atom         Bloechl Charge
+  ───────────────────────────────────
+   1 O             -0.686692
+   2 H              0.343346
+   3 H              0.343346
+
+
+DIPOLE MOMENT
+-------------
+
+  X:     0.000000 au
+  Y:    -0.000000 au
+  Z:    -1.035109 au
+  Total:     1.035109 au    (2.6310 Debye)
+
+Calculation completed successfully.
+

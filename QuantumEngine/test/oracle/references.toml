@@ -1,11 +1,12 @@
 # Oracle reference values. Each [case] table holds an input, its source, the oracle command
 # that runs it (`run` or `aimext`), the extractors and exports, and the map from each compared
-# quantity to its row in tolerances.toml; capture.jl writes the extracted values and the
+# quantity to its row in tolerances.toml, and optionally a `defects` table of the quantities
+# whose captured value is a known oracle defect; capture.jl writes the extracted values and the
 # SHA-256 of each captured file. Each [fixture] table holds the settings the oracle echoes for a
 # vendored input file. Rewritten by capture.jl.
 
 [meta]
-oracle_commit = ""
+oracle_commit = "4a78a1d235688c5af10ccd94be75d7292073ff8d"
 
 [case.h2_opt]
 input = '''
@@ -28,6 +29,12 @@ command = "run"
 extract = ["opt_steps"]
 exports = []
 tolerance = {opt_energy = "hf.energy", opt_gnorm = "gradient.norm"}
+opt_energy = -1.1175058828
+opt_gnorm = 7.405e-5
+
+[case.h2_opt.sha256]
+log = "53887e58fbf75680cf214e025eb9b3c22c501b1ea9e8ddbc78e76afd0a3dc840"
+stdout = "646cfb84c4d0de4bfe1d02db775938c29c6275dbdfb42a22c1db81ce122b5907"
 
 [case.h2_qtaim]
 input = '''
@@ -49,7 +56,26 @@ source = "derived from examples/h2.inp: `run qtaim` added as line 8"
 command = "aimext"
 extract = ["ext_report"]
 exports = ["ext"]
-tolerance = {"ext_report.bcp1.delta_r" = "qtaim.bcp1.delta_r", "ext_report.bcp1.ellipticity" = "qtaim.bcp1.ellipticity", "ext_report.bcp1.laplacian" = "qtaim.bcp1.laplacian", "ext_report.bcp1.r_b" = "qtaim.bcp1.r_b", "ext_report.bcp1.r_e" = "qtaim.bcp1.r_e", "ext_report.bcp1.rho" = "qtaim.bcp1.rho", "ext_report.n_bcp" = "qtaim.n_bcp", "ext_report.n_ccp" = "qtaim.n_ccp", "ext_report.n_nacp" = "qtaim.n_nacp", "ext_report.n_rcp" = "qtaim.n_rcp"}
+tolerance = {"ext_report.bcp1.delta_r" = "qtaim.bcp1.delta_r", "ext_report.bcp1.ellipticity" = "qtaim.bcp1.ellipticity", "ext_report.bcp1.laplacian" = "qtaim.bcp1.laplacian", "ext_report.bcp1.r_b" = "qtaim.bcp1.r_b", "ext_report.bcp1.r_e" = "qtaim.bcp1.r_e", "ext_report.bcp1.rho" = "qtaim.bcp1.rho", "ext_report.n_bcp" = "qtaim.n_bcp", "ext_report.n_ccp" = "qtaim.n_ccp", "ext_report.n_rcp" = "qtaim.n_rcp"}
+"ext_report.bcp1.delta_r" = 0.0
+"ext_report.bcp1.ellipticity" = -0.0
+"ext_report.bcp1.laplacian" = -0.840816
+"ext_report.bcp1.r_b" = 0.76
+"ext_report.bcp1.r_e" = 1.4
+"ext_report.bcp1.rho" = 0.255927
+"ext_report.n_bcp" = 1.0
+"ext_report.n_ccp" = 0.0
+"ext_report.n_nacp" = 4.0
+"ext_report.n_rcp" = 0.0
+
+# Known oracle defects: each key is a quantity whose captured value is wrong, with what is wrong.
+# The value stays as captured; tolerance() throws for it, so no parity comparison uses it.
+[case.h2_qtaim.defects]
+"ext_report.n_nacp" = "aimext reports 4 nuclear attractors for the 2 nuclei, and its own Poincaré-Hopf line reads N_NACP - N_BCP + N_RCP - N_CCP = 3 [INCOMPLETE / NON-CONVERGED]; the QTAIM step decides the correct count"
+
+[case.h2_qtaim.sha256]
+ext = "6d8e6abacbf2ce52ca3685d6f3b8004cfb6a0c7d352c90fe33085a707a5308ac"
+stdout = "dedddad3d9da06b547e61c4244b49367a52a82ee27dc20aea4aa2c47ad9b5fd6"
 
 [case.o2_uhf_631g]
 input = '''
@@ -58,7 +84,7 @@ charge 0
 multiplicity 3
 basis 6-31g
 method uhf
-scf_convergence 1e-6
+scf_convergence 1e-8
 max_iterations 50
 
 geometry angstrom
@@ -66,11 +92,16 @@ O   0.000000   0.000000   0.000000
 O   1.208000   0.000000   0.000000
 end
 '''
-source = "derived from examples/o2_triplet.inp: basis 6-31g (line 4), method uhf (line 5)"
+source = "derived from examples/o2_triplet.inp: basis 6-31g (line 4), method uhf (line 5), scf_convergence 1e-8 (line 6), the convergence of the 00-overview reference"
 command = "run"
 extract = ["total_energy", "scf_iterations"]
 exports = []
 tolerance = {total_energy = "uhf.energy"}
+total_energy = -149.54555366252
+
+[case.o2_uhf_631g.sha256]
+log = "4bb8f1e364bf729b2f71a5236c7bf3b3117b5be756ca6b584a2e62f9412299d4"
+stdout = "8ec0c6a216f95070de63791dc35a6bf96f770f2539fb9cacb1d840a523f72f3b"
 
 [case.water_ccsd]
 input = '''
@@ -96,6 +127,12 @@ command = "run"
 extract = ["ccsd_correlation", "total_energy"]
 exports = []
 tolerance = {ccsd_correlation = "ccsd.energy", total_energy = "hf.energy"}
+ccsd_correlation = -0.1227819979
+total_energy = -75.983974470512
+
+[case.water_ccsd.sha256]
+log = "1bc7a8e1587223691475d765e9cb07bb28e49702d0e2c62be0ad80876c113f5e"
+stdout = "4caf7ee7ca31edae4256441b9596410377b00a321ad7c5c75e40e2b4820366bd"
 
 [case.water_mp2]
 input = '''
@@ -117,6 +154,12 @@ command = "run"
 extract = ["mp2_correlation", "total_energy"]
 exports = []
 tolerance = {mp2_correlation = "mp2.energy", total_energy = "hf.energy"}
+mp2_correlation = -0.035258239
+total_energy = -74.962946673715
+
+[case.water_mp2.sha256]
+log = "83a3ac8702cafd62406a6ba9656b3e7851fd88a6fd0bf2bb3f86c3fa0cc10510"
+stdout = "5c963fd3b0104ab889ced0d235512d5c7cdbdbd2c27fd18158f72c2047fffec3"
 
 [case.water_optfreq]
 input = '''
@@ -138,6 +181,12 @@ command = "run"
 extract = ["opt_steps", "frequencies"]
 exports = []
 tolerance = {frequencies = "frequency.cm1", opt_energy = "dft_closed.energy"}
+frequencies = [2061.916, 3711.841, 3946.0942]
+opt_energy = -75.2536233038
+
+[case.water_optfreq.sha256]
+log = "764544e5a1ece5bb806b1f17b2828c75527ffb2d4ffc89a4be667eed42d09714"
+stdout = "f6a0d721674810f2f114d68999618c543c0f2f40f8dcae3650364d34b6186060"
 
 [case.water_pbe_631g]
 input = '''
@@ -162,6 +211,13 @@ command = "run"
 extract = ["total_energy", "nuclear_repulsion_from"]
 exports = ["molden"]
 tolerance = {nuclear_repulsion = "nuclear_repulsion.energy", total_energy = "dft_closed.energy"}
+nuclear_repulsion = 9.189533762639996
+total_energy = -76.29926974315
+
+[case.water_pbe_631g.sha256]
+log = "281dc93083218ebd7dc43df519034d47a9bfeecffcdf11c2a8d75bf89a2b013b"
+molden = "c8b1cfb1870a03173352c304b77dad32442f06b9e86008fa1e50c104ad35fdd4"
+stdout = "6f2312826cb65f66c54d4e3e438f40fb4fd5706835a271e5d2c624e50d24f753"
 
 [case.water_rhf_631g]
 input = '''
@@ -185,3 +241,73 @@ command = "run"
 extract = ["total_energy"]
 exports = []
 tolerance = {total_energy = "hf.energy"}
+total_energy = -75.983974472322
+
+[case.water_rhf_631g.sha256]
+log = "91540ba7b529435a58af7df3b07879d7dcae6753bb035084bce5cec05cbfebb6"
+stdout = "4697b98853997bd542cfcb8aad9d06eb71cf597eec339c21bb5247171d2769b7"
+
+[fixture."examples/h2.inp"]
+atoms = 2
+basis = "sto-3g"
+charge = 0
+convergence = "1.0e-6"
+exitcode = 0
+method = "RHF"
+multiplicity = 1
+sha256 = "101b75538344a9aed63e79e999b0f0ece6653efd95680ac3ebec95a6e4a7c100"
+title = "Hydrogen molecule"
+
+[fixture."examples/h2o_631g_sp.inp"]
+atoms = 3
+basis = "631-g"
+charge = 0
+convergence = "1.0e-10"
+exitcode = 0
+method = "PBE0"
+multiplicity = 1
+sha256 = "00d2e831b900f0b07790afb899a80b9f14b27915c3e5f88169f42d9d158c8cab"
+title = "Water single-point PBE0/6-31G"
+
+[fixture."examples/h2o_tddft.inp"]
+atoms = 3
+basis = "sto-3g"
+charge = 0
+convergence = "1.0e-6"
+exitcode = 0
+method = "LDA"
+multiplicity = 1
+sha256 = "43d6340ab6855d45664bfd69bdc0239ebcdbaa30ad686d998fc996423377a61e"
+title = "Water TD-DFT excited states and NTO analysis"
+
+[fixture."examples/o2_triplet.inp"]
+atoms = 2
+basis = "sto-3g"
+charge = 0
+convergence = "1.0e-6"
+exitcode = 0
+method = "RHF"
+multiplicity = 3
+sha256 = "5027dbd677766ef8d9be8107972af27da8050dc2f303cec03ce12f9d305205d8"
+title = "Oxygen molecule - triplet ground state (UHF)"
+
+[fixture."tests/h2o_dimer_bsse.inp"]
+basis = "sto-3g"
+charge = 0
+convergence = "1.0e-6"
+exitcode = 0
+method = "RHF"
+multiplicity = 1
+sha256 = "878487ac945bbbba49c020dd7a6a346c37332349c218ebec7b421e9933ed6fed"
+title = "Water Dimer BSSE Test"
+
+[fixture."tests/o2_hubbard.in"]
+atoms = 2
+basis = "6-31g"
+charge = 0
+convergence = "1.0e-6"
+exitcode = 0
+method = "PBE"
+multiplicity = 3
+sha256 = "6d69ff4ef8e4d546479b005b09fdf3baf097999c6394c1adadfa22c191df7771"
+title = "O2 Hubbard Test"
