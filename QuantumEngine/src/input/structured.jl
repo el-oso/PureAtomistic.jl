@@ -36,11 +36,12 @@ const CONSTRAINT_KEYS = ["freeze_atom", "freeze_bond", "freeze_angle", "target"]
 const STRUCTURED_METHODS = ACCEPTED_METHODS[.!startswith.(ACCEPTED_METHODS, "libxc_")]
 const SOLVATION_MODEL_WORDS = ["pcm", "smd"]
 
-# The source, mode and warnings of one walk.
+# The source, mode and warnings of one walk, and the key paths of its atom-index entries.
 struct _Walk
     source::String
     lenient::Bool
     warnings::Vector{InputWarning}
+    sites::_IndexSites
 end
 
 _reject(w::_Walk, case::Symbol, msg::AbstractString) = reject_or_warn(w.source, 0, w.lenient, w.warnings, case, msg)
@@ -164,7 +165,9 @@ function _hubbard_map(w::_Walk, a::_At)
     _smap(w, a) || return out
     n = a.node
     for j in eachindex(n.keys)
-        u = _sfloat(w, _At(_child(a.path, n.keys[j]), n.items[j], true))
+        path = _child(a.path, n.keys[j])
+        _check_hubbard_symbol(w.source, 0, w.lenient, w.warnings, path, n.keys[j])
+        u = _sfloat(w, _At(path, n.items[j], true))
         isnothing(u) || push!(out, HubbardU(n.keys[j], u))
     end
     return out
@@ -200,7 +203,8 @@ The structured input whose tree is `root` (JSON, YAML or any `AbstractDict` once
 `Node`), read strictly by default; `source` names it in error messages and warnings, whose line is
 0. Keys are case-sensitive and read as the oracle reads them; the schema and its deviations from
 the oracle are documented on the Input page of the manual. The checks shared with `.inp` (atoms
-given, a restricted reference only for a singlet, a whole number of electrons per spin) run last.
+given, atom indices within the atoms, a restricted reference only for a singlet, a whole number of
+electrons per spin) run last.
 
 In strict mode every input the oracle accepts silently but that is not valid (an unknown key, a
 value of the wrong type, an unknown word) is an `InputError` naming the key path. In lenient mode
@@ -208,7 +212,7 @@ such an input is read as the oracle reads it and recorded as an `InputWarning` o
 case. Atom positions are converted to bohr.
 """
 function parse_structured(root::Node; source::AbstractString, lenient::Bool = false)
-    w = _Walk(String(source), lenient, InputWarning[])
+    w = _Walk(String(source), lenient, InputWarning[], _IndexSites())
     root.kind == NullNode && throw(InputError(w.source, 0, "the document is empty"))
     root.kind == MapNode ||
         throw(InputError(w.source, 0, lazy"the top-level value is $(_kind_word(root.kind)), not a map"))
@@ -227,7 +231,7 @@ function parse_structured(root::Node; source::AbstractString, lenient::Bool = fa
     _irc!(w, d, doc)
     _constraints!(w, d, doc)
     inp = _input(d, on)
-    return ParsedInput(_finalize_input(inp; source = w.source, lenient, warnings = w.warnings), w.warnings)
+    return ParsedInput(_finalize_input(inp; source = w.source, lenient, warnings = w.warnings, sites = w.sites), w.warnings)
 end
 
 # The run mode and the top-level options.
@@ -524,6 +528,7 @@ function _oniom(w::_Walk, o::_At)
             x == typemax(Int) &&
                 throw(InputError(w.source, 0, lazy"$(e.path): expected an atom index (an integer ≥ 0), got $(x)"))
             push!(atoms, x + 1)
+            push!(w.sites.model_labels, e.path)
         end
     end
     return ONIOMSpec(
@@ -722,14 +727,19 @@ function _constraints!(w::_Walk, d::_InputDraft, doc::_At)
         if fa.present && _ok(w, fa, IntNode)
             t.present && _reject(w, :yaml_unknown_key, lazy"$(t.path): a target applies to freeze_bond and freeze_angle")
             push!(d.constraints, Constraint(FreezeAtom, (_constraint_index(w, fa, 0), 0, 0, 0), nothing))
+            push!(w.sites.constraint_labels, fa.path)
         elseif fb.present && _ok(w, fb, ArrayNode)
             ids = _indices(w, fb, 2)
-            isnothing(ids) || push!(d.constraints, Constraint(FreezeBond, ids, t.present ? _sfloat(w, t) : nothing))
+            if !isnothing(ids)
+                push!(d.constraints, Constraint(FreezeBond, ids, t.present ? _sfloat(w, t) : nothing))
+                push!(w.sites.constraint_labels, fb.path)
+            end
         elseif fg.present && _ok(w, fg, ArrayNode)
             ids = _indices(w, fg, 3)
             if !isnothing(ids)
                 deg = t.present ? _sfloat(w, t) : nothing
                 push!(d.constraints, Constraint(FreezeAngle, ids, isnothing(deg) ? nothing : deg2rad(deg)))
+                push!(w.sites.constraint_labels, fg.path)
             end
         end
     end

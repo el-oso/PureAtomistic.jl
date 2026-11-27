@@ -226,7 +226,7 @@ end
         dmft_temp 100.0
         dmft_matsubara 512
         dmft_bath 6
-        """ * w
+        """ * replace(w, "end\n" => "He 2.0 0.0 0.0\nend\n")
     )
     @test inp.run_mode == Frequency && inp.basis == "6-31g*" && inp.diis_method == EDIIS
     @test (inp.conv_tol_density, inp.diis_reset_threshold, inp.smearing, inp.grid_level, inp.level_shift) == (1.0e-7, 0.2, 0.01, 2, 0.3)

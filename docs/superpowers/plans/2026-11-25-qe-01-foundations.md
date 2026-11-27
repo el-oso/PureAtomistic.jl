@@ -890,6 +890,9 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | `:unclosed_block` | geometry with no `end` at EOF | "is not closed by `end`" | atoms kept |
 | `:hubbard_inline_argument` | `hubbard O:5.0` then `use_diis true` | "`hubbard` takes no value on its line" | Both modes throw. Assertions: strict throws "`hubbard` takes no value on its line"; lenient throws `"Invalid U value: true"` (verified: the next 2-token line is read as a U line). The warning is checked on the variant `hubbard O:5.0` followed by `end`: lenient gives `hubbard == []` with one `:hubbard_inline_argument` warning |
 | `:fragment_index` | `fragments 0,x;1,2` | "fragment index `x` is not an integer" | index dropped |
+| `:atom_index_range` | `freeze_atom 99`, `fragments 0,1;5,6`, `oniom_model 0 99` (2 atoms); structured `constraints[k].freeze_*`, `oniom.model_atoms[k]` | "`freeze_atom`: atom index 99 is out of range; the input has 2 atoms (indices 0 to 1)", on the line of the entry | the index as written (the oracle checks none, `parser.rs:289-306, 396-455`). Checked in `_finalize_input` for every format (user ruling 2026-11-27) |
+| `:repeated_atom` | `freeze_bond 0 0 1.4`; `fragments 0;0,1` | "`freeze_bond`: atom index 0 is given twice" | as written |
+| `:hubbard_element` | `Xx 4.0` in a hubbard block; a structured `hubbard`/`u_map`/`j_map` key | "`hubbard`: unknown element symbol \"Xx\"" (`System.element_number` check-then-throw; a bare `Bq` errors in both modes) | the symbol as written (`parser.rs:563-568`) |
 | `:nonfinite` | `scf_convergence nan`; `damping inf` | "expected a finite number" | the parsed value: NaN, Inf (Rust `f64` parses `nan` and `inf`); the molecule-file readers use the same case for coordinates (Task 4, L19g) |
 | `:extra_values` | `charge 0 1`; `optimize now` | "`charge` takes 1 value, got 2" | 0; `run_mode == Optimization` |
 | `:duplicate_keyword` | `charge 0` … `charge 1` | "given twice" | 1 |

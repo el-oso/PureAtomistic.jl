@@ -416,11 +416,110 @@ function _restricted_word(kind::MethodKind)
     return "restricted"
 end
 
+# Where each atom-index entry of an input was given, in the order of `constraints`, `fragments`
+# and the ONIOM `model_atoms`: its line and the label its messages start with (the keyword as
+# written in an `.inp` file, the key path in a structured input). A vector a parser leaves empty
+# gives line 0 and the field's key path (`constraints[2]`, `oniom.model_atoms[1]`).
+struct _IndexSites
+    constraint_lines::Vector{Int}
+    constraint_labels::Vector{String}
+    fragment_lines::Vector{Int}
+    model_lines::Vector{Int}
+    model_labels::Vector{String}
+end
+
+_IndexSites() = _IndexSites(Int[], String[], Int[], Int[], String[])
+
+_site_line(v::Vector{Int}, k::Int) = isempty(v) ? 0 : v[k]
+_site_label(v::Vector{String}, k::Int, field::String) = isempty(v) ? field * "[" * string(k) * "]" : v[k]
+
+_constraint_size(kind::ConstraintKind) =
+    kind == FreezeAtom ? 1 : kind == FreezeBond ? 2 : kind == FreezeAngle ? 3 : 4
+
+# Rejects the 1-based atom index `a` when the input's `n` atoms do not hold it; the message gives
+# the index as the file writes it, 0-based. Lenient mode keeps the index, as the oracle does.
+function _index_in_range(
+        source::AbstractString, line::Int, lenient::Bool, warnings::Vector{InputWarning}, label::String, a::Int, n::Int,
+    )
+    1 <= a <= n && return nothing
+    reject_or_warn(
+        source, line, lenient, warnings, :atom_index_range,
+        lazy"$(label): atom index $(a - 1) is out of range; the input has $(n) atoms (indices 0 to $(n - 1))",
+    )
+    return nothing
+end
+
+_repeated_atom(source::AbstractString, line::Int, lenient::Bool, warnings::Vector{InputWarning}, label::String, a::Int) =
+    reject_or_warn(source, line, lenient, warnings, :repeated_atom, lazy"$(label): atom index $(a - 1) is given twice")
+
+# Checks every atom index of the constraints, fragments and ONIOM model atoms of `inp` against
+# its atoms, and that no constraint names one atom twice and no atom is in two fragments.
+function _check_atom_indices(
+        inp::InputFile, source::AbstractString, lenient::Bool, warnings::Vector{InputWarning}, sites::_IndexSites,
+    )
+    n = length(inp.atoms)
+    for k in eachindex(inp.constraints)
+        c = inp.constraints[k]
+        line = _site_line(sites.constraint_lines, k)
+        label = _site_label(sites.constraint_labels, k, "constraints")
+        for j in 1:_constraint_size(c.kind)
+            a = c.atoms[j]
+            _index_in_range(source, line, lenient, warnings, label, a, n)
+            for i in 1:(j - 1)
+                if c.atoms[i] == a
+                    _repeated_atom(source, line, lenient, warnings, label, a)
+                    break
+                end
+            end
+        end
+    end
+    seen = Int[]
+    for k in eachindex(inp.fragments)
+        line = _site_line(sites.fragment_lines, k)
+        for a in inp.fragments[k]
+            _index_in_range(source, line, lenient, warnings, "`fragments`", a, n)
+            a in seen && _repeated_atom(source, line, lenient, warnings, "`fragments`", a)
+            push!(seen, a)
+        end
+    end
+    o = inp.oniom
+    isnothing(o) && return nothing
+    for k in eachindex(o.model_atoms)
+        line = _site_line(sites.model_lines, k)
+        _index_in_range(source, line, lenient, warnings, _site_label(sites.model_labels, k, "oniom.model_atoms"), o.model_atoms[k], n)
+    end
+    return nothing
+end
+
+# Rejects a Hubbard parameter whose symbol `sym` names no element; lenient mode keeps it, as the
+# oracle does. A bare `Bq`, which `element_number` rejects as malformed, is an error in both modes.
+function _check_hubbard_symbol(
+        source::AbstractString, line::Int, lenient::Bool, warnings::Vector{InputWarning}, label::String,
+        sym::AbstractString,
+    )
+    z = try
+        element_number(sym)
+    catch e
+        e isa ArgumentError || rethrow()
+        m = e.msg
+        m isa String || rethrow()
+        body = chopprefix(m, "system: ")
+        throw(InputError(source, line, lazy"$(label): $(body)"))
+    end
+    z == 0 && reject_or_warn(
+        source, line, lenient, warnings, :hubbard_element, lazy"$(label): unknown element symbol $(repr(sym))",
+    )
+    return nothing
+end
+
 """
-    _finalize_input(inp::InputFile; source = "<input>", lenient = false, warnings = InputWarning[], method_line = 0, multiplicity_line = 0) -> InputFile
+    _finalize_input(inp::InputFile; source = "<input>", lenient = false, warnings = InputWarning[], method_line = 0, multiplicity_line = 0, sites = _IndexSites()) -> InputFile
 
 The checks every input format shares, run once after the parse of `inp` from `source`: the input
-has atoms; a method with a restricted reference has multiplicity 1 (in lenient mode the reference
+has atoms; every atom index of a constraint, a fragment or the ONIOM model atoms names one of its
+atoms, no constraint names an atom twice and no atom is in two fragments (in lenient mode each is
+kept, as the oracle keeps it, with an `:atom_index_range` or `:repeated_atom` warning naming the
+line and label of `sites`); a method with a restricted reference has multiplicity 1 (in lenient mode the reference
 becomes `AutoReference`, as the oracle chooses it, with a `:rhf_open_shell` warning); and the
 charge and multiplicity give a whole number of α and β electrons. The errors name the line of
 `method` and of `multiplicity` (0 for a structured input or a keyword not given); an
@@ -431,8 +530,10 @@ keywords, which the type-stability check of the module judges.
 function _finalize_input(
         inp::InputFile; source::AbstractString = "<input>", lenient::Bool = false,
         warnings::Vector{InputWarning} = InputWarning[], method_line::Int = 0, multiplicity_line::Int = 0,
+        sites::_IndexSites = _IndexSites(),
     )
     isempty(inp.atoms) && throw(InputError(source, 0, "no atoms: the input has no geometry block"))
+    _check_atom_indices(inp, source, lenient, warnings, sites)
     m = inp.method
     if m.reference == Restricted && inp.multiplicity != 1
         reject_or_warn(

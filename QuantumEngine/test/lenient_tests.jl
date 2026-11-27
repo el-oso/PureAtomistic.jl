@@ -273,6 +273,92 @@ end
     @test p.input.fragments == [[1], [2, 3]] && Lenient.cases(p) == [:fragment_index]
 end
 
+@testitem "lenient: atom_index_range" setup = [Lenient] begin
+    using QuantumEngine
+    using QuantumEngine.Input: Constraint, FreezeAtom, FreezeDihedral
+    # parser.rs:289-306, 396-455: the oracle stores every index as written and checks none against
+    # the atoms. The water geometry has 3 atoms (lines 1-5).
+    range_msg(kw, i) = "`$(kw)`: atom index $(i) is out of range; the input has 3 atoms (indices 0 to 2)"
+    rows = [
+        ("freeze_atom 99\n", 6, range_msg("freeze_atom", 99), i -> i.constraints, [Constraint(FreezeAtom, (100, 0, 0, 0), nothing)]),
+        ("freeze 3\n", 6, range_msg("freeze", 3), i -> i.constraints, [Constraint(FreezeAtom, (4, 0, 0, 0), nothing)]),
+        ("freeze_torsion 0 1 2 3\n", 6, range_msg("freeze_torsion", 3), i -> i.constraints, [Constraint(FreezeDihedral, (1, 2, 3, 4), nothing)]),
+        ("fragments 0,1;5,2\n", 6, range_msg("fragments", 5), i -> i.fragments, [[1, 2], [6, 3]]),
+        ("fragments\n0,1\n2,7\nend\n", 8, range_msg("fragments", 7), i -> i.fragments, [[1, 2], [3, 8]]),
+        ("oniom_model 0 99\n", 6, range_msg("oniom_model", 99), i -> i.oniom.model_atoms, [1, 100]),
+        ("oniom\nmodel_atoms 0 9\nend\n", 7, range_msg("model_atoms", 9), i -> i.oniom.model_atoms, [1, 10]),
+    ]
+    for (line, n, msg, get, val) in rows
+        text = Lenient.W * line
+        @test_throws "input: t.inp:$(n): $(msg)" Lenient.strict(text)
+        p = Lenient.lenient(text)
+        @test get(p.input) == val
+        @test Lenient.cases(p) == [:atom_index_range]
+        @test p.warnings[1].line == n
+    end
+    # Each index out of range is one warning.
+    p = Lenient.lenient(Lenient.W * "fragments 0,5;6,1\n")
+    @test Lenient.cases(p) == [:atom_index_range, :atom_index_range]
+    # The check runs after the whole file is read, so a constraint may come before the geometry.
+    @test Lenient.strict("freeze_atom 2\n" * Lenient.W).constraints == [Constraint(FreezeAtom, (3, 0, 0, 0), nothing)]
+    @test_throws "input: t.inp:1: `freeze_atom`: atom index 3 is out of range" Lenient.strict("freeze_atom 3\n" * Lenient.W)
+end
+
+@testitem "lenient: atom indices of an InputFile built in code" begin
+    using QuantumEngine
+    using QuantumEngine.Input: Constraint, FreezeBond, ONIOMSpec, MethodSpec, HF, AutoReference
+    # Without the sites a parser records, the messages give line 0 and the field's key path.
+    m = MethodSpec(HF, AutoReference, (0, 0), 0.0)
+    atoms = [Atom("H", [0.0, 0.0, -0.7]), Atom("H", [0.0, 0.0, 0.7])]
+    fin(inp; lenient = false) = QuantumEngine.Input._finalize_input(inp; source = "code", lenient, warnings = InputWarning[])
+    inp = InputFile(; atoms, constraints = [Constraint(FreezeBond, (1, 3, 0, 0), nothing)])
+    @test_throws "input: code: constraints[1]: atom index 2 is out of range; the input has 2 atoms (indices 0 to 1)" fin(inp)
+    inp = InputFile(; atoms, oniom = ONIOMSpec(m, m, [1, 2, 5], nothing, nothing))
+    @test_throws "input: code: oniom.model_atoms[3]: atom index 4 is out of range" fin(inp)
+    @test fin(inp; lenient = true).oniom.model_atoms == [1, 2, 5]
+    @test_throws "input: code: `fragments`: atom index 1 is given twice" fin(InputFile(; atoms, fragments = [[1, 2], [2]]))
+end
+
+@testitem "lenient: repeated_atom" setup = [Lenient] begin
+    using QuantumEngine
+    using QuantumEngine.Input: Constraint, FreezeBond, FreezeAngle
+    # The oracle stores a constraint on one atom twice, and an atom in two fragments, as written.
+    rows = [
+        ("freeze_bond 0 0 1.4\n", "`freeze_bond`: atom index 0 is given twice", i -> i.constraints, [Constraint(FreezeBond, (1, 1, 0, 0), 1.4)]),
+        ("freeze_angle 0 1 0\n", "`freeze_angle`: atom index 0 is given twice", i -> i.constraints, [Constraint(FreezeAngle, (1, 2, 1, 0), nothing)]),
+        ("fragments 0;0,1\n", "`fragments`: atom index 0 is given twice", i -> i.fragments, [[1], [1, 2]]),
+        ("fragments 0,0;1\n", "`fragments`: atom index 0 is given twice", i -> i.fragments, [[1, 1], [2]]),
+    ]
+    for (line, msg, get, val) in rows
+        text = Lenient.W * line
+        @test_throws "input: t.inp:6: $(msg)" Lenient.strict(text)
+        p = Lenient.lenient(text)
+        @test get(p.input) == val
+        @test Lenient.cases(p) == [:repeated_atom]
+        @test p.warnings[1].line == 6
+    end
+end
+
+@testitem "lenient: hubbard_element" setup = [Lenient] begin
+    using QuantumEngine
+    using QuantumEngine.Input: HubbardU
+    # parser.rs:563-568: the oracle stores the symbol of a U line as written.
+    text = Lenient.W * "hubbard\nXx 4.0\nO 5.0\nend\n"
+    @test_throws "input: t.inp:7: `hubbard`: unknown element symbol \"Xx\"" Lenient.strict(text)
+    p = Lenient.lenient(text)
+    @test p.input.hubbard == [HubbardU("Xx", 4.0), HubbardU("O", 5.0)]
+    @test Lenient.cases(p) == [:hubbard_element]
+    @test p.warnings[1].line == 7
+    # A symbol of any ASCII case names its element.
+    @test Lenient.strict(Lenient.W * "hubbard\nfe 4.0\nend\n").hubbard == [HubbardU("fe", 4.0)]
+    # A bare Bq is malformed, an error in both modes.
+    for lenient in (false, true)
+        @test_throws "input: t.inp:7: `hubbard`: a Bq atom needs an element" parse_inp(
+            Lenient.W * "hubbard\nBq 4.0\nend\n"; source = "t.inp", lenient,
+        )
+    end
+end
+
 @testitem "lenient: nonfinite" setup = [Lenient] begin
     using QuantumEngine
     # parser.rs:161, 539-543: Rust's `f64` parses `nan` and `inf`.

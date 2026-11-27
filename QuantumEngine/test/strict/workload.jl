@@ -246,7 +246,7 @@ function run_workload()
     freeze_atom 0
     freeze_bond 0 1 1.8
     freeze_angle 1 0 2 104.5
-    freeze_dihedral 0 1 2 1
+    freeze_dihedral 0 1 2 3
     irc_step 0.05
     irc_points 12
     irc_direction fwd
@@ -262,6 +262,7 @@ function run_workload()
     O  0.0000  0.0000  0.1173
     H  0.0000  0.7572 -0.4692
     H  0.0000 -0.7572 -0.4692
+    He 0 0 3
     Bq 0 0 2 0.5
     end
     product_geometry bohr

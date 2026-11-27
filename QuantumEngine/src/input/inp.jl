@@ -161,6 +161,7 @@ mutable struct _InpState
     model_atoms::Vector{Int}
     model_charge::Union{Nothing, Int}
     model_multiplicity::Union{Nothing, Int}
+    sites::_IndexSites
 end
 
 function _InpState(source::String, lenient::Bool, warnings::Vector{InputWarning})
@@ -168,7 +169,7 @@ function _InpState(source::String, lenient::Bool, warnings::Vector{InputWarning}
     return _InpState(
         source, lenient, warnings, _draft(InputFile()), false, Dict{Symbol, Int}(), :none, 0, 0, false, 0, 0,
         SVector{3, Float64}[], Int[], NoSolvation, s.solvent, s.epsilon, s.radii_scaling, s.grid_order,
-        s, false, DEFAULT_METHOD, DEFAULT_METHOD, Int[], nothing, nothing,
+        s, false, DEFAULT_METHOD, DEFAULT_METHOD, Int[], nothing, nothing, _IndexSites(),
     )
 end
 
@@ -205,6 +206,7 @@ function parse_inp(text::AbstractString; source::AbstractString = "<string>", le
     inp = _finalize_input(
         _input(st.d, oniom); source = st.source, lenient, warnings = st.warnings,
         method_line = get(st.seen, :method, 0), multiplicity_line = get(st.seen, :multiplicity, 0),
+        sites = st.sites,
     )
     return ParsedInput(inp, st.warnings)
 end
@@ -826,7 +828,9 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :freeze_atom
         for j in 2:lastindex(tokens)
             a = _index(st, n, kw, tokens[j], :bad_list_entry)
-            isnothing(a) || push!(d.constraints, Constraint(FreezeAtom, (a, 0, 0, 0), nothing))
+            isnothing(a) && continue
+            push!(d.constraints, Constraint(FreezeAtom, (a, 0, 0, 0), nothing))
+            _constraint_site!(st, n, kw)
         end
     elseif c === :freeze_bond || c === :freeze_angle || c === :freeze_dihedral
         _freeze!(st, n, kw, c, tokens)
@@ -870,7 +874,10 @@ end
 function _model_atoms!(st::_InpState, n::Int, kw::String, tokens::Vector{SubString{String}})
     for j in 2:lastindex(tokens)
         a = _index(st, n, kw, tokens[j], :bad_list_entry)
-        isnothing(a) || push!(st.model_atoms, a)
+        isnothing(a) && continue
+        push!(st.model_atoms, a)
+        push!(st.sites.model_lines, n)
+        push!(st.sites.model_labels, "`" * kw * "`")
     end
     return nothing
 end
@@ -892,6 +899,22 @@ function _freeze!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{S
     end
     kind = c === :freeze_bond ? FreezeBond : c === :freeze_angle ? FreezeAngle : FreezeDihedral
     push!(st.d.constraints, Constraint(kind, atoms, target))
+    _constraint_site!(st, n, kw)
+    return nothing
+end
+
+function _constraint_site!(st::_InpState, n::Int, kw::String)
+    push!(st.sites.constraint_lines, n)
+    push!(st.sites.constraint_labels, "`" * kw * "`")
+    return nothing
+end
+
+# Appends the fragments `frags` of line `n`.
+function _add_fragments!(st::_InpState, n::Int, frags::Vector{Vector{Int}})
+    append!(st.d.fragments, frags)
+    for _ in eachindex(frags)
+        push!(st.sites.fragment_lines, n)
+    end
     return nothing
 end
 
@@ -929,7 +952,7 @@ function _fragments_keyword!(st::_InpState, n::Int, tokens::Vector{SubString{Str
     end
     frags = _parse_fragments(st, n, _join(tokens, ' ', 2))
     if length(frags) >= 2
-        append!(st.d.fragments, frags)
+        _add_fragments!(st, n, frags)
         return nothing
     end
     _reject(st, n, :too_few_values, lazy"`fragments` on its line needs at least 2 fragments, got $(length(frags))")
@@ -995,7 +1018,7 @@ function _block_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
     elseif b === :hubbard
         _hubbard_line!(st, n, tokens)
     elseif b === :fragments
-        append!(st.d.fragments, _parse_fragments(st, n, _join(tokens, ' ', 1)))
+        _add_fragments!(st, n, _parse_fragments(st, n, _join(tokens, ' ', 1)))
     elseif b === :cell
         _cell_line!(st, n, tokens)
     elseif b === :pbc
@@ -1071,6 +1094,7 @@ function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
     nt < 2 && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
     nt > 2 && _reject(st, n, :extra_values, lazy"a hubbard line takes 2 tokens (a symbol and U), got $(nt)")
     sym = tokens[1]
+    _check_hubbard_symbol(st.source, n, st.lenient, st.warnings, "`hubbard`", sym)
     # A U that does not parse fails in the oracle too (`parser.rs:566`); lenient mode gives its message.
     st.lenient && isnothing(parse_coordinate(tokens[2])) &&
         throw(InputError(st.source, n, lazy"Invalid U value: $(tokens[2])"))

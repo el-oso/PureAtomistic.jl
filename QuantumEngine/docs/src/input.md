@@ -188,6 +188,9 @@ parses as a non-finite number (`nan`, `inf`, `1e500`) is `:nonfinite` and keeps 
 | `:unclosed_block` | a block without `end`, at the end of the file or before a block opener | closed there, its lines kept; an opener inside a block is also `:block_keyword` |
 | `:hubbard_inline_argument` | `hubbard O:5.0` | the value is ignored and the block opens; a following line of two tokens that is not a keyword is a U line, so `use_diis true` fails with `Invalid U value: true` |
 | `:fragment_index` | `fragments 0,x;1,2` | the index is dropped |
+| `:atom_index_range` | `freeze_atom 99`, `fragments 0,1;5,6` or `oniom_model 0 99` for an input of 2 atoms; in structured input a `constraints` or `oniom.model_atoms` index | the index as written |
+| `:repeated_atom` | `freeze_bond 0 0 1.4`, `freeze_angle 0 1 0`; an atom in two fragments, `fragments 0;0,1` | as written |
+| `:hubbard_element` | `Xx 4.0` in a `hubbard` block; in structured input a key of `hubbard`, `u_map` or `j_map` | the symbol as written; a bare `Bq` is an error in both modes |
 | `:nonfinite` | `scf_convergence nan`, `damping inf` | the parsed value |
 | `:extra_values` | `charge 0 1`, `optimize now` | the tokens after the count are ignored |
 | `:duplicate_keyword` | `charge 0` … `charge 1`; an element twice in `hubbard` | the last value; `hubbard` tells symbols apart by case |
@@ -302,8 +305,9 @@ p = parse_json(read("fe2_dmft.json", String); source = "fe2_dmft.json")
 
 Keys are case-sensitive. Messages name the key path, with 1-based list positions, and line 0:
 `input: a.json: geometry[2].position[3]: expected a number, got a string`. The checks shared with
-`.inp` (atoms given, a restricted reference only for a singlet, whole numbers of α and β
-electrons) run last, with the `.inp` messages.
+`.inp` (atoms given, every atom index of a constraint or of the ONIOM model atoms within the atoms
+and no atom twice in one constraint, a restricted reference only for a singlet, whole numbers of
+α and β electrons) run last, with the `.inp` messages.
 
 ### Schema
 

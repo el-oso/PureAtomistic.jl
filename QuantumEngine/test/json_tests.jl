@@ -21,6 +21,10 @@
     doc(ps::Pair...) = nd("unit" => "bohr", "geometry" => H2, ps...)
     strict(ps::Pair...) = parse_structured(doc(ps...); source = "t.json").input
     lenient(ps::Pair...) = parse_structured(doc(ps...); source = "t.json", lenient = true)
+    # H2 and a He atom, for the constraints on three atoms.
+    const H2HE = [H2..., nd("symbol" => "He", "position" => [0.0, 2.0, 0.0])]
+    strict3(ps::Pair...) = parse_structured(nd("unit" => "bohr", "geometry" => H2HE, ps...); source = "t.json").input
+    lenient3(ps::Pair...) = parse_structured(nd("unit" => "bohr", "geometry" => H2HE, ps...); source = "t.json", lenient = true)
     cases(p) = [w.case for w in p.warnings]
 end
 
@@ -302,12 +306,41 @@ end
     p = lenient("constraints" => [nd("freeze_bond" => [0])])
     @test cases(p) == [:yaml_constraint_index]
     @test isempty(p.input.constraints)
-    p = lenient("constraints" => [nd("freeze_angle" => ["a", "b", "c"])])
+    p = Structured.lenient3("constraints" => [nd("freeze_angle" => ["a", "b", "c"])])
     @test cases(p) == fill(:yaml_constraint_index, 3)
     @test p.input.constraints == [Constraint(FreezeAngle, (1, 2, 3, 0), nothing)]
     p = lenient("constraints" => [nd("freeze_bond" => [1, 0, 1], "target" => 1.5)])
     @test cases(p) == [:yaml_constraint_index]
     @test p.input.constraints == [Constraint(FreezeBond, (2, 1, 0, 0), 1.5)]
+end
+
+@testitem "json: atom indices and hubbard symbols" setup = [Structured] begin
+    using QuantumEngine.Input: parse_structured
+    using QuantumEngine.Input: Constraint, FreezeAtom, FreezeBond, HubbardU
+    using .Structured: nd, strict, lenient, cases
+    # parser.rs:677-1076: the oracle stores the indices and symbols as written. H2 has 2 atoms.
+    range_msg(path, i) = "input: t.json: $(path): atom index $(i) is out of range; the input has 2 atoms (indices 0 to 1)"
+    rows = [
+        (("constraints" => [nd("freeze_atom" => 0), nd("freeze_atom" => 5)],), range_msg("constraints[2].freeze_atom", 5), :atom_index_range),
+        (("constraints" => [nd("freeze_bond" => [0, 2])],), range_msg("constraints[1].freeze_bond", 2), :atom_index_range),
+        (("oniom" => nd("model_atoms" => [0, 7]),), range_msg("oniom.model_atoms[2]", 7), :atom_index_range),
+        (("constraints" => [nd("freeze_bond" => [1, 1])],), "input: t.json: constraints[1].freeze_bond: atom index 1 is given twice", :repeated_atom),
+        (("hubbard" => nd("Fe" => 4.0, "Xx" => 1.0),), "input: t.json: hubbard.Xx: unknown element symbol \"Xx\"", :hubbard_element),
+        (("dmft" => nd("u_map" => nd("Qq" => 4.0)),), "input: t.json: dmft.u_map.Qq: unknown element symbol \"Qq\"", :hubbard_element),
+    ]
+    for (ps, msg, case) in rows
+        @test_throws msg strict(ps...)
+        @test cases(lenient(ps...)) == [case]
+    end
+    p = lenient("constraints" => [nd("freeze_atom" => 5), nd("freeze_bond" => [1, 1], "target" => 1.4)])
+    @test p.input.constraints == [Constraint(FreezeAtom, (6, 0, 0, 0), nothing), Constraint(FreezeBond, (2, 2, 0, 0), 1.4)]
+    @test lenient("oniom" => nd("model_atoms" => [0, 7])).input.oniom.model_atoms == [1, 8]
+    @test lenient("hubbard" => nd("Xx" => 1.0)).input.hubbard == [HubbardU("Xx", 1.0)]
+    for lenient in (false, true)
+        @test_throws "input: t.json: hubbard.Bq: a Bq atom needs an element" parse_structured(
+            Structured.doc("hubbard" => nd("Bq" => 1.0)); source = "t.json", lenient,
+        )
+    end
 end
 
 @testitem "json: yaml_bad_number" setup = [Structured] begin
@@ -391,8 +424,8 @@ end
     using QuantumEngine.Input
     using QuantumEngine.Units: ANGSTROM_TO_BOHR
     using StaticArrays: SMatrix, SVector
-    using .Structured: nd, H2, strict
-    i = strict(
+    using .Structured: nd, H2, strict, strict3
+    i = strict3(
         "title" => "t", "charge" => 0, "multiplicity" => 1, "basis" => "6-31G*", "method" => "B3LYP",
         "dispersion" => true, "zora" => true, "mode" => "opt", "hubbard" => nd("Fe" => 4.0, "Ni" => 6),
         "vdw_kernel" => "d3bj",
@@ -413,7 +446,7 @@ end
         "irc_step" => 0.05, "irc_points" => 12, "irc_direction" => "fwd",
         "constraints" => [
             nd("freeze_atom" => 1), nd("freeze_bond" => [0, 1], "target" => 1.4),
-            nd("freeze_angle" => [0, 1, 0], "target" => 90), nd("freeze_angle" => [1, 0, 1]),
+            nd("freeze_angle" => [0, 1, 2], "target" => 90), nd("freeze_angle" => [1, 0, 2]),
         ],
     )
     @test i.title == "t"
@@ -457,7 +490,7 @@ end
     @test (i.irc_step_size, i.irc_max_points, i.irc_direction) == (0.05, 12, Forward)
     @test i.constraints == [
         Constraint(FreezeAtom, (2, 0, 0, 0), nothing), Constraint(FreezeBond, (1, 2, 0, 0), 1.4),
-        Constraint(FreezeAngle, (1, 2, 1, 0), deg2rad(90.0)), Constraint(FreezeAngle, (2, 1, 2, 0), nothing),
+        Constraint(FreezeAngle, (1, 2, 3, 0), deg2rad(90.0)), Constraint(FreezeAngle, (2, 1, 3, 0), nothing),
     ]
     # The top-level fallbacks of the `scf` keys, the other spellings and the `{symbol, x, y, z}` form.
     i = parse_structured(
