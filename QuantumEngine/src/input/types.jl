@@ -6,6 +6,22 @@ What a run computes: `SinglePoint`, `Optimization`, `TransitionState`, `NEB`, `F
 """
 @enum RunMode SinglePoint Optimization TransitionState NEB Frequency TDDFT Spectroscopy OptFreq BSSE NBO Bands DOS NMR QTAIM IRC
 
+@doc "`SinglePoint::RunMode`: one energy at the input geometry." SinglePoint
+@doc "`Optimization::RunMode`: a geometry optimization to a minimum." Optimization
+@doc "`TransitionState::RunMode`: a transition-state (saddle point) search." TransitionState
+@doc "`NEB::RunMode`: a nudged elastic band reaction path." NEB
+@doc "`Frequency::RunMode`: harmonic vibrational frequencies at the input geometry." Frequency
+@doc "`TDDFT::RunMode`: excited states by time-dependent density functional theory." TDDFT
+@doc "`Spectroscopy::RunMode`: a spectroscopy run." Spectroscopy
+@doc "`OptFreq::RunMode`: a geometry optimization followed by the frequencies at the optimized geometry." OptFreq
+@doc "`BSSE::RunMode`: a counterpoise correction of the basis-set superposition error." BSSE
+@doc "`NBO::RunMode`: a natural bond orbital analysis." NBO
+@doc "`Bands::RunMode`: a band structure." Bands
+@doc "`DOS::RunMode`: a density of states." DOS
+@doc "`NMR::RunMode`: NMR shieldings." NMR
+@doc "`QTAIM::RunMode`: the topology of the electron density (quantum theory of atoms in molecules)." QTAIM
+@doc "`IRC::RunMode`: an intrinsic reaction coordinate from a transition state." IRC
+
 """
     Reference
 
@@ -13,6 +29,10 @@ The reference wave function a method asks for: `Restricted`, `Unrestricted`, or
 `AutoReference`, which chooses restricted for a singlet and unrestricted otherwise.
 """
 @enum Reference AutoReference Restricted Unrestricted
+
+@doc "`AutoReference::Reference`: restricted for a singlet, unrestricted otherwise." AutoReference
+@doc "`Restricted::Reference`: a restricted reference." Restricted
+@doc "`Unrestricted::Reference`: an unrestricted reference." Unrestricted
 
 """
     MethodKind
@@ -22,12 +42,50 @@ The electronic-structure method. `CCSD_T` is CCSD(T); `LIBXC_GGA`, `LIBXC_MGGA`,
 """
 @enum MethodKind HF MP2 MP2_F12 BWS2 DLPNO_MP2 CCSD CCSD_T CCSD_F12 CCSD_T_F12 LDA PBE BLYP SCAN TPSS M06L M062X PBE0 B3LYP RPA B88_VDW PBE_VDW B97X_D WB97M_V B2PLYP MPW2PLYP DSD_PBEP86 EOM_CCSD PWDFT CASSCF LIBXC_GGA LIBXC_MGGA LIBXC_HGGA LIBXC_HMGGA
 
+@doc "`HF::MethodKind`: Hartree–Fock." HF
+@doc "`MP2::MethodKind`: second-order Møller–Plesset perturbation theory." MP2
+@doc "`MP2_F12::MethodKind`: explicitly correlated MP2-F12." MP2_F12
+@doc "`BWS2::MethodKind`: Brillouin–Wigner second-order perturbation theory (BW-s2)." BWS2
+@doc "`DLPNO_MP2::MethodKind`: domain-based local pair natural orbital MP2." DLPNO_MP2
+@doc "`CCSD::MethodKind`: coupled cluster with single and double excitations." CCSD
+@doc "`CCSD_T::MethodKind`: CCSD with perturbative triples, CCSD(T)." CCSD_T
+@doc "`CCSD_F12::MethodKind`: explicitly correlated CCSD-F12." CCSD_F12
+@doc "`CCSD_T_F12::MethodKind`: explicitly correlated CCSD(T)-F12." CCSD_T_F12
+@doc "`LDA::MethodKind`: the local density approximation." LDA
+@doc "`PBE::MethodKind`: the PBE generalized gradient approximation." PBE
+@doc "`BLYP::MethodKind`: the BLYP generalized gradient approximation." BLYP
+@doc "`SCAN::MethodKind`: the SCAN meta-GGA." SCAN
+@doc "`TPSS::MethodKind`: the TPSS meta-GGA." TPSS
+@doc "`M06L::MethodKind`: the M06-L meta-GGA." M06L
+@doc "`M062X::MethodKind`: the M06-2X hybrid meta-GGA." M062X
+@doc "`PBE0::MethodKind`: the PBE0 hybrid." PBE0
+@doc "`B3LYP::MethodKind`: the B3LYP hybrid." B3LYP
+@doc "`RPA::MethodKind`: the random phase approximation." RPA
+@doc "`B88_VDW::MethodKind`: the van der Waals functional of input word `b88-vdw`." B88_VDW
+@doc "`PBE_VDW::MethodKind`: the van der Waals functional of input word `pbe-vdw`." PBE_VDW
+@doc "`B97X_D::MethodKind`: the range-separated hybrid ωB97X-D." B97X_D
+@doc "`WB97M_V::MethodKind`: the range-separated hybrid meta-GGA ωB97M-V." WB97M_V
+@doc "`B2PLYP::MethodKind`: the B2PLYP double hybrid." B2PLYP
+@doc "`MPW2PLYP::MethodKind`: the mPW2PLYP double hybrid." MPW2PLYP
+@doc "`DSD_PBEP86::MethodKind`: the DSD-PBEP86 double hybrid." DSD_PBEP86
+@doc "`EOM_CCSD::MethodKind`: equation-of-motion CCSD." EOM_CCSD
+@doc "`PWDFT::MethodKind`: plane-wave density functional theory." PWDFT
+@doc "`CASSCF::MethodKind`: complete active space SCF; `MethodSpec.ints` holds the active electrons and orbitals." CASSCF
+@doc "`LIBXC_GGA::MethodKind`: a GGA given by its exchange and correlation Libxc IDs." LIBXC_GGA
+@doc "`LIBXC_MGGA::MethodKind`: a meta-GGA given by its exchange and correlation Libxc IDs." LIBXC_MGGA
+@doc "`LIBXC_HGGA::MethodKind`: a hybrid GGA given by its Libxc ID and exact-exchange fraction." LIBXC_HGGA
+@doc "`LIBXC_HMGGA::MethodKind`: a hybrid meta-GGA given by its Libxc ID and exact-exchange fraction." LIBXC_HMGGA
+
 """
     ComputeMode
 
 Where a run computes: `CPU`, `GPU` or `Hybrid`.
 """
 @enum ComputeMode CPU GPU Hybrid
+
+@doc "`CPU::ComputeMode`: on the CPU." CPU
+@doc "`GPU::ComputeMode`: on the GPU." GPU
+@doc "`Hybrid::ComputeMode`: on the CPU and the GPU together." Hybrid
 
 """
     DIISMethod
@@ -36,12 +94,19 @@ The SCF extrapolation: `CDIIS` or `EDIIS`.
 """
 @enum DIISMethod CDIIS EDIIS
 
+@doc "`CDIIS::DIISMethod`: commutator DIIS." CDIIS
+@doc "`EDIIS::DIISMethod`: energy DIIS." EDIIS
+
 """
     SolvationModel
 
 The continuum solvation model: `NoSolvation`, `PCM` or `SMD`.
 """
 @enum SolvationModel NoSolvation PCM SMD
+
+@doc "`NoSolvation::SolvationModel`: no solvation model." NoSolvation
+@doc "`PCM::SolvationModel`: the polarizable continuum model." PCM
+@doc "`SMD::SolvationModel`: the SMD solvation model." SMD
 
 """
     PCMSurface
@@ -51,6 +116,10 @@ The cavity surface: the van der Waals surface `VdwSurface`, the solvent-accessib
 """
 @enum PCMSurface VdwSurface SASSurface SMDSurface
 
+@doc "`VdwSurface::PCMSurface`: the van der Waals surface." VdwSurface
+@doc "`SASSurface::PCMSurface`: the solvent-accessible surface." SASSurface
+@doc "`SMDSurface::PCMSurface`: the SMD Coulomb cavity." SMDSurface
+
 """
     VdwKernel
 
@@ -58,6 +127,12 @@ The van der Waals correction: `D2`, `D3`, `D3BJ`, `B97X_D_DISP` (the dispersion 
 `VV10`.
 """
 @enum VdwKernel D2 D3 D3BJ B97X_D_DISP VV10
+
+@doc "`D2::VdwKernel`: Grimme's D2 dispersion correction." D2
+@doc "`D3::VdwKernel`: Grimme's D3 dispersion correction." D3
+@doc "`D3BJ::VdwKernel`: Grimme's D3 with Becke–Johnson damping." D3BJ
+@doc "`B97X_D_DISP::VdwKernel`: the dispersion correction of ωB97X-D." B97X_D_DISP
+@doc "`VV10::VdwKernel`: the VV10 nonlocal correlation." VV10
 
 """
     TDDFTMethod
@@ -67,12 +142,20 @@ The excited-state equations: the Tamm–Dancoff approximation `TDA`, the full li
 """
 @enum TDDFTMethod TDA RPA_TD SpinFlip
 
+@doc "`TDA::TDDFTMethod`: the Tamm–Dancoff approximation." TDA
+@doc "`RPA_TD::TDDFTMethod`: the full linear response." RPA_TD
+@doc "`SpinFlip::TDDFTMethod`: spin-flip TDDFT." SpinFlip
+
 """
     IRCDirection
 
 The direction an IRC follows from the transition state: `Forward`, `Backward` or `Both`.
 """
 @enum IRCDirection Forward Backward Both
+
+@doc "`Forward::IRCDirection`: forward from the transition state." Forward
+@doc "`Backward::IRCDirection`: backward from the transition state." Backward
+@doc "`Both::IRCDirection`: both directions from the transition state." Both
 
 """
     PopulationKind
@@ -81,12 +164,20 @@ A population analysis: `Mulliken` or `Lowdin`.
 """
 @enum PopulationKind Mulliken Lowdin
 
+@doc "`Mulliken::PopulationKind`: the Mulliken population analysis." Mulliken
+@doc "`Lowdin::PopulationKind`: the Löwdin population analysis." Lowdin
+
 """
     ConstraintKind
 
 An optimization constraint: `FreezeAtom`, `FreezeBond`, `FreezeAngle` or `FreezeDihedral`.
 """
 @enum ConstraintKind FreezeAtom FreezeBond FreezeAngle FreezeDihedral
+
+@doc "`FreezeAtom::ConstraintKind`: the position of one atom held fixed." FreezeAtom
+@doc "`FreezeBond::ConstraintKind`: a bond length held fixed." FreezeBond
+@doc "`FreezeAngle::ConstraintKind`: a bond angle held fixed." FreezeAngle
+@doc "`FreezeDihedral::ConstraintKind`: a dihedral angle held fixed." FreezeDihedral
 
 """
     InputFormat
@@ -95,6 +186,13 @@ The format of an input file: `INP`, `JSON_INPUT`, `YAML_INPUT`, or the molecule 
 and `CIF`.
 """
 @enum InputFormat INP JSON_INPUT YAML_INPUT XYZ PDB CIF
+
+@doc "`INP::InputFormat`: the `.inp` input format." INP
+@doc "`JSON_INPUT::InputFormat`: a JSON input file." JSON_INPUT
+@doc "`YAML_INPUT::InputFormat`: a YAML input file." YAML_INPUT
+@doc "`XYZ::InputFormat`: an xyz molecule file." XYZ
+@doc "`PDB::InputFormat`: a PDB molecule file." PDB
+@doc "`CIF::InputFormat`: a CIF molecule file." CIF
 
 """
     MethodSpec(kind::MethodKind, reference::Reference, ints::NTuple{2,Int}, exx::Float64)

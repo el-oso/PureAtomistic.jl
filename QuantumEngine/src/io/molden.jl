@@ -515,7 +515,7 @@ end
 # The number `t`, with a Fortran `D` exponent read as `e`; throws for a token that is not a finite
 # decimal number.
 function _molden_float(source::AbstractString, n::Int, t::AbstractString)
-    x = _parse_coordinate(replace(t, 'D' => 'e', 'd' => 'e'))
+    x = parse_coordinate(replace(t, 'D' => 'e', 'd' => 'e'))
     isnothing(x) && throw(InputError(source, n, lazy"molden: expected a number, got $(repr(t))"))
     isfinite(x) || throw(InputError(source, n, lazy"molden: expected a finite number, got $(repr(t))"))
     return x

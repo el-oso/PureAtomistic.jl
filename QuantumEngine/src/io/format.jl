@@ -7,10 +7,15 @@ _pad_right(s::AbstractString, width::Int) = String(s) * " "^max(0, width - lengt
 
 _nonfinite(x::Real) = isnan(x) ? "NaN" : x > 0 ? "inf" : "-inf"
 
-# The precisions of `fmt_fixed` and `fmt_exp`: every precision the oracle's format strings use.
-# Each has its own `@sprintf` call with a literal precision in `_printf_fixed` and `_printf_exp`:
-# a run-time precision (`%.*f`) makes Printf read its arguments from the mixed tuple
+# Each precision has its own `@sprintf` call with a literal precision in `_printf_fixed` and
+# `_printf_exp`: a run-time precision (`%.*f`) makes Printf read its arguments from the mixed tuple
 # `(Int, Float64)` at a run-time index, which boxes.
+"""
+    FORMAT_PRECISIONS
+
+The precisions [`fmt_fixed`](@ref) and [`fmt_exp`](@ref) accept, 0 to 8, 10, 12 and 15: every
+precision the oracle's format strings use.
+"""
 const FORMAT_PRECISIONS = (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15)
 
 function _precision_error(prec::Int)

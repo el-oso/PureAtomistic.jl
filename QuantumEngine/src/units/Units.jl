@@ -10,23 +10,38 @@ module Units
 using StrictMode: @strict_policy
 
 # CODATA 2018 recommended values; the SI defining constants are exact.
+"The Bohr radius in Å: Å per bohr."
 const BOHR_TO_ANGSTROM = 0.529177210903
+"Bohr per Å, `1 / BOHR_TO_ANGSTROM`."
 const ANGSTROM_TO_BOHR = 1 / BOHR_TO_ANGSTROM
+"The hartree in eV."
 const HARTREE_TO_EV = 27.211386245988
+"The hartree in kcal/mol."
 const HARTREE_TO_KCAL = 627.5094740631
+"The hartree in J."
 const HARTREE_TO_JOULE = 4.3597447222071e-18
+"The hartree in cm⁻¹ (as a wavenumber)."
 const HARTREE_TO_CM1 = 219474.6313632
 
+"The Bohr radius in m."
 const BOHR_TO_METER = 5.29177210903e-11
+"The unified atomic mass unit in kg."
 const AMU_TO_KG = 1.6605390666e-27
+"The elementary charge in C (exact)."
 const ELEMENTARY_CHARGE = 1.602176634e-19
+"The Boltzmann constant in J/K (exact)."
 const BOLTZMANN_K = 1.380649e-23
+"The Planck constant in J s (exact)."
 const PLANCK_H = 6.62607015e-34
+"The Avogadro constant in mol⁻¹ (exact)."
 const AVOGADRO_NA = 6.02214076e23
+"The speed of light in m/s (exact)."
 const SPEED_OF_LIGHT = 299792458.0
 
+"The molar gas constant in J/(mol K), `AVOGADRO_NA * BOLTZMANN_K`."
 const GAS_CONSTANT_R = AVOGADRO_NA * BOLTZMANN_K
 # One debye is 1e-21 / c coulomb meter, and the atomic unit of dipole moment e·a₀.
+"The atomic unit of dipole moment, e·a₀, in debye."
 const AU_TO_DEBYE = ELEMENTARY_CHARGE * BOHR_TO_METER * SPEED_OF_LIGHT * 1.0e21
 
 """

@@ -6,6 +6,11 @@ logger's verbosity is at least `level`.
 """
 @enum Verbosity Silent = 0 Low = 1 Normal = 2 High = 3
 
+@doc "`Silent::Verbosity`: the lowest level; a logger at `Silent` writes only the lines of level `Silent`." Silent
+@doc "`Low::Verbosity`: the level of input verbosity 0." Low
+@doc "`Normal::Verbosity`: the level of input verbosity 1." Normal
+@doc "`High::Verbosity`: the highest level, that of input verbosity 2 or more." High
+
 """
     verbosity_from_input(v::Integer) -> Verbosity
 

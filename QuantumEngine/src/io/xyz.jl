@@ -87,7 +87,7 @@ end
 function _xyz_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
     )
-    x = _parse_coordinate(t)
+    x = parse_coordinate(t)
     isnothing(x) && throw(InputError(source, n, lazy"xyz: coordinate \"$(t)\" is not a number"))
     isfinite(x) || reject_or_warn(
         source, n, lenient, warnings, :nonfinite, lazy"xyz: expected a finite number, got \"$(t)\""

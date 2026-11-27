@@ -107,7 +107,7 @@ end
 function _cif_coordinate(
         source::AbstractString, n::Int, lenient::Bool, warnings::Vector{InputWarning}, t::SubString{String},
     )
-    x = _parse_coordinate(t)
+    x = parse_coordinate(t)
     if isnothing(x)
         reject_or_warn(source, n, lenient, warnings, :cif_coordinate, lazy"cif: coordinate \"$(t)\" is not a number")
         return 0.0

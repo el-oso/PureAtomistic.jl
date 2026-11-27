@@ -63,7 +63,7 @@ function _pdb_coordinate(
         c::Int,
     )
     t = strip(SubString(line, c, c + 7))
-    x = _parse_coordinate(t)
+    x = parse_coordinate(t)
     isnothing(x) && throw(InputError(source, n, lazy"pdb: coordinate \"$(t)\" is not a number"))
     isfinite(x) || reject_or_warn(
         source, n, lenient, warnings, :nonfinite, lazy"pdb: expected a finite number, got \"$(t)\""

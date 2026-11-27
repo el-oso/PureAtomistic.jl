@@ -23,7 +23,7 @@ using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: InputError, InputWarning
 using ..Units: ANGSTROM_TO_BOHR
 using ..System: Atom, PointCharge, Molecule, nalpha, element_number
-using ..IO: input_line, reject_or_warn, _parse_coordinate, read_xyz, read_pdb, read_cif
+using ..IO: input_line, reject_or_warn, parse_coordinate, read_xyz, read_pdb, read_cif
 
 include("types.jl")
 include("vocabulary.jl")

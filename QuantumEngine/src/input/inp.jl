@@ -275,13 +275,13 @@ function _finite(st::_InpState, n::Int, kw, t::AbstractString, x::Float64)
 end
 
 function _float_required(st::_InpState, n::Int, kw, t::AbstractString)
-    x = _parse_coordinate(t)
+    x = parse_coordinate(t)
     isnothing(x) && throw(InputError(st.source, n, lazy"`$(kw)`: expected a number, got $(repr(t))"))
     return _finite(st, n, kw, t, x)
 end
 
 function _float_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
-    x = _parse_coordinate(t)
+    x = parse_coordinate(t)
     if isnothing(x)
         _reject(st, n, case, lazy"`$(kw)`: expected a number, got $(repr(t))")
         return nothing
@@ -1072,7 +1072,7 @@ function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
     nt > 2 && _reject(st, n, :extra_values, lazy"a hubbard line takes 2 tokens (a symbol and U), got $(nt)")
     sym = tokens[1]
     # A U that does not parse fails in the oracle too (`parser.rs:566`); lenient mode gives its message.
-    st.lenient && isnothing(_parse_coordinate(tokens[2])) &&
+    st.lenient && isnothing(parse_coordinate(tokens[2])) &&
         throw(InputError(st.source, n, lazy"Invalid U value: $(tokens[2])"))
     u = _float_required(st, n, :hubbard, tokens[2])
     h = st.d.hubbard

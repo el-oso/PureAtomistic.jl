@@ -60,11 +60,16 @@ function _atom(
     return Atom(symbol, position)
 end
 
-# The value of the coordinate token `t` as Rust's `str::parse::<f64>`, which the oracle uses,
-# reads it, or `nothing` for a token it rejects. A decimal beyond the `Float64` range reads as ±Inf
-# and one below half the smallest subnormal as ±0.0, where `tryparse(Float64, t)` returns
-# `nothing` for both; a hexadecimal float, which `tryparse` reads and Rust rejects, is rejected.
-function _parse_coordinate(t::AbstractString)
+"""
+    parse_coordinate(t::AbstractString) -> Union{Nothing,Float64}
+
+The value of the number token `t` as Rust's `str::parse::<f64>`, which the oracle uses, reads it,
+or `nothing` for a token it rejects. A decimal beyond the `Float64` range reads as ±Inf and one
+below half the smallest subnormal as ±0.0, where `tryparse(Float64, t)` returns `nothing` for
+both; a hexadecimal float, which `tryparse` reads and Rust rejects, is rejected. The xyz, PDB,
+CIF and Molden readers and the `.inp` parser read their numbers with it.
+"""
+function parse_coordinate(t::AbstractString)
     n = ncodeunits(t)
     i = 1
     neg = false

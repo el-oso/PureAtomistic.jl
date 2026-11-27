@@ -359,22 +359,96 @@ end
 """
     accepted_run_modes() -> Vector{String}
 
-The words `run_mode_word` accepts, for error messages. The same vector is returned on every call;
-it must not be modified. `accepted_methods`, `accepted_solvation_models`, `accepted_solvents`,
-`accepted_vdw_kernels`, `accepted_tddft_methods`, `accepted_grids`, `accepted_irc_directions`,
-`accepted_compute_modes`, `accepted_diis_methods`, `accepted_populations` and `accepted_surfaces`
-list the words of the other vocabulary functions in the same way; `accepted_methods` lists the
-CASSCF form as `casscf(e,o)`.
+The words [`run_mode_word`](@ref) accepts, for error messages. The same vector is returned on every
+call; it must not be modified. The other `accepted_*` functions list the words of the other
+vocabulary functions in the same way.
 """
 accepted_run_modes() = ACCEPTED_RUN_MODES
+
+"""
+    accepted_methods() -> Vector{String}
+
+The method words [`method_word`](@ref) accepts, with the Libxc forms by their first word and the
+CASSCF form as `casscf(e,o)`. The same vector is returned on every call; it must not be modified.
+"""
 accepted_methods() = ACCEPTED_METHODS
+
+"""
+    accepted_solvation_models() -> Vector{String}
+
+The words [`solvation_word`](@ref) accepts. The same vector is returned on every call; it must not
+be modified.
+"""
 accepted_solvation_models() = ACCEPTED_SOLVATION_MODELS
+
+"""
+    accepted_solvents() -> Vector{String}
+
+The solvent words [`solvent_word`](@ref) accepts, as spelled in its table. The same vector is
+returned on every call; it must not be modified.
+"""
 accepted_solvents() = ACCEPTED_SOLVENTS
+
+"""
+    accepted_vdw_kernels() -> Vector{String}
+
+The words [`vdw_kernel_word`](@ref) accepts. The same vector is returned on every call; it must
+not be modified.
+"""
 accepted_vdw_kernels() = ACCEPTED_VDW_KERNELS
+
+"""
+    accepted_tddft_methods() -> Vector{String}
+
+The words [`tddft_method_word`](@ref) accepts. The same vector is returned on every call; it must
+not be modified.
+"""
 accepted_tddft_methods() = ACCEPTED_TDDFT_METHODS
+
+"""
+    accepted_grids() -> Vector{String}
+
+The words [`grid_word`](@ref) accepts. The same vector is returned on every call; it must not be
+modified.
+"""
 accepted_grids() = ACCEPTED_GRIDS
+
+"""
+    accepted_irc_directions() -> Vector{String}
+
+The words [`irc_direction_word`](@ref) accepts. The same vector is returned on every call; it
+must not be modified.
+"""
 accepted_irc_directions() = ACCEPTED_IRC_DIRECTIONS
+
+"""
+    accepted_compute_modes() -> Vector{String}
+
+The words [`compute_mode_word`](@ref) accepts. The same vector is returned on every call; it must
+not be modified.
+"""
 accepted_compute_modes() = ACCEPTED_COMPUTE_MODES
+
+"""
+    accepted_diis_methods() -> Vector{String}
+
+The words [`diis_word`](@ref) accepts. The same vector is returned on every call; it must not be
+modified.
+"""
 accepted_diis_methods() = ACCEPTED_DIIS_METHODS
+
+"""
+    accepted_populations() -> Vector{String}
+
+The words [`population_word`](@ref) accepts. The same vector is returned on every call; it must
+not be modified.
+"""
 accepted_populations() = ACCEPTED_POPULATIONS
+
+"""
+    accepted_surfaces() -> Vector{String}
+
+The words [`surface_word`](@ref) accepts. The same vector is returned on every call; it must not
+be modified.
+"""
 accepted_surfaces() = ACCEPTED_SURFACES

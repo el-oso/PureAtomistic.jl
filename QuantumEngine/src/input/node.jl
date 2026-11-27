@@ -6,6 +6,14 @@ The kind of a structured-input value: `NullNode`, `BoolNode`, `IntNode`, `FloatN
 """
 @enum NodeKind NullNode BoolNode IntNode FloatNode StringNode ArrayNode MapNode
 
+@doc "`NullNode::NodeKind`: a null value." NullNode
+@doc "`BoolNode::NodeKind`: a `Bool`, in the field `b`." BoolNode
+@doc "`IntNode::NodeKind`: an `Int`, in the field `i`." IntNode
+@doc "`FloatNode::NodeKind`: a `Float64`, in the field `f`." FloatNode
+@doc "`StringNode::NodeKind`: a `String`, in the field `s`." StringNode
+@doc "`ArrayNode::NodeKind`: a list, in the field `items`." ArrayNode
+@doc "`MapNode::NodeKind`: a map, with its keys in `keys` and its values in `items`." MapNode
+
 """
     Node(nothing)
     Node(b::Bool)
