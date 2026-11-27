@@ -331,6 +331,24 @@ function _int_required(st::_InpState, n::Int, kw, t::AbstractString)
     return x
 end
 
+# The readers of the fields the oracle stores as `i32`, where a token outside the `Int32` range
+# fails to parse: `charge` is then an oracle error (`ok_or`), and an ONIOM model charge the
+# oracle's `parse().ok()` fallback, `nothing`.
+_int32_msg(kw, t::AbstractString) = lazy"`$(kw)`: expected an integer in the Int32 range, got $(repr(t))"
+
+function _int32_required(st::_InpState, n::Int, kw, t::AbstractString)
+    x = _int_required(st, n, kw, t)
+    typemin(Int32) <= x <= typemax(Int32) || throw(InputError(st.source, n, _int32_msg(kw, t)))
+    return x
+end
+
+function _int32_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
+    x = _int_optional(st, n, kw, t, case)
+    (isnothing(x) || typemin(Int32) <= x <= typemax(Int32)) && return x
+    _reject(st, n, case, _int32_msg(kw, t))
+    return nothing
+end
+
 function _int_optional(st::_InpState, n::Int, kw, t::AbstractString, case::Symbol)
     x = _parse_int(t)
     isnothing(x) && _reject(st, n, case, lazy"`$(kw)`: expected an integer, got $(repr(t))")
@@ -683,7 +701,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
     elseif c === :optimize
         d.run_mode = Optimization
     elseif c === :charge
-        d.charge = _int_required(st, n, kw, t)
+        d.charge = _int32_required(st, n, kw, t)
     elseif c === :multiplicity
         d.multiplicity = _uint_required(st, n, kw, t)
     elseif c === :basis
@@ -821,7 +839,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         _model_atoms!(st, n, kw, tokens)
     elseif c === :oniom_model_charge
         st.oniom = true
-        st.model_charge = _int_optional(st, n, kw, t, :number_fallback)
+        st.model_charge = _int32_optional(st, n, kw, t, :number_fallback)
     elseif c === :oniom_model_multiplicity
         st.oniom = true
         st.model_multiplicity = _uint_optional(st, n, kw, t, :number_fallback)
@@ -1174,7 +1192,7 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
     else
         ok = _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1)
         if key === :oniom_model_charge
-            st.model_charge = ok ? _int_optional(st, n, kw, tokens[2], :number_fallback) : nothing
+            st.model_charge = ok ? _int32_optional(st, n, kw, tokens[2], :number_fallback) : nothing
         else
             st.model_multiplicity = ok ? _uint_optional(st, n, kw, tokens[2], :number_fallback) : nothing
         end

@@ -343,6 +343,20 @@ end
     end
 end
 
+@testitem "json: charges outside the Int32 range" setup = [Structured] begin
+    using QuantumEngine.Input: parse_structured
+    using .Structured: nd, doc
+    # parser.rs:714, 952-953: the oracle truncates both charges to `i32`.
+    for lenient in (false, true)
+        run(ps...) = parse_structured(doc(ps...); source = "t.json", lenient)
+        @test_throws "input: t.json: charge: expected an integer in the Int32 range, got 3000000000" run("charge" => 3000000000)
+        @test_throws "input: t.json: oniom.model_charge: expected an integer in the Int32 range, got -2147483649" run(
+            "oniom" => nd("model_charge" => -2147483649),
+        )
+        @test run("oniom" => nd("model_charge" => -2147483648)).input.oniom.model_charge == -2147483648
+    end
+end
+
 @testitem "json: yaml_bad_number" setup = [Structured] begin
     using QuantumEngine.Input: parse_structured
     using .Structured: nd, lenient, cases

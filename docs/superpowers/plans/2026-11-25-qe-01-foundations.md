@@ -643,7 +643,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 | `geometry`, `product_geometry` blocks; `charges` block | `[unit]` (307, 319); none (331) | `atoms::Vector{Atom{Float64}} = Atom{Float64}[]`, `product_atoms::Vector{Atom{Float64}} = Atom{Float64}[]`, `point_charges::Vector{PointCharge{Float64}} = PointCharge{Float64}[]` |
 | `title` | `1+ words`, joined by single spaces (84) | `title::String = ""` |
 | `run`, `run_mode`; `optimize` | `word` (61); none (57) | `run_mode::RunMode = SinglePoint` |
-| `charge` | `Int` (270) | `charge::Int = 0` |
+| `charge` | `Int` in the `Int32` range (270; the oracle's `i32`, so a value outside it is an oracle error, both modes: "`charge`: expected an integer in the Int32 range, got …"; the structured `charge` and `oniom.model_charge` take the same bound, an error in both modes) | `charge::Int = 0` |
 | `multiplicity` | `UInt` (275) | `multiplicity::Int = 1` |
 | `basis` | `word` (377) | `basis::String = "sto-3g"` (lowercased; alias resolution in 02) |
 | `method` | `word`; `libxc_gga x c` and `libxc_mgga x c`: `word Int Int`; `libxc_hgga id exx` and `libxc_hmgga id exx`: `word Int Float`; `casscf(e,o)` is one token (383, 1079-1167) | `method::MethodSpec = MethodSpec(HF, AutoReference, (0,0), 0.0)` (D29; the oracle's default is `Method::RHF`, `types.rs:236`) |
@@ -876,7 +876,7 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | `irc_direction` | 466-474 | Both | unchanged | `:unknown_value` / `:missing_value` |
 | `tddft_method` | 510-514 | TDA (the oracle stores the word; `engine/electronic.rs:292-296` maps an unknown word to TDA) | unchanged | `:unknown_value` / `:missing_value` |
 | `diis_method` | 549-553 | CDIIS (dead keyword, D10) | unchanged | `:unknown_value` / `:missing_value` |
-| `model_charge`, `model_multiplicity`, `oniom_model_charge`, `oniom_model_multiplicity` | 475-488 | `nothing` | `nothing` | `:number_fallback` / `:missing_value` |
+| `model_charge`, `model_multiplicity`, `oniom_model_charge`, `oniom_model_multiplicity` | 475-488 | `nothing` (also a charge outside the `Int32` range: the oracle's `Option<i32>` `parse().ok()`) | `nothing` | `:number_fallback` / `:missing_value` |
 | `ecp`/`use_ecp` | 489-500 | (a non-boolean word is a name, accepted in both modes, D31) | `use_ecp = true` | `:bool_fallback` |
 | `ecp_name` | 501-504 | — | `use_ecp = true`, `ecp_name = nothing` | `:missing_value` |
 

@@ -176,7 +176,7 @@ parses as a non-finite number (`nan`, `inf`, `1e500`) is `:nonfinite` and keeps 
 | `irc_direction` | `Both` | unchanged | `:unknown_value` / `:missing_value` |
 | `tddft_method` | `TDA` | unchanged | `:unknown_value` / `:missing_value` |
 | `diis_method` | `CDIIS` | unchanged | `:unknown_value` / `:missing_value` |
-| `model_charge`, `model_multiplicity`, `oniom_model_charge`, `oniom_model_multiplicity` | `nothing` | `nothing` | `:number_fallback` / `:missing_value` |
+| `model_charge`, `model_multiplicity`, `oniom_model_charge`, `oniom_model_multiplicity` | `nothing`; a charge outside the `Int32` range also `nothing` | `nothing` | `:number_fallback` / `:missing_value` |
 
 ### Other cases
 
@@ -239,7 +239,7 @@ The values are those of the field of `InputFile` named in the last column. Notat
 |---|---|---|
 | `title` | `1+ words`, joined by single spaces | `title` |
 | `run`, `run_mode`; `optimize` | `word`; none | `run_mode` |
-| `charge`; `multiplicity` | `Int`; `Int` | `charge`; `multiplicity` |
+| `charge`; `multiplicity` | `Int` in the `Int32` range (the oracle's `i32`; outside it an error in both modes); `Int` | `charge`; `multiplicity` |
 | `basis` | `word`, lowercased | `basis` |
 | `method` | `word`; `libxc_gga x c`, `libxc_mgga x c`: `word Int Int`; `libxc_hgga id exx`, `libxc_hmgga id exx`: `word Int Float`; `casscf(e,o)` | `method` |
 | `scf_convergence`; `max_iterations` | `Float`; `Int` | `scf_convergence`; `max_iterations` |
@@ -317,7 +317,7 @@ listed is converted.
 
 | key path | value | field |
 |---|---|---|
-| `title`; `charge`; `multiplicity` | string; integer; integer ≥ 0 | `title`; `charge`; `multiplicity` |
+| `title`; `charge`; `multiplicity` | string; integer in the `Int32` range (outside it an error in both modes); integer ≥ 0 | `title`; `charge`; `multiplicity` |
 | `basis` | string, lowercased | `basis` |
 | `method` | a method word of `.inp` without the Libxc forms, in any case | `method` |
 | `mode`, else `task.mode` | a run-mode word of `.inp` | `run_mode` |
@@ -349,7 +349,7 @@ listed is converted.
 | `solvation.model`, else `solvation.pcm`, else `solvation.smd` (one of them) | `pcm` or `smd`; Boolean; Boolean | `solvation.model` |
 | `solvation` under SMD: `solvent`, `grid_order`, `probe_radius` | a solvent word; integer ≥ 0; number in Å | `solvation` |
 | `solvation` under PCM: `epsilon`, `radii_scaling`, `grid_order`, `surface` | number; number; integer ≥ 0; `vdw`, `sas` or `smd` | `solvation` |
-| `oniom`: `high`, `low`, `model_atoms`, `model_charge`, `model_multiplicity` | method words; 0-based indices; integer; integer ≥ 0 | `oniom` (any `oniom` value asks for ONIOM) |
+| `oniom`: `high`, `low`, `model_atoms`, `model_charge`, `model_multiplicity` | method words; 0-based indices; integer in the `Int32` range (outside it an error in both modes); integer ≥ 0 | `oniom` (any `oniom` value asks for ONIOM) |
 | `tddft`: `num_states`, `method`, `soc`, `triplets` | integer ≥ 0; a TDDFT method word; Boolean; Boolean | `tddft_states`, `tddft_method`, `compute_soc`, `tddft_triplets` |
 | `exports`: `molden`, `cube`, `wfx` | Boolean | `export_molden`, `export_cube`, `export_wfx` |
 

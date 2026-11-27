@@ -304,6 +304,27 @@ end
     @test_throws "input: t.inp:1: `freeze_atom`: atom index 3 is out of range" Lenient.strict("freeze_atom 3\n" * Lenient.W)
 end
 
+@testitem "lenient: charges outside the Int32 range" setup = [Lenient] begin
+    using QuantumEngine
+    # parser.rs:270-274: `charge` is an `i32` read with `ok_or("Invalid charge")?`, an oracle error;
+    # parser.rs:475-488: a model charge is an `Option<i32>` read with `parse().ok()`, so `nothing`.
+    for lenient in (false, true), t in ("-3000000000", "2147483648", "-2147483649")
+        @test_throws "input: t.inp:1: `charge`: expected an integer in the Int32 range, got \"$(t)\"" parse_inp(
+            "charge $(t)\n" * Lenient.W; source = "t.inp", lenient,
+        )
+    end
+    for (text, n, kw) in (("oniom_model_charge 2147483648\n", 6, "oniom_model_charge"), ("oniom\nmodel_charge -3000000000\nend\n", 7, "model_charge"))
+        t = Lenient.W * text
+        @test_throws "input: t.inp:$(n): `$(kw)`: expected an integer in the Int32 range" Lenient.strict(t)
+        p = Lenient.lenient(t)
+        @test isnothing(p.input.oniom.model_charge)
+        @test Lenient.cases(p) == [:number_fallback]
+    end
+    # The ends of the range are read.
+    @test Lenient.strict(Lenient.W * "oniom_model_charge -2147483648\n").oniom.model_charge == -2147483648
+    @test Lenient.strict(Lenient.W * "oniom_model_charge 2147483647\n").oniom.model_charge == 2147483647
+end
+
 @testitem "lenient: atom indices of an InputFile built in code" begin
     using QuantumEngine
     using QuantumEngine.Input: Constraint, FreezeBond, ONIOMSpec, MethodSpec, HF, AutoReference

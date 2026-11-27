@@ -101,6 +101,14 @@ end
 _sbool(w::_Walk, a::_At) = _ok(w, a, BoolNode) ? a.node.b : nothing
 _sint(w::_Walk, a::_At) = _ok(w, a, IntNode) ? a.node.i : nothing
 
+# A charge, which the oracle truncates to `i32`. A value outside the `Int32` range is an error in
+# both modes, as `charge` outside it is in `.inp`.
+function _scharge(w::_Walk, a::_At)
+    x = _sint(w, a)
+    (isnothing(x) || typemin(Int32) <= x <= typemax(Int32)) && return x
+    throw(InputError(w.source, 0, lazy"$(a.path): expected an integer in the Int32 range, got $(x)"))
+end
+
 # An integer the oracle stores unsigned. A negative value, which the oracle wraps to a count near
 # 2^64, is an error in both modes.
 function _suint(w::_Walk, a::_At)
@@ -245,7 +253,7 @@ function _top!(w::_Walk, d::_InputDraft, doc::_At)
     end
     a = _at(doc, "title")
     _sstring(w, a) && (d.title = a.node.s)
-    x = _sint(w, _at(doc, "charge"))
+    x = _scharge(w, _at(doc, "charge"))
     isnothing(x) || (d.charge = x)
     x = _suint(w, _at(doc, "multiplicity"))
     isnothing(x) || (d.multiplicity = x)
@@ -533,7 +541,7 @@ function _oniom(w::_Walk, o::_At)
     end
     return ONIOMSpec(
         something(high, DEFAULT_METHOD), something(low, DEFAULT_METHOD), atoms,
-        _sint(w, _at(o, "model_charge")), _suint(w, _at(o, "model_multiplicity")),
+        _scharge(w, _at(o, "model_charge")), _suint(w, _at(o, "model_multiplicity")),
     )
 end
 
