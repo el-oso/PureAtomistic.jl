@@ -24,7 +24,7 @@ function _dict_node(@nospecialize(x), path::String, source::String)
     x isa Int && return Node(x)
     if x isa Integer
         typemin(Int) <= x <= typemax(Int) ||
-            throw(InputError(source, 0, lazy"$(path): the integer $(string(x)) is outside the Int64 range"))
+            throw(InputError(source, 0, lazy"$(_path_prefix(path))the integer $(string(x)) is outside the Int64 range"))
         return Node(Int(x))
     end
     x isa AbstractFloat && return Node(Float64(x))
@@ -37,7 +37,7 @@ function _dict_node(@nospecialize(x), path::String, source::String)
         end
         return Node(items)
     end
-    throw(InputError(source, 0, lazy"$(path): unsupported value of type $(string(typeof(x)))"))
+    throw(InputError(source, 0, lazy"$(_path_prefix(path))unsupported value of type $(string(typeof(x)))"))
 end
 
 function _dict_map(@nospecialize(d::AbstractDict), path::String, source::String)

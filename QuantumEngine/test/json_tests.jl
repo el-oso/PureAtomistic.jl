@@ -53,13 +53,39 @@ end
     using QuantumEngine
     using QuantumEngine.Input: Node, json_node
     for lenient in (false, true)
-        @test_throws "input: duplicate key \"a\"" parse_json("{\"a\":1,\"a\":2}"; source = "t.json", lenient)
-        @test_throws "input: duplicate key \"a\"" parse_json("{\"b\":{\"a\":1,\"a\":2}}"; source = "t.json", lenient)
-        @test_throws "input: duplicate key \"a\"" parse_json("{\"b\":[{\"a\":1,\"a\":2}]}"; source = "t.json", lenient)
+        @test_throws "input: t.json: duplicate key \"a\"" parse_json("{\"a\":1,\"a\":2}"; source = "t.json", lenient)
+        @test_throws "input: t.json: b: duplicate key \"a\"" parse_json("{\"b\":{\"a\":1,\"a\":2}}"; source = "t.json", lenient)
+        @test_throws "input: t.json: b[1]: duplicate key \"a\"" parse_json("{\"b\":[{\"a\":1,\"a\":2}]}"; source = "t.json", lenient)
+        @test_throws InputError parse_json("{\"scf\":{\"a\":1,\"a\":2}}"; source = "t.json", lenient)
     end
-    @test_throws "input: duplicate key \"a\"" json_node("{\"a\":1,\"a\":2}")
+    @test_throws "input: <string>: duplicate key \"a\"" json_node("{\"a\":1,\"a\":2}")
     @test_throws "input: duplicate key \"a\"" Node(["a", "b", "a"], [Node(1), Node(2), Node(3)])
     @test_throws "input: a map has 2 keys and 1 values" Node(["a", "b"], [Node(1)])
+end
+
+@testitem "json: text that is not JSON" begin
+    using QuantumEngine
+    using QuantumEngine.Input: json_node
+    for lenient in (false, true)
+        @test_throws "input: t.json: not valid JSON (invalid JSON at byte position 14" parse_json("{\"charge\": 1,}"; source = "t.json", lenient)
+        @test_throws InputError parse_json("{\"charge\": 1,}"; source = "t.json", lenient)
+    end
+    @test_throws "input: <string>: not valid JSON" json_node("[1, ")
+    mktempdir() do dir
+        path = joinpath(dir, "bad.json")
+        write(path, "{\"charge\": 1,}")
+        for lenient in (false, true)
+            err = try
+                parse_input(path; lenient)
+                nothing
+            catch e
+                e
+            end
+            @test err isa InputError
+            @test err.source == path && err.line == 0
+            @test startswith(sprint(showerror, err), "input: $(path): not valid JSON (invalid JSON at byte position 14")
+        end
+    end
 end
 
 @testitem "json: json_node scalar typing" begin
@@ -83,12 +109,15 @@ end
     @test json_node("\"s\"").s == "s"
     @test json_node("true").kind == BoolNode
     @test json_node("null").kind == NullNode
-    @test_throws "input: the integer 12345678901234567890 is outside the Int64 range" json_node("12345678901234567890")
+    @test_throws "input: <string>: the integer 12345678901234567890 is outside the Int64 range" json_node("12345678901234567890")
+    @test_throws "input: a.json: scf.max_iterations: the integer 12345678901234567890 is outside the Int64 range" json_node(
+        "{\"scf\": {\"max_iterations\": 12345678901234567890}}"; source = "a.json",
+    )
     # Beyond the Float64 range JSON.jl reads a BigFloat, and Rust's f64 parser, which the oracle uses, ±Inf.
     @test json_node("[1e400, -1e400]").items[1].f == Inf
     @test json_node("[1e400, -1e400]").items[2].f == -Inf
-    # JSON.jl returns no other value type; one would be an error.
-    @test_throws "input: JSON.jl returned a value of type Int128" QuantumEngine.Input._json_node(Int128(1))
+    # Below the Float64 range JSON.jl reads 0.0, as Rust's f64 parser does.
+    @test json_node("1e-400").f === 0.0
 end
 
 @testitem "json: errors in both modes" setup = [Structured] begin

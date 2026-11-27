@@ -290,8 +290,10 @@ QuantumEngine.Input.accepted_keywords
 JSON.jl into a tree of `Node`s, and `parse_structured(root; source, lenient)` reads the tree into
 a `ParsedInput`. Any reader that builds a `Node` tree reaches the same schema. A JSON integer is
 an integer and a number with a fraction or an exponent is a number; a number beyond the `Float64`
-range is ±Inf. A key given twice in one object is `input: duplicate key "a"` in both modes, as the
-oracle's reader rejects it; an integer outside the `Int64` range is an error too.
+range is ±Inf. A key given twice in one object is an error in both modes, as the oracle's reader
+rejects it, and so is an integer outside the `Int64` range; both name the key path
+(`input: a.json: scf: duplicate key "a"`). Text that is not JSON is, in both modes,
+`not valid JSON (<JSON.jl's message>)`. Each of these is an `InputError` of line 0.
 
 ```julia
 using QuantumEngine
@@ -424,7 +426,7 @@ merge key (`<<`) is `YAML merge keys (<<) are not supported` in both modes (see 
 YAML.jl decides the type of each scalar. Where it differs from yaml-rust2 0.9.0, which the oracle
 uses for `.yaml`, `.yml` and `.json` files, the schema's type checks decide: a value of the wrong
 type for its key is an error in strict mode and the lenient case of the table above in lenient
-mode. JSON.jl rejects each of these forms as invalid JSON.
+mode. JSON.jl rejects each of these forms as invalid JSON: `not valid JSON (<JSON.jl's message>)`.
 
 | YAML scalar | YAML.jl reads | yaml-rust2 (the oracle) reads | QuantumEngine, e.g. |
 |---|---|---|---|

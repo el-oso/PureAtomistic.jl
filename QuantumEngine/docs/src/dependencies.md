@@ -23,8 +23,8 @@ JSON (JSON.jl) reads JSON input. Its closure was resolved twice in fresh environ
 1.6.1 and at 1.13.4; neither has a `_jll` package outside the standard libraries or an
 `Artifacts.toml`. JSON 1.6 and 1.7 require Parsers 1 or 2, and QuantumEngine requires Parsers 3,
 so the compat bound `"1.6"` resolves to JSON 1.8 or later (1.13.4 here). `json_node` reads
-through the public `JSON.parse(text; dicttype = T)`, with an object type `T` whose `setindex!`
-rejects a repeated key; JSON 1.6.1 and 1.13.4 both build objects through `T()` and `setindex!`
+through the public `JSON.parse(text; dicttype = T)`, with an object type `T` that keeps every key in
+the order of the text, a repeated one included, which the conversion to `Node`s then rejects; JSON 1.6.1 and 1.13.4 both build objects through `T()` and `setindex!`
 alone. TrimCheck rejects `json_node` on both versions, so the trimmed program reads `.inp` input
 only. `JSON.parse` returns its values as `Any`, so `json_node`, `parse_json` and the helpers that
 read JSON.jl's values are exempt from the StrictMode guarantees; `parse_structured`, which reads
