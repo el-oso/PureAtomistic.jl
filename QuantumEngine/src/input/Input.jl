@@ -121,6 +121,7 @@ export input_format, parse_input
 @strict_exempt :noalloc _fragments_keyword! reason = "entry point helper: fragments keyword reader of parse_inp"
 @strict_exempt :noalloc _open_block! reason = "entry point helper: block opener of parse_inp"
 @strict_exempt :noalloc _inside reason = "entry point helper: block line message of parse_inp"
+@strict_exempt :noalloc _not_keyword reason = "entry point helper: block line message of parse_inp"
 @strict_exempt :noalloc _block_line! reason = "entry point helper: block line reader of parse_inp"
 @strict_exempt :noalloc _position reason = "entry point helper: position reader of parse_inp"
 @strict_exempt :noalloc _geometry_line! reason = "entry point helper: geometry line reader of parse_inp"

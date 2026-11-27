@@ -358,7 +358,7 @@ lenient_warnings = []
 # keeps both geometries of 3 atoms, NEB_IMAGES 5 (:98-100), RUN_MODE neb (:61-68) and CHARGE 1
 # (:270-274).
 strict = "error"
-strict_message = "neb_test.inp:14: `END_GEOMETRY` inside the geometry block opened at line 10"
+strict_message = "neb_test.inp:14: `END_GEOMETRY` inside the geometry block opened at line 10 is not a keyword; the accepted keywords are"
 lenient = "ok"
 lenient_warnings = [
     "block_keyword", "block_keyword", "block_keyword", "dropped_block_line", "dropped_block_line",

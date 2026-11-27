@@ -223,7 +223,7 @@ end
     using QuantumEngine
     # parser.rs:583: a geometry line of fewer than 4 tokens is dropped (`neb_test.inp:14`).
     text = "geometry\nH 0 0 0\nH 0 0 0.74\nEND_GEOMETRY\nend\n"
-    @test_throws "`END_GEOMETRY` inside the geometry block" Lenient.strict(text)
+    @test_throws "`END_GEOMETRY` inside the geometry block opened at line 1 is not a keyword; the accepted keywords are" Lenient.strict(text)
     p = Lenient.lenient(text)
     @test length(p.input.atoms) == 2 && Lenient.cases(p) == [:dropped_block_line]
 end

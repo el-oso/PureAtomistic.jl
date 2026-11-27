@@ -1007,6 +1007,13 @@ end
 _inside(st::_InpState, t::AbstractString) =
     lazy"`$(t)` inside the $(st.block) block opened at line $(st.block_line); close the block with `end`"
 
+# A line inside the open block that is neither the block's content nor a keyword. Its first token
+# may be a misspelled keyword, so the message lists the keywords, as an unknown keyword's does.
+function _not_keyword(st::_InpState, t::AbstractString)
+    words = _join(ACCEPTED_KEYWORDS, ", ", 1)
+    return lazy"`$(t)` inside the $(st.block) block opened at line $(st.block_line) is not a keyword; the accepted keywords are $(words); close the block with `end`"
+end
+
 # A line inside the open block.
 function _block_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     if kw == "end"
@@ -1064,7 +1071,7 @@ _ghost_form(s::AbstractString) = startswith(s, "Bq") || startswith(s, "bq") || e
 # `Sym x y z`, an atom, or `Bq x y z q`, a point charge, in a geometry or product_geometry block.
 function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     nt = length(tokens)
-    nt < 4 && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
+    nt < 4 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     if kw == "bq" && nt >= 5
         nt > 5 && _reject(st, n, :extra_values, lazy"a Bq line takes 5 tokens (Bq, 3 coordinates and a charge), got $(nt)")
         p = _position(st, n, tokens, 2)
@@ -1099,7 +1106,7 @@ end
 # `q x y z` in a charges block.
 function _charges_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
-    nt < 4 && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
+    nt < 4 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     nt > 4 && _reject(st, n, :extra_values, lazy"a charges line takes 4 tokens (a charge and 3 coordinates), got $(nt)")
     q = _float_required(st, n, :charges, tokens[1])
     push!(st.d.point_charges, PointCharge{Float64}(q, _position(st, n, tokens, 2)))
@@ -1109,7 +1116,7 @@ end
 # `Sym U` in a hubbard block; an element is given once.
 function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
-    nt < 2 && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
+    nt < 2 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     nt > 2 && _reject(st, n, :extra_values, lazy"a hubbard line takes 2 tokens (a symbol and U), got $(nt)")
     sym = tokens[1]
     _check_hubbard_symbol(st.source, n, st.lenient, st.warnings, "`hubbard`", sym)
@@ -1179,7 +1186,7 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
     key = kw == "high" ? :oniom_high : kw == "low" ? :oniom_low :
         kw == "model_atoms" || kw == "model_indices" ? :oniom_model :
         kw == "model_charge" ? :oniom_model_charge : kw == "model_multiplicity" ? :oniom_model_multiplicity : :none
-    key === :none && return _reject(st, n, :dropped_block_line, _inside(st, tokens[1]))
+    key === :none && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     first = get(st.seen, key, 0)
     first == 0 || _reject(st, n, :duplicate_keyword, lazy"keyword `$(kw)` given twice (lines $(first) and $(n))")
     st.seen[key] = n

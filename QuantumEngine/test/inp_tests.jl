@@ -290,7 +290,9 @@ end
 @testitem "inp: blocks" setup = [InpText] begin
     using QuantumEngine
     @test_throws "input: t.inp:3: `charge` inside the geometry block opened at line 1; close the block with `end`" InpText.parse("geometry\nH 0 0 0\ncharge 0\nH 0 0 1\nend\n")
-    @test_throws "`END_GEOMETRY` inside the geometry block opened at line 1" InpText.parse("geometry\nH 0 0 0\nH 0 0 1\nEND_GEOMETRY\n")
+    # A line that is neither the block's content nor a keyword lists the keywords.
+    words = join(QuantumEngine.Input.accepted_keywords(), ", ")
+    @test_throws "input: t.inp:4: `END_GEOMETRY` inside the geometry block opened at line 1 is not a keyword; the accepted keywords are $(words); close the block with `end`" InpText.parse("geometry\nH 0 0 0\nH 0 0 1\nEND_GEOMETRY\n")
     @test_throws "`H` inside the geometry block opened at line 1" InpText.parse("geometry\nH 0 0\nend\n")
     @test_throws "input: t.inp:2: a geometry line takes 4 tokens (a symbol and 3 coordinates), got 5" InpText.parse("geometry\nH 0 0 0 1\nH 0 0 1\nend\n")
     @test_throws "a Bq line takes 5 tokens (Bq, 3 coordinates and a charge), got 6" InpText.parse("geometry\nH 0 0 0\nH 0 0 1\nBq 0 0 0 1 2\nend\n")
@@ -299,7 +301,7 @@ end
     @test_throws "`end` closes no block" InpText.parse(InpText.water() * "end\n")
     @test_throws "`end` takes no value" InpText.parse("geometry\nH 0 0 0\nH 0 0 1\nend geometry\n")
     @test_throws "`basis` inside the oniom block opened at line 1" InpText.parse("oniom\nbasis sto-3g\nend\n" * InpText.water())
-    @test_throws "`zzz` inside the oniom block opened at line 1" InpText.parse("oniom\nzzz 1\nend\n" * InpText.water())
+    @test_throws "`zzz` inside the oniom block opened at line 1 is not a keyword; the accepted keywords are $(words); close" InpText.parse("oniom\nzzz 1\nend\n" * InpText.water())
     @test_throws "`0.5` inside the charges block opened at line 1" InpText.parse("charges\n0.5 0 0\nend\n" * InpText.water())
     @test_throws "`charges`: expected a number, got \"q\"" InpText.parse("charges\nq 0 0 0\nend\n" * InpText.water())
     @test_throws "a charges line takes 4 tokens (a charge and 3 coordinates), got 5" InpText.parse("charges\n1 0 0 0 0\nend\n" * InpText.water())

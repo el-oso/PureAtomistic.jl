@@ -767,7 +767,7 @@ The `UInt` fields are the oracle's `usize` fields: `multiplicity`, `max_iteratio
 - **Duplicates.** A scalar keyword given twice throws `"keyword `charge` given twice (lines 2 and 9)"`, aliases included. The `freeze_*` keywords are repeatable. A second `geometry` or `product_geometry` block throws `InputError(source, 9, "second geometry block (first at line 4)")`, which names both lines when printed: `input: <src>:9: second geometry block (first at line 4)` (Review Focus 1; the lenient case is `:duplicate_block`, Task 9).
 - **Blocks.** `geometry [unit]`, `product_geometry [unit]`, `charges [unit]`, `hubbard`, `fragments`, `cell`, `pbc` and `oniom` open a block, and each closes with `end` (D7).
   - The unit is `angstrom`, `ang`, `bohr` or `au`, case-insensitive, and the default is angstrom per block; no unit carries over (class B). The oracle's `charges` takes no unit and uses the last geometry block's unit; here `charges` takes an optional unit with the Å default (class B, D6).
-  - A line inside a block that is not that block's content throws `"`charge` inside the geometry block opened at line 6; close the block with `end`"`. An unclosed block at the end of the file throws `"the geometry block opened at line 6 is not closed by `end`"`.
+  - A line inside a block that is not that block's content throws `"`charge` inside the geometry block opened at line 6; close the block with `end`"`. When its first token is not a keyword either, the message adds the keyword list as the unknown-keyword error does: `"`END_GEOMETRY` inside the geometry block opened at line 6 is not a keyword; the accepted keywords are …; close the block with `end`"`. An unclosed block at the end of the file throws `"the geometry block opened at line 6 is not closed by `end`"`.
 - **Block contents.**
   - geometry: `Sym x y z` through `System.Atom`, or `Bq x y z q`, which is a point charge.
   - charges: `q x y z`.
@@ -885,7 +885,7 @@ The oracle values are those of `src/input/parser.rs`, `io/molecule.rs`, `types.r
 | case | input | strict message | lenient value |
 |---|---|---|---|
 | `:unknown_keyword` | `use_diis true` | "unknown keyword `use_diis`" | ignored (verified) |
-| `:dropped_block_line` | `END_GEOMETRY` inside geometry | "`END_GEOMETRY` inside the geometry block" | dropped; atoms kept (neb_test.inp) |
+| `:dropped_block_line` | `END_GEOMETRY` inside geometry | "`END_GEOMETRY` inside the geometry block opened at line … is not a keyword; the accepted keywords are …" | dropped; atoms kept (neb_test.inp) |
 | `:block_keyword` | `charge 1` inside an unclosed geometry block | "inside the geometry block opened at line" | `charge == 1`, atoms kept (keyword-first) |
 | `:unclosed_block` | geometry with no `end` at EOF | "is not closed by `end`" | atoms kept |
 | `:hubbard_inline_argument` | `hubbard O:5.0` then `use_diis true` | "`hubbard` takes no value on its line" | Both modes throw. Assertions: strict throws "`hubbard` takes no value on its line"; lenient throws `"Invalid U value: true"` (verified: the next 2-token line is read as a U line). The warning is checked on the variant `hubbard O:5.0` followed by `end`: lenient gives `hubbard == []` with one `:hubbard_inline_argument` warning |

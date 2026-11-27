@@ -75,7 +75,10 @@ line that starts with `- `, is rejected as YAML: YAML input needs a `.yaml` or `
 `pbc` and `oniom` open a block, which `end` closes. The unit is `angstrom` or `ang` (the default)
 or `bohr` or `au`, in any case, and applies to that block alone. Inside a block, a line that is a
 keyword or that is not the block's content is an error, `` `charge` inside the geometry block
-opened at line 6; close the block with `end` ``, and a block still open at the end of the file is
+opened at line 6; close the block with `end` ``; a line whose first word is not a keyword either
+says so and lists the keywords, as an unknown keyword does (`` `END_GEOMETRY` inside the geometry
+block opened at line 6 is not a keyword; the accepted keywords are … ``); and a block still open at
+the end of the file is
 `` the geometry block opened at line 6 is not closed by `end` ``.
 
 | block | lines |
