@@ -56,3 +56,33 @@ file = "src/io/format.jl"
 find = "while j < ncodeunits(s) && codeunit(s, j) == UInt8('0')"
 replace = "while false"
 expect = "Rust exponent format"
+
+# The shell geometry of the basis.
+
+[[mutation]]
+name = "primitive-norm-four-alpha"
+file = "src/basis/geometry.jl"
+find = 'fourα = 4a'
+replace = 'fourα = 2a'
+expect = "basis: primitive norm"
+
+[[mutation]]
+name = "contraction-renorm-power"
+file = "src/basis/geometry.jl"
+find = 'for _ in 1:L'
+replace = 'for _ in 1:(L - 1)'
+expect = "basis: contraction renormalization"
+
+[[mutation]]
+name = "component-offset-l5"
+file = "src/basis/geometry.jl"
+find = 'const COMPONENT_OFFSETS = (0, 1, 4, 10, 20, 35)'
+replace = 'const COMPONENT_OFFSETS = (0, 1, 4, 10, 20, 36)'
+expect = "component order matches Rust"
+
+[[mutation]]
+name = "shell-pairs-inner-bound"
+file = "src/basis/types.jl"
+find = 'j < i ?'
+replace = 'j < i - 1 ?'
+expect = "basis: shells and pairs"

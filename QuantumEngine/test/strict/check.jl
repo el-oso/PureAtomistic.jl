@@ -30,7 +30,7 @@ include(joinpath(@__DIR__, "workload.jl"))
 const CONTROL = "control" in ARGS
 const P = QuantumEngine
 const EXT = Base.get_extension(P, :QuantumEngineYAMLExt)
-const MODULES = (P.Errors, P.Units, P.System, P.IO, P.Input, EXT)
+const MODULES = (P.Errors, P.Units, P.System, P.IO, P.Input, P.Basis, EXT)
 const GUARANTEES = (:typestable, :noalloc, :noboxing)
 oneline(err) = replace(sprint(showerror, err), '\n' => " | ")
 
@@ -94,8 +94,10 @@ end
 # `:noalloc` and `:noboxing` exempt, and this listing judges their type stability a second time.
 # `setindex!` of `Input`'s JSON object builder and `iterate`, `haskey` and `setindex!` of the YAML
 # extension's mapping read untyped values and are exempt from every guarantee; they are listed so
-# that any other method of these functions the package adds is judged.
-const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!, Base.iterate, Base.haskey)
+# that any other method of these functions the package adds is judged. `iterate`, `length` and `eltype`
+# of `Basis.ShellPairs` are held to type stability here; `@test_noalloc` proves that iterating it
+# allocates nothing.
+const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!, Base.iterate, Base.haskey, Base.length, Base.eltype)
 const OTHER_GUARANTEES = (:typestable,)
 const OTHER_METHODS = Dict{Any, Tuple{Vararg{Symbol}}}(f => OTHER_GUARANTEES for f in OTHER_FUNCTIONS)
 

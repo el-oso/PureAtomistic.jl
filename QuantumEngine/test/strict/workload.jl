@@ -5,6 +5,7 @@
 # reasoned" include it as well.
 using QuantumEngine
 using YAML
+using StaticArrays: SVector
 
 # Every error type and `InputWarning`, each built from a `String` and from a `LazyString` message,
 # rendered into an `IOBuffer` (`showerror` for the errors, `show` for the warning); then the
@@ -13,7 +14,8 @@ using YAML
 # writer and the xyz, PDB and CIF readers of `IO`; then the formatters and the logger of `IO`; then
 # the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
 # the `.inp` parser; then the structured readers and the YAML extension; then `parse_input` on a
-# file of each format.
+# file of each format; then the shell geometry and the basis types of `Basis` in Float64 and
+# Float32.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -468,5 +470,27 @@ function run_workload()
     end
     In.input_format(SubString("xw.JSON", 2))
     rm(dir; recursive = true)
+    # The shell geometry helpers, each of the seven basis types built in Float64 and Float32, the AO
+    # ranges, and the shell pairs iterated, counted and typed.
+    B = QuantumEngine.Basis
+    for T in (Float64, Float32)
+        B.ncart(2)
+        B.cartesian_component(3, 5)
+        B.primitive_norm(T(0.8), 1, 1, 0)
+        e, c = T[3.425250914, 0.6239137298], T[0.1543289673, 0.5353281423]
+        B.contraction_renorm(e, c, 1)
+        p = B.Primitive(T(0.8), T(0.5))
+        sp = B.ShellSpec(1, [p], 3)
+        ch = B.ECPChannel(0, [1], T[1.5], T[-2.0])
+        B.ElementBasis("Na", [sp], B.ECPPotential("Na", 10, 0, [ch]))
+        r = SVector{3, T}(0, 0, 0)
+        shells = [B.Shell(r, 1, 0, e, c, 0), B.Shell(r, 1, 1, e, c, 1)]
+        bs = B.BasisSet(shells, 4, "w")
+        foreach(B.ao_range, bs.shells)
+        pairs = B.shell_pairs(bs)
+        length(pairs)
+        eltype(pairs)
+        foreach(identity, pairs)
+    end
     return take!(io)
 end

@@ -223,3 +223,24 @@ end
         new_map(Vector{String}, Vector{Node}),
     )
 end
+
+# The shell geometry helpers of `Basis` in Float64 and Float32, the AO range of a shell and the
+# shell pairs of a basis set.
+@testitem "TrimCheck: basis geometry" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+        end,
+        QuantumEngine.Basis.ncart(Int),
+        QuantumEngine.Basis.cartesian_component(Int, Int),
+        QuantumEngine.Basis.primitive_norm(Float64, Int, Int, Int),
+        QuantumEngine.Basis.primitive_norm(Float32, Int, Int, Int),
+        QuantumEngine.Basis.contraction_renorm(Vector{Float64}, Vector{Float64}, Int),
+        QuantumEngine.Basis.contraction_renorm(Vector{Float32}, Vector{Float32}, Int),
+        QuantumEngine.Basis.ao_range(QuantumEngine.Basis.Shell{Float64}),
+        QuantumEngine.Basis.ao_range(QuantumEngine.Basis.Shell{Float32}),
+        QuantumEngine.Basis.shell_pairs(QuantumEngine.Basis.BasisSet{Float64}),
+        QuantumEngine.Basis.shell_pairs(QuantumEngine.Basis.BasisSet{Float32}),
+    )
+end
