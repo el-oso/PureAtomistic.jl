@@ -16,11 +16,11 @@ function _format_of(s::Union{String, SubString{String}})
     # or make calls the trim verifier cannot resolve. In UTF-8 the bytes of `.`, `/` and `\` occur
     # only as those characters.
     i = ncodeunits(s)
-    while i >= 1 && codeunit(s, i) != UInt8('.') && !_is_separator(codeunit(s, i))
+    while i >= 1 && codeunit(s, i) != UInt8('.') && !is_path_separator(codeunit(s, i))
         i -= 1
     end
     # No `.`, or one that starts the component.
-    (i <= 1 || codeunit(s, i) != UInt8('.') || _is_separator(codeunit(s, i - 1))) && return INP
+    (i <= 1 || codeunit(s, i) != UInt8('.') || is_path_separator(codeunit(s, i - 1))) && return INP
     _extension_is(s, i, "xyz") && return XYZ
     _extension_is(s, i, "pdb") && return PDB
     _extension_is(s, i, "cif") && return CIF
@@ -28,9 +28,6 @@ function _format_of(s::Union{String, SubString{String}})
     _extension_is(s, i, "json") && return JSON_INPUT
     return INP
 end
-
-# Whether the byte `b` separates path components, as for `basename`.
-_is_separator(b::UInt8) = b == UInt8('/') || (Sys.iswindows() && b == UInt8('\\'))
 
 # Whether the code units of `s` after index `i` spell `word`, a lowercase ASCII word, without regard
 # to case. `b | 0x20` lowercases an ASCII letter and maps no other byte to one. Unicode lowercasing,

@@ -184,6 +184,8 @@ QuantumEngine.Units.nelements
 QuantumEngine.Units.covalent_radius
 QuantumEngine.Units.bondi_radius
 QuantumEngine.Units.bragg_slater_radius
+QuantumEngine.Units.symbol_number
+QuantumEngine.Units.ascii_lowercase
 ```
 
 ## Physical constants
@@ -236,6 +238,7 @@ QuantumEngine.IO.read_cif
 QuantumEngine.IO.input_line
 QuantumEngine.IO.reject_or_warn
 QuantumEngine.IO.parse_coordinate
+QuantumEngine.IO.is_path_separator
 ```
 
 ## Number formats

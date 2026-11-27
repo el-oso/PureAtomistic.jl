@@ -484,7 +484,7 @@ end
 function _is_casscf(w::AbstractString)
     ncodeunits(w) >= 6 || return false
     for (i, c) in enumerate(codeunits("casscf"))
-        _lower(codeunit(w, i)) == c || return false
+        ascii_lowercase(codeunit(w, i)) == c || return false
     end
     return true
 end

@@ -2,14 +2,12 @@
 # lowercase ASCII, scanned in order. A tuple of one pair type keeps every lookup concrete. The
 # words are those the oracle's `.inp` parser accepts for the keyword.
 
-_lower(c::UInt8) = UInt8('A') <= c <= UInt8('Z') ? c + 0x20 : c
-
 # Whether `w` spells the table word `t` without regard to ASCII case, compared byte by byte.
 function _word_eq(w::AbstractString, t::String)
     n = ncodeunits(t)
     ncodeunits(w) == n || return false
     for i in 1:n
-        _lower(codeunit(w, i)) == codeunit(t, i) || return false
+        ascii_lowercase(codeunit(w, i)) == codeunit(t, i) || return false
     end
     return true
 end
@@ -24,7 +22,7 @@ function _solvent_eq(w::AbstractString, t::String)
     i = _solvent_next(w, 1)
     j = _solvent_next(t, 1)
     while i <= nw && j <= nt
-        _lower(codeunit(w, i)) == _lower(codeunit(t, j)) || return false
+        ascii_lowercase(codeunit(w, i)) == ascii_lowercase(codeunit(t, j)) || return false
         i = _solvent_next(w, i + 1)
         j = _solvent_next(t, j + 1)
     end
@@ -295,7 +293,7 @@ function _fraction(s::AbstractString)
     n = ncodeunits(s)
     n >= 1 && (_is_ascii_space(codeunit(s, 1)) || _is_ascii_space(codeunit(s, n))) && return nothing
     i <= n && (codeunit(s, i) == UInt8('+') || codeunit(s, i) == UInt8('-')) && (i += 1)
-    i + 1 <= n && codeunit(s, i) == UInt8('0') && _lower(codeunit(s, i + 1)) == UInt8('x') && return nothing
+    i + 1 <= n && codeunit(s, i) == UInt8('0') && ascii_lowercase(codeunit(s, i + 1)) == UInt8('x') && return nothing
     return Parsers.tryparse(Float64, s)
 end
 
@@ -304,7 +302,7 @@ function _casscf(w::AbstractString)
     n = ncodeunits(w)
     n >= 11 || return nothing
     for (i, c) in enumerate(codeunits("casscf("))
-        _lower(codeunit(w, i)) == c || return nothing
+        ascii_lowercase(codeunit(w, i)) == c || return nothing
     end
     codeunit(w, n) == UInt8(')') || return nothing
     comma = 0

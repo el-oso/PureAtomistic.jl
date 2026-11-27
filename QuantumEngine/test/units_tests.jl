@@ -84,6 +84,20 @@ end
     @test_throws ArgumentError element("Xx")
 end
 
+@testitem "units: symbol_number and ascii_lowercase" begin
+    using QuantumEngine.Units: symbol_number, ascii_lowercase
+    @test symbol_number("Fe") == symbol_number("fE") == 26
+    @test symbol_number("Kr") == 36 && symbol_number("H") == 1
+    # The code units `lo:hi` alone are compared.
+    @test symbol_number("BqFe", 3, 4) == 26
+    @test symbol_number("O@", 1, 1) == 8
+    @test symbol_number("Xx") == 0 && symbol_number("") == 0 && symbol_number("Fé") == 0
+    @test ascii_lowercase(UInt8('Q')) == UInt8('q')
+    @test ascii_lowercase(UInt8('q')) == UInt8('q')
+    @test ascii_lowercase(UInt8('@')) == UInt8('@') && ascii_lowercase(UInt8('[')) == UInt8('[')
+    @test ascii_lowercase(0xc9) == 0xc9
+end
+
 @testitem "units: allocation-free lookup" begin
     using QuantumEngine, StrictModeTest
     # @test_noalloc throws a StrictViolation unless AllocCheck proves the call allocation-free.

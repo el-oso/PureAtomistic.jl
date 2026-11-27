@@ -64,7 +64,7 @@ function element_number(symbol::AbstractString)
     lo, hi, ghost = _symbol_body(symbol)
     ghost && lo > hi && _is_bq_prefix(symbol) &&
         throw(ArgumentError("system: a Bq atom needs an element (BqO, O@); a point charge is `Bq x y z q`"))
-    return _element_number(symbol, lo, hi)
+    return Units.symbol_number(symbol, lo, hi)
 end
 
 # The element number named by `symbol` and whether it names a ghost; throws for a bare `Bq` and
@@ -89,20 +89,8 @@ function _symbol_body(symbol::AbstractString)
 end
 
 _is_bq_prefix(s::AbstractString) =
-    ncodeunits(s) >= 2 && _lower(codeunit(s, 1)) == UInt8('b') && _lower(codeunit(s, 2)) == UInt8('q')
-
-_lower(c::UInt8) = UInt8('A') <= c <= UInt8('Z') ? c + (UInt8('a') - UInt8('A')) : c
-
-# The atomic number of the element whose symbol the code units `lo:hi` of `s` spell in any case,
-# or 0 if none does.
-function _element_number(s::AbstractString, lo::Int, hi::Int)
-    for z in 1:Units.nelements()
-        ref = Units.element(z).symbol
-        hi - lo + 1 == ncodeunits(ref) || continue
-        all(k -> _lower(codeunit(s, lo + k - 1)) == _lower(codeunit(ref, k)), 1:ncodeunits(ref)) && return z
-    end
-    return 0
-end
+    ncodeunits(s) >= 2 && Units.ascii_lowercase(codeunit(s, 1)) == UInt8('b') &&
+    Units.ascii_lowercase(codeunit(s, 2)) == UInt8('q')
 
 """
     PointCharge{T<:Real}(charge::T, position::SVector{3,T})
@@ -149,7 +137,7 @@ symbol names no element.
 function basis_element(a::Atom)
     a.ghost || return a.Z
     lo, hi, _ = _symbol_body(a.symbol)
-    z = _element_number(a.symbol, lo, hi)
+    z = Units.symbol_number(a.symbol, lo, hi)
     z == 0 && throw(ArgumentError(lazy"system: ghost atom $(repr(a.symbol)) stands for no element"))
     return z
 end

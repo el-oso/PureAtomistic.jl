@@ -154,7 +154,13 @@ report_optimization_step(lg::Logger, step::Integer, e::Real, gnorm::Real) = log_
     lg, Normal, "[OPT] Step " * fmt_int(step, 3) * ": E = " * fmt_fixed(e, 17, 10) * " |grad| = " * fmt_exp(gnorm, 3)
 )
 
-_is_separator(c::UInt8) = c == UInt8('/') || (Sys.iswindows() && c == UInt8('\\'))
+"""
+    is_path_separator(b::UInt8) -> Bool
+
+Whether the code unit `b` separates path components, as for `basename`: `/`, and on Windows also
+`\\`. In UTF-8 these bytes occur only as those characters, so a path can be scanned byte by byte.
+"""
+is_path_separator(b::UInt8) = b == UInt8('/') || (Sys.iswindows() && b == UInt8('\\'))
 
 # The path `path` without its extension, as Rust's `Path::with_extension("")` strips it from a
 # path that has a file name: the extension starts at the last `.` of the file name, except at the
@@ -165,7 +171,7 @@ function _without_extension(path::AbstractString)
     s = String(path)
     n = ncodeunits(s)
     start = n + 1
-    while start > 1 && !_is_separator(codeunit(s, start - 1))
+    while start > 1 && !is_path_separator(codeunit(s, start - 1))
         start -= 1
     end
     len = n - start + 1

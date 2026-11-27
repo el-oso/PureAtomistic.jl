@@ -89,28 +89,40 @@ end
 element(Z::Bool) = throw(ArgumentError(lazy"units: atomic number must be an integer, got the Bool $(Z)"))
 
 function element(symbol::AbstractString)
-    for e in ELEMENTS
-        _same_symbol(e.symbol, symbol) && return e
-    end
-    throw(ArgumentError(lazy"units: unknown element symbol $(repr(symbol))"))
+    z = symbol_number(symbol)
+    z == 0 && throw(ArgumentError(lazy"units: unknown element symbol $(repr(symbol))"))
+    return ELEMENTS[z]
 end
 
-# Whether `s` spells the table symbol `ref` (ASCII) in any case, compared code unit by code unit
-# so that no lowercased copy is made. A non-ASCII code unit never equals one of `ref`'s letters.
-function _same_symbol(ref::String, s::AbstractString)
-    ncodeunits(s) == ncodeunits(ref) || return false
-    for i in 1:ncodeunits(ref)
-        c = codeunit(s, i)
-        if UInt8('A') <= c <= UInt8('Z')
-            c += UInt8('a') - UInt8('A')
+"""
+    ascii_lowercase(c::UInt8) -> UInt8
+
+The code unit `c` with an ASCII capital letter lowercased; every other code unit, a non-ASCII one
+included, is returned unchanged.
+"""
+ascii_lowercase(c::UInt8) = UInt8('A') <= c <= UInt8('Z') ? c + (UInt8('a') - UInt8('A')) : c
+
+"""
+    symbol_number(s::AbstractString, lo::Int = 1, hi::Int = ncodeunits(s)) -> Int
+
+The atomic number of the element whose symbol the code units `lo:hi` of `s` spell without regard
+to ASCII case, or 0 if none does. The comparison is code unit by code unit, so no lowercased copy
+is made, and a non-ASCII code unit matches no symbol's letter.
+"""
+function symbol_number(s::AbstractString, lo::Int = 1, hi::Int = ncodeunits(s))
+    for z in 1:nelements()
+        ref = ELEMENTS[z].symbol
+        hi - lo + 1 == ncodeunits(ref) || continue
+        same = true
+        for k in 1:ncodeunits(ref)
+            if ascii_lowercase(codeunit(s, lo + k - 1)) != ascii_lowercase(codeunit(ref, k))
+                same = false
+                break
+            end
         end
-        r = codeunit(ref, i)
-        if UInt8('A') <= r <= UInt8('Z')
-            r += UInt8('a') - UInt8('A')
-        end
-        c == r || return false
+        same && return z
     end
-    return true
+    return 0
 end
 
 """
@@ -147,7 +159,8 @@ end
 public BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR, HARTREE_TO_EV, HARTREE_TO_KCAL, HARTREE_TO_JOULE,
     HARTREE_TO_CM1, BOHR_TO_METER, AMU_TO_KG, ELEMENTARY_CHARGE, BOLTZMANN_K, PLANCK_H,
     AVOGADRO_NA, SPEED_OF_LIGHT, GAS_CONSTANT_R, AU_TO_DEBYE,
-    Element, element, covalent_radius, bragg_slater_radius, bondi_radius, nelements
+    Element, element, covalent_radius, bragg_slater_radius, bondi_radius, nelements, ascii_lowercase,
+    symbol_number
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

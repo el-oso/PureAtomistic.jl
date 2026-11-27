@@ -21,9 +21,9 @@ using Parsers: Parsers
 using StaticArrays: SVector, SMatrix
 using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: InputError, InputWarning
-using ..Units: ANGSTROM_TO_BOHR
+using ..Units: ANGSTROM_TO_BOHR, ascii_lowercase
 using ..System: Atom, PointCharge, Molecule, nalpha, element_number
-using ..IO: input_line, reject_or_warn, parse_coordinate, read_xyz, read_pdb, read_cif
+using ..IO: input_line, reject_or_warn, parse_coordinate, read_xyz, read_pdb, read_cif, is_path_separator
 
 include("types.jl")
 include("vocabulary.jl")
