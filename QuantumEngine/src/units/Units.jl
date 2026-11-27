@@ -49,9 +49,10 @@ const AU_TO_DEBYE = ELEMENTARY_CHARGE * BOHR_TO_METER * SPEED_OF_LIGHT * 1.0e21
 
 One row of the element table: the atomic number `Z`, the `symbol`, the mass of the most abundant
 isotope `mass_most_abundant` and the standard (or conventional) atomic weight `mass_average`, both
-in amu, and the `covalent_radius`, `bragg_slater_radius` and `bondi_radius` in Å. A radius is
-`nothing` where its source lists no value; [`bragg_slater_radius`](@ref) and
-[`bondi_radius`](@ref) throw for those.
+in amu, and the `covalent_radius`, `bragg_slater_radius` and `bondi_radius` in Å. For an element
+with no standard atomic weight (Tc, Pm, Po to Ac, Np to Cm), both masses are that of its
+longest-lived isotope. A radius is `nothing` where its source lists no value;
+[`bragg_slater_radius`](@ref) and [`bondi_radius`](@ref) throw for those.
 """
 struct Element
     Z::Int

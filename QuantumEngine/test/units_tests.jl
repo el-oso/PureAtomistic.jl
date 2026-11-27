@@ -44,7 +44,8 @@ end
     @test element("U").mass_average == 238.02891
     # Curium has no standard atomic weight: both masses are those of ²⁴⁷Cm, its longest-lived isotope.
     @test element("Cm").mass_average == 247.070352678
-    # Most abundant isotope (AME2020): ¹H, ¹²C, ¹⁶O, ⁵⁶Fe, ⁸⁴Kr, ⁸⁵Rb, ¹³²Xe, ¹⁹⁷Au, ²³⁸U, ²⁴⁷Cm.
+    # Most abundant isotope (AME2020): ¹H, ¹²C, ¹⁶O, ⁵⁶Fe, ⁸⁴Kr, ⁸⁵Rb, ¹³²Xe, ¹⁹⁷Au, ²³⁸U;
+    # ²⁴⁷Cm, the longest-lived isotope of curium.
     @test element("H").mass_most_abundant == 1.007825031898
     @test element("C").mass_most_abundant == 12.0
     @test element("O").mass_most_abundant == 15.99491461926
