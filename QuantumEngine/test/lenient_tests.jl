@@ -641,3 +641,45 @@ end
     @test Lenient.strict("verbosity +2\n" * Lenient.W).verbosity == 2
     @test Lenient.strict("charge -1\nmultiplicity 2\n" * Lenient.W).charge == -1
 end
+
+@testitem "lenient: tokens split on spaces and tabs only" setup = [Lenient] begin
+    using QuantumEngine
+    # The oracle splits on every Unicode white space (`split_whitespace`); QuantumEngine splits on
+    # ' ' and '\t', so a no-break space joins the keyword to its value (docs/src/parity.md).
+    text = "charge 1\n" * Lenient.W
+    @test_throws "unknown keyword `charge 1`" Lenient.strict(text)
+    p = Lenient.lenient(text)
+    @test Lenient.cases(p) == [:unknown_keyword] && p.input.charge == 0
+end
+
+@testitem "lenient: dropped_block_line in cell, pbc and fragments" setup = [Lenient] begin
+    using QuantumEngine
+    # A line that cannot start the block's content is no block line; the block's own content and
+    # the lines of the right shape keep their other cases.
+    for (block, line, content, n) in (
+            ("cell", "MAX_ITER 3", "1 0 0\n0 1 0\n0 0 1\n", 5),
+            ("cell", "MAX_ITER", "1 0 0\n0 1 0\n0 0 1\n", 5),
+            ("pbc", "MAX_ITER", "true true false\n", 3),
+            ("pbc", "MAX_ITER 3", "true true false\n", 3),
+            ("fragments", "MAX_ITER", "0,1;2\n", 3),
+            ("fragments", "MAX_ITER 3", "0,1;2\n", 3),
+        )
+        text = Lenient.W * "$(block)\n$(content)$(line)\nend\n"
+        l = count(==('\n'), Lenient.W) + 1 + count(==('\n'), content) + 1
+        word = split(line)[1]
+        @test_throws "input: t.inp:$(l): `$(word)` inside the $(block) block opened at line $(l - count(==('\n'), content) - 1) is not a keyword; the accepted keywords are" Lenient.strict(text)
+        p = Lenient.lenient(text)
+        @test Lenient.cases(p) == [:dropped_block_line]
+    end
+    # The content survives the dropped line.
+    p = Lenient.lenient(Lenient.W * "cell\n1 0 0\nMAX_ITER 3\n0 1 0\n0 0 1\nend\n")
+    @test p.input.lattice !== nothing
+    p = Lenient.lenient(Lenient.W * "pbc\nMAX_ITER\ntrue true false\nend\n")
+    @test p.input.pbc == (true, true, false)
+    p = Lenient.lenient(Lenient.W * "fragments\nMAX_ITER\n0,1;2\nend\n")
+    @test p.input.fragments == [[1, 2], [3]]
+    # Lines of the right first token keep their own cases.
+    @test_throws "a cell line takes 3 numbers, got 2" Lenient.strict(Lenient.W * "cell\n1 0\nend\n")
+    @test_throws "a pbc line takes 3 values, got 2" Lenient.strict(Lenient.W * "pbc\ntrue true\nend\n")
+    @test_throws "fragment index `x` is not an integer" Lenient.strict(Lenient.W * "fragments\n0,x;1\nend\n")
+end

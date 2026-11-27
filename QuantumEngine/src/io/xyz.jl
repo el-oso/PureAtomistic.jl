@@ -47,7 +47,9 @@ function read_xyz(
         end
         isempty(tokens) && continue
         if expect === :count
-            natoms = something(length(tokens) == 1 ? tryparse(Int, tokens[1]) : nothing, -1)
+            # An unsigned decimal count, as the oracle's `usize` parse reads it: no base prefix and no `-`.
+            natoms = length(tokens) == 1 && is_decimal_int(tokens[1]) && !startswith(tokens[1], '-') ?
+                something(tryparse(Int, tokens[1]), -1) : -1
             natoms < 0 && throw(InputError(source, n, "xyz: expected the atom count"))
             count_line = n
             expect = :comment

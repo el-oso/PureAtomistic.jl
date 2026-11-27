@@ -347,14 +347,21 @@ end
     using QuantumEngine.Input: parse_structured
     using .Structured: nd, doc
     # parser.rs:714, 952-953: the oracle truncates both charges to `i32`.
+    # Strict mode throws; lenient mode wraps the value as `as i32` does, with a warning.
+    run(lenient, ps...) = parse_structured(doc(ps...); source = "t.json", lenient)
+    @test_throws "input: t.json: charge: expected an integer in the Int32 range, got 3000000000" run(false, "charge" => 3000000000)
+    @test_throws "input: t.json: oniom.model_charge: expected an integer in the Int32 range, got -2147483649" run(
+        false, "oniom" => nd("model_charge" => -2147483649),
+    )
     for lenient in (false, true)
-        run(ps...) = parse_structured(doc(ps...); source = "t.json", lenient)
-        @test_throws "input: t.json: charge: expected an integer in the Int32 range, got 3000000000" run("charge" => 3000000000)
-        @test_throws "input: t.json: oniom.model_charge: expected an integer in the Int32 range, got -2147483649" run(
-            "oniom" => nd("model_charge" => -2147483649),
-        )
-        @test run("oniom" => nd("model_charge" => -2147483648)).input.oniom.model_charge == -2147483648
+        @test run(lenient, "oniom" => nd("model_charge" => -2147483648)).input.oniom.model_charge == -2147483648
+        @test run(lenient, "charge" => -2147483648).input.charge == -2147483648
     end
+    p = run(true, "charge" => 3000000000, "oniom" => nd("model_charge" => -2147483649))
+    @test p.input.charge == 3000000000 % Int32 == -1294967296
+    @test p.input.oniom.model_charge == 2147483647
+    @test [w.case for w in p.warnings] == [:int32_truncated, :int32_truncated]
+    @test p.warnings[1].msg == "charge: expected an integer in the Int32 range, got 3000000000"
 end
 
 @testitem "json: yaml_bad_number" setup = [Structured] begin

@@ -382,7 +382,7 @@ function read_molden(io::Base.IO; source::AbstractString = "<stream>")
                     exps = Float64[]
                     coefs = Float64[]
                 end
-            elseif length(tokens) == 2 && _is_decimal_int(tokens[1])
+            elseif length(tokens) == 2 && is_decimal_int(tokens[1])
                 a = _molden_int(source, n, tokens[1])
                 _molden_int(source, n, tokens[2]) == 0 ||
                     throw(InputError(source, n, "molden: an atom line of [GTO] is <atom> 0"))
@@ -493,21 +493,8 @@ function _record_orbital(
     return nothing
 end
 
-# Whether `t` is a decimal integer: an optional sign, then one or more ASCII digits. `tryparse(Int, _)`
-# alone also accepts base prefixes such as `0x1`.
-function _is_decimal_int(t::AbstractString)
-    n = ncodeunits(t)
-    i = 1
-    n >= 1 && (codeunit(t, 1) == UInt8('+') || codeunit(t, 1) == UInt8('-')) && (i = 2)
-    i <= n || return false
-    for k in i:n
-        UInt8('0') <= codeunit(t, k) <= UInt8('9') || return false
-    end
-    return true
-end
-
 function _molden_int(source::AbstractString, n::Int, t::AbstractString)
-    x = _is_decimal_int(t) ? tryparse(Int, t) : nothing
+    x = is_decimal_int(t) ? tryparse(Int, t) : nothing
     isnothing(x) && throw(InputError(source, n, lazy"molden: expected an integer, got $(repr(t))"))
     return x
 end

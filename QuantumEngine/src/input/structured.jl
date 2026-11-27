@@ -102,11 +102,13 @@ _sbool(w::_Walk, a::_At) = _ok(w, a, BoolNode) ? a.node.b : nothing
 _sint(w::_Walk, a::_At) = _ok(w, a, IntNode) ? a.node.i : nothing
 
 # A charge, which the oracle truncates to `i32`. A value outside the `Int32` range is an error in
-# both modes, as `charge` outside it is in `.inp`.
+# strict mode; lenient mode reads it as the oracle does, `x % Int32`, with an `:int32_truncated`
+# warning. (`.inp` rejects such a charge in both modes, as the oracle does.)
 function _scharge(w::_Walk, a::_At)
     x = _sint(w, a)
     (isnothing(x) || typemin(Int32) <= x <= typemax(Int32)) && return x
-    throw(InputError(w.source, 0, lazy"$(a.path): expected an integer in the Int32 range, got $(x)"))
+    _reject(w, :int32_truncated, lazy"$(a.path): expected an integer in the Int32 range, got $(x)")
+    return Int(x % Int32)
 end
 
 # An integer the oracle stores unsigned. A negative value, which the oracle wraps to a count near
@@ -227,23 +229,23 @@ function parse_structured(root::Node; source::AbstractString, lenient::Bool = fa
     doc = _At("", root, true)
     _check_keys(w, doc, TOP_KEYS)
     d = _draft(InputFile())
-    _top!(w, d, doc)
-    _scf!(w, d, doc)
-    _solvation!(w, d, doc)
+    _top(w, d, doc)
+    _scf(w, d, doc)
+    _solvation(w, d, doc)
     o = _at(doc, "oniom")
     on = o.present ? _oniom(w, o) : nothing
-    _tddft!(w, d, doc)
-    _exports!(w, d, doc)
-    _f12!(w, d, doc)
-    _geometry!(w, d, doc)
-    _irc!(w, d, doc)
-    _constraints!(w, d, doc)
+    _tddft(w, d, doc)
+    _exports(w, d, doc)
+    _f12(w, d, doc)
+    _geometry(w, d, doc)
+    _irc(w, d, doc)
+    _constraints(w, d, doc)
     inp = _input(d, on)
     return ParsedInput(_finalize_input(inp; source = w.source, lenient, warnings = w.warnings, sites = w.sites), w.warnings)
 end
 
 # The run mode and the top-level options.
-function _top!(w::_Walk, d::_InputDraft, doc::_At)
+function _top(w::_Walk, d::_InputDraft, doc::_At)
     task = _at(doc, "task")
     task.present && _smap(w, task) && _check_keys(w, task, TASK_KEYS)
     mode = _first(w, _at(task, "mode"), _at(doc, "mode"))
@@ -281,7 +283,7 @@ function _top!(w::_Walk, d::_InputDraft, doc::_At)
 end
 
 # The `scf` map and the top-level fallbacks of its keys.
-function _scf!(w::_Walk, d::_InputDraft, doc::_At)
+function _scf(w::_Walk, d::_InputDraft, doc::_At)
     scf = _at(doc, "scf")
     scf.present && _smap(w, scf) && _check_keys(w, scf, SCF_KEYS)
     x = _suint(w, _alt(w, _at(scf, "max_iter"), _at(doc, "max_iterations"), IntNode))
@@ -330,21 +332,21 @@ function _scf!(w::_Walk, d::_InputDraft, doc::_At)
     isnothing(b) || (d.robust_convergence = b)
     f = _sfloat(w, _at(scf, "level_shift"))
     isnothing(f) || (d.level_shift = f)
-    _field!(w, d, _at(scf, "field"))
+    _field(w, d, _at(scf, "field"))
     f = _sfloat(w, _alt(w, _at(scf, "pw_cutoff"), _at(doc, "pw_cutoff"), FloatNode))
     isnothing(f) || (d.pw_cutoff = f)
-    _lattice!(w, d, _first(w, _at(scf, "lattice"), _at(doc, "lattice")))
-    _pbc!(w, d, _first(w, _at(scf, "pbc"), _at(doc, "pbc")))
+    _lattice(w, d, _first(w, _at(scf, "lattice"), _at(doc, "lattice")))
+    _pbc(w, d, _first(w, _at(scf, "pbc"), _at(doc, "pbc")))
     b = _sbool(w, _at(scf, "admm"))
     isnothing(b) || (d.admm = b)
     a = _at(scf, "admm_basis")
     _sstring(w, a) && (d.admm_basis = a.node.s)
-    _population!(w, d, _at(scf, "population"))
-    _kpoints!(w, d, _first(w, _at(scf, "kpoints"), _first(w, _at(doc, "k_grid"), _at(doc, "kpoints"))))
-    _kpath!(w, d, _first(w, _at(scf, "kpath"), _at(doc, "k_path")))
+    _population(w, d, _at(scf, "population"))
+    _kpoints(w, d, _first(w, _at(scf, "kpoints"), _first(w, _at(doc, "k_grid"), _at(doc, "kpoints"))))
+    _kpath(w, d, _first(w, _at(scf, "kpath"), _at(doc, "k_path")))
     b = _sbool(w, _alt(w, _at(scf, "use_dmft"), _at(doc, "use_dmft"), BoolNode))
     isnothing(b) || (d.use_dmft = b)
-    _dmft!(w, d, _first(w, _at(scf, "dmft_options"), _first(w, _at(doc, "dmft"), _at(scf, "dmft"))))
+    _dmft(w, d, _first(w, _at(scf, "dmft_options"), _first(w, _at(doc, "dmft"), _at(scf, "dmft"))))
     return nothing
 end
 
@@ -357,7 +359,7 @@ function _length_ok(w::_Walk, a::_At, n::Int, what::String, case::Symbol)
 end
 
 # `field`: the oracle reads the first 3 entries of a list of 3 or more, each `unwrap_or(0.0)`.
-function _field!(w::_Walk, d::_InputDraft, a::_At)
+function _field(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     _length_ok(w, a, 3, "numbers", :yaml_list_length)
     length(a.node.items) >= 3 || return nothing
@@ -367,7 +369,7 @@ end
 
 # `lattice`: 3 rows of 3 numbers in Å. The oracle reads a list of another length as no lattice,
 # a row that is not 3 entries as zeros and an entry that is not a number as 0.0.
-function _lattice!(w::_Walk, d::_InputDraft, a::_At)
+function _lattice(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     _length_ok(w, a, 3, "rows", :yaml_list_length) || return nothing
     r1, r2, r3 = _lattice_row(w, _item(a, 1)), _lattice_row(w, _item(a, 2)), _lattice_row(w, _item(a, 3))
@@ -385,7 +387,7 @@ end
 
 # `pbc`: 3 Booleans; the oracle ignores a list of another length and reads an entry that is not a
 # Boolean as true.
-function _pbc!(w::_Walk, d::_InputDraft, a::_At)
+function _pbc(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     _length_ok(w, a, 3, "Booleans", :yaml_list_length) || return nothing
     p1, p2, p3 = _item(a, 1), _item(a, 2), _item(a, 3)
@@ -395,7 +397,7 @@ end
 
 # `population`: a list of analysis words. The oracle stores the words, and no code reads them, so
 # a list with an entry that is not a known word keeps the default analyses.
-function _population!(w::_Walk, d::_InputDraft, a::_At)
+function _population(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     pop = PopulationKind[]
     bad = false
@@ -427,7 +429,7 @@ end
 
 # `kpoints`: 3 counts; the oracle ignores a list of another length and reads an entry that is not
 # an integer as 1.
-function _kpoints!(w::_Walk, d::_InputDraft, a::_At)
+function _kpoints(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     _length_ok(w, a, 3, "integers", :yaml_list_length) || return nothing
     d.kpoints = (_count(w, _item(a, 1), 1), _count(w, _item(a, 2), 1), _count(w, _item(a, 3), 1))
@@ -435,7 +437,7 @@ function _kpoints!(w::_Walk, d::_InputDraft, a::_At)
 end
 
 # `kpath`: the point labels; the oracle drops an entry that is not a string.
-function _kpath!(w::_Walk, d::_InputDraft, a::_At)
+function _kpath(w::_Walk, d::_InputDraft, a::_At)
     _slist(w, a) || return nothing
     path = String[]
     for k in 1:length(a.node.items)
@@ -446,7 +448,7 @@ function _kpath!(w::_Walk, d::_InputDraft, a::_At)
     return nothing
 end
 
-function _dmft!(w::_Walk, d::_InputDraft, a::_At)
+function _dmft(w::_Walk, d::_InputDraft, a::_At)
     (a.present && _smap(w, a)) || return nothing
     _check_keys(w, a, DMFT_KEYS)
     f = _sfloat(w, _at(a, "temperature"))
@@ -464,7 +466,7 @@ end
 
 # `solvation`: the model is `model` (`pcm` or `smd`), else `pcm: true`, else `smd: true`, and the
 # options read are those of that model.
-function _solvation!(w::_Walk, d::_InputDraft, doc::_At)
+function _solvation(w::_Walk, d::_InputDraft, doc::_At)
     s = _at(doc, "solvation")
     (s.present && _smap(w, s)) || return nothing
     model, pcm, smd = _at(s, "model"), _at(s, "pcm"), _at(s, "smd")
@@ -545,7 +547,7 @@ function _oniom(w::_Walk, o::_At)
     )
 end
 
-function _tddft!(w::_Walk, d::_InputDraft, doc::_At)
+function _tddft(w::_Walk, d::_InputDraft, doc::_At)
     t = _at(doc, "tddft")
     (t.present && _smap(w, t)) || return nothing
     _check_keys(w, t, TDDFT_KEYS)
@@ -565,7 +567,7 @@ function _tddft!(w::_Walk, d::_InputDraft, doc::_At)
     return nothing
 end
 
-function _exports!(w::_Walk, d::_InputDraft, doc::_At)
+function _exports(w::_Walk, d::_InputDraft, doc::_At)
     e = _at(doc, "exports")
     (e.present && _smap(w, e)) || return nothing
     _check_keys(w, e, EXPORT_KEYS)
@@ -581,7 +583,7 @@ end
 # `f12`, a Boolean or a map of options (any value but a Boolean turns F12 on, as in the oracle),
 # then the top-level `f12_gamma`/`gamma`, which turns F12 on in the oracle and needs it in strict
 # mode, and `f12_model`.
-function _f12!(w::_Walk, d::_InputDraft, doc::_At)
+function _f12(w::_Walk, d::_InputDraft, doc::_At)
     f = _at(doc, "f12")
     if f.present
         if f.node.kind == BoolNode
@@ -620,7 +622,7 @@ function _bohr(w::_Walk, doc::_At)
 end
 
 # `geometry`, else `atoms`: a list of `{symbol, position: [x, y, z]}` or `{symbol, x, y, z}`.
-function _geometry!(w::_Walk, d::_InputDraft, doc::_At)
+function _geometry(w::_Walk, d::_InputDraft, doc::_At)
     g = _first(w, _at(doc, "geometry"), _at(doc, "atoms"))
     bohr = _bohr(w, doc)
     (g.present && _slist(w, g)) || return nothing
@@ -676,7 +678,7 @@ function _coordinate(w::_Walk, e::_At, c::_At, name::String)
     return 0.0
 end
 
-function _irc!(w::_Walk, d::_InputDraft, doc::_At)
+function _irc(w::_Walk, d::_InputDraft, doc::_At)
     f = _sfloat(w, _alt(w, _at(doc, "irc_step_size"), _at(doc, "irc_step"), FloatNode))
     isnothing(f) || (d.irc_step_size = f)
     x = _suint(w, _alt(w, _at(doc, "irc_max_points"), _at(doc, "irc_points"), IntNode))
@@ -721,7 +723,7 @@ end
 # `constraints`: a list of `{freeze_atom: i}`, `{freeze_bond: [i, j], target}` and
 # `{freeze_angle: [i, j, k], target}`, 0-based in the file. A bond target is in bohr; an angle
 # target is in degrees and stored in radians.
-function _constraints!(w::_Walk, d::_InputDraft, doc::_At)
+function _constraints(w::_Walk, d::_InputDraft, doc::_At)
     c = _at(doc, "constraints")
     (c.present && _slist(w, c)) || return nothing
     for k in 1:length(c.node.items)

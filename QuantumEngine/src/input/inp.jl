@@ -196,19 +196,20 @@ function parse_inp(text::AbstractString; source::AbstractString = "<string>", le
     s = String(text)
     _check_utf8(st.source, s)
     for (n, raw) in enumerate(eachsplit(s, '\n'))
-        _line!(st, n, raw)
+        _next_line(st, n, raw)
     end
     if st.block !== :none
         l = st.block_line
         _reject(st, l, :unclosed_block, lazy"the $(st.block) block opened at line $(l) is not closed by `end`")
-        _close_block!(st)
+        _close_block(st)
     end
-    _resolve_solvation!(st)
+    _resolve_solvation(st)
     _check_f12(st)
     oniom = st.oniom ? ONIOMSpec(st.high, st.low, st.model_atoms, st.model_charge, st.model_multiplicity) : nothing
     inp = _finalize_input(
         _input(st.d, oniom); source = st.source, lenient, warnings = st.warnings,
         method_line = get(st.seen, :method, 0), multiplicity_line = get(st.seen, :multiplicity, 0),
+        charge_line = get(st.seen, :charge, 0),
         sites = st.sites,
     )
     return ParsedInput(inp, st.warnings)
@@ -230,7 +231,7 @@ end
 
 # Line `n`: the title of a comment line, a type-confusion check, then a block content line or a
 # keyword line.
-function _line!(st::_InpState, n::Int, raw::SubString{String})
+function _next_line(st::_InpState, n::Int, raw::SubString{String})
     line, tokens = input_line(raw, n)
     isempty(line) && return nothing
     if startswith(line, '#')
@@ -250,9 +251,9 @@ function _line!(st::_InpState, n::Int, raw::SubString{String})
     end
     kw = lowercase(t1)
     if st.block === :none
-        _keyword_line!(st, n, tokens, kw)
+        _keyword_line(st, n, tokens, kw)
     else
-        _block_line!(st, n, tokens, kw)
+        _block_line(st, n, tokens, kw)
     end
     return nothing
 end
@@ -261,17 +262,6 @@ end
 # token that does not parse (the oracle fails there too); an `_optional` reader rejects it as
 # `case` and returns `nothing`. Every float reader rejects a non-finite value as `:nonfinite` and,
 # in lenient mode, returns it.
-
-# Whether `t` is an optional sign followed by one or more ASCII digits.
-function _is_decimal_int(t::AbstractString)
-    n = ncodeunits(t)
-    i = n >= 1 && (codeunit(t, 1) == UInt8('+') || codeunit(t, 1) == UInt8('-')) ? 2 : 1
-    i <= n || return false
-    for j in i:n
-        UInt8('0') <= codeunit(t, j) <= UInt8('9') || return false
-    end
-    return true
-end
 
 # The words `words[i:end]` joined by `delim`. Written out with `write` calls on the concrete word
 # and delimiter types, which `Base.join` reaches only through a runtime dispatch.
@@ -284,7 +274,7 @@ function _join(words::Vector{S}, delim::Union{Char, String}, i::Int) where {S <:
     return String(take!(io))
 end
 
-_parse_int(t::AbstractString) = _is_decimal_int(t) ? tryparse(Int, t) : nothing
+_parse_int(t::AbstractString) = is_decimal_int(t) ? tryparse(Int, t) : nothing
 
 function _finite(st::_InpState, n::Int, kw, t::AbstractString, x::Float64)
     isfinite(x) || _reject(st, n, :nonfinite, lazy"`$(kw)`: expected a finite number, got $(repr(t))")
@@ -546,7 +536,7 @@ function _method_value(st::_InpState, n::Int, kw::String, tokens::Vector{SubStri
 end
 
 # A keyword line outside blocks.
-function _keyword_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
+function _keyword_line(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     i = _keyword_index(kw)
     if i == 0
         if kw == "end"
@@ -575,14 +565,14 @@ function _keyword_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
         end
         return nothing
     end
-    _count_ok(st, n, kw, c, length(tokens) - 1, lo, hi) || return _missing!(st, c)
-    _keyword_value!(st, n, kw, c, tokens)
+    _count_ok(st, n, kw, c, length(tokens) - 1, lo, hi) || return _missing(st, c)
+    _keyword_value(st, n, kw, c, tokens)
     return nothing
 end
 
 # The value the oracle takes for keyword `c` given without its value, or for a list keyword with
 # too few values; reached in lenient mode only. Every keyword not named keeps its value.
-function _missing!(st::_InpState, c::Symbol)
+function _missing(st::_InpState, c::Symbol)
     d = st.d
     if c in BOOL_KEYWORDS
         _set_bool!(st, c, !(c in FALSE_KEYWORDS))
@@ -695,7 +685,7 @@ function _set_pcm_grid!(st::_InpState, g::Int)
 end
 
 # The value of keyword `c` (written `kw`) on line `n`, whose value count is checked.
-function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{SubString{String}})
+function _keyword_value(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{SubString{String}})
     d = st.d
     nv = length(tokens) - 1
     t = nv >= 1 ? tokens[2] : tokens[1]
@@ -851,7 +841,7 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         d.kpath = path
     elseif c === :oniom_model
         st.oniom = true
-        _model_atoms!(st, n, kw, tokens)
+        _model_atoms(st, n, kw, tokens)
     elseif c === :oniom_model_charge
         st.oniom = true
         st.model_charge = _int32_optional(st, n, kw, t, :number_fallback)
@@ -863,10 +853,10 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
             a = _index(st, n, kw, tokens[j], :bad_list_entry)
             isnothing(a) && continue
             push!(d.constraints, Constraint(FreezeAtom, (a, 0, 0, 0), nothing))
-            _constraint_site!(st, n, kw)
+            _constraint_site(st, n, kw)
         end
     elseif c === :freeze_bond || c === :freeze_angle || c === :freeze_dihedral
-        _freeze!(st, n, kw, c, tokens)
+        _freeze(st, n, kw, c, tokens)
     elseif c === :irc_step_size
         x = _float_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.irc_step_size = x)
@@ -896,15 +886,15 @@ function _keyword_value!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::V
         x = _uint_optional(st, n, kw, t, :number_fallback)
         isnothing(x) || (d.dmft_n_bath = x)
     elseif c === :fragments
-        _fragments_keyword!(st, n, tokens)
+        _fragments_keyword(st, n, tokens)
     else
-        _open_block!(st, n, c, tokens)
+        _open_block(st, n, c, tokens)
     end
     return nothing
 end
 
 # The atom indices of an `oniom_model`, `model_atoms` or `model_indices` line.
-function _model_atoms!(st::_InpState, n::Int, kw::String, tokens::Vector{SubString{String}})
+function _model_atoms(st::_InpState, n::Int, kw::String, tokens::Vector{SubString{String}})
     for j in 2:lastindex(tokens)
         a = _index(st, n, kw, tokens[j], :bad_list_entry)
         isnothing(a) && continue
@@ -917,7 +907,7 @@ end
 
 # A `freeze_bond`, `freeze_angle` or `freeze_dihedral` line: 2, 3 or 4 atom indices and an
 # optional target, in bohr for a bond and in degrees (stored in radians) for an angle.
-function _freeze!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{SubString{String}})
+function _freeze(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{SubString{String}})
     k = c === :freeze_bond ? 2 : c === :freeze_angle ? 3 : 4
     atoms = (0, 0, 0, 0)
     for j in 1:k
@@ -932,18 +922,18 @@ function _freeze!(st::_InpState, n::Int, kw::String, c::Symbol, tokens::Vector{S
     end
     kind = c === :freeze_bond ? FreezeBond : c === :freeze_angle ? FreezeAngle : FreezeDihedral
     push!(st.d.constraints, Constraint(kind, atoms, target))
-    _constraint_site!(st, n, kw)
+    _constraint_site(st, n, kw)
     return nothing
 end
 
-function _constraint_site!(st::_InpState, n::Int, kw::String)
+function _constraint_site(st::_InpState, n::Int, kw::String)
     push!(st.sites.constraint_lines, n)
     push!(st.sites.constraint_labels, "`" * kw * "`")
     return nothing
 end
 
 # Appends the fragments `frags` of line `n`.
-function _add_fragments!(st::_InpState, n::Int, frags::Vector{Vector{Int}})
+function _add_fragments(st::_InpState, n::Int, frags::Vector{Vector{Int}})
     append!(st.d.fragments, frags)
     for _ in eachindex(frags)
         push!(st.sites.fragment_lines, n)
@@ -978,23 +968,23 @@ function _parse_fragments(st::_InpState, n::Int, text::AbstractString)
 end
 
 # The `fragments` keyword: two or more fragments on its line, or none, which opens a block.
-function _fragments_keyword!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
+function _fragments_keyword(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     if length(tokens) == 1
-        _open_block!(st, n, :fragments, tokens)
+        _open_block(st, n, :fragments, tokens)
         return nothing
     end
     frags = _parse_fragments(st, n, _join(tokens, ' ', 2))
     if length(frags) >= 2
-        _add_fragments!(st, n, frags)
+        _add_fragments(st, n, frags)
         return nothing
     end
     _reject(st, n, :too_few_values, lazy"`fragments` on its line needs at least 2 fragments, got $(length(frags))")
-    _open_block!(st, n, :fragments, tokens)
+    _open_block(st, n, :fragments, tokens)
     return nothing
 end
 
 # Opens the block of keyword `c` on line `n`; a geometry block reads its unit.
-function _open_block!(st::_InpState, n::Int, c::Symbol, tokens::Vector{SubString{String}})
+function _open_block(st::_InpState, n::Int, c::Symbol, tokens::Vector{SubString{String}})
     if c === :geometry
         st.first_geometry == 0 ? (st.first_geometry = n) :
             _reject(st, n, :duplicate_block, lazy"second geometry block (first at line $(st.first_geometry))")
@@ -1030,10 +1020,10 @@ function _not_keyword(st::_InpState, t::AbstractString)
 end
 
 # A line inside the open block.
-function _block_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
+function _block_line(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     if kw == "end"
         length(tokens) == 1 || _reject(st, n, :extra_values, lazy"`end` takes no value, got $(length(tokens) - 1)")
-        _close_block!(st)
+        _close_block(st)
         return nothing
     end
     i = _keyword_index(kw)
@@ -1045,29 +1035,37 @@ function _block_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
         if INP_KEYWORDS[i][2] in BLOCK_KEYWORDS
             l = st.block_line
             _reject(st, n, :unclosed_block, lazy"the $(st.block) block opened at line $(l) is not closed by `end`")
-            _close_block!(st)
+            _close_block(st)
         end
-        _keyword_line!(st, n, tokens, kw)
+        _keyword_line(st, n, tokens, kw)
         return nothing
     end
     b = st.block
     if b === :geometry || b === :product_geometry
-        _geometry_line!(st, n, tokens, kw)
+        _geometry_line(st, n, tokens, kw)
     elseif b === :charges
-        _charges_line!(st, n, tokens)
+        _charges_line(st, n, tokens)
     elseif b === :hubbard
-        _hubbard_line!(st, n, tokens)
+        _hubbard_line(st, n, tokens)
     elseif b === :fragments
-        _add_fragments!(st, n, _parse_fragments(st, n, _join(tokens, ' ', 1)))
+        if _fragment_start(tokens[1])
+            _add_fragments(st, n, _parse_fragments(st, n, _join(tokens, ' ', 1)))
+        else
+            _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
+        end
     elseif b === :cell
-        _cell_line!(st, n, tokens)
+        _cell_line(st, n, tokens)
     elseif b === :pbc
-        _pbc_line!(st, n, tokens)
+        _pbc_line(st, n, tokens)
     else
-        _oniom_line!(st, n, tokens, kw)
+        _oniom_line(st, n, tokens, kw)
     end
     return nothing
 end
+
+# Whether `t` can start a line of a fragments block: a fragment is a list of atom indices, so its
+# first character is a digit, a sign or a separator.
+_fragment_start(t::AbstractString) = !isempty(t) && first(t) in "0123456789+-,;"
 
 # The position of the coordinate tokens `i:i+2`, in bohr.
 function _position(st::_InpState, n::Int, tokens::Vector{SubString{String}}, i::Int)
@@ -1084,7 +1082,7 @@ end
 _ghost_form(s::AbstractString) = startswith(s, "Bq") || startswith(s, "bq") || endswith(s, '@')
 
 # `Sym x y z`, an atom, or `Bq x y z q`, a point charge, in a geometry or product_geometry block.
-function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
+function _geometry_line(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     nt = length(tokens)
     nt < 4 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     if kw == "bq" && nt >= 5
@@ -1119,7 +1117,7 @@ function _geometry_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}
 end
 
 # `q x y z` in a charges block.
-function _charges_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
+function _charges_line(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
     nt < 4 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     nt > 4 && _reject(st, n, :extra_values, lazy"a charges line takes 4 tokens (a charge and 3 coordinates), got $(nt)")
@@ -1129,7 +1127,7 @@ function _charges_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
 end
 
 # `Sym U` in a hubbard block; an element is given once.
-function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
+function _hubbard_line(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
     nt < 2 && return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
     nt > 2 && _reject(st, n, :extra_values, lazy"a hubbard line takes 2 tokens (a symbol and U), got $(nt)")
@@ -1160,9 +1158,12 @@ function _hubbard_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}
 end
 
 # One of the three lattice vectors (Å) of a cell block.
-function _cell_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
-    st.block_lines >= 3 && return _reject(st, n, :extra_values, "the cell block takes 3 lines")
+function _cell_line(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
+    # A line of another count that does not start with a number is no cell line.
+    nt != 3 && isnothing(parse_coordinate(tokens[1])) &&
+        return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
+    st.block_lines >= 3 && return _reject(st, n, :extra_values, "the cell block takes 3 lines")
     nt == 3 || return _reject(st, n, :dropped_block_line, lazy"a cell line takes 3 numbers, got $(nt)")
     x = _float_optional(st, n, :cell, tokens[1], :bad_list_entry)
     y = _float_optional(st, n, :cell, tokens[2], :bad_list_entry)
@@ -1175,10 +1176,16 @@ end
 
 _pbc_flag(t::AbstractString) = t == "true" || t == "1" || t == "T"
 
+# Whether `t` is a word of a periodicity flag: `true`, `false`, `1`, `0`, `T` or `F`.
+_pbc_word(t::AbstractString) = t in ("true", "false", "1", "0", "T", "F")
+
 # The three periodicity flags of a pbc block.
-function _pbc_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}})
-    st.block_lines >= 1 && return _reject(st, n, :extra_values, "the pbc block takes 1 line")
+function _pbc_line(st::_InpState, n::Int, tokens::Vector{SubString{String}})
     nt = length(tokens)
+    # A line of fewer than 3 tokens that does not start with a flag word is no pbc line.
+    nt < 3 && !_pbc_word(tokens[1]) &&
+        return _reject(st, n, :dropped_block_line, _not_keyword(st, tokens[1]))
+    st.block_lines >= 1 && return _reject(st, n, :extra_values, "the pbc block takes 1 line")
     nt < 3 && return _reject(st, n, :too_few_values, lazy"a pbc line takes 3 values, got $(nt)")
     # Lenient mode reads the first three tokens, true for `true`, `1` or `T` and false for any
     # other token, as the oracle does (`parser.rs:645-653`); one warning covers the line.
@@ -1197,7 +1204,7 @@ end
 
 # `high`, `low`, `model_atoms`/`model_indices`, `model_charge` or `model_multiplicity` in an oniom
 # block.
-function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
+function _oniom_line(st::_InpState, n::Int, tokens::Vector{SubString{String}}, kw::String)
     key = kw == "high" ? :oniom_high : kw == "low" ? :oniom_low :
         kw == "model_atoms" || kw == "model_indices" ? :oniom_model :
         kw == "model_charge" ? :oniom_model_charge : kw == "model_multiplicity" ? :oniom_model_multiplicity : :none
@@ -1210,7 +1217,7 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
         isnothing(m) && return nothing
         key === :oniom_high ? (st.high = m) : (st.low = m)
     elseif key === :oniom_model
-        _count_ok(st, n, kw, key, length(tokens) - 1, 1, -1) && _model_atoms!(st, n, kw, tokens)
+        _count_ok(st, n, kw, key, length(tokens) - 1, 1, -1) && _model_atoms(st, n, kw, tokens)
     else
         ok = _count_ok(st, n, kw, key, length(tokens) - 1, 1, 1)
         if key === :oniom_model_charge
@@ -1223,7 +1230,7 @@ function _oniom_line!(st::_InpState, n::Int, tokens::Vector{SubString{String}}, 
 end
 
 # Closes the open block: a cell block needs its 3 lines and a pbc block its line.
-function _close_block!(st::_InpState)
+function _close_block(st::_InpState)
     b = st.block
     l = st.block_line
     k = st.block_lines
@@ -1256,8 +1263,8 @@ end
 # The solvation of the input. Strict mode reads it independently of the order of the lines; lenient
 # mode takes the oracle's reading in file order, `seq`, and records an `:order_dependent` warning
 # when the two differ and no warning on a solvation line accounts for it (`_order_warned_at`).
-function _resolve_solvation!(st::_InpState)
-    _solvation_by_keyword!(st)
+function _resolve_solvation(st::_InpState)
+    _solvation_by_keyword(st)
     st.lenient || return nothing
     s = st.seq
     if s !== st.d.solvation
@@ -1279,7 +1286,7 @@ end
 
 # The solvation model and its options, independent of the order of their lines. The model is the
 # `solvation` word if given; otherwise `solvent` gives SMD and `epsilon` alone gives PCM.
-function _solvation_by_keyword!(st::_InpState)
+function _solvation_by_keyword(st::_InpState)
     seen = st.seen
     l_model = get(seen, :solvation, 0)
     l_solvent = get(seen, :solvent, 0)

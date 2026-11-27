@@ -159,6 +159,8 @@ function nelectrons(mol::Molecule)
     return n
 end
 
+_electrons(n::Integer) = n == 1 ? "electron" : "electrons"
+
 # The electron count and the number of unpaired electrons, mult − 1; throws when the electrons
 # cannot be split into that many unpaired ones and pairs.
 function _spin_split(mol::Molecule)
@@ -166,7 +168,7 @@ function _spin_split(mol::Molecule)
     u = mol.multiplicity - 1
     d = n - u
     (d < 0 || isodd(d)) &&
-        throw(ArgumentError(lazy"system: $(n) electrons cannot have multiplicity $(mol.multiplicity)"))
+        throw(ArgumentError(lazy"system: $(n) $(_electrons(n)) cannot have multiplicity $(mol.multiplicity)"))
     return n, u
 end
 

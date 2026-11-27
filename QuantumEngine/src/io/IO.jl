@@ -30,7 +30,7 @@ export XYZFrame, read_xyz, write_xyz, read_pdb, read_cif
 export Verbosity, Silent, Low, Normal, High, verbosity_from_input, Logger, log_print, log_success,
     log_warning, log_error, log_heading, log_section, print_atom_table, print_total_energy,
     report_optimization_step
-public input_line, reject_or_warn, parse_coordinate, is_path_separator, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
+public input_line, is_decimal_int, reject_or_warn, parse_coordinate, is_path_separator, fmt_fixed, fmt_exp, fmt_int, fmt_str, FORMAT_PRECISIONS, log_path, output_base
 public MoldenShell, MoldenOrbitals, MoldenData, write_molden, read_molden
 
 @strict_exempt :noalloc read_xyz reason = "entry point: xyz reader"

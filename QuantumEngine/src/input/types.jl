@@ -513,7 +513,7 @@ function _check_hubbard_symbol(
 end
 
 """
-    _finalize_input(inp::InputFile; source = "<input>", lenient = false, warnings = InputWarning[], method_line = 0, multiplicity_line = 0, sites = _IndexSites()) -> InputFile
+    _finalize_input(inp::InputFile; source = "<input>", lenient = false, warnings = InputWarning[], method_line = 0, multiplicity_line = 0, charge_line = 0, sites = _IndexSites()) -> InputFile
 
 The checks every input format shares, run once after the parse of `inp` from `source`: the input
 has atoms; every atom index of a constraint, a fragment or the ONIOM model atoms names one of its
@@ -522,14 +522,16 @@ kept, as the oracle keeps it, with an `:atom_index_range` or `:repeated_atom` wa
 line and label of `sites`); a method with a restricted reference has multiplicity 1 (in lenient mode the reference
 becomes `AutoReference`, as the oracle chooses it, with a `:rhf_open_shell` warning); and the
 charge and multiplicity give a whole number of α and β electrons. The errors name the line of
-`method` and of `multiplicity` (0 for a structured input or a keyword not given); an
-`ArgumentError` of the electron counts is rethrown as an `InputError` with its message. Every
+`method`, of `multiplicity` and of `charge` (0 for a structured input or a keyword not given): a
+charge above the nuclear charge is reported at the charge line, the other electron-count errors
+at the multiplicity line; an `ArgumentError` of the electron counts is rethrown as an
+`InputError` with its message. Every
 parser passes `source`, `lenient` and `warnings`; the defaults give the method a call without
 keywords, which the type-stability check of the module judges.
 """
 function _finalize_input(
         inp::InputFile; source::AbstractString = "<input>", lenient::Bool = false,
-        warnings::Vector{InputWarning} = InputWarning[], method_line::Int = 0, multiplicity_line::Int = 0,
+        warnings::Vector{InputWarning} = InputWarning[], method_line::Int = 0, multiplicity_line::Int = 0, charge_line::Int = 0,
         sites::_IndexSites = _IndexSites(),
     )
     isempty(inp.atoms) && throw(InputError(source, 0, "no atoms: the input has no geometry block"))
@@ -544,13 +546,20 @@ function _finalize_input(
         d.method = MethodSpec(m.kind, AutoReference, m.ints, m.exx)
         inp = _input(d, inp.oniom)
     end
+    # `line` names the check that is running: the charge against the nuclear charge first, then the
+    # spin split.
+    line = multiplicity_line
     try
-        nalpha(molecule(inp))
+        mol = molecule(inp)
+        line = charge_line
+        nelectrons(mol)
+        line = multiplicity_line
+        nalpha(mol)
     catch e
         e isa ArgumentError || rethrow()
         msg = e.msg
-        msg isa LazyString && throw(InputError(source, multiplicity_line, msg))
-        msg isa String && throw(InputError(source, multiplicity_line, msg))
+        msg isa LazyString && throw(InputError(source, line, msg))
+        msg isa String && throw(InputError(source, line, msg))
         rethrow()
     end
     return inp

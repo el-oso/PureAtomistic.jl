@@ -69,7 +69,7 @@ function Input.parse_yaml(text::AbstractString; source::AbstractString = "<strin
         # propagate unchanged.
         e isa _MergeKey && throw(InputError(source, 0, "YAML merge keys (<<) are not supported"))
         e isa YAML.ParserError || e isa YAML.ScannerError || rethrow()
-        throw(InputError(source, 0, "not valid YAML ($(sprint(showerror, e)))$(_inp_hint(text))"))
+        throw(InputError(source, 0, lazy"not valid YAML ($(sprint(showerror, e)))$(_inp_hint(text))"))
     end
     doc isa AbstractDict && return parse_dict(doc; source, lenient)
     doc === nothing && return parse_structured(Node(nothing); source, lenient)

@@ -16,7 +16,7 @@
         ("other", "typestable"),
     )
     const OTHER = ("showerror", "show", "setindex!", "iterate", "haskey")
-    const MODULES = ("Errors", "Units", "System", "IO", "QuantumEngineYAMLExt")
+    const MODULES = ("Errors", "Units", "System", "IO", "Input", "QuantumEngineYAMLExt")
 end
 
 @testitem "StrictMode policy holds in QuantumEngine" tags = [:checks] setup = [StrictRun] begin

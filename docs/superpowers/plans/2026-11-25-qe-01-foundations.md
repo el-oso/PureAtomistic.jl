@@ -643,7 +643,7 @@ Every later task reads oracle inputs from the repository, so they are vendored b
 | `geometry`, `product_geometry` blocks; `charges` block | `[unit]` (307, 319); none (331) | `atoms::Vector{Atom{Float64}} = Atom{Float64}[]`, `product_atoms::Vector{Atom{Float64}} = Atom{Float64}[]`, `point_charges::Vector{PointCharge{Float64}} = PointCharge{Float64}[]` |
 | `title` | `1+ words`, joined by single spaces (84) | `title::String = ""` |
 | `run`, `run_mode`; `optimize` | `word` (61); none (57) | `run_mode::RunMode = SinglePoint` |
-| `charge` | `Int` in the `Int32` range (270; the oracle's `i32`, so a value outside it is an oracle error, both modes: "`charge`: expected an integer in the Int32 range, got …"; the structured `charge` and `oniom.model_charge` take the same bound, an error in both modes) | `charge::Int = 0` |
+| `charge` | `Int` in the `Int32` range (270; the oracle's `i32`, so a value outside it is an oracle error, both modes: "`charge`: expected an integer in the Int32 range, got …"; the structured `charge` and `oniom.model_charge` take the same bound: an error in strict mode, and in lenient mode `x % Int32` (the oracle's `as i32`) with an `:int32_truncated` warning) | `charge::Int = 0` |
 | `multiplicity` | `UInt` (275) | `multiplicity::Int = 1` |
 | `basis` | `word` (377) | `basis::String = "sto-3g"` (lowercased; alias resolution in 02) |
 | `method` | `word`; `libxc_gga x c` and `libxc_mgga x c`: `word Int Int`; `libxc_hgga id exx` and `libxc_hmgga id exx`: `word Int Float`; `casscf(e,o)` is one token (383, 1079-1167) | `method::MethodSpec = MethodSpec(HF, AutoReference, (0,0), 0.0)` (D29; the oracle's default is `Method::RHF`, `types.rs:236`) |
@@ -979,6 +979,7 @@ The structured-input cases (wrong types, unknown keys, methods, modes, solvents 
 | `:yaml_unknown_key` | `"scf.foo: unknown key; accepted keys: …"` | ignored |
 | `:yaml_wrong_type` | `"scf.max_iter: expected an integer, got a string"` | ignored, default kept (verified) |
 | `:yaml_int_for_float` (D5) | accepted, converted | ignored, default kept (verified) |
+| `:int32_truncated` | structured `charge` or `oniom.model_charge` outside the `Int32` range: "`charge`: expected an integer in the Int32 range, got …" | `x % Int32` (the oracle's `as i32`) |
 | `:yaml_unknown_method` | "unknown value `dft` for `method`" | ignored, HF (verified) |
 | `:yaml_unknown_mode` | "unknown value" for mode | ignored (verified) |
 | `:yaml_unknown_solvent` | "unknown value" | water |

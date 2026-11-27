@@ -85,6 +85,11 @@ end
 
 @testitem "xyz: errors" setup = [XYZFiles] begin
     @test_throws "input: t.xyz:1: xyz: expected the atom count" XYZFiles.frames("three\nc\nH 0 0 0\n")
+    # The count is an unsigned decimal integer, as the oracle's `usize` parse reads it.
+    for count in ("0x2", "0b10", "0o2", "-0", "-1")
+        @test_throws "input: t.xyz:1: xyz: expected the atom count" XYZFiles.frames("count\nc\nH 0 0 0\nH 0 0 1\n")
+    end
+    @test length(only(XYZFiles.frames("+1\nc\nH 0 0 0\n")).atoms) == 1
     @test_throws "input: t.xyz:1: xyz: the frame declares 3 atoms but has 2" XYZFiles.frames("3\nc\nH 0 0 0\nH 0 0 1\n")
     bad = "2\nc\nH 0 0 0\nXx 0 0 1\n"
     @test_throws "input: t.xyz:4: xyz: unknown element symbol \"Xx\"" XYZFiles.frames(bad)

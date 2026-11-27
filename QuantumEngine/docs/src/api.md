@@ -236,6 +236,7 @@ QuantumEngine.IO.read_cif
 
 ```@docs
 QuantumEngine.IO.input_line
+QuantumEngine.IO.is_decimal_int
 QuantumEngine.IO.reject_or_warn
 QuantumEngine.IO.parse_coordinate
 QuantumEngine.IO.is_path_separator

@@ -361,8 +361,12 @@ end
     @test InpText.parse("multiplicity 3\n" * o2).method.reference == AutoReference
     # The electron parity is checked at the multiplicity line, or at line 0 without one.
     @test_throws "input: t.inp:1: system: 16 electrons cannot have multiplicity 2" InpText.parse("multiplicity 2\n" * o2)
-    @test_throws "input: t.inp: system: 1 electrons cannot have multiplicity 1" InpText.parse("geometry\nH 0 0 0\nend\n")
-    @test_throws "input: t.inp: system: charge 3 exceeds the nuclear charge 2" InpText.parse("charge 3\ngeometry\nH 0 0 0\nH 0 0 1\nend\n")
+    @test_throws "input: t.inp: system: 1 electron cannot have multiplicity 1" InpText.parse("geometry\nH 0 0 0\nend\n")
+    @test_throws "input: t.inp:1: system: charge 3 exceeds the nuclear charge 2" InpText.parse("charge 3\ngeometry\nH 0 0 0\nH 0 0 1\nend\n")
+    # The charge error names the charge line even when the multiplicity line follows it.
+    h2 = "geometry\nH 0 0 0\nH 0 0 0.74\nend\n"
+    @test_throws "input: t.inp:1: system: charge 5 exceeds the nuclear charge 2" InpText.parse("charge 5\nmultiplicity 1\n" * h2)
+    @test_throws "input: t.inp:1: system: 1 electron cannot have multiplicity 1" InpText.parse("multiplicity 1\ncharge 1\n" * h2)
     @test_throws "input: t.inp:1: system: multiplicity must be at least 1, got 0" InpText.parse("multiplicity 0\n" * w)
     @test InpText.parse("charge 1\nmultiplicity 2\ngeometry\nH 0 0 0\nH 0 0 1\nend\n").multiplicity == 2
 end

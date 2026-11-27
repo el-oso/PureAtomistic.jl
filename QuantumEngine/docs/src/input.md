@@ -188,7 +188,7 @@ parses as a non-finite number (`nan`, `inf`, `1e500`) is `:nonfinite` and keeps 
 | case | input | lenient value |
 |---|---|---|
 | `:unknown_keyword` | `use_diis true`; `end` outside a block | ignored |
-| `:dropped_block_line` | a block line that is not the block's content, as `END_GEOMETRY` | dropped |
+| `:dropped_block_line` | a block line that is not the block's content, as `END_GEOMETRY`; in a `cell` block a line of other than 3 tokens whose first is not a number, in a `pbc` block a line of fewer than 3 tokens whose first is not `true`, `false`, `1`, `0`, `T` or `F`, in a `fragments` block a line that does not start with a digit, sign, `,` or `;` | dropped |
 | `:block_keyword` | a keyword inside a block, as `charge 1` | read as the keyword; the block stays open |
 | `:unclosed_block` | a block without `end`, at the end of the file or before a block opener | closed there, its lines kept; an opener inside a block is also `:block_keyword` |
 | `:hubbard_inline_argument` | `hubbard O:5.0` | the value is ignored and the block opens; a following line of two tokens that is not a keyword is a U line, so `use_diis true` fails with `Invalid U value: true` |
@@ -244,7 +244,7 @@ The values are those of the field of `InputFile` named in the last column. Notat
 |---|---|---|
 | `title` | `1+ words`, joined by single spaces | `title` |
 | `run`, `run_mode`; `optimize` | `word`; none | `run_mode` |
-| `charge`; `multiplicity` | `Int` in the `Int32` range (the oracle's `i32`; outside it an error in both modes); `Int` | `charge`; `multiplicity` |
+| `charge`; `multiplicity` | `Int` in the `Int32` range (the oracle's `i32`; outside it an error in strict mode and `x % Int32` with an `:int32_truncated` warning in lenient mode); `Int` | `charge`; `multiplicity` |
 | `basis` | `word`, lowercased | `basis` |
 | `method` | `word`; `libxc_gga x c`, `libxc_mgga x c`: `word Int Int`; `libxc_hgga id exx`, `libxc_hmgga id exx`: `word Int Float`; `casscf(e,o)` | `method` |
 | `scf_convergence`; `max_iterations` | `Float`; `Int` | `scf_convergence`; `max_iterations` |
@@ -290,6 +290,7 @@ The values are those of the field of `InputFile` named in the last column. Notat
 QuantumEngine.parse_inp
 QuantumEngine.molecule
 QuantumEngine.Input.accepted_keywords
+QuantumEngine.Input._finalize_input
 ```
 
 ## Structured input (JSON, dictionaries, YAML)
@@ -322,7 +323,7 @@ listed is converted.
 
 | key path | value | field |
 |---|---|---|
-| `title`; `charge`; `multiplicity` | string; integer in the `Int32` range (outside it an error in both modes); integer ≥ 0 | `title`; `charge`; `multiplicity` |
+| `title`; `charge`; `multiplicity` | string; integer in the `Int32` range (outside it an error in strict mode, wrapped with an `:int32_truncated` warning in lenient mode); integer ≥ 0 | `title`; `charge`; `multiplicity` |
 | `basis` | string, lowercased | `basis` |
 | `method` | a method word of `.inp` without the Libxc forms, in any case | `method` |
 | `mode`, else `task.mode` | a run-mode word of `.inp` | `run_mode` |
@@ -354,7 +355,7 @@ listed is converted.
 | `solvation.model`, else `solvation.pcm`, else `solvation.smd` (one of them) | `pcm` or `smd`; Boolean; Boolean | `solvation.model` |
 | `solvation` under SMD: `solvent`, `grid_order`, `probe_radius` | a solvent word; integer ≥ 0; number in Å | `solvation` |
 | `solvation` under PCM: `epsilon`, `radii_scaling`, `grid_order`, `surface` | number; number; integer ≥ 0; `vdw`, `sas` or `smd` | `solvation` |
-| `oniom`: `high`, `low`, `model_atoms`, `model_charge`, `model_multiplicity` | method words; 0-based indices; integer in the `Int32` range (outside it an error in both modes); integer ≥ 0 | `oniom` (any `oniom` value asks for ONIOM) |
+| `oniom`: `high`, `low`, `model_atoms`, `model_charge`, `model_multiplicity` | method words; 0-based indices; integer in the `Int32` range (outside it as for `charge`); integer ≥ 0 | `oniom` (any `oniom` value asks for ONIOM) |
 | `tddft`: `num_states`, `method`, `soc`, `triplets` | integer ≥ 0; a TDDFT method word; Boolean; Boolean | `tddft_states`, `tddft_method`, `compute_soc`, `tddft_triplets` |
 | `exports`: `molden`, `cube`, `wfx` | Boolean | `export_molden`, `export_cube`, `export_wfx` |
 
@@ -371,6 +372,7 @@ no field holds.
 |---|---|---|---|
 | `:yaml_unknown_key` | `"scf": {"foo": 1}` | `scf.foo: unknown key; accepted keys: …` | ignored |
 | `:yaml_wrong_type` | `"scf": {"max_iter": "many"}` | `scf.max_iter: expected an integer, got a string` | ignored, the default kept |
+| `:int32_truncated` | `"charge": 3000000000` | an error: expected an integer in the `Int32` range | `x % Int32`, as the oracle's `as i32` reads it; `oniom.model_charge` likewise; an `.inp` `charge` stays an error in both modes |
 | `:yaml_int_for_float` | `"scf": {"conv_energy": 1}` | accepted, converted to 1.0 | ignored, the default kept |
 | `:yaml_unknown_method` | `"method": "dft"`; `"method": "casscf"` | ``unknown value `dft` for `method` `` | ignored (HF); CASSCF(2, 2) for a `casscf` word, ignored when its counts are malformed |
 | `:yaml_unknown_mode` | `"mode": "zzz"` | ``unknown value `zzz` for `mode` `` | ignored |

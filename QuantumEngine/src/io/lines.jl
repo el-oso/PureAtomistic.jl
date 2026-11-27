@@ -14,6 +14,22 @@ function input_line(raw::AbstractString, n::Int)
 end
 
 """
+    is_decimal_int(t) -> Bool
+
+Whether `t` is an optional sign followed by one or more ASCII digits. `tryparse(Int, _)` alone also
+accepts base prefixes such as `0x1`, which the readers reject.
+"""
+function is_decimal_int(t::AbstractString)
+    n = ncodeunits(t)
+    i = n >= 1 && (codeunit(t, 1) == UInt8('+') || codeunit(t, 1) == UInt8('-')) ? 2 : 1
+    i <= n || return false
+    for j in i:n
+        UInt8('0') <= codeunit(t, j) <= UInt8('9') || return false
+    end
+    return true
+end
+
+"""
     reject_or_warn(source, line, lenient, warnings, case, msg) -> nothing
 
 The one choice between strict and lenient reading. Strict (`lenient == false`) throws

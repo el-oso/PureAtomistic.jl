@@ -10,6 +10,7 @@ gives.
 |---|---|---|---|
 | a word holding the Kelvin sign U+212A, such as `bacK` for `back` | not recognized (`nothing`) | recognized: Rust's `to_lowercase` maps U+212A to `k` | the word lookups lowercase ASCII bytes only |
 | the exact-exchange fraction of `libxc_hgga` or `libxc_hmgga` beyond the `Float64` range, such as `1e400` | not a number (`method_word` returns `nothing`) | `inf` (`-1e400` gives `-inf`) | the fraction is read with Parsers.jl's `tryparse(Float64, ·)`, which rejects an out-of-range decimal as Julia's `tryparse` does; Rust's `f64` parser rounds it to an infinity |
+| a keyword and its value separated by a Unicode white space other than space or tab, such as `charge` U+00A0 `1` | one unknown word `charge` U+00A0 `1`: an error in strict mode, an `:unknown_keyword` warning in lenient mode, and the charge stays 0 | two words: the charge is 1 | the input lines are split on spaces and tabs only; the oracle's `split_whitespace` splits on every Unicode white space |
 
 ## Defaults
 
