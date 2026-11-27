@@ -24,6 +24,6 @@ export rmsd, rmsd!
 @strict_exempt :noalloc rmsd reason = "entry point: allocates the vector for `rmsd!`"
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end

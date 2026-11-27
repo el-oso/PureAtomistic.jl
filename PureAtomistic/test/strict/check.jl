@@ -1,8 +1,9 @@
 # Run in a fresh process by the item "StrictMode policy holds in every module": loads the package,
 # runs `workload.jl`, then judges every compiled specialization of each module against the policy
-# `(:typestable, :noalloc)`. Type stability is proved by StrictModeTest (JET); `:noalloc` is the
-# value-free scan that `@strict_policy` itself applies, and the `@test_noalloc` items prove the
-# hot paths with AllocCheck. Functions under `@strict_exempt` are skipped for what they exempt.
+# `(:typestable, :noalloc, :noboxing)`. Type stability is proved by StrictModeTest (JET); `:noalloc`
+# and `:noboxing` are the value-free scans that `@strict_policy` itself applies, each judged on its
+# own, and the `@test_noalloc` items prove the hot paths with AllocCheck. Functions under
+# `@strict_exempt` are skipped for what they exempt.
 #
 # The module sweeps judge the functions a module owns. The methods it adds to functions it does not
 # own (`Base.getindex` of a `TrajectoryReader`) and the methods of its callable structs are judged
@@ -13,7 +14,7 @@
 #   POLICY <module> <declared guarantees>
 #   FAIL <guarantee> <module> <function and signature>
 #   JUDGED <status> <module> <function and signature>   (the `relax!` findings, for the item)
-#   CHECKED <module> <typestable signatures> <noalloc signatures>
+#   CHECKED <module> <typestable signatures> <noalloc signatures> <noboxing signatures>
 #   OTHER <status> <guarantees> <function and signature>
 #   CHECKED OTHER <specializations>
 using StrictMode, StrictModeTest
@@ -39,12 +40,17 @@ for M in (P, P.Systems, P.Potentials, P.Integrators, P.Thermostats, P.Barostats,
         println("FAIL typestable ", name, " ", replace(sprint(showerror, err), '\n' => " | "))
         0
     end
-    fs = audit(M; sweep = true, guarantees = (:noalloc,), dispatch_suggest = false)
-    for f in fs
-        f.status === :fail && println("FAIL noalloc ", name, " ", f.func, f.signature)
-        occursin("relax!", string(f.func)) && println("JUDGED ", f.status, " ", name, " ", f.func, f.signature)
+    npass = Int[]
+    for g in (:noalloc, :noboxing)
+        fs = audit(M; sweep = true, guarantees = (g,), dispatch_suggest = false)
+        for f in fs
+            f.status === :fail && println("FAIL ", f.guarantee, " ", name, " ", f.func, f.signature)
+            g === :noalloc && occursin("relax!", string(f.func)) &&
+                println("JUDGED ", f.status, " ", name, " ", f.func, f.signature)
+        end
+        push!(npass, count(f -> f.status === :pass, fs))
     end
-    println("CHECKED ", name, " ", ntypestable, " ", count(f -> f.status === :pass, fs))
+    println("CHECKED ", name, " ", ntypestable, " ", join(npass, " "))
 end
 
 # Every method of the package that the module sweeps cannot see, by function and first argument,
@@ -52,18 +58,18 @@ end
 # when it is written.
 const TR, TW = P.IO.TrajectoryReader, P.IO.TrajectoryWriter
 const OTHER_METHODS = Dict{Tuple{Any, Any}, Tuple{Vararg{Symbol}}}(
-    (length, TR) => (:typestable, :noalloc),
-    (keys, TR) => (:typestable, :noalloc),
-    (firstindex, TR) => (:typestable, :noalloc),
-    (lastindex, TR) => (:typestable, :noalloc),
+    (length, TR) => (:typestable, :noalloc, :noboxing),
+    (keys, TR) => (:typestable, :noalloc, :noboxing),
+    (firstindex, TR) => (:typestable, :noalloc, :noboxing),
+    (lastindex, TR) => (:typestable, :noalloc, :noboxing),
     # Entry point: reads frame k into a new `Frame` (`read_frame`).
     (getindex, TR) => (:typestable,),
     # Entry points: they close or flush the file.
     (close, TR) => (:typestable,),
     (close, TW) => (:typestable,),
     (flush, TW) => (:typestable,),
-    (P._Rescale, nothing) => (:typestable, :noalloc),
-    (P._IntegratorStep, nothing) => (:typestable, :noalloc),
+    (P._Rescale, nothing) => (:typestable, :noalloc, :noboxing),
+    (P._IntegratorStep, nothing) => (:typestable, :noalloc, :noboxing),
 )
 
 in_package(m::Module) = Base.moduleroot(m) === P

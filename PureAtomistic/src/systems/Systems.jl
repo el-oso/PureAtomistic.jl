@@ -17,6 +17,6 @@ include("motion.jl")
 @strict_exempt :noalloc remove_atom reason = "entry point: builds a new system"
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end

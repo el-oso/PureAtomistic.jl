@@ -16,15 +16,15 @@ export TrajectoryWriter, TrajectoryReader, write_frame, read_frame
 @strict_exempt :noalloc _comment_pairs reason = "entry point: parses the comment line for `read_extxyz`"
 @strict_exempt :noalloc _parse_matrix3 reason = "entry point: parses a 3 × 3 value for `read_extxyz`"
 @strict_exempt :noalloc _parse_properties reason = "entry point: parses the column layout for `read_extxyz`"
-@strict_exempt :noalloc write_extxyz reason = "entry point: extended XYZ writer"
-@strict_exempt :noalloc _write_value reason = "entry point: formats a comment-line value for `write_extxyz`"
-@strict_exempt :noalloc _write_array_value reason = "entry point: formats an array value for `write_extxyz`"
+@strict_exempt :noalloc :noboxing write_extxyz reason = "entry point: extended XYZ writer"
+@strict_exempt :noalloc :noboxing _write_value reason = "entry point: formats a comment-line value for `write_extxyz`"
+@strict_exempt :noalloc :noboxing _write_array_value reason = "entry point: formats an array value for `write_extxyz`"
 @strict_exempt :noalloc _write_numbers reason = "entry point: formats numbers for `write_extxyz`"
 @strict_exempt :noalloc read_frame reason = "entry point: trajectory reader, which returns a new frame"
 @strict_exempt :noalloc TrajectoryWriter reason = "entry point: creates the trajectory file and writes its header"
 @strict_exempt :noalloc write_frame reason = "entry point: appends a frame to the trajectory file"
 
 # Last, so that it checks every method defined above.
-@strict_policy (:typestable, :noalloc)
+@strict_policy (:typestable, :noalloc, :noboxing)
 
 end
