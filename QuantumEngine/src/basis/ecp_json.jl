@@ -115,6 +115,14 @@ function _ecp_finite(src::String, obj::_ECPValue, key::String, path::String)
     return v
 end
 
+function _ecp_positive(src::String, obj::_ECPValue, key::String, path::String)
+    x = _ecp_field(obj, key)
+    x.kind in (_ECP_INT, _ECP_BIGINT, _ECP_FLOAT) || throw(_ecp_error(src, path * "." * key, "expected a number"))
+    v = x.num
+    isfinite(v) && v > 0 || throw(_ecp_error(src, path * "." * key, lazy"must be positive and finite, got $(v)"))
+    return v
+end
+
 function _ecp_string(src::String, obj::_ECPValue, key::String, path::String)
     x = _ecp_field(obj, key)
     x.kind == _ECP_STRING || throw(_ecp_error(src, path * "." * key, "expected a string"))
@@ -142,7 +150,7 @@ function _ecp_channel(src::String, x::_ECPValue, path::String, lmax::Int)
         ipath = _ecp_index(path * ".primitives", i)
         p = _ecp_object(src, prims[i], ipath, ECP_PRIMITIVE_KEYS)
         push!(powers, _ecp_nonnegative(src, p, "n", ipath))
-        push!(exponents, _ecp_finite(src, p, "alpha", ipath))
+        push!(exponents, _ecp_positive(src, p, "alpha", ipath))
         push!(coefficients, _ecp_finite(src, p, "coeff", ipath))
     end
     return ECPChannel{Float64}(l, powers, exponents, coefficients)
@@ -163,8 +171,8 @@ names `source` and the location in the document, `[2].projectors[1].primitives[3
 counted from 1; `\$` for the top level): text that is not JSON, a top level that is not an array,
 an unexpected, missing or repeated key, a value of the wrong type, an integer outside the Int64
 range, a negative `z_core`, `l_max` or power `n`, a `z_core` above the atomic number, a
-projector `l` outside `0:l_max`, an `alpha` or `coeff` that is not finite (a number beyond the
-Float64 range reads as ±Inf), an unknown element symbol and a second entry for one element,
+projector `l` outside `0:l_max`, an `alpha` that is not positive and finite, a `coeff` that is
+not finite (a number beyond the Float64 range reads as ±Inf, one below it as 0), an unknown element symbol and a second entry for one element,
 printed as
 `basis: t.json: [3]: second entry for Br (first at [1])`.
 """

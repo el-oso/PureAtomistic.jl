@@ -548,7 +548,7 @@ function run_workload()
             ecp, "{}", "[{", "[3]", "[{\"symbol\": \"Br\", \"symbol\": 1}]", "[{\"zcore\": 1}]", "[{}]",
             replace(ecp, "\"br\"" => "\"Xx\""), replace(ecp, "\"br\"" => "true"), replace(ecp, "28" => "-1"), replace(ecp, "28" => "36"), replace(ecp, "\"n\": 2" => "\"n\": -1"; count = 1),
             replace(ecp, "28" => "99999999999999999999"), replace(ecp, "28" => "null"),
-            replace(ecp, "\"l\": 1" => "\"l\": 5"), replace(ecp, "\"alpha\": 2.85" => "\"alpha\": \"x\""),
+            replace(ecp, "\"l\": 1" => "\"l\": 5"), replace(ecp, "\"alpha\": 2.85" => "\"alpha\": \"x\""), replace(ecp, "\"alpha\": 2.85" => "\"alpha\": -1.5"),
             replace(ecp, "[{\"l\"" => "{\"l\""; count = 1), "[" * ecp[2:(end - 1)] * ", " * ecp[2:(end - 1)] * "]",
         )
         try

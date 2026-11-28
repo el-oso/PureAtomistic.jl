@@ -106,7 +106,15 @@ end
     # A non-finite `alpha` or `coeff`: JSON has no NaN or Inf literal, and a number beyond the
     # Float64 range reads as ±Inf.
     @test_throws "basis: t.json: $(prim).coeff: must be finite, got Inf" P(W("14.2", "1e400"))
-    @test_throws "basis: t.json: $(prim).alpha: must be finite, got -Inf" P(W("2.85", "-1e400"))
+    @test_throws "basis: t.json: $(prim).alpha: must be positive and finite, got -Inf" P(W("2.85", "-1e400"))
+    @test_throws "basis: t.json: $(prim).alpha: must be positive and finite, got Inf" P(W("2.85", "1e400"))
+    # An `alpha` of zero or below; a number below the Float64 range reads as 0.
+    @test_throws "basis: t.json: $(prim).alpha: must be positive and finite, got 0.0" P(W("2.85", "0"))
+    @test_throws "basis: t.json: $(prim).alpha: must be positive and finite, got -1.5" P(W("2.85", "-1.5"))
+    @test_throws "basis: t.json: $(prim).alpha: must be positive and finite, got 0.0" P(W("2.85", "1e-400"))
+    # A negative or zero `coeff` is accepted.
+    @test P(W("14.2", "-14.2"))["Br"].channels[1].coefficients == [-14.2]
+    @test P(W("14.2", "0"))["Br"].channels[1].coefficients == [0.0]
     # An unknown element symbol.
     @test_throws "basis: t.json: [1].symbol: unknown element symbol \"Xx\"" P(W("\"Br\"", "\"Xx\""))
     # A repeated symbol, in any ASCII case.
