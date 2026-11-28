@@ -78,7 +78,7 @@ export build_basis
 @strict_exempt :noalloc :noboxing types = (Molecule, AbstractString) build_basis reason = "entry point: builds the molecular basis from a basis name; the default basis_search_paths() (Base's pkgdir) and locate_basis_file (Base's abspath) index a tuple at run time (tuple.jl:33), which boxes"
 @strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, Union{Nothing, Logger}, typeof(build_basis), Molecule, AbstractString) build_basis reason = "entry point: builds the molecular basis from a basis name; locate_basis_file (Base's abspath) indexes a tuple at run time (tuple.jl:33), which boxes"
 @strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, Union{Nothing, Logger}, typeof(build_basis), Molecule, AbstractString, Type{<:AbstractFloat}) build_basis reason = "entry point: builds the molecular basis from a basis name; locate_basis_file (Base's abspath) indexes a tuple at run time (tuple.jl:33), which boxes"
-@strict_exempt :noalloc _build_basis reason = "entry point: builds the molecular basis"
+@strict_exempt :noalloc _build_basis reason = "entry point: builds the molecular basis (called by build_basis)"
 @strict_exempt :noalloc _place_shell reason = "entry point: builds the molecular basis (called by _build_basis)"
 
 # Last statement: the policy checks the methods defined above it.
