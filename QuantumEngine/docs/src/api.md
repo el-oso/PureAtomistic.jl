@@ -173,6 +173,7 @@ QuantumEngine.Units
 QuantumEngine.System
 QuantumEngine.IO
 QuantumEngine.Input
+QuantumEngine.Basis
 ```
 
 ## Units and elements
@@ -288,4 +289,34 @@ QuantumEngine.Input.FloatNode
 QuantumEngine.Input.StringNode
 QuantumEngine.Input.ArrayNode
 QuantumEngine.Input.MapNode
+```
+
+## Basis sets
+
+See [Basis sets](basis.md) for the component order, the l limit, the aliases and the search order.
+
+```@docs
+QuantumEngine.Basis.ncart
+QuantumEngine.Basis.cartesian_component
+QuantumEngine.Basis.primitive_norm
+QuantumEngine.Basis.contraction_renorm
+QuantumEngine.Basis.Primitive
+QuantumEngine.Basis.ShellSpec
+QuantumEngine.Basis.ECPChannel
+QuantumEngine.Basis.ECPPotential
+QuantumEngine.Basis.ElementBasis
+QuantumEngine.Basis.Shell
+QuantumEngine.Basis.BasisSet
+QuantumEngine.Basis.ao_range
+QuantumEngine.Basis.shell_pairs
+QuantumEngine.Basis.ShellPairs
+QuantumEngine.Basis.parse_gbs
+QuantumEngine.Basis.read_element_basis
+QuantumEngine.Basis.parse_ecp_json
+QuantumEngine.Basis.read_ecp_json
+QuantumEngine.Basis.normalize_basis_name
+QuantumEngine.Basis.candidate_stems
+QuantumEngine.Basis.basis_search_paths
+QuantumEngine.Basis.locate_basis_file
+QuantumEngine.Basis.build_basis
 ```

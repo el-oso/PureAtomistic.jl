@@ -21,6 +21,7 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "Input files" => "input.md",
+        "Basis sets" => "basis.md",
         "API" => "api.md",
         "Dependencies" => "dependencies.md",
         "Parity with the oracle" => "parity.md",

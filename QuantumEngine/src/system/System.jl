@@ -23,9 +23,9 @@ whether it is a `ghost` (it carries basis functions but no nucleus and no electr
 builds an atom with `T = float(eltype(position))` from a `position` of length 3. The `symbol` is
 matched without regard to case: `El` is an atom of element `El`, and `El@`, `BqEl` and `Bq-El` are
 ghosts of `El`. The default `mass` is the element's `mass_most_abundant` (see
-[`Element`](@ref)). Throws an `ArgumentError` for a position whose length is not 3, a bare `Bq`, a
-symbol that names no element, a `mass` given for a ghost, and a `mass` that is not finite and
-positive.
+[`Element`](@ref QuantumEngine.Units.Element)). Throws an `ArgumentError` for a position whose
+length is not 3, a bare `Bq`, a symbol that names no element, a `mass` given for a ghost, and a
+`mass` that is not finite and positive.
 """
 struct Atom{T <: Real}
     Z::Int
