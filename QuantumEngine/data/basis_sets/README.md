@@ -28,12 +28,15 @@ No license or terms of use specific to the data were found, as read on
 2026-11-28: not in the `MolSSI-BSE/basis_set_exchange` repository (commit
 `4adaf1372c7101620ca1a9f3130be9ae97fb8f30`), whose data directory
 `basis_set_exchange/data/` has no README, LICENSE or NOTICE file and whose
-notes files give provenance only; not in its documentation, which says "The
-code is released under the BSD 3-Clause license"; and not on the website, which
-has a copyright line ("© 2020-2026 The Molecular Sciences Software Institute
-(MolSSI), Virginia Tech") and no terms page. The one license is the repository's
-BSD 3-Clause license, which covers the `basis_set_exchange` package; the data
-is distributed inside that package.
+notes files read (`6-31GSS.notes`, `6-311GSS.notes`, `6-311PPGSS.notes`,
+`6-311PPG(2d,2p).notes` and part of `NOTES.pople`) give provenance only; not
+in its documentation, which says "The code is released under the BSD 3-Clause
+license"; and not on the website, which has a copyright line ("© 2020-2026 The
+Molecular Sciences Software Institute (MolSSI), Virginia Tech") and no terms
+page. Not checked: the text of the paper cited above, the other per-set notes
+files, and any CONTRIBUTING or NOTICE file in the repository. The one license
+is the repository's BSD 3-Clause license, which covers the `basis_set_exchange`
+package; the data is distributed inside that package.
 
 The data is therefore shipped here as covered by that license. The project
 owner accepted these terms on 2026-11-28. The license, as it reads at the
