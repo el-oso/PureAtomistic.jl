@@ -157,17 +157,54 @@
     const ORACLE_AUX_DEFAULT = "def2-SVP-JKFIT"
 
     """
-        case_basis_names(case) -> Tuple{String, Union{Nothing,String}}
+        input_basis_names(text, case) -> Tuple{String, Union{Nothing,String}}
 
-    The basis name of `case`'s input and its auxiliary basis name: the input's `aux_basis`, or
-    [`ORACLE_AUX_DEFAULT`](@ref) when the input sets `use_ri_j` or `use_ri_k` without one, or
-    `nothing` when the oracle builds no auxiliary basis for it.
+    The basis name of the input `text` (the input of `case`) and its auxiliary basis name: the
+    input's `aux_basis`, or [`ORACLE_AUX_DEFAULT`](@ref) when the input sets `use_ri_j` or
+    `use_ri_k` without one, or `nothing` when the oracle builds no auxiliary basis for it. Throws
+    when the input sets `admm`: the oracle then reads a third basis, `admm_basis`
+    (`scf/scf_cycle.rs:373-374`), which the harness does not resolve.
     """
-    function case_basis_names(case::AbstractString)
-        input = QuantumEngine.Input.parse_inp(case_input(case); source = case * ".inp").input
+    function input_basis_names(text::AbstractString, case::AbstractString)
+        input = QuantumEngine.Input.parse_inp(text; source = case * ".inp").input
+        input.admm && error("oracle: case $case sets admm; the harness does not resolve its basis")
         aux = input.aux_basis
         aux === nothing && (input.use_ri_j || input.use_ri_k) && (aux = ORACLE_AUX_DEFAULT)
         return (input.basis, aux)
+    end
+
+    """
+        case_basis_names(case) -> Tuple{String, Union{Nothing,String}}
+
+    [`input_basis_names`](@ref) of `case`'s input.
+    """
+    case_basis_names(case::AbstractString) = input_basis_names(case_input(case), case)
+
+    """
+        case_elements(case) -> Vector{String}
+
+    The symbols of the elements whose basis functions the atoms of `case`'s input carry (a ghost
+    carries those of the element it stands for), sorted, each once.
+    """
+    function case_elements(case::AbstractString)
+        input = QuantumEngine.Input.parse_inp(case_input(case); source = case * ".inp").input
+        return sort!(unique!([element(basis_element(a)).symbol for a in input.atoms]))
+    end
+
+    """
+        check_basis_elements(file, elements, name)
+
+    Throw unless the basis file `file`, resolved for the basis name `name`, holds every element of
+    `elements`. The oracle reads each element from the first file that holds it and otherwise
+    goes on to later files and its built-in sets (`reader.rs:37-50, 184-190`), so a file without
+    one of the elements is not the only file the run reads.
+    """
+    function check_basis_elements(file::AbstractString, elements, name::AbstractString)
+        data = open(io -> QuantumEngine.Basis.parse_gbs(io; source = file), file)
+        for s in elements
+            haskey(data, s) || error("oracle: basis \"$name\" resolves to $file, which has no element $s")
+        end
+        return nothing
     end
 
     # ---------------------------------------------------------------- running the oracle
@@ -254,7 +291,8 @@
     Before the run, the case's basis and auxiliary basis ([`case_basis_names`](@ref)) are resolved
     as the oracle resolves them. In the normal mode `dir` defaults to `mktempdir()`,
     `dir/basis_sets` links to [`oracle_basis_dir`](@ref), each name must resolve to a file in it
-    ([`oracle_basis_file`](@ref)), and `basis_file` and `aux_basis_file` are those files'
+    ([`oracle_basis_file`](@ref)) that holds every element of the case
+    ([`check_basis_elements`](@ref)), and `basis_file` and `aux_basis_file` are those files'
     basenames (`aux_basis_file` is `nothing` without an auxiliary basis). With `fallback = true`
     the oracle runs from a copy of its binary at `mktempdir()/x/y/quantum_engine`, in `dir`
     (default `mktempdir()/a/b/run`) with no `basis_sets` link, so that it uses its built-in basis
@@ -284,8 +322,14 @@
         end
         symlink(oracle_basis_dir(), joinpath(dir, "basis_sets"))
         exe = something(Sys.which(bin), abspath(bin))
-        basis_file = basename(oracle_basis_file(names[1], dir, exe))
-        aux_basis_file = names[2] === nothing ? nothing : basename(oracle_basis_file(names[2], dir, exe))
+        elements = case_elements(case)
+        files = map(names) do name
+            name === nothing && return nothing
+            f = oracle_basis_file(name, dir, exe)
+            check_basis_elements(f, elements, name)
+            return basename(f)
+        end
+        basis_file, aux_basis_file = files
         r = run_oracle_file(case * ".inp", case_input(case); dir, command, binary = bin, link_basis = false)
         return (; r..., basis_file, aux_basis_file)
     end

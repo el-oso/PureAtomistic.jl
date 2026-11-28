@@ -25,7 +25,7 @@ method rhf
 scf_convergence 1e-10
 max_iterations 100
 '''
-source = "derived from examples/h2o_631g_sp.inp: basis 6-31g* (line 11), method rhf (line 12)"
+source = "derived from examples/h2o_631g_sp.inp: basis 6-31g* (line 11), method rhf (line 12); line 1 kept as in the example"
 command = "run"
 extract = ["total_energy"]
 exports = []

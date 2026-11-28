@@ -258,7 +258,7 @@ end
     @test_throws "oracle: the output of w.inp names the home directory" H.scrub(homedir() * "/x", "w.inp", dir)
 end
 
-# E5: the oracle's stems, read from `reader.rs:54-160`.
+# The oracle's stems, read from `reader.rs:54-160`.
 @testitem "harness: oracle basis stems" setup = [OracleHarness] begin
     using QuantumEngine.Basis: candidate_stems
     using .OracleHarness: ORACLE_NORMALIZATION, oracle_candidate_stems
@@ -305,6 +305,27 @@ end
     withenv("QUANTUM_ENGINE_ORACLE_BASIS" => joinpath(run, "basis_sets")) do
         @test oracle_basis_file("6-31g*", run, exe) == realpath(joinpath(run, "basis_sets", "6-31g_star.gbs"))
     end
+end
+
+@testitem "harness: case basis names" setup = [OracleHarness] begin
+    using .OracleHarness: input_basis_names, case_basis_names, case_elements, check_basis_elements
+    geometry = "geometry angstrom\nO 0.0 0.0 0.1173\nH 0.0 0.7572 -0.4692\nH 0.0 -0.7572 -0.4692\nend\n"
+    @test input_basis_names(geometry * "basis 6-31g*\nmethod rhf\n", "w") == ("6-31g*", nothing)
+    @test input_basis_names(geometry * "basis 6-31g*\nmethod rhf\nri_j true\n", "w") == ("6-31g*", "def2-SVP-JKFIT")
+    @test input_basis_names(geometry * "basis 6-31g*\nmethod rhf\nri_k true\n", "w") == ("6-31g*", "def2-SVP-JKFIT")
+    @test input_basis_names(geometry * "basis 6-31g*\nmethod rhf\nri_j true\naux_basis def2-universal-jkfit\n", "w") ==
+        ("6-31g*", "def2-universal-jkfit")
+    @test input_basis_names(geometry * "basis 6-31g*\nmethod rhf\naux_basis def2-universal-jkfit\n", "w") ==
+        ("6-31g*", "def2-universal-jkfit")
+    @test_throws "oracle: case w sets admm; the harness does not resolve its basis" input_basis_names(
+        geometry * "basis 6-31g*\nmethod rhf\nadmm true\n", "w"
+    )
+    @test case_basis_names("fallback_self_check") == ("6-31g*", nothing)
+    @test case_elements("fallback_self_check") == ["H", "O"]
+    # A resolved file must hold every element of the case.
+    file = joinpath(pkgdir(QuantumEngine), "test", "oracle", "basis", "oracle-def2-svp-jkfit.gbs")
+    @test check_basis_elements(file, ["H", "O"], "x") === nothing
+    @test_throws "oracle: basis \"x\" resolves to $file, which has no element S" check_basis_elements(file, ["H", "S"], "x")
 end
 
 # The oracle's fallback for 6-31G* holds C, O and H (`reader.rs:46-48`), so the water run in
