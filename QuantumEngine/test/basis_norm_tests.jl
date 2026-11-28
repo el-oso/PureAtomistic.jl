@@ -79,6 +79,7 @@
         end
         κ = sabs / abs(ssum)
         u = big(eps(T)) / 2
+        # Rule (b): k = n² + 5l + 15 roundings, derived in the file header.
         k = n^2 + 5l + 15
         γ = k * u / (1 - k * u)
         # The component-independent part of each pair, c_i c_j (π/p)^{3/2} / (2p)^l, p = α_i + α_j.
@@ -136,7 +137,9 @@ end
         ("def2-tzvpp.gbs", tz_g),
     )
     run_checks(files) do T, file, sym, spec, row
+        # Rule (b): γ_k·κ, k = n² + 5l + 15, u = eps(T)/2 (file header).
         @test abs(row.S - 1) <= row.γ * row.κ
+        # Rule (a): the 1e-12 normalization criterion of the project overview.
         T === Float64 && @test abs(row.S - 1) <= 1.0e-12
     end
 end
@@ -145,7 +148,9 @@ end
     using .NormClosedForm: run_checks
     files = (("def2-qzvpp.gbs", s -> s.l <= 5), ("ano-rcc.gbs", s -> s.l <= 5))
     run_checks(files) do T, file, sym, spec, row
+        # Rule (b): γ_k·κ, k = n² + 5l + 15, u = eps(T)/2 (file header).
         @test abs(row.S - 1) <= row.γ * row.κ
+        # Rule (a): the 1e-12 normalization criterion of the project overview.
         T === Float64 && @test abs(row.S - 1) <= 1.0e-12
     end
 end
