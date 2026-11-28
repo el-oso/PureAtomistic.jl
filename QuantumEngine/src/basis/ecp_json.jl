@@ -172,8 +172,8 @@ counted from 1; `\$` for the top level): text that is not JSON, a top level that
 an unexpected, missing or repeated key, a value of the wrong type, an integer outside the Int64
 range, a negative `z_core`, `l_max` or power `n`, a `z_core` above the atomic number, a
 projector `l` outside `0:l_max`, an `alpha` that is not positive and finite, a `coeff` that is
-not finite (a number beyond the Float64 range reads as ±Inf, one below it as 0), an unknown element symbol and a second entry for one element,
-printed as
+not finite (a number beyond the Float64 range reads as ±Inf, one too small for it as 0), an
+unknown element symbol and a second entry for one element, printed as
 `basis: t.json: [3]: second entry for Br (first at [1])`.
 """
 function parse_ecp_json(io::Base.IO; source::AbstractString = "<stream>")
