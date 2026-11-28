@@ -93,8 +93,10 @@ end
 # it is written. The module sweeps already hold `showerror` and `show` to every guarantee, with
 # `:noalloc` and `:noboxing` exempt, and this listing judges their type stability a second time.
 # `setindex!` of `Input`'s JSON object builder and `iterate`, `haskey` and `setindex!` of the YAML
-# extension's mapping read untyped values and are exempt from every guarantee; they are listed so
-# that any other method of these functions the package adds is judged. `iterate`, `length` and `eltype`
+# extension's mapping read untyped values and are exempt from every guarantee; `setindex!` of
+# `Basis`'s ECP JSON object builder reads them too and is exempt from `:noalloc` and `:noboxing`, so
+# this listing holds it to type stability. They are listed so that any other method of these
+# functions the package adds is judged. `iterate`, `length` and `eltype`
 # of `Basis.ShellPairs` are held to type stability here; `@test_noalloc` proves that iterating it
 # allocates nothing.
 const OTHER_FUNCTIONS = (Base.showerror, Base.show, Base.setindex!, Base.iterate, Base.haskey, Base.length, Base.eltype)

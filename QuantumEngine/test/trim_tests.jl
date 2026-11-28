@@ -247,6 +247,7 @@ end
 
 # The `.gbs` reader on an `IOBuffer` and on an `IOStream`, through its keyword call, and the element
 # lookup of a basis file by path.
+# parse_ecp_json and read_ecp_json are not trim-safe: JSON.jl's reader has unresolved calls under TrimCheck.
 @testitem "TrimCheck: gbs reader" tags = [:checks] begin
     using TrimCheck
     @validate(

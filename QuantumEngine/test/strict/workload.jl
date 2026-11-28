@@ -534,6 +534,30 @@ function run_workload()
         e isa BasisError || rethrow()
         showerror(io, e)
     end
+    # The ECP JSON reader on an `IOBuffer`, through the default and the `source` keyword, and on a
+    # temporary file; then one input of each reader error, rendered.
+    ecp = """[{"symbol": "br", "z_core": 28, "l_max": 1, "projectors": [
+    {"l": 0, "primitives": [{"n": 2, "alpha": 2.85, "coeff": 14}]},
+    {"l": 1, "primitives": [{"n": 2, "alpha": 1e400, "coeff": 8.6}]}]}]"""
+    B.parse_ecp_json(IOBuffer(replace(ecp, "1e400" => "2.15")))
+    B.parse_ecp_json(IOBuffer(replace(ecp, "1e400" => "2.15")); source = "w.json")
+    jpath = joinpath(gdir, "w.json")
+    write(jpath, replace(ecp, "1e400" => "2.15"))
+    B.read_ecp_json(jpath)
+    for bad in (
+            ecp, "{}", "[{", "[3]", "[{\"symbol\": \"Br\", \"symbol\": 1}]", "[{\"zcore\": 1}]", "[{}]",
+            replace(ecp, "\"br\"" => "\"Xx\""), replace(ecp, "\"br\"" => "true"), replace(ecp, "28" => "-1"), replace(ecp, "28" => "36"), replace(ecp, "\"n\": 2" => "\"n\": -1"; count = 1),
+            replace(ecp, "28" => "99999999999999999999"), replace(ecp, "28" => "null"),
+            replace(ecp, "\"l\": 1" => "\"l\": 5"), replace(ecp, "\"alpha\": 2.85" => "\"alpha\": \"x\""),
+            replace(ecp, "[{\"l\"" => "{\"l\""; count = 1), "[" * ecp[2:(end - 1)] * ", " * ecp[2:(end - 1)] * "]",
+        )
+        try
+            B.parse_ecp_json(IOBuffer(bad); source = "w.json")
+        catch e
+            e isa BasisError || rethrow()
+            showerror(io, e)
+        end
+    end
     rm(gdir; recursive = true)
     return take!(io)
 end
