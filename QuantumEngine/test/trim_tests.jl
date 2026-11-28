@@ -260,3 +260,23 @@ end
         QuantumEngine.Basis.read_element_basis(String, String),
     )
 end
+
+# The basis names on `String` names, the search path through its default and its keyword call, and
+# the file lookup through its default and its keyword call.
+@testitem "TrimCheck: basis names and search path" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            search_paths_kw(env, exe_dir) = QuantumEngine.Basis.basis_search_paths(; env, exe_dir)
+            locate_kw(name, paths) = QuantumEngine.Basis.locate_basis_file(name; paths)
+        end,
+        QuantumEngine.Basis.normalize_basis_name(String),
+        QuantumEngine.Basis.candidate_stems(String),
+        QuantumEngine.Basis.basis_search_paths(),
+        search_paths_kw(Dict{String, String}, String),
+        search_paths_kw(Dict{String, String}, Nothing),
+        QuantumEngine.Basis.locate_basis_file(String),
+        locate_kw(String, Vector{String}),
+    )
+end

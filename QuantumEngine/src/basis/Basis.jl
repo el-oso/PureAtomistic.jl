@@ -5,8 +5,9 @@ Gaussian basis sets: the shell geometry (the Cartesian component order, the prim
 normalization and the contraction renormalization), the types of the basis data as a file gives
 it (`Primitive`, `ShellSpec`, `ECPChannel`, `ECPPotential`, `ElementBasis`), the Gaussian94
 `.gbs` reader (`parse_gbs`, `read_element_basis`), the reader of the oracle's ECP JSON format
-(`parse_ecp_json`, `read_ecp_json`) and the molecular basis (`Shell`, `BasisSet`)
-with its AO ranges and shell pairs.
+(`parse_ecp_json`, `read_ecp_json`), the resolution of a basis name to its file
+(`normalize_basis_name`, `candidate_stems`, `basis_search_paths`, `locate_basis_file`) and the
+molecular basis (`Shell`, `BasisSet`) with its AO ranges and shell pairs.
 """
 module Basis
 
@@ -21,12 +22,15 @@ include("geometry.jl")
 include("types.jl")
 include("gbs.jl")
 include("ecp_json.jl")
+include("names.jl")
+include("search.jl")
 
 export ncart, cartesian_component, primitive_norm, contraction_renorm
 export Primitive, ShellSpec, ECPChannel, ECPPotential, ElementBasis, Shell, BasisSet
 export ao_range, shell_pairs, ShellPairs
 export parse_gbs, read_element_basis
 export parse_ecp_json, read_ecp_json
+export normalize_basis_name, candidate_stems, basis_search_paths, locate_basis_file
 
 # Storing an `ECPPotential` in the field `ecp::Union{Nothing,ECPPotential{T}}` allocates (48 bytes
 # per construction in Float64 and Float32, measured); given `nothing`, and for the other type
@@ -59,6 +63,14 @@ export parse_ecp_json, read_ecp_json
 @strict_exempt :noalloc _ecp_error reason = "entry point: ECP JSON reader (called by parse_ecp_json)"
 @strict_exempt :noalloc _ecp_index reason = "entry point: ECP JSON reader (called by parse_ecp_json)"
 @strict_exempt :noalloc _ecp_channel reason = "entry point: ECP JSON reader (called by parse_ecp_json)"
+@strict_exempt :noalloc normalize_basis_name reason = "entry point: basis name resolution"
+@strict_exempt :noalloc candidate_stems reason = "entry point: basis name resolution"
+@strict_exempt :noalloc stem_variants reason = "entry point: basis name resolution (called by candidate_stems)"
+@strict_exempt :noalloc :noboxing types = () basis_search_paths reason = "entry point: basis search path list; Base's pkgdir indexes a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc :noboxing types = (AbstractDict, Union{Nothing, AbstractString}, typeof(basis_search_paths)) basis_search_paths reason = "entry point: basis search path list; Base's pkgdir indexes a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc :noboxing types = (AbstractString,) locate_basis_file reason = "entry point: basis file lookup; Base's abspath (through normpath) and the default basis_search_paths() index a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, typeof(locate_basis_file), AbstractString) locate_basis_file reason = "entry point: basis file lookup; Base's abspath (through normpath) indexes a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc _comma_list reason = "entry point: basis file lookup (called by locate_basis_file)"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

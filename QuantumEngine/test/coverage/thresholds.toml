@@ -5,6 +5,8 @@
 "src/basis/ecp_json.jl" = 1.00
 "src/basis/gbs.jl" = 1.00
 "src/basis/geometry.jl" = 1.00
+"src/basis/names.jl" = 1.00
+"src/basis/search.jl" = 1.00
 "src/basis/types.jl" = 1.00
 "src/errors/Errors.jl" = 1.00
 "src/input/Input.jl" = 1.00

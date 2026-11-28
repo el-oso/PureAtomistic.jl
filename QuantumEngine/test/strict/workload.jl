@@ -15,7 +15,8 @@ using StaticArrays: SVector
 # the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
 # the `.inp` parser; then the structured readers and the YAML extension; then `parse_input` on a
 # file of each format; then the shell geometry and the basis types of `Basis` in Float64 and
-# Float32; then the `.gbs` reader.
+# Float32; then the `.gbs` and ECP JSON readers; then the basis names, the search path and the file
+# lookup.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -553,6 +554,24 @@ function run_workload()
         )
         try
             B.parse_ecp_json(IOBuffer(bad); source = "w.json")
+        catch e
+            e isa BasisError || rethrow()
+            showerror(io, e)
+        end
+    end
+    # The basis names on `String` and `SubString{String}` names, the search path through its default
+    # and its keyword call, and the file lookup: found, not found and with a path separator, rendered.
+    for name in ("6-31G**", SubString(" def2-SVP-JKFIT ", 2))
+        B.normalize_basis_name(name)
+        B.candidate_stems(name)
+        B.stem_variants(name)
+    end
+    B.basis_search_paths()
+    B.basis_search_paths(env = Dict("QUANTUM_ENGINE_BASIS_DIR" => gdir), exe_dir = gdir)
+    B.locate_basis_file("W"; paths = [gdir])
+    for name in ("absent-basis", "../w")
+        try
+            B.locate_basis_file(name)
         catch e
             e isa BasisError || rethrow()
             showerror(io, e)
