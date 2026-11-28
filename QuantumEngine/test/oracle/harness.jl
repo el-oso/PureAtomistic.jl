@@ -72,16 +72,116 @@
         return d
     end
 
+    # ---------------------------------------------------------------- the oracle's basis files
+
+    """
+        ORACLE_NORMALIZATION
+
+    The oracle's file stem (`reader.rs:54-123`) of each lowercased basis name whose stem in
+    QuantumEngine's alias table differs: the names the oracle maps to `6-31g_dp`,
+    `6-311plusplusg_dp` and `6-311++g_2d2p`, which QuantumEngine maps to Basis Set Exchange files,
+    and `def2-svp-jkfit`, which the oracle's table passes through unchanged and QuantumEngine maps
+    to `def2-universal-jkfit`. For every other name the two tables agree.
+    """
+    const ORACLE_NORMALIZATION = Dict{String, String}(
+        "631g**" => "6-31g_dp", "631-g**" => "6-31g_dp", "6-31g**" => "6-31g_dp",
+        "6-31g(d,p)" => "6-31g_dp", "631g(d,p)" => "6-31g_dp",
+        "6311++g(d,p)" => "6-311plusplusg_dp", "6311++g**" => "6-311plusplusg_dp",
+        "6-311++g**" => "6-311plusplusg_dp", "6-311++g(d,p)" => "6-311plusplusg_dp",
+        "6311++g2d2p" => "6-311++g_2d2p", "6-311++g(2d,2p)" => "6-311++g_2d2p", "6311++2d2p" => "6-311++g_2d2p",
+        "def2-svp-jkfit" => "def2-svp-jkfit",
+    )
+
+    """
+        oracle_candidate_stems(name) -> Vector{String}
+
+    The file stems the oracle tries for the basis name `name`, in order: its normalized name, then
+    the spellings `QuantumEngine.Basis.stem_variants` derives from it (`reader.rs:29-33,
+    126-160`), which apply no alias table.
+    """
+    oracle_candidate_stems(name::AbstractString) = QuantumEngine.Basis.stem_variants(
+        get(ORACLE_NORMALIZATION, lowercase(strip(name)), QuantumEngine.Basis.normalize_basis_name(name))
+    )
+
+    """
+        oracle_search_dirs(rundir, exe) -> Vector{String}
+
+    The directories the oracle searches for each stem, in order, when it runs in `rundir` from the
+    executable `exe` (`reader.rs:166-186`): `basis_sets`, `../basis_sets` and `../../basis_sets`
+    under `rundir`, then the same three under `dirname(exe)`. The oracle also searches
+    `QUANTUM_ENGINE_BASIS_DIR`, which [`run_oracle_file`](@ref) removes from its environment.
+    """
+    function oracle_search_dirs(rundir::AbstractString, exe::AbstractString)
+        dirs = String[]
+        for base in (rundir, dirname(exe)), up in ((), ("..",), ("..", ".."))
+            push!(dirs, joinpath(base, up..., "basis_sets"))
+        end
+        return dirs
+    end
+
+    # The existing files `<dir>/<stem>.gbs`, stems outer and directories inner.
+    function _oracle_files(name::AbstractString, rundir::AbstractString, exe::AbstractString)
+        files = String[]
+        for stem in oracle_candidate_stems(name), dir in oracle_search_dirs(rundir, exe)
+            f = joinpath(dir, stem * ".gbs")
+            isfile(f) && push!(files, f)
+        end
+        return files
+    end
+
+    """
+        oracle_basis_file(name, rundir, exe) -> String
+
+    The real path of the file the oracle reads for the basis name `name` when it runs in `rundir`
+    from the executable `exe`: the first existing `<dir>/<stem>.gbs` over
+    [`oracle_candidate_stems`](@ref) and, for each stem, [`oracle_search_dirs`](@ref). Throws when
+    there is none, and when that file is not under [`oracle_basis_dir`](@ref).
+    """
+    function oracle_basis_file(name::AbstractString, rundir::AbstractString, exe::AbstractString)
+        files = _oracle_files(name, rundir, exe)
+        isempty(files) && error(
+            "oracle: no file for basis \"$name\" (stems $(join(oracle_candidate_stems(name), ", ")); searched: $(join(oracle_search_dirs(rundir, exe), ", ")))"
+        )
+        f = realpath(first(files))
+        startswith(f, joinpath(realpath(oracle_basis_dir()), "")) ||
+            error("oracle: basis \"$name\" resolves to $f, outside QUANTUM_ENGINE_ORACLE_BASIS")
+        return f
+    end
+
+    """
+        ORACLE_AUX_DEFAULT
+
+    The auxiliary basis the oracle builds when an input asks for RI and names none
+    (`scf/scf_cycle.rs:360-361`).
+    """
+    const ORACLE_AUX_DEFAULT = "def2-SVP-JKFIT"
+
+    """
+        case_basis_names(case) -> Tuple{String, Union{Nothing,String}}
+
+    The basis name of `case`'s input and its auxiliary basis name: the input's `aux_basis`, or
+    [`ORACLE_AUX_DEFAULT`](@ref) when the input sets `use_ri_j` or `use_ri_k` without one, or
+    `nothing` when the oracle builds no auxiliary basis for it.
+    """
+    function case_basis_names(case::AbstractString)
+        input = QuantumEngine.Input.parse_inp(case_input(case); source = case * ".inp").input
+        aux = input.aux_basis
+        aux === nothing && (input.use_ri_j || input.use_ri_k) && (aux = ORACLE_AUX_DEFAULT)
+        return (input.basis, aux)
+    end
+
     # ---------------------------------------------------------------- running the oracle
 
     """
         run_oracle_file(filename, text; dir = mktempdir(), command = "run")
             -> NamedTuple{(:log, :stdout, :exitcode), Tuple{String,String,Int}}
 
-    Write `text` to `dir/filename`, link `dir/basis_sets` to [`oracle_basis_dir`](@ref), and run
-    `quantum_engine <command> <filename>` with `dir` as the working directory: the oracle resolves
-    basis files relative to its working directory. Returns the log, the captured standard output
-    and the exit code. Files the run writes besides these stay in `dir`.
+    Write `text` to `dir/filename`, link `dir/basis_sets` to [`oracle_basis_dir`](@ref) when
+    `link_basis` is true, and run `binary <command> <filename>` with `dir` as the working
+    directory: the oracle resolves basis files relative to its working directory and to its
+    executable (`reader.rs:166-186`). `QUANTUM_ENGINE_BASIS_DIR`, which the oracle also searches,
+    is removed from the run's environment. Returns the log, the captured standard output and the
+    exit code. Files the run writes besides these stay in `dir`.
 
     `command` is one of [`ORACLE_COMMANDS`](@ref):
     - `run` writes its log next to the input (`engine/mod.rs:35-39`: the input path with the
@@ -96,15 +196,16 @@
     function run_oracle_file(
             filename::AbstractString, text::AbstractString;
             dir::AbstractString = mktempdir(), command::AbstractString = "run",
+            binary::Union{Nothing, AbstractString} = oracle_binary(), link_basis::Bool = true,
         )
         command in ORACLE_COMMANDS || error("oracle: unknown command `$command`; expected one of $(join(ORACLE_COMMANDS, ", "))")
-        bin = oracle_binary()
-        bin === nothing && error("oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set")
-        basis = oracle_basis_dir()
+        binary === nothing && error("oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set")
+        link_basis && (basis = oracle_basis_dir())
         write(joinpath(dir, filename), text)
-        symlink(basis, joinpath(dir, "basis_sets"))
+        link_basis && symlink(basis, joinpath(dir, "basis_sets"))
         out = IOBuffer()
-        cmd = Cmd(`$bin $command $filename`; dir = String(dir))
+        env = Dict(k => v for (k, v) in ENV if k != "QUANTUM_ENGINE_BASIS_DIR")
+        cmd = setenv(`$binary $command $filename`, env; dir = String(dir))
         p = run(pipeline(ignorestatus(cmd); stdin = devnull, stdout = out, stderr = stderr))
         log = ""
         if writes_log(command)
@@ -144,14 +245,57 @@
     end
 
     """
-        run_oracle(case; dir = mktempdir())
-            -> NamedTuple{(:log, :stdout, :exitcode), Tuple{String,String,Int}}
+        run_oracle(case; fallback = false, dir)
+            -> NamedTuple{(:log, :stdout, :exitcode, :basis_file, :aux_basis_file)}
 
     Run the oracle on the input of `case` in `references.toml`, written as `<case>.inp` into
     `dir`, with the case's [`case_command`](@ref). See [`run_oracle_file`](@ref).
+
+    Before the run, the case's basis and auxiliary basis ([`case_basis_names`](@ref)) are resolved
+    as the oracle resolves them. In the normal mode `dir` defaults to `mktempdir()`,
+    `dir/basis_sets` links to [`oracle_basis_dir`](@ref), each name must resolve to a file in it
+    ([`oracle_basis_file`](@ref)), and `basis_file` and `aux_basis_file` are those files'
+    basenames (`aux_basis_file` is `nothing` without an auxiliary basis). With `fallback = true`
+    the oracle runs from a copy of its binary at `mktempdir()/x/y/quantum_engine`, in `dir`
+    (default `mktempdir()/a/b/run`) with no `basis_sets` link, so that it uses its built-in basis
+    sets; the run throws unless no file is reachable for either name, and both basenames are
+    `nothing`. The copy is needed because the oracle also searches next to its executable: from
+    `target/release/`, `../../basis_sets` is the checkout's own directory.
     """
-    run_oracle(case::String; dir::AbstractString = mktempdir()) =
-        run_oracle_file(case * ".inp", case_input(case); dir, command = case_command(case))
+    function run_oracle(
+            case::String; fallback::Bool = false,
+            dir::AbstractString = fallback ? _fallback_rundir() : mktempdir(),
+        )
+        bin = oracle_binary()
+        bin === nothing && error("oracle: QUANTUM_ENGINE_ORACLE (the oracle binary) is not set")
+        command = case_command(case)
+        names = case_basis_names(case)
+        if fallback
+            exe = joinpath(mktempdir(), "x", "y", "quantum_engine")
+            mkpath(dirname(exe))
+            cp(bin, exe; follow_symlinks = true)
+            for name in names
+                name === nothing && continue
+                files = _oracle_files(name, dir, exe)
+                isempty(files) || error("oracle: the fallback run of $case would read $(first(files))")
+            end
+            r = run_oracle_file(case * ".inp", case_input(case); dir, command, binary = exe, link_basis = false)
+            return (; r..., basis_file = nothing, aux_basis_file = nothing)
+        end
+        symlink(oracle_basis_dir(), joinpath(dir, "basis_sets"))
+        exe = something(Sys.which(bin), abspath(bin))
+        basis_file = basename(oracle_basis_file(names[1], dir, exe))
+        aux_basis_file = names[2] === nothing ? nothing : basename(oracle_basis_file(names[2], dir, exe))
+        r = run_oracle_file(case * ".inp", case_input(case); dir, command, binary = bin, link_basis = false)
+        return (; r..., basis_file, aux_basis_file)
+    end
+
+    # A fresh run directory three levels below a new temporary directory.
+    function _fallback_rundir()
+        d = joinpath(mktempdir(), "a", "b", "run")
+        mkpath(d)
+        return d
+    end
 
     # The lines that change from run to run: elapsed times (`analysis/qtaim.rs:595`,
     # `analysis/aim.rs:340, 502, 699`, `analysis/iqa.rs:290`, `pw/scf.rs:97, 335`,
@@ -445,7 +589,8 @@
     The quantities `capture.jl` stores for `case`, sorted: the keys of its `tolerance` map, the
     compared quantities, and of its `defects` table, the quantities in which the oracle's output is
     known to be wrong. A defect's stored value is the oracle's, and no parity comparison uses it.
-    Throws if a key is in both.
+    A case with `fallback = true` also stores `fallback_total_energy`, the total energy of its run
+    with `run_oracle(case; fallback = true)`. Throws if a key is in both.
     """
     function captured_quantities(case::AbstractString)
         t = case_table(case)
@@ -453,7 +598,8 @@
         defects = collect(keys(get(t, "defects", Dict{String, Any}())))
         both = intersect(compared, defects)
         isempty(both) || error("oracle: case $case both compares and lists as a defect $(join(both, ", "))")
-        return sort!(vcat(compared, defects))
+        extra = get(t, "fallback", false) === true ? ["fallback_total_energy"] : String[]
+        return sort!(vcat(compared, defects, extra))
     end
 
     """
@@ -463,6 +609,7 @@
     """
     function quantity_extractor(key::AbstractString)
         key in ("total_energy", "mp2_correlation", "ccsd_correlation", "frequencies") && return String(key)
+        key == "fallback_total_energy" && return "total_energy"
         key == "nuclear_repulsion" && return "nuclear_repulsion_from"
         key in ("opt_energy", "opt_gnorm") && return "opt_steps"
         startswith(key, "ext_report.") && return "ext_report"

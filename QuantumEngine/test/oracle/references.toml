@@ -8,6 +8,37 @@
 [meta]
 oracle_commit = "4a78a1d235688c5af10ccd94be75d7292073ff8d"
 
+[case.fallback_self_check]
+input = '''
+# Water single-point PBE0/6-31G
+charge 0
+multiplicity 1
+
+geometry angstrom
+O  0.0000  0.0000  0.1173
+H  0.0000  0.7572 -0.4692
+H  0.0000 -0.7572 -0.4692
+end
+
+basis 6-31g*
+method rhf
+scf_convergence 1e-10
+max_iterations 100
+'''
+source = "derived from examples/h2o_631g_sp.inp: basis 6-31g* (line 11), method rhf (line 12)"
+command = "run"
+extract = ["total_energy"]
+exports = []
+tolerance = {total_energy = "hf.energy"}
+basis_file = "6-31g_star.gbs"
+fallback = true
+fallback_total_energy = -76.010490891363
+total_energy = -76.01050498653
+
+[case.fallback_self_check.sha256]
+log = "e15b943cb31b84a84bd135c2c61d457162faa47bdaca7c2c91161914d78aaf0e"
+stdout = "a843e944a08a64dd727f942d81bdae15c741ea568e3744cb59683d7143a29789"
+
 [case.h2_opt]
 input = '''
 # H2 geometry optimization

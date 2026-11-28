@@ -9,9 +9,12 @@
 # captured/<case>.stdout, captured/<case>.log when the command writes a log, and the files the case
 # exports, with the lines that name local paths rewritten and the timing lines removed. It stores in
 # references.toml the extracted quantities (the compared ones and the known oracle defects), the
-# SHA-256 of each captured file and the oracle commit. `--fixtures` also runs the vendored fixture
-# files unchanged and stores the settings the oracle echoes for each in a [fixture] table, with its
-# standard output in captured/fixtures/.
+# basenames of the basis files the oracle reads for the case (`basis_file`, and `aux_basis_file`
+# when it builds an auxiliary basis), the SHA-256 of each captured file and the oracle commit. A
+# case with `fallback = true` is run a second time on the oracle's built-in basis sets; its total
+# energy is stored as `fallback_total_energy` and must differ from the first run's. `--fixtures`
+# also runs the vendored fixture files unchanged and stores the settings the oracle echoes for each
+# in a [fixture] table, with its standard output in captured/fixtures/.
 # A capture with a commit other than the stored one must name every case and `--fixtures`, so
 # that references.toml never mixes two oracle commits.
 
@@ -76,11 +79,22 @@ function capture_case!(refs, case)
         write(dst, OracleHarness.scrub(read(src, String), case * ".inp", dir))
         hashes[ext] = OracleHarness.file_sha256(dst)
     end
+    fallback = get(t, "fallback", false) === true
+    e_fallback = NaN
+    if fallback
+        f = OracleHarness.run_oracle(case; fallback = true)
+        f.exitcode == 0 || error("capture: the fallback run of $case exited with code $(f.exitcode)")
+        e_fallback = OracleHarness.total_energy(f.log)
+    end
     for key in OracleHarness.captured_quantities(case)
         OracleHarness.quantity_extractor(key) in t["extract"] ||
             error("capture: case $case stores $key but does not list its extractor")
-        t[key] = OracleHarness.quantity(case, key, log, out, OracleHarness.CAPTURED)
+        t[key] = key == "fallback_total_energy" ? e_fallback : OracleHarness.quantity(case, key, log, out, OracleHarness.CAPTURED)
     end
+    fallback && t["total_energy"] == e_fallback &&
+        error("capture: the runs of $case with and without basis files give the same Total Energy $e_fallback")
+    t["basis_file"] = r.basis_file
+    r.aux_basis_file === nothing ? delete!(t, "aux_basis_file") : (t["aux_basis_file"] = r.aux_basis_file)
     t["sha256"] = hashes
     println("captured ", case)
     return nothing

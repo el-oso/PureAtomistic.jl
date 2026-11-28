@@ -33,7 +33,7 @@ end
     @test names == sort(
         [
             "water_pbe_631g", "water_rhf_631g", "water_mp2", "water_ccsd", "h2_opt", "water_optfreq",
-            "o2_uhf_631g", "h2_qtaim",
+            "o2_uhf_631g", "h2_qtaim", "fallback_self_check",
         ]
     )
     @testset "$case" for case in names
@@ -52,6 +52,12 @@ end
     @test method("o2_uhf_631g") == MethodSpec(HF, Unrestricted, (0, 0), 0.0)
     @test parse_inp(OracleHarness.case_input("o2_uhf_631g")).input.basis == "6-31g"
     @test parse_inp(OracleHarness.case_input("h2_qtaim")).input.run_mode == QTAIM
+    @test method("fallback_self_check") == MethodSpec(HF, Restricted, (0, 0), 0.0)
+    @test parse_inp(OracleHarness.case_input("fallback_self_check")).input.basis == "6-31g*"
+    @test OracleHarness.case_table("fallback_self_check")["fallback"] === true
+    # A fallback case also stores the energy of its run without basis files.
+    @test OracleHarness.captured_quantities("fallback_self_check") == ["fallback_total_energy", "total_energy"]
+    @test OracleHarness.quantity_extractor("fallback_total_energy") == "total_energy"
     # The critical-point report comes from the `aimext` command; every other case is a `run`.
     @test [OracleHarness.case_command(c) for c in names] == [c == "h2_qtaim" ? "aimext" : "run" for c in names]
     @test !OracleHarness.writes_log("aimext") && OracleHarness.writes_log("run")
@@ -250,4 +256,82 @@ end
     @test H.scrub(raw, "w.inp", dir) == "Reading input: w.inp\nTitle: w\nLogging to: w.log\n\nCalculation completed successfully.\n"
     @test_throws "oracle: the output of w.inp names the run directory" H.scrub("✓ Exported Molden to: $dir/w.molden", "w.inp", dir)
     @test_throws "oracle: the output of w.inp names the home directory" H.scrub(homedir() * "/x", "w.inp", dir)
+end
+
+# E5: the oracle's stems, read from `reader.rs:54-160`.
+@testitem "harness: oracle basis stems" setup = [OracleHarness] begin
+    using QuantumEngine.Basis: candidate_stems
+    using .OracleHarness: ORACLE_NORMALIZATION, oracle_candidate_stems
+    @test oracle_candidate_stems("6-31G**") == ["6-31g_dp"]
+    @test oracle_candidate_stems("def2-SVP-JKFIT") == ["def2-svp-jkfit"]
+    @test oracle_candidate_stems("6-311++G(2d,2p)") == ["6-311++g_2d2p", "6-311plusplusg_2d2p"]
+    # A name outside the table resolves as in Julia.
+    @test oracle_candidate_stems(" 631-G ") == candidate_stems(" 631-G ") == ["6-31g"]
+    # The table holds only the rows in which the two programs differ.
+    @test length(ORACLE_NORMALIZATION) == 13
+    @testset "$k" for k in sort!(collect(keys(ORACLE_NORMALIZATION)))
+        @test oracle_candidate_stems(k) != candidate_stems(k)
+    end
+end
+
+@testitem "harness: oracle basis resolution" setup = [OracleHarness] begin
+    using .OracleHarness: oracle_search_dirs, oracle_basis_file
+    x = mktempdir()
+    exe = joinpath(x, "target", "release", "quantum_engine")
+    mkpath(dirname(exe))
+    write(exe, "")
+    basis = joinpath(x, "basis_sets")
+    mkpath(basis)
+    write(joinpath(basis, "6-31g_star.gbs"), "")
+    run = joinpath(mktempdir(), "a", "b", "run")
+    mkpath(run)
+    @test oracle_search_dirs(run, exe) == [
+        joinpath(run, "basis_sets"), joinpath(run, "..", "basis_sets"), joinpath(run, "..", "..", "basis_sets"),
+        joinpath(dirname(exe), "basis_sets"), joinpath(dirname(exe), "..", "basis_sets"),
+        joinpath(dirname(exe), "..", "..", "basis_sets"),
+    ]
+    withenv("QUANTUM_ENGINE_ORACLE_BASIS" => basis) do
+        # Reached only through the executable's `../../basis_sets`.
+        @test oracle_basis_file("6-31G*", run, exe) == realpath(joinpath(basis, "6-31g_star.gbs"))
+        @test_throws "oracle: no file for basis \"sto-3g\"" oracle_basis_file("sto-3g", run, exe)
+    end
+    elsewhere = mktempdir()
+    withenv("QUANTUM_ENGINE_ORACLE_BASIS" => elsewhere) do
+        @test_throws "oracle: basis \"6-31G*\" resolves to $(realpath(joinpath(basis, "6-31g_star.gbs"))), outside QUANTUM_ENGINE_ORACLE_BASIS" oracle_basis_file("6-31G*", run, exe)
+    end
+    # The working directory's `basis_sets` comes first.
+    mkpath(joinpath(run, "basis_sets"))
+    write(joinpath(run, "basis_sets", "6-31g_star.gbs"), "")
+    withenv("QUANTUM_ENGINE_ORACLE_BASIS" => joinpath(run, "basis_sets")) do
+        @test oracle_basis_file("6-31g*", run, exe) == realpath(joinpath(run, "basis_sets", "6-31g_star.gbs"))
+    end
+end
+
+# The oracle's fallback for 6-31G* holds C, O and H (`reader.rs:46-48`), so the water run in
+# fallback mode reads no file. Each energy is compared with its stored value within the case's
+# HF row; the expected size of their difference is not known.
+@testitem "oracle: fallback self-check" tags = [:oracle] setup = [OracleHarness] begin
+    using .OracleHarness: run_oracle, reference, tolerance, case_table
+    case = "fallback_self_check"
+    normal = run_oracle(case)
+    fallback = run_oracle(case; fallback = true)
+    @test normal.exitcode == 0 && fallback.exitcode == 0
+    @test normal.basis_file == case_table(case)["basis_file"]
+    @test fallback.basis_file === nothing
+    e = OracleHarness.total_energy(normal.log)
+    e_fallback = OracleHarness.total_energy(fallback.log)
+    @test e != e_fallback
+    tol = tolerance(case, "total_energy")
+    @test abs(e - reference(case, "total_energy")) ≤ tol
+    @test abs(e_fallback - reference(case, "fallback_total_energy")) ≤ tol
+end
+
+@testitem "placeholder aux basis parses" setup = [Fixtures] begin
+    using QuantumEngine.Basis: parse_gbs
+    dir = joinpath(pkgdir(QuantumEngine), "test", "oracle", "basis")
+    file = joinpath(dir, "oracle-def2-svp-jkfit.gbs")
+    data = open(io -> parse_gbs(io; source = file), file)
+    @test sort!(collect(keys(data))) == ["C", "H", "N", "O"]
+    bs = build_basis(Fixtures.water(), "oracle-def2-svp-jkfit"; paths = [dir])
+    @test bs isa BasisSet{Float64}
 end
