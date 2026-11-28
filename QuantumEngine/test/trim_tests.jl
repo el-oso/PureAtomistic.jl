@@ -201,6 +201,8 @@ end
 # constructors. The constructors are validated through functions, for the reason given above.
 # json_node is not trim-safe: JSON.jl's reader has unresolved calls under TrimCheck; the trimmed entry reads .inp only.
 # Neither are node and parse_dict on a `Dict{String, Any}`, whose values are `Any`: TrimCheck rejects both.
+# parse_ecp_json and read_ecp_json fail TrimCheck, as json_node does, which reads JSON through the
+# same JSON.jl reader; they are not on the trimmed path.
 @testitem "TrimCheck: structured input" tags = [:checks] begin
     using TrimCheck
     @validate(
@@ -247,7 +249,6 @@ end
 
 # The `.gbs` reader on an `IOBuffer` and on an `IOStream`, through its keyword call, and the element
 # lookup of a basis file by path.
-# parse_ecp_json and read_ecp_json are not trim-safe: JSON.jl's reader has unresolved calls under TrimCheck.
 @testitem "TrimCheck: gbs reader" tags = [:checks] begin
     using TrimCheck
     @validate(
