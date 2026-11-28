@@ -111,6 +111,24 @@ end
     # The S and P shells of the SP entry share their exponents.
     @test [q.exponent for q in o.shells[2].primitives] == [q.exponent for q in o.shells[3].primitives]
     @test values(o.shells[4]) == [(p("0.8000000000E+00"), p("1.0000000"))]
+    # The last basis block ended by EOF instead of `****`: the same shells, values and lines.
+    open_end = join(GBSFiles.GRAMMAR_LINES[1:(end - 1)], "\n") * "\n"
+    @test !endswith(rstrip(open_end), "****")
+    d = GBSFiles.parse(open_end)
+    @test sort(collect(keys(d))) == ["H", "O"]
+    @test GBSFiles.same_shells(d["H"].shells, h.shells)
+    @test GBSFiles.same_shells(d["O"].shells, o.shells)
+    # A one-block file ending at EOF, with and without a final newline.
+    one = "C 0\nS 1 1.00\n 0.5 1.0\nP 1 1.00\n 0.4 1.0\n"
+    closed = GBSFiles.parse(one * "****\n")["C"].shells
+    @test GBSFiles.same_shells(GBSFiles.parse(one)["C"].shells, closed)
+    @test GBSFiles.same_shells(GBSFiles.parse(String(chop(one)))["C"].shells, closed)
+    # A lower-case `d` exponent marker reads as `E`, as an upper-case one does.
+    lower = GBSFiles.parse(replace(GBSFiles.GRAMMAR, "D+" => "d+", "D-" => "d-"))
+    @test !occursin("D+", replace(GBSFiles.GRAMMAR, "D+" => "d+", "D-" => "d-"))
+    @test GBSFiles.same_shells(lower["H"].shells, h.shells)
+    @test GBSFiles.same_shells(lower["O"].shells, o.shells)
+    @test only(GBSFiles.parse("H 0\nS 1 1.00\n 0.5d+00 0.1d+01\n****\n")["H"].shells).primitives[1].exponent == 0.5
     # The stream's default source name.
     @test_throws "basis: <stream>:1: unknown element symbol \"Xx\"" QuantumEngine.Basis.parse_gbs(IOBuffer("Xx 0\n"))
 end
@@ -225,7 +243,7 @@ end
     @test_throws "basis: t.gbs:2: \"1.0x\" is not a number" P("H 0\nS 1 1.0x\n 1.0 1.0\n****\n")
     @test_throws "basis: t.gbs:3: expected 2 numbers (exponent, coefficient), got 1" P("H 0\nS 1 1.00\n 1.0\n****\n")
     @test_throws "basis: t.gbs:3: expected 2 numbers (exponent, coefficient), got 3" P("H 0\nS 1 1.00\n 1.0 1.0 1.0\n****\n")
-    @test_throws "basis: t.gbs:3: expected 3 numbers (exponent, coefficient), got 2" P("C 0\nSP 1 1.00\n 1.0 1.0\n****\n")
+    @test_throws "basis: t.gbs:3: expected 3 numbers (exponent, s-coefficient, p-coefficient), got 2" P("C 0\nSP 1 1.00\n 1.0 1.0\n****\n")
     @test_throws "basis: t.gbs:3: \"0.3x\" is not a number" P("H 0\nS 1 1.00\n 0.3x 1.0\n****\n")
     @test_throws "basis: t.gbs:3: \"0.3x\" is not a number" P("H 0\nS 1 1.00\n 1.0 0.3x\n****\n")
     # A comment line inside a primitive list is read as a primitive line.
@@ -246,6 +264,11 @@ end
     @test_throws "basis: t.gbs:2: the S shell of H has zero norm" P("H 0\nS 2 1.00\n 1.0 0.0\n 2.0 0.0\n****\n")
     @test_throws "basis: t.gbs:2: the P shell of C has zero norm" P("C 0\nSP 1 1.00\n 1.0 0.5 0.0\n****\n")
     @test_throws "basis: t.gbs:2: the S shell of C has zero norm" P("C 0\nSP 1 1.00\n 1.0 0.0 0.5\n****\n")
+    # A norm sum that overflows, underflows or cancels in Float64, with nonzero coefficients.
+    for row in ("1e300 1.0", "1e-300 1.0", "1.0 1e200")
+        @test_throws "basis: t.gbs:2: the norm of the S shell of H is not a positive finite Float64" P("H 0\nS 1 1.00\n $(row)\n****\n")
+    end
+    @test_throws "basis: t.gbs:2: the norm of the P shell of C is not a positive finite Float64" P("C 0\nP 2 1.00\n 1.0 1.0\n 1.0 -1.0\n****\n")
     @test_throws "basis: t.gbs:1: expected an element header \"<symbol> 0\", got \"S 3 1.00\"" P("S 3 1.00\n 1.0 1.0\n")
     @test_throws "basis: t.gbs:6: expected an element header \"<symbol> 0\", got \"1.0 1.0\"" P("H 0\nS 1 1.00\n 1.0 1.0\n****\n\n1.0 1.0\n")
     @test_throws "basis: t.gbs:1: the basis block of C has no shells" P("C 0\n****\n")
@@ -264,6 +287,16 @@ end
     @test_throws "basis: t.gbs:5: \"1.5\" is not an integer power" P(ecp("d potential", "1", "1.5 175.5 -10.0"))
     @test_throws "basis: t.gbs:5: \"0.3x\" is not a number" P(ecp("d potential", "1", "1 0.3x -10.0"))
     @test_throws "basis: t.gbs:5: \"0.3x\" is not a number" P(ecp("d potential", "1", "0.3x 175.5 -10.0"))
+    # ECP rows carry the checks of primitive rows, and a power is at least 0.
+    for (bad, shown) in (("-2.0", "-2.0"), ("0.0", "0.0"), ("NaN", "NaN"), ("Inf", "Inf"))
+        @test_throws "basis: t.gbs:5: exponent must be positive and finite, got $(shown)" P(ecp("d potential", "1", "1 $(bad) -10.0"))
+    end
+    for bad in ("NaN", "Inf", "-Inf")
+        @test_throws "basis: t.gbs:5: coefficient must be finite, got $(bad)" P(ecp("d potential", "1", "1 175.5 $(bad)"))
+    end
+    @test_throws "basis: t.gbs:5: power must be non-negative, got -1" P(ecp("d potential", "1", "-1 175.5 -10.0"))
+    @test_throws "basis: t.gbs:2: the ECP section of Na has ncore 12, above the atomic number 11" P("NA 0\nNA-ECP 2 12\n")
+    @test P("NA 0\nNA-ECP 0 11\ns potential\n1\n0 1.0 1.0\n")["Na"].ecp.ncore == 11
     # An ECP channel ended by a header, by `****` and by EOF; the line is the channel title's.
     rows3 = ["s-d potential", "5", "0 1.0 1.0", "1 1.0 1.0", "2 1.0 1.0"]
     @test_throws "basis: t.gbs:6: the \"s-d potential\" channel ends after 3 of 5 rows" P(ecp(d_channel..., rows3..., "C 0"))

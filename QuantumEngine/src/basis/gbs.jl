@@ -71,9 +71,9 @@ function _shell_type(t::AbstractString)
     return -1
 end
 
-# A number token, with a Fortran `D` exponent read as `E`.
+# A number token, with a Fortran `D` or `d` exponent read as `E`.
 function _gbs_number(src::String, n::Int, t::SubString{String})
-    x = occursin('D', t) ? parse_coordinate(replace(t, 'D' => 'E')) : parse_coordinate(t)
+    x = occursin('D', t) || occursin('d', t) ? parse_coordinate(replace(t, 'D' => 'E', 'd' => 'E')) : parse_coordinate(t)
     x === nothing && throw(_gbs_error(src, n, lazy"\"$(t)\" is not a number"))
     return x
 end
@@ -122,14 +122,19 @@ function _is_title(tokens::Vector{SubString{String}}, title::String)
 end
 
 # The shell `l` of element `sym` with exponents `e` and coefficients `c`, checked once with
-# `contraction_renorm`: a zero norm is a `BasisError` of the shell's line `n`. Its other
-# `ArgumentError`s cannot occur here: the reader has checked the exponents and the count.
+# `contraction_renorm`, which throws an `ArgumentError` when the norm sum is not positive and
+# finite; that is a `BasisError` of the shell's line `n`. Its other `ArgumentError`s cannot occur
+# here: the reader has checked the exponents and the count. The sum is zero when every coefficient
+# is; otherwise it overflowed, underflowed or cancelled in Float64 (`1e300 1.0`, `1e-300 1.0`,
+# `1.0 1e200`, or one exponent repeated with opposite coefficients).
 function _gbs_shell(src::String, n::Int, sym::String, l::Int, e::Vector{Float64}, c::Vector{Float64})
     try
         contraction_renorm(e, c, l)
     catch err
         err isa ArgumentError || rethrow()
-        throw(_gbs_error(src, n, lazy"the $(SHELL_LETTERS[l + 1]) shell of $(sym) has zero norm"))
+        letter = SHELL_LETTERS[l + 1]
+        all(iszero, c) && throw(_gbs_error(src, n, lazy"the $(letter) shell of $(sym) has zero norm"))
+        throw(_gbs_error(src, n, lazy"the norm of the $(letter) shell of $(sym) is not a positive finite Float64"))
     end
     prims = Vector{Primitive{Float64}}(undef, length(e))
     for k in eachindex(prims, e, c)
@@ -154,15 +159,16 @@ A basis block is a sequence of shells, ended by `****` or EOF. A shell is a line
 [<scale>]` followed by `count` primitive lines `exponent coefficient` (`exponent s-coefficient
 p-coefficient` for `SP`). The types `S P D F G H I` give l = 0 to 6 and `SP` an S shell followed by
 a P shell with the same exponents; they are matched without regard to case. A scale factor must
-be exactly 1. A `D` exponent marker reads as `E`. Each exponent must be finite and positive and
-each coefficient finite, and each shell is checked to have a nonzero norm. Each `ShellSpec`
-records the line of its shell header.
+be exactly 1. A `D` or `d` exponent marker reads as `E`. Each exponent must be finite and
+positive and each coefficient finite, and each shell is checked to have a norm that is positive
+and finite in Float64. Each `ShellSpec` records the line of its shell header.
 
 An ECP section holds `lmax + 1` channels: the local channel titled `<L> potential` (l = `lmax`)
 first, then `<k>-<L> potential` for k = 0 … lmax − 1, where `L` and `k` are shell letters and the
 titles are matched without regard to case. A channel is its title, a row count and that many rows
-`power exponent coefficient`, stored as read. The section ends after the last row of its last
-channel. An ECP section for an element with no basis block in the file gives an `ElementBasis`
+`power exponent coefficient`: the power is an integer ≥ 0 (the term is `r^(power - 2)`), the
+exponent finite and positive and the coefficient finite. `ncore` is at most the atomic number.
+The section ends after the last row of its last channel. An ECP section for an element with no basis block in the file gives an `ElementBasis`
 with no shells.
 
 Every malformed line throws a `BasisError` whose message starts with `<source>:<line>: `. A shell,
@@ -204,8 +210,12 @@ function parse_gbs(io::Base.IO; source::AbstractString = "<stream>")
         if state == GBS_PRIMITIVES
             (header || stars) && throw(_shell_ends(src, shell_line, stype, length(exps), nprim))
             ncol = stype == 7 ? 3 : 2
-            length(tokens) == ncol ||
-                throw(_gbs_error(src, n, lazy"expected $(ncol) numbers (exponent, coefficient), got $(length(tokens))"))
+            if length(tokens) != ncol
+                ncol == 3 && throw(
+                    _gbs_error(src, n, lazy"expected 3 numbers (exponent, s-coefficient, p-coefficient), got $(length(tokens))")
+                )
+                throw(_gbs_error(src, n, lazy"expected 2 numbers (exponent, coefficient), got $(length(tokens))"))
+            end
             a = _gbs_number(src, n, tokens[1])
             ca = _gbs_number(src, n, tokens[2])
             cb = ncol == 3 ? _gbs_number(src, n, tokens[3]) : 0.0
@@ -238,9 +248,15 @@ function parse_gbs(io::Base.IO; source::AbstractString = "<stream>")
             is_decimal_int(tokens[1]) || throw(_gbs_error(src, n, lazy"\"$(tokens[1])\" is not an integer power"))
             pw = tryparse(Int, tokens[1])
             pw === nothing && throw(_gbs_error(src, n, lazy"\"$(tokens[1])\" is not an integer power"))
+            pw >= 0 || throw(_gbs_error(src, n, lazy"power must be non-negative, got $(pw)"))
+            a = _gbs_number(src, n, tokens[2])
+            ca = _gbs_number(src, n, tokens[3])
+            (isfinite(a) && a > 0) ||
+                throw(_gbs_error(src, n, lazy"exponent must be positive and finite, got $(a)"))
+            isfinite(ca) || throw(_gbs_error(src, n, lazy"coefficient must be finite, got $(ca)"))
             push!(powers, pw)
-            push!(ecp_exps, _gbs_number(src, n, tokens[2]))
-            push!(ecp_coefs, _gbs_number(src, n, tokens[3]))
+            push!(ecp_exps, a)
+            push!(ecp_coefs, ca)
             if length(powers) == nrows
                 push!(channels, ECPChannel{Float64}(_ecp_channel_l(length(channels) + 1, lmax), powers, ecp_exps, ecp_coefs))
                 powers = Int[]
@@ -293,6 +309,10 @@ function parse_gbs(io::Base.IO; source::AbstractString = "<stream>")
                 end
                 elmax <= 6 || throw(
                     _gbs_error(src, n, lazy"the ECP section of $(sym) has lmax $(elmax); channel titles stop at I (l = 6)")
+                )
+                z = symbol_number(sym)
+                encore <= z || throw(
+                    _gbs_error(src, n, lazy"the ECP section of $(sym) has ncore $(encore), above the atomic number $(z)")
                 )
                 lmax = elmax
                 ncore = encore

@@ -504,6 +504,8 @@ function run_workload()
     gpath = joinpath(gdir, "w.gbs")
     write(gpath, gbs)
     B.read_element_basis(gpath, "Na")
+    # A basis block left open at EOF, with `d` exponent markers.
+    B.parse_gbs(IOBuffer("C 0\nS 1 1.00\n 0.5d+00 0.1d+01\nSP 1 1.00\n 0.5 0.3 0.7\n"); source = "w.gbs")
     ecp_head = "NA 0\nNA-ECP 1 10\n"
     for bad in (
             "Xx 0\n", "H 0\nQ 1\n", "H 0\nS\n", "H 0\nS x\n", "H 0\nS 1 1.2\n", "H 0\nS 1\n 1.0\n",
@@ -515,6 +517,9 @@ function run_workload()
             ecp_head * "p potential\n1\n1 x 1\n", ecp_head * "p potential\n2\n1 1 1\n****\n",
             ecp_head * "p potential\n2\n1 1 1\n", ecp_head * "p potential\n1\n1 1 1\n****\n",
             ecp_head * "p potential\n1\n1 1 1\n", ecp_head * "p potential\n", ecp_head * "p potential\n1\n1 1 1\n" * ecp_head,
+            "C 0\nSP 1\n 1 1\n", "H 0\nS 1\n 1e300 1\n", "H 0\nS 1\n 1 1e200\n", "NA 0\nNA-ECP 1 12\n",
+            ecp_head * "p potential\n1\n1 NaN 1\n", ecp_head * "p potential\n1\n1 -2 1\n",
+            ecp_head * "p potential\n1\n1 1 Inf\n", ecp_head * "p potential\n1\n-1 1 1\n",
         )
         try
             B.parse_gbs(IOBuffer(bad); source = "w.gbs")
