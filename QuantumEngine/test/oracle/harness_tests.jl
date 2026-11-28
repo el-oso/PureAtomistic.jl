@@ -323,7 +323,7 @@ end
     @test case_basis_names("fallback_self_check") == ("6-31g*", nothing)
     @test case_elements("fallback_self_check") == ["H", "O"]
     # A resolved file must hold every element of the case.
-    file = joinpath(pkgdir(QuantumEngine), "test", "oracle", "basis", "oracle-def2-svp-jkfit.gbs")
+    file = joinpath(@__DIR__, "basis", "oracle-def2-svp-jkfit.gbs")
     @test check_basis_elements(file, ["H", "O"], "x") === nothing
     @test_throws "oracle: basis \"x\" resolves to $file, which has no element S" check_basis_elements(file, ["H", "S"], "x")
 end
