@@ -221,9 +221,18 @@ end
     build_basis(Fixtures.water(), "6-31g"; paths = BuildData.PKGDATA, logger = Logger(buf, devnull))
     @test split(String(take!(buf)), '\n'; keepempty = false) ==
         ["basis 6-31g: " * joinpath(BuildData.PKGDATA[1], "6-31g.gbs")]
-    build_basis(Fixtures.water(), "6-31g"; paths = BuildData.PKGDATA, logger = nothing)
-    build_basis(Fixtures.water(), "6-31g"; paths = BuildData.PKGDATA)
-    @test position(buf) == 0 && isempty(take!(buf))
+    # Without a logger nothing is written: not to stdout, not to stderr, not as a log record.
+    dir = mktempdir()
+    out, err = joinpath(dir, "out"), joinpath(dir, "err")
+    open(out, "w") do o
+        open(err, "w") do e
+            @test_logs redirect_stdio(stdout = o, stderr = e) do
+                build_basis(Fixtures.water(), "6-31g"; paths = BuildData.PKGDATA, logger = nothing)
+                build_basis(Fixtures.water(), "6-31g"; paths = BuildData.PKGDATA)
+            end
+        end
+    end
+    @test isempty(read(out)) && isempty(read(err))
     build_basis(Fixtures.water(), "def2-SVP-JKFIT"; paths = BuildData.PKGDATA, logger = Logger(buf, devnull))
     @test split(String(take!(buf)), '\n'; keepempty = false) == [
         "basis def2-SVP-JKFIT: the oracle's def2-SVP-JKFIT is a placeholder; using def2-universal-jkfit",
