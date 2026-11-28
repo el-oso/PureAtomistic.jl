@@ -86,3 +86,10 @@ file = "src/basis/types.jl"
 find = 'j < i ?'
 replace = 'j < i - 1 ?'
 expect = "basis: shells and pairs"
+
+[[mutation]]
+name = "build-ao-offset-increment"
+file = "src/basis/build.jl"
+find = 'offset += ncart(spec.l)'
+replace = 'offset += spec.l + 1'
+expect = "gbs: 6-31g water shells"

@@ -16,7 +16,7 @@ using StaticArrays: SVector
 # the `.inp` parser; then the structured readers and the YAML extension; then `parse_input` on a
 # file of each format; then the shell geometry and the basis types of `Basis` in Float64 and
 # Float32; then the `.gbs` and ECP JSON readers; then the basis names, the search path and the file
-# lookup.
+# lookup; then the molecular basis.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -572,6 +572,32 @@ function run_workload()
     for name in ("absent-basis", "../w")
         try
             B.locate_basis_file(name)
+        catch e
+            e isa BasisError || rethrow()
+            showerror(io, e)
+        end
+    end
+    # The molecular basis of water in 6-31g, in Float64 through the default method and its keyword
+    # call and in Float32, with and without a logger, and with the note for the oracle's placeholder
+    # name; then one input of each build error, rendered.
+    data = [joinpath(pkgdir(QuantumEngine), "data", "basis_sets")]
+    water = Molecule([Atom("O", [0.0, 0.0, 0.22]), Atom("H", [0.0, 1.43, -0.89]), Atom("H", [0.0, -1.43, -0.89])])
+    lg = QuantumEngine.IO.Logger(io, devnull)
+    build_basis(water, "6-31g")
+    build_basis(water, "6-31g"; paths = data, logger = lg)
+    build_basis(water, SubString(" def2-SVP-JKFIT", 2); paths = data, logger = lg)
+    build_basis(water, "6-31g", Float32; paths = data)
+    build_basis(water, "6-31g", Float32; paths = data, logger = lg)
+    write(joinpath(gdir, "big.gbs"), "H 0\nS 1 1.00\n 1e39 1.0\n****\n")
+    write(joinpath(gdir, "cbig.gbs"), "H 0\nS 2 1.00\n 1.0 1e20\n 2.0 1e20\n****\n")
+    h = Molecule([Atom("H", [0.0, 0.0, 0.0])])
+    for (mol, name, T, paths) in (
+            (Molecule([Atom("Xe", [0.0, 0.0, 0.0])]), "6-31g", Float64, data),
+            (Molecule([Atom("Ag", [0.0, 0.0, 0.0])]), "def2-universal-jkfit", Float64, data),
+            (h, "big", Float32, [gdir]), (h, "cbig", Float32, [gdir]),
+        )
+        try
+            build_basis(mol, name, T; paths)
         catch e
             e isa BasisError || rethrow()
             showerror(io, e)

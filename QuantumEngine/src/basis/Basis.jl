@@ -7,7 +7,8 @@ it (`Primitive`, `ShellSpec`, `ECPChannel`, `ECPPotential`, `ElementBasis`), the
 `.gbs` reader (`parse_gbs`, `read_element_basis`), the reader of the oracle's ECP JSON format
 (`parse_ecp_json`, `read_ecp_json`), the resolution of a basis name to its file
 (`normalize_basis_name`, `candidate_stems`, `basis_search_paths`, `locate_basis_file`) and the
-molecular basis (`Shell`, `BasisSet`) with its AO ranges and shell pairs.
+molecular basis (`Shell`, `BasisSet`) with its AO ranges and shell pairs, built from a basis name
+by `build_basis`.
 """
 module Basis
 
@@ -15,7 +16,8 @@ using JSON: JSON
 using StaticArrays: SVector
 using StrictMode: @strict_exempt, @strict_policy
 using ..Errors: BasisError
-using ..IO: input_line, is_decimal_int, parse_coordinate
+using ..IO: input_line, is_decimal_int, parse_coordinate, Logger, log_print, Normal
+using ..System: Molecule, basis_element
 using ..Units: element, ascii_lowercase, symbol_number
 
 include("geometry.jl")
@@ -24,6 +26,7 @@ include("gbs.jl")
 include("ecp_json.jl")
 include("names.jl")
 include("search.jl")
+include("build.jl")
 
 export ncart, cartesian_component, primitive_norm, contraction_renorm
 export Primitive, ShellSpec, ECPChannel, ECPPotential, ElementBasis, Shell, BasisSet
@@ -31,6 +34,7 @@ export ao_range, shell_pairs, ShellPairs
 export parse_gbs, read_element_basis
 export parse_ecp_json, read_ecp_json
 export normalize_basis_name, candidate_stems, basis_search_paths, locate_basis_file
+export build_basis
 
 # Storing an `ECPPotential` in the field `ecp::Union{Nothing,ECPPotential{T}}` allocates (48 bytes
 # per construction in Float64 and Float32, measured); given `nothing`, and for the other type
@@ -71,6 +75,11 @@ export normalize_basis_name, candidate_stems, basis_search_paths, locate_basis_f
 @strict_exempt :noalloc :noboxing types = (AbstractString,) locate_basis_file reason = "entry point: basis file lookup; Base's abspath (through normpath) and the default basis_search_paths() index a tuple at run time (tuple.jl:33), which boxes"
 @strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, typeof(locate_basis_file), AbstractString) locate_basis_file reason = "entry point: basis file lookup; Base's abspath (through normpath) indexes a tuple at run time (tuple.jl:33), which boxes"
 @strict_exempt :noalloc _comma_list reason = "entry point: basis file lookup (called by locate_basis_file)"
+@strict_exempt :noalloc :noboxing types = (Molecule, AbstractString) build_basis reason = "entry point: builds the molecular basis from a basis name; the default basis_search_paths() (Base's pkgdir) and locate_basis_file (Base's abspath) index a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, Union{Nothing, Logger}, typeof(build_basis), Molecule, AbstractString) build_basis reason = "entry point: builds the molecular basis from a basis name; locate_basis_file (Base's abspath) indexes a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc :noboxing types = (AbstractVector{<:AbstractString}, Union{Nothing, Logger}, typeof(build_basis), Molecule, AbstractString, Type{<:AbstractFloat}) build_basis reason = "entry point: builds the molecular basis from a basis name; locate_basis_file (Base's abspath) indexes a tuple at run time (tuple.jl:33), which boxes"
+@strict_exempt :noalloc _build_basis reason = "entry point: builds the molecular basis"
+@strict_exempt :noalloc _place_shell reason = "entry point: builds the molecular basis (called by _build_basis)"
 
 # Last statement: the policy checks the methods defined above it.
 @strict_policy (:typestable, :noalloc)

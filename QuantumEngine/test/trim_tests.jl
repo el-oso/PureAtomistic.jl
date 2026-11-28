@@ -280,3 +280,20 @@ end
         locate_kw(String, Vector{String}),
     )
 end
+
+# The molecular basis through its default method and keyword call in Float64, and the typed method
+# in Float32 through its keyword call.
+@testitem "TrimCheck: build_basis" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            using QuantumEngine: Atom, Molecule
+            build_kw(mol, name, paths) = QuantumEngine.build_basis(mol, name; paths)
+            build_f32(mol, name, paths) = QuantumEngine.build_basis(mol, name, Float32; paths)
+        end,
+        QuantumEngine.build_basis(Molecule{Float64, Vector{Atom{Float64}}}, String),
+        build_kw(Molecule{Float64, Vector{Atom{Float64}}}, String, Vector{String}),
+        build_f32(Molecule{Float64, Vector{Atom{Float64}}}, String, Vector{String}),
+    )
+end

@@ -124,8 +124,16 @@ function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVec
             ArgumentError(lazy"basis: exponent $(k) of a contraction is $(Float64(x)); exponents must be finite and positive")
         )
     end
+    acc = _renorm_sum(exponents, coefficients, Int(l))
+    (acc > 0 && isfinite(acc)) || throw(ArgumentError("basis: the contraction has zero or negative norm"))
+    return one(acc) / sqrt(acc)
+end
+
+# The sum `Σ_ij c_i c_j t_ij` of `contraction_renorm`, without its checks: the caller has checked
+# the axes and the exponents, and checks the sum. The result has type
+# `float(promote_type(eltype(exponents), eltype(coefficients)))`.
+function _renorm_sum(exponents::AbstractVector, coefficients::AbstractVector, L::Int)
     T = float(promote_type(eltype(exponents), eltype(coefficients)))
-    L = Int(l)
     acc = zero(T)
     for i in eachindex(exponents), j in eachindex(exponents)
         ai = T(exponents[i])
@@ -139,6 +147,5 @@ function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVec
         t *= sqrt(b)
         acc += T(coefficients[i]) * T(coefficients[j]) * t
     end
-    (acc > 0 && isfinite(acc)) || throw(ArgumentError("basis: the contraction has zero or negative norm"))
-    return one(T) / sqrt(acc)
+    return acc
 end
