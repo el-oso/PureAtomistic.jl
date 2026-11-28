@@ -15,7 +15,7 @@ using StaticArrays: SVector
 # the Molden writer and reader of `IO`; then the input types and the word lookups of `Input`; then
 # the `.inp` parser; then the structured readers and the YAML extension; then `parse_input` on a
 # file of each format; then the shell geometry and the basis types of `Basis` in Float64 and
-# Float32.
+# Float32; then the `.gbs` reader.
 function run_workload()
     io = IOBuffer()
     sub = SubString("ab", 1, 1)
@@ -492,5 +492,43 @@ function run_workload()
         eltype(pairs)
         foreach(identity, pairs)
     end
+    # The `.gbs` reader on an `IOBuffer` (a file with S, SP and D shells and an ECP section) and on a
+    # temporary file, through the default and the `source` keyword; then one input of each reader
+    # error, rendered.
+    gbs = "****\n! c\nH 0\nS 2 1.00\n 0.34D+01 0.15D+00\n 0.62 0.53\n****\nNA 0\nS 1 1.00\n 0.5 1.0\n" *
+        "SP 1 1.00\n 0.5 0.3 0.7\nD 1 1.00\n 0.8 1.0\n****\nNA 0\nNA-ECP 1 10\np potential\n1\n" *
+        "1 175.5 -10.0\ns-p potential\n1\n0 243.4 3.0\n"
+    B.parse_gbs(IOBuffer(gbs))
+    B.parse_gbs(IOBuffer(gbs); source = "w.gbs")
+    gdir = mktempdir()
+    gpath = joinpath(gdir, "w.gbs")
+    write(gpath, gbs)
+    B.read_element_basis(gpath, "Na")
+    ecp_head = "NA 0\nNA-ECP 1 10\n"
+    for bad in (
+            "Xx 0\n", "H 0\nQ 1\n", "H 0\nS\n", "H 0\nS x\n", "H 0\nS 1 1.2\n", "H 0\nS 1\n 1.0\n",
+            "H 0\nS 1\n x 1\n", "H 0\nS 2\n 1 1\n****\n", "H 0\nS 1\n -1 1\n", "H 0\nS 1\n 1 NaN\n",
+            "C 0\nSP 1\n 1 1 Inf\n", "H 0\nS 1\n 1 0\n****\n", "S 3 1.00\n", "C 0\n****\n", "C 0\n",
+            "C 0\nS 1\n 1 1\nN 0\n", "C 0\nS 1\n 1 1\n****\nC 0\nS 1\n 1 1\n****\n", "C 0\nP 2\n 1 1\n",
+            "NA 0\nMG-ECP 1 10\n", "NA 0\nNA-ECP 7 10\n", ecp_head * "x\n", ecp_head * "p potential\nx\n",
+            ecp_head * "p potential\n1\n1 1\n", ecp_head * "p potential\n1\n1.5 1 1\n",
+            ecp_head * "p potential\n1\n1 x 1\n", ecp_head * "p potential\n2\n1 1 1\n****\n",
+            ecp_head * "p potential\n2\n1 1 1\n", ecp_head * "p potential\n1\n1 1 1\n****\n",
+            ecp_head * "p potential\n1\n1 1 1\n", ecp_head * "p potential\n", ecp_head * "p potential\n1\n1 1 1\n" * ecp_head,
+        )
+        try
+            B.parse_gbs(IOBuffer(bad); source = "w.gbs")
+        catch e
+            e isa BasisError || rethrow()
+            showerror(io, e)
+        end
+    end
+    try
+        B.read_element_basis(gpath, "Xe")
+    catch e
+        e isa BasisError || rethrow()
+        showerror(io, e)
+    end
+    rm(gdir; recursive = true)
     return take!(io)
 end

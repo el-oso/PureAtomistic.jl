@@ -244,3 +244,18 @@ end
         QuantumEngine.Basis.shell_pairs(QuantumEngine.Basis.BasisSet{Float32}),
     )
 end
+
+# The `.gbs` reader on an `IOBuffer` and on an `IOStream`, through its keyword call, and the element
+# lookup of a basis file by path.
+@testitem "TrimCheck: gbs reader" tags = [:checks] begin
+    using TrimCheck
+    @validate(
+        init = begin
+            using QuantumEngine
+            parse_gbs_kw(io, source) = QuantumEngine.Basis.parse_gbs(io; source)
+        end,
+        parse_gbs_kw(IOBuffer, String),
+        parse_gbs_kw(IOStream, String),
+        QuantumEngine.Basis.read_element_basis(String, String),
+    )
+end
