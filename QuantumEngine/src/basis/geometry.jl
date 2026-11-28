@@ -107,8 +107,9 @@ coefficients `c` at total angular momentum `l`. The result has type
 type.
 
 Throws a `DimensionMismatch` when the axes differ, and an `ArgumentError` for empty vectors, a
-negative `l`, an exponent that is not finite and positive, and a sum that is not positive and
-finite.
+negative `l`, an exponent that is not finite and positive, an exponent whose square in the result
+type is below its `floatmin` (where the product `α_i α_j` of the base underflows), and a sum that
+is not positive and finite.
 """
 function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVector, l::Integer)
     axes(exponents) == axes(coefficients) || throw(
@@ -118,10 +119,15 @@ function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVec
     )
     isempty(exponents) && throw(ArgumentError("basis: a contraction needs at least one primitive"))
     _check_l(l)
+    T = float(promote_type(eltype(exponents), eltype(coefficients)))
     for k in eachindex(exponents)
         x = exponents[k]
         (isfinite(x) && x > 0) || throw(
             ArgumentError(lazy"basis: exponent $(k) of a contraction is $(Float64(x)); exponents must be finite and positive")
+        )
+        y = T(x)
+        y * y >= floatmin(T) || throw(
+            ArgumentError(lazy"basis: exponent $(k) of a contraction is $(Float64(x)), whose square is below floatmin($(nameof(T)))")
         )
     end
     acc = _renorm_sum(exponents, coefficients, Int(l))
@@ -130,7 +136,10 @@ function contraction_renorm(exponents::AbstractVector, coefficients::AbstractVec
 end
 
 # The sum `Σ_ij c_i c_j t_ij` of `contraction_renorm`, without its checks: the caller has checked
-# the axes and the exponents, and checks the sum. The result has type
+# the axes and the exponents, including that each exponent squared is at least `floatmin(T)`, and
+# checks the sum. Below `floatmin(T)` the product `α_i α_j` of the base loses precision or
+# underflows to 0, even where `b` is exactly 1; since rounding is monotone, the smallest product is
+# the smallest exponent squared. The result has type
 # `float(promote_type(eltype(exponents), eltype(coefficients)))`.
 function _renorm_sum(exponents::AbstractVector, coefficients::AbstractVector, L::Int)
     T = float(promote_type(eltype(exponents), eltype(coefficients)))

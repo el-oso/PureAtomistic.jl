@@ -269,6 +269,8 @@ end
         @test_throws "basis: t.gbs:2: the norm of the S shell of H is not a positive finite Float64" P("H 0\nS 1 1.00\n $(row)\n****\n")
     end
     @test_throws "basis: t.gbs:2: the norm of the P shell of C is not a positive finite Float64" P("C 0\nP 2 1.00\n 1.0 1.0\n 1.0 -1.0\n****\n")
+    # An exponent whose products with the others underflow in Float64.
+    @test_throws "basis: t.gbs:2: the norm of the S shell of H is not a positive finite Float64" P("H 0\nS 2 1.00\n 1e-200 1.0\n 1.0 1.0\n****\n")
     @test_throws "basis: t.gbs:1: expected an element header \"<symbol> 0\", got \"S 3 1.00\"" P("S 3 1.00\n 1.0 1.0\n")
     @test_throws "basis: t.gbs:6: expected an element header \"<symbol> 0\", got \"1.0 1.0\"" P("H 0\nS 1 1.00\n 1.0 1.0\n****\n\n1.0 1.0\n")
     @test_throws "basis: t.gbs:1: the basis block of C has no shells" P("C 0\n****\n")

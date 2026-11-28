@@ -93,7 +93,8 @@ function _place_shell(::Type{T}, file::String, sym::String, spec::ShellSpec{Floa
         e[k] = x
         c[k] = T(prims[k].coefficient)
     end
-    s = _renorm_sum(e, c, l)
+    # `_renorm_sum` needs each exponent squared to be at least `floatmin(T)`; see its comment.
+    s = all(x -> x * x >= floatmin(T), e) ? _renorm_sum(e, c, l) : zero(T)
     (s > 0 && isfinite(s)) || throw(
         BasisError(lazy"$(file):$(spec.line): the norm of the $(SHELL_LETTERS[l + 1]) shell of $(sym) is not a positive finite $(nameof(T))")
     )

@@ -113,6 +113,15 @@ end
     @test_throws "basis: the contraction has zero or negative norm" contraction_renorm([0.8], [0.0], 0)
     @test_throws "basis: the contraction has zero or negative norm" contraction_renorm([0.8], [NaN], 0)
     @test_throws "basis: l must be ≥ 0, got -1" contraction_renorm([0.8], [0.5], -1)
+    # An exponent whose square is below floatmin: the base `b` would underflow to 0, even on the
+    # diagonal, where it is exactly 1.
+    @test_throws "basis: exponent 1 of a contraction is 1.0e-200, whose square is below floatmin(Float64)" contraction_renorm(
+        [1.0e-200, 1.0], [1.0, 1.0], 0
+    )
+    @test_throws "basis: exponent 1 of a contraction is 1.0000000031710769e-30, whose square is below floatmin(Float32)" contraction_renorm(
+        Float32[1.0f-30, 1], Float32[1, 1], 0
+    )
+    @test_throws ArgumentError contraction_renorm([1.0e-200, 1.0], [1.0, 1.0], 0)
     for α in (-1.0, 0.0, Inf, NaN)
         @test_throws lazy"basis: exponent 2 of a contraction is $(α); exponents must be finite and positive" contraction_renorm(
             [1.0, α], [1.0, 1.0], 0

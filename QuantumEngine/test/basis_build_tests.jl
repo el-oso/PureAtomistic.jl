@@ -197,6 +197,7 @@ end
     write(joinpath(big, "e-tiny.gbs"), "H 0\nS 1 1.00\n 1e-50 1.0\n****\n")
     write(joinpath(big, "c-big.gbs"), "H 0\nS 2 1.00\n 1.0 1e20\n 2.0 1e20\n****\n")
     write(joinpath(big, "c-tiny.gbs"), "H 0\nP 1 1.00\n 1.0 1e-50\n****\n")
+    write(joinpath(big, "e-small.gbs"), "H 0\nS 2 1.00\n 1e-20 1.0\n 1.0 1.0\n****\n")
     h = BuildData.single("H")
     @test build_basis(h, "e-big"; paths = [big]).nao == 1
     @test_throws "basis: $(joinpath(big, "e-big.gbs")):2: exponent 1.0e39 of the S shell of H is not finite and positive in Float32" build_basis(
@@ -211,6 +212,11 @@ end
     @test_throws "c-tiny.gbs:2: the norm of the P shell of H is not a positive finite Float32" build_basis(
         h, "c-tiny", Float32; paths = [big]
     )
+    # 1e-20 is a normal Float32, but its square is not.
+    @test_throws "e-small.gbs:2: the norm of the S shell of H is not a positive finite Float32" build_basis(
+        h, "e-small", Float32; paths = [big]
+    )
+    @test build_basis(h, "e-small"; paths = [big]).nao == 1
     @test build_basis(h, "c-big"; paths = [big]).nao == 1
 end
 

@@ -123,10 +123,12 @@ end
 
 # The shell `l` of element `sym` with exponents `e` and coefficients `c`, checked once with
 # `contraction_renorm`, which throws an `ArgumentError` when the norm sum is not positive and
-# finite; that is a `BasisError` of the shell's line `n`. Its other `ArgumentError`s cannot occur
-# here: the reader has checked the exponents and the count. The sum is zero when every coefficient
-# is; otherwise it overflowed, underflowed or cancelled in Float64 (`1e300 1.0`, `1e-300 1.0`,
-# `1.0 1e200`, or one exponent repeated with opposite coefficients).
+# finite or an exponent squared is below `floatmin(Float64)`; that is a `BasisError` of the shell's
+# line `n`. Its other `ArgumentError`s cannot occur here: the reader has checked the exponents and
+# the count. The sum is zero when every coefficient is; otherwise it overflowed, underflowed or
+# cancelled in Float64 (`1e300 1.0`, `1.0 1e200`, or one exponent repeated with opposite
+# coefficients), or an exponent is too small for its products with the others (`1e-300 1.0`, or
+# `1e-200 1.0` beside `1.0 1.0`).
 function _gbs_shell(src::String, n::Int, sym::String, l::Int, e::Vector{Float64}, c::Vector{Float64})
     try
         contraction_renorm(e, c, l)
